@@ -1,0 +1,287 @@
+{
+  "$schema": "../node_modules/@debuffjp/cli/schema/scenario.schema.json",
+  "page": "/?start=hollow",
+  "steps": [
+    {
+      "set": {
+        "enemies.slimeSpeed": 0,
+        "enemies.mothSpeed": 0,
+        "enemies.wardenSpeed": 0,
+        "enemies.fireEvery": 6,
+        "enemies.knockback": 0
+      }
+    },
+    {
+      "wait": 10
+    },
+    {
+      "expect": {
+        "state.screen": {
+          "eq": {
+            "col": 3,
+            "row": 1
+          }
+        },
+        "state.player.keys": {
+          "eq": 0
+        },
+        "state.doorOpen": {
+          "eq": false
+        }
+      }
+    },
+    {
+      "press": "ArrowUp"
+    },
+    {
+      "wait": 60
+    },
+    {
+      "expect": {
+        "state.player.keys": {
+          "eq": 1
+        }
+      }
+    },
+    {
+      "wait": 80
+    },
+    {
+      "expect": {
+        "state.doorOpen": {
+          "eq": true
+        },
+        "state.player.keys": {
+          "eq": 0
+        }
+      }
+    },
+    {
+      "wait": 60
+    },
+    {
+      "release": "ArrowUp"
+    },
+    {
+      "wait": 10
+    },
+    {
+      "expect": {
+        "state.screen": {
+          "eq": {
+            "col": 3,
+            "row": 0
+          }
+        },
+        "state.enemies.length": {
+          "eq": 3
+        }
+      }
+    },
+    {
+      "capture": "warden-room"
+    },
+    {
+      "press": "ArrowUp"
+    },
+    {
+      "wait": 5
+    },
+    {
+      "release": "ArrowUp"
+    },
+    {
+      "press": "KeyZ"
+    },
+    {
+      "wait": 4
+    },
+    {
+      "release": "KeyZ"
+    },
+    {
+      "wait": 20
+    },
+    {
+      "press": "KeyZ"
+    },
+    {
+      "wait": 4
+    },
+    {
+      "release": "KeyZ"
+    },
+    {
+      "wait": 20
+    },
+    {
+      "press": "KeyZ"
+    },
+    {
+      "wait": 4
+    },
+    {
+      "release": "KeyZ"
+    },
+    {
+      "wait": 20
+    },
+    {
+      "press": "KeyZ"
+    },
+    {
+      "wait": 4
+    },
+    {
+      "release": "KeyZ"
+    },
+    {
+      "wait": 20
+    },
+    {
+      "press": "KeyZ"
+    },
+    {
+      "wait": 4
+    },
+    {
+      "release": "KeyZ"
+    },
+    {
+      "wait": 20
+    },
+    {
+      "press": "KeyZ"
+    },
+    {
+      "wait": 4
+    },
+    {
+      "release": "KeyZ"
+    },
+    {
+      "wait": 20
+    },
+    {
+      "press": "KeyZ"
+    },
+    {
+      "wait": 4
+    },
+    {
+      "release": "KeyZ"
+    },
+    {
+      "wait": 20
+    },
+    {
+      "press": "KeyZ"
+    },
+    {
+      "wait": 4
+    },
+    {
+      "release": "KeyZ"
+    },
+    {
+      "wait": 20,
+      "expect": {
+        "state.enemies": {
+          "eq": []
+        },
+        "state.player": {
+          "eq": 0
+        }
+      }
+    },
+    {
+      "press": "KeyZ"
+    },
+    {
+      "wait": 4
+    },
+    {
+      "release": "KeyZ"
+    },
+    {
+      "wait": 20
+    },
+    {
+      "press": "KeyZ"
+    },
+    {
+      "wait": 4
+    },
+    {
+      "release": "KeyZ"
+    },
+    {
+      "wait": 20
+    },
+    {
+      "press": "KeyZ"
+    },
+    {
+      "wait": 4
+    },
+    {
+      "release": "KeyZ"
+    },
+    {
+      "wait": 20
+    },
+    {
+      "press": "KeyZ"
+    },
+    {
+      "wait": 4
+    },
+    {
+      "release": "KeyZ"
+    },
+    {
+      "wait": 20
+    },
+    {
+      "press": "KeyZ"
+    },
+    {
+      "wait": 4
+    },
+    {
+      "release": "KeyZ"
+    },
+    {
+      "wait": 20
+    },
+    {
+      "expect": {
+        "state.wardenDown": {
+          "eq": true
+        },
+        "state.state": {
+          "eq": "play"
+        }
+      }
+    },
+    {
+      "press": "ArrowUp"
+    },
+    {
+      "wait": 40
+    },
+    {
+      "release": "ArrowUp"
+    },
+    {
+      "expect": {
+        "state.state": {
+          "eq": "won"
+        }
+      }
+    },
+    {
+      "capture": "won"
+    }
+  ]
+}

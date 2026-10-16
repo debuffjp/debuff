@@ -1,0 +1,5 @@
+{
+  "mcpServers": {
+    "debuff": { "command": "npx", "args": ["-y", "@debuffjp/mcp"] }
+  }
+}

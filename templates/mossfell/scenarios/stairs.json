@@ -1,0 +1,22 @@
+{
+  "$schema": "../node_modules/@debuffjp/cli/schema/scenario.schema.json",
+  "page": "/?start=hollow",
+  "steps": [
+    { "set": { "enemies.slimeSpeed": 0, "enemies.mothSpeed": 0 } },
+    { "wait": 10 },
+    { "press": "ArrowLeft" },
+    { "wait": 90 },
+    { "expect": { "state.screen": { "eq": { "col": 2, "row": 0 } } } },
+    { "wait": 90 },
+    { "release": "ArrowLeft" },
+    { "expect": { "state.screen": { "eq": { "col": 2, "row": 0 } } } },
+    { "press": "ArrowLeft" },
+    { "wait": 20 },
+    { "release": "ArrowLeft" },
+    { "wait": 2 },
+    { "press": "ArrowRight" },
+    { "wait": 60 },
+    { "release": "ArrowRight" },
+    { "expect": { "state.screen": { "eq": { "col": 3, "row": 1 } } } }
+  ]
+}
