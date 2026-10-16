@@ -21,14 +21,14 @@ npm run dev
 
 | Package | What it does |
 | --- | --- |
-| [`@debuff/core`](../packages/core) | Game loop, fixed-step clock, seeded RNG, scenes, camera, sprites, params, storage, frame stats |
-| [`@debuff/input`](../packages/input) | Keyboard and pointer/touch with per-step edges and programmatic input |
-| [`@debuff/assets`](../packages/assets) | Manifest-driven loader with preload groups and actionable errors |
-| [`@debuff/audio`](../packages/audio) | Web Audio buses, autoplay unlock, parametric synth |
-| [`@debuff/juice`](../packages/juice) | Tweens, easing, pooled particles, trails, squash-and-stretch |
-| [`@debuff/dev`](../packages/dev) | Dev-only inspection hooks (`window.__DEBUFF_DEV__`), stripped from production |
-| [`@debuff/cli`](../tooling/cli) | `debuff dev · build · assets · scenario · inspect · report` |
-| [`create-debuff`](../tooling/create-debuff) | `npm create debuff` scaffolder |
+| [`@debuff/core`](./packages/core) | Game loop, fixed-step clock, seeded RNG, scenes, camera, sprites, params, storage, frame stats |
+| [`@debuff/input`](./packages/input) | Keyboard and pointer/touch with per-step edges and programmatic input |
+| [`@debuff/assets`](./packages/assets) | Manifest-driven loader with preload groups and actionable errors |
+| [`@debuff/audio`](./packages/audio) | Web Audio buses, autoplay unlock, parametric synth |
+| [`@debuff/juice`](./packages/juice) | Tweens, easing, pooled particles, trails, squash-and-stretch |
+| [`@debuff/dev`](./packages/dev) | Dev-only inspection hooks (`window.__DEBUFF_DEV__`), stripped from production |
+| [`@debuff/cli`](./tooling/cli) | `debuff dev · build · assets · scenario · inspect · report` |
+| [`create-debuff`](./tooling/create-debuff) | `npm create debuff` scaffolder |
 
 ## CLI
 
@@ -54,7 +54,7 @@ docs/        architecture, roadmap, decisions (docs/adr)
 
 ## Contributing
 
-See [CONTRIBUTING.md](../CONTRIBUTING.md). Agents should read [AGENTS.md](../AGENTS.md) first.
+See [CONTRIBUTING.md](./CONTRIBUTING.md). Agents should read [AGENTS.md](./AGENTS.md) first.
 
 ## License
 
