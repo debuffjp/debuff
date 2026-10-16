@@ -1,8 +1,17 @@
 {
   "files": [],
   "references": [
-    { "path": "packages/core" },
-    { "path": "packages/input" },
-    { "path": "examples/sandbox" }
+    {
+      "path": "packages/core"
+    },
+    {
+      "path": "packages/input"
+    },
+    {
+      "path": "packages/assets"
+    },
+    {
+      "path": "examples/sandbox"
+    }
   ]
 }
