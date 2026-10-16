@@ -24,6 +24,8 @@ export type TextureSource = HTMLImageElement | HTMLCanvasElement | OffscreenCanv
 export interface Backend {
   readonly kind: "webgl2" | "2d";
   readonly raw: RawContext;
+  /** GPU draw calls submitted so far this frame, where the backend batches (WebGL2). */
+  readonly drawCalls?: number;
   /** Begin a frame: clear to `clear` (0xRRGGBBAA) at the given logical size and backing scale. */
   begin(clear: number, width: number, height: number, scale: number): void;
   /**

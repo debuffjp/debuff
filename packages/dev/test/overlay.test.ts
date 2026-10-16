@@ -20,8 +20,8 @@ const panel = () => document.querySelector<HTMLElement>("[data-debuff-overlay]")
 describe("devOverlay", () => {
   it("renders controls for every param group and edits params", () => {
     const game = makeGame().use(devOverlay());
-    const slider = panel()?.querySelector<HTMLInputElement>('input[type="range"]');
-    const toggle = panel()?.querySelector<HTMLInputElement>('input[type="checkbox"]');
+    const slider = panel()?.querySelector<HTMLInputElement>('input[data-param="player.speed"]');
+    const toggle = panel()?.querySelector<HTMLInputElement>('input[data-param="player.ghost"]');
     if (!slider || !toggle) throw new Error("controls missing");
     expect(slider.max).toBe("400");
     slider.value = "250";
@@ -36,7 +36,7 @@ describe("devOverlay", () => {
   it("reflects changes made elsewhere", () => {
     const game = makeGame().use(devOverlay());
     game.params.group("player")?.set("speed", 42);
-    expect(panel()?.querySelector<HTMLInputElement>('input[type="range"]')?.value).toBe("42");
+    expect(panel()?.querySelector<HTMLInputElement>('input[data-param="player.speed"]')?.value).toBe("42");
     game.dispose();
   });
 
@@ -44,8 +44,27 @@ describe("devOverlay", () => {
     const game = makeGame().use(devOverlay({ toggleKey: "F2" }));
     dispatchEvent(new KeyboardEvent("keydown", { code: "F2" }));
     expect(panel()?.hidden).toBe(true);
-    expect(game.inspect.snapshot()["dev-overlay"]).toEqual({ open: false });
+    expect(game.inspect.snapshot()["dev-overlay"]).toMatchObject({ open: false });
     game.dispose();
     expect(panel()).toBeNull();
+  });
+});
+
+describe("devOverlay controls", () => {
+  it("logs a slider change as one undoable activity and undoes it", () => {
+    const game = makeGame().use(devOverlay());
+    const slider = panel()?.querySelector<HTMLInputElement>('input[data-param="player.speed"]');
+    if (!slider) throw new Error("slider missing");
+    slider.dispatchEvent(new Event("pointerdown"));
+    for (const v of ["150", "200", "250"]) {
+      slider.value = v;
+      slider.dispatchEvent(new Event("input"));
+    }
+    slider.dispatchEvent(new Event("change"));
+    const undo = [...(panel()?.querySelectorAll("button") ?? [])].find((b) => b.textContent === "undo");
+    expect(undo).toBeTruthy();
+    undo?.click();
+    expect(game.params.group("player")?.get("speed")).toBe(100);
+    game.dispose();
   });
 });
