@@ -413,13 +413,6 @@ const play: Scene = {
 
   enter() {
     reset();
-    if (import.meta.env.DEV) {
-      // Dev-only shortcut for scenarios: ?start=hollow begins at the bottom of the hollow.
-      if (new URLSearchParams(location.search).get("start") === "hollow") {
-        placePlayer(arriveAt);
-        titleTime = 0;
-      }
-    }
   },
 
   update(dt) {
@@ -610,4 +603,11 @@ game.add(play).go("play");
 game.start();
 
 // Dev-only: scenario/agent hooks and the overlay (press `). Stripped from production builds.
-if (import.meta.env.DEV) game.use(devTools({ input })).use(devOverlay());
+if (import.meta.env.DEV) {
+  // Commands let scenarios and agents jump ahead: { "command": "warp", "args": ["hollow"] }.
+  const warp = (to: "hollow" | "fell") => {
+    placePlayer(to === "hollow" ? arriveAt : spawnAt);
+    titleTime = 0;
+  };
+  game.use(devTools({ input, commands: { warp } })).use(devOverlay());
+}
