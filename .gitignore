@@ -16,3 +16,4 @@ Thumbs.db
 *.log
 dist-types/
 **/public/assets/manifest.json
+.debuff/
