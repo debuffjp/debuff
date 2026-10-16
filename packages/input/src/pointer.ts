@@ -34,6 +34,8 @@ export class Pointer {
   private readonly onMove = (e: PointerEvent) => {
     if (this.touches.has(e.pointerId) || e.isPrimary) this.track(e);
   };
+  // Right-click shouldn't open the browser menu over a game.
+  private readonly onContextMenu = (e: Event) => e.preventDefault();
   private readonly onUp = (e: PointerEvent) => {
     this.touches.delete(e.pointerId);
     if (e.isPrimary) this.release();
@@ -47,6 +49,7 @@ export class Pointer {
     element.addEventListener("pointermove", this.onMove);
     element.addEventListener("pointerup", this.onUp);
     element.addEventListener("pointercancel", this.onUp);
+    element.addEventListener("contextmenu", this.onContextMenu);
   }
 
   /** Simulate pressing the primary pointer at logical coordinates. */
@@ -82,6 +85,7 @@ export class Pointer {
     this.element.removeEventListener("pointermove", this.onMove);
     this.element.removeEventListener("pointerup", this.onUp);
     this.element.removeEventListener("pointercancel", this.onUp);
+    this.element.removeEventListener("contextmenu", this.onContextMenu);
   }
 
   private track(e: PointerEvent): TouchPoint {

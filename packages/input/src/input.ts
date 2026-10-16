@@ -24,6 +24,8 @@ export interface InputOptions<A extends string> {
   bindings: Bindings<A>;
   /** Element receiving keyboard events. Default `window`. */
   keyboardTarget?: Window | HTMLElement;
+  /** Block the browser default for bound keys (page scrolling in embeds). Default true. */
+  captureKeys?: boolean;
 }
 
 /**
@@ -49,6 +51,11 @@ export class Input<A extends string> {
   constructor(host: InputHost, options: InputOptions<A>) {
     this.bindings = options.bindings;
     this.keys = new Keyboard(options.keyboardTarget ?? window);
+    if (options.captureKeys ?? true) {
+      for (const list of Object.values(options.bindings) as Binding[][]) {
+        for (const b of list) if (b !== "Pointer" && !b.startsWith("Pad")) this.keys.captured.add(b);
+      }
+    }
     this.pointer = new Pointer(host.canvas, host.toLogical);
     this.unhook = host.hooks.afterUpdate(() => this.endStep());
   }

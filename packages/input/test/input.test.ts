@@ -109,3 +109,33 @@ describe("Gamepads", () => {
     expect(g.connected).toBe(false);
   });
 });
+
+describe("embedding", () => {
+  it("blocks scrolling for bound keys, except while typing in a field", () => {
+    const input = new Input(host(), { bindings: { jump: ["Space"], left: ["ArrowLeft", "PadLeft"] } });
+    expect([...input.keys.captured].sort()).toEqual(["ArrowLeft", "Space"]);
+    const space = new KeyboardEvent("keydown", { code: "Space", cancelable: true });
+    window.dispatchEvent(space);
+    expect(space.defaultPrevented).toBe(true);
+    const field = document.createElement("input");
+    document.body.append(field);
+    const typed = new KeyboardEvent("keydown", { code: "Space", cancelable: true, bubbles: true });
+    field.dispatchEvent(typed);
+    expect(typed.defaultPrevented).toBe(false);
+    const unbound = new KeyboardEvent("keydown", { code: "KeyQ", cancelable: true });
+    window.dispatchEvent(unbound);
+    expect(unbound.defaultPrevented).toBe(false);
+    field.remove();
+    input.dispose();
+  });
+
+  it("can opt out, and suppresses the canvas context menu", () => {
+    const h = host();
+    const input = new Input(h, { bindings: { jump: ["Space"] }, captureKeys: false });
+    expect(input.keys.captured.size).toBe(0);
+    const menu = new Event("contextmenu", { cancelable: true });
+    h.canvas.dispatchEvent(menu);
+    expect(menu.defaultPrevented).toBe(true);
+    input.dispose();
+  });
+});
