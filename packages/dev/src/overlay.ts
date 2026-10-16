@@ -1,4 +1,5 @@
 import type { Game, NumberParamSpec, ParamValue, Plugin } from "@debuff/core";
+import { DevSession, diagnose, type FrameSample } from "./session.js";
 
 export interface DevOverlayOptions {
   /** Key (KeyboardEvent.code) that toggles the overlay. Default "Backquote". */
@@ -10,13 +11,19 @@ export interface DevOverlayOptions {
 }
 
 const LIME = "#a3e635";
+const SKY = "#38bdf8";
+const VIOLET = "#a78bfa";
+const AMBER = "#fbbf24";
 /** Accent colours cycled across param groups, for splashes of colour. */
 const ACCENTS = ["#a3e635", "#38bdf8", "#f472b6", "#fbbf24", "#a78bfa"];
 const OVER_BUDGET = "#f87171";
-const HISTORY = 120;
+const BUDGET_MS = 1000 / 60;
+const BARS = 120;
+const BAR_W = 2;
 
 /**
- * Dev-only overlay: frame-time graph and live controls for every `game.params` group.
+ * Dev-only overlay: frame graph with a pausable frame inspector, live controls for every
+ * `game.params` group, an activity log (yours and any agent's) and notes for agents.
  * Plain DOM, no dependencies. Use inside `if (import.meta.env.DEV)`.
  */
 export function devOverlay(options: DevOverlayOptions = {}): Plugin {
@@ -30,22 +37,29 @@ export function devOverlay(options: DevOverlayOptions = {}): Plugin {
 }
 
 class Overlay {
+  private readonly session: DevSession;
   private readonly root: HTMLElement;
   private readonly graph: HTMLCanvasElement;
   private readonly label: HTMLElement;
+  private readonly agentBadge: HTMLElement;
   private readonly mascot: Buff;
+  private readonly controls: HTMLElement;
+  private readonly pauseButton: HTMLButtonElement;
+  private readonly inspector: HTMLElement;
   private readonly paramsBox: HTMLElement;
-  private readonly frameTimes = new Float32Array(HISTORY);
-  private head = 0;
-  private lastFrame = performance.now();
+  private readonly activityBox: HTMLElement;
   private readonly inputs = new Map<string, HTMLInputElement>();
   private readonly cleanups: (() => void)[] = [];
   private knownGroups = "";
+  /** Frames-ago index of the bar under the pointer or selected, or undefined. */
+  private selected: number | undefined;
+  private frameCounter = 0;
 
   constructor(
     private readonly game: Game,
     options: DevOverlayOptions,
   ) {
+    this.session = DevSession.acquire(game);
     this.root = el("div", { "data-debuff-overlay": "" });
     Object.assign(this.root.style, panelStyle(options.position ?? "top-right"));
     this.root.hidden = options.open === false;
@@ -55,24 +69,96 @@ class Overlay {
     this.mascot = new Buff();
     const title = el("strong", {}, "debuff");
     Object.assign(title.style, { color: LIME, fontSize: "12px", letterSpacing: "0.02em" });
-    this.label = el("span");
-    Object.assign(this.label.style, {
-      marginLeft: "auto",
-      padding: "1px 6px",
-      borderRadius: "999px",
-      background: `${LIME}22`,
-      color: LIME,
-      fontVariantNumeric: "tabular-nums",
-    });
-    header.append(this.mascot.root, title, this.label);
+    this.agentBadge = chip("agent", VIOLET);
+    this.agentBadge.title = "An agent is connected to this game";
+    this.agentBadge.hidden = true;
+    this.label = chip("", LIME);
+    this.label.style.marginLeft = "auto";
+    this.label.style.fontVariantNumeric = "tabular-nums";
+    header.append(this.mascot.root, title, this.agentBadge, this.label);
 
     this.graph = el("canvas") as HTMLCanvasElement;
-    this.graph.width = HISTORY * 2;
-    this.graph.height = 40;
-    Object.assign(this.graph.style, { width: "100%", height: "40px", display: "block", margin: "6px 0", imageRendering: "pixelated" });
+    this.graph.width = BARS * BAR_W;
+    this.graph.height = 44;
+    Object.assign(this.graph.style, {
+      width: "100%",
+      height: "44px",
+      display: "block",
+      margin: "6px 0 2px",
+      imageRendering: "pixelated",
+      cursor: "crosshair",
+    });
+    this.graph.addEventListener("pointermove", (e) => this.pick(e));
+    this.graph.addEventListener("pointerleave", () => {
+      if (!this.session.paused) this.selected = undefined;
+      this.drawGraph();
+    });
+    this.graph.addEventListener("click", (e) => {
+      this.pick(e);
+      if (!this.session.paused) this.session.pause("you", "to inspect a frame");
+    });
+
+    // Controls: pause/step/speed/pause-on-spike.
+    this.controls = el("div");
+    Object.assign(this.controls.style, { display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap", margin: "4px 0" });
+    this.pauseButton = button("pause", () => (this.session.paused ? this.session.resume() : this.session.pause()));
+    const step = button("step", () => this.session.step(1));
+    step.title = "Advance one fixed step";
+    const speed = el("select") as HTMLSelectElement;
+    for (const [v, t] of [
+      ["1", "1×"],
+      ["0.5", "½×"],
+      ["0.25", "¼×"],
+    ] as const) {
+      const o = el("option", { value: v }, t) as HTMLOptionElement;
+      speed.append(o);
+    }
+    Object.assign(speed.style, inputStyle());
+    speed.addEventListener("change", () => this.session.setSpeed(Number(speed.value)));
+    const spikeLabel = el("label", { title: "Pause automatically when a frame takes longer than ~2 frames" });
+    Object.assign(spikeLabel.style, { display: "flex", alignItems: "center", gap: "4px", color: "#cfd6c4" });
+    const spike = el("input", { type: "checkbox" }) as HTMLInputElement;
+    spike.style.accentColor = OVER_BUDGET;
+    spike.addEventListener("change", () => {
+      this.session.pauseOnSpikeMs = spike.checked ? BUDGET_MS * 2 : 0;
+    });
+    spikeLabel.append(spike, document.createTextNode("pause on spike"));
+    this.controls.append(this.pauseButton, step, speed, spikeLabel);
+
+    this.inspector = el("div");
+    Object.assign(this.inspector.style, {
+      minHeight: "30px",
+      margin: "2px 0 6px",
+      color: "#cfd6c4",
+      fontSize: "10.5px",
+      lineHeight: "1.45",
+    });
 
     this.paramsBox = el("div");
-    this.root.append(header, this.graph, this.paramsBox);
+
+    // Activity (yours and the agent's) and notes.
+    const activity = el("details");
+    const summary = el("summary", {}, "activity & notes");
+    Object.assign(summary.style, { cursor: "pointer", color: VIOLET, margin: "4px 0", fontWeight: "600" });
+    this.activityBox = el("div");
+    Object.assign(this.activityBox.style, { maxHeight: "120px", overflow: "auto", display: "grid", gap: "2px" });
+    const noteRow = el("div");
+    Object.assign(noteRow.style, { display: "flex", gap: "6px", marginTop: "6px" });
+    const noteInput = el("input", { type: "text", placeholder: "flag this moment for the agent…" }) as HTMLInputElement;
+    Object.assign(noteInput.style, { ...inputStyle(), flex: "1", minWidth: "0" });
+    const addNote = () => {
+      if (!noteInput.value.trim()) return;
+      this.session.note(noteInput.value.trim());
+      noteInput.value = "";
+    };
+    noteInput.addEventListener("keydown", (e) => {
+      e.stopPropagation(); // typing here must not drive the game
+      if (e.key === "Enter") addNote();
+    });
+    noteRow.append(noteInput, button("flag", addNote));
+    activity.append(summary, this.activityBox, noteRow);
+
+    this.root.append(header, this.graph, this.controls, this.inspector, this.paramsBox, activity);
     document.body.append(this.root);
 
     const key = options.toggleKey ?? "Backquote";
@@ -85,51 +171,135 @@ class Overlay {
     this.cleanups.push(() => removeEventListener("keydown", onKey));
     this.cleanups.push(game.hooks.afterRender(() => this.frame()));
     this.cleanups.push(game.params.onChange((c) => this.sync(`${c.group}.${c.key}`, c.value)));
-    this.cleanups.push(game.inspect.register("dev-overlay", () => ({ open: !this.root.hidden })));
+    this.cleanups.push(game.inspect.register("dev-overlay", () => ({ open: !this.root.hidden, paused: this.session.paused })));
+    this.cleanups.push(this.session.subscribe(() => this.refreshSession()));
     this.buildParams();
+    this.refreshSession();
   }
 
   dispose(): void {
     for (const c of this.cleanups) c();
     this.root.remove();
+    this.session.release();
   }
 
   private frame(): void {
-    const now = performance.now();
-    this.frameTimes[this.head] = now - this.lastFrame;
-    this.head = (this.head + 1) % HISTORY;
-    this.lastFrame = now;
     if (this.root.hidden) return;
     // Groups can be defined after the overlay installs; rebuild controls when they change.
     const groups = Object.keys(this.game.params.describe()).join(",");
     if (groups !== this.knownGroups) this.buildParams();
-    if (this.head % 10 === 0) {
+    if (++this.frameCounter % 10 === 0 || this.session.paused) {
       const s = this.game.stats.summary();
-      const slow = s.fps > 0 && s.fps < 55;
-      this.label.textContent = `${s.fps} fps · ${s.workMs.toFixed(1)} ms`;
+      const slow = s.fps > 0 && s.fps < 55 && !this.session.paused;
+      this.label.textContent = this.session.paused ? `paused · tick ${this.game.clock.tick}` : `${s.fps} fps · ${s.workMs.toFixed(1)} ms`;
       this.label.title = `work p95 ${s.workP95Ms.toFixed(1)} ms`;
-      this.label.style.color = slow ? OVER_BUDGET : LIME;
-      this.label.style.background = `${slow ? OVER_BUDGET : LIME}22`;
-      // buff reacts to the last frame: worried on a spike, calm otherwise.
-      this.mascot.mood((this.frameTimes[(this.head + HISTORY - 1) % HISTORY] ?? 0) > 17.5 || slow ? "worried" : "calm");
+      const color = this.session.paused ? AMBER : slow ? OVER_BUDGET : LIME;
+      this.label.style.color = color;
+      this.label.style.background = `${color}22`;
+      const last = this.session.recorder.get(0);
+      this.mascot.mood((last && last.intervalMs > BUDGET_MS * 1.05) || slow ? "worried" : "calm");
+      this.agentBadge.hidden = !this.session.agentConnected;
     }
     this.drawGraph();
+    if (this.selected === undefined) this.showFrame(undefined);
   }
 
+  /** Stacked bars: update (lime) + render (sky); the rest of the interval is shown dim. Red cap = over budget. */
   private drawGraph(): void {
     const ctx = this.graph.getContext("2d");
     if (!ctx) return;
     const { width: w, height: h } = this.graph;
-    const scale = h / 33.3; // 0–33 ms range; the line marks 16.7 ms (60 fps)
+    const scale = h / (BUDGET_MS * 2);
     ctx.clearRect(0, 0, w, h);
     ctx.fillStyle = "rgba(255,255,255,0.15)";
-    ctx.fillRect(0, h - 16.7 * scale, w, 1);
-    for (let i = 0; i < HISTORY; i++) {
-      const ms = this.frameTimes[(this.head + i) % HISTORY] ?? 0;
-      const bar = Math.min(h, ms * scale);
-      ctx.fillStyle = ms > 17.5 ? OVER_BUDGET : LIME;
-      ctx.fillRect(i * 2, h - bar, 2, bar);
+    ctx.fillRect(0, Math.round(h - BUDGET_MS * scale), w, 1);
+    const rec = this.session.recorder;
+    for (let i = 0; i < BARS; i++) {
+      const s = rec.get(BARS - 1 - i);
+      if (!s) continue;
+      const x = i * BAR_W;
+      const total = Math.min(h, s.intervalMs * scale);
+      const upd = Math.min(h, s.updateMs * scale);
+      const ren = Math.min(h - upd, s.renderMs * scale);
+      ctx.fillStyle = "rgba(163,230,53,0.18)";
+      ctx.fillRect(x, h - total, BAR_W, total);
+      ctx.fillStyle = LIME;
+      ctx.fillRect(x, h - upd, BAR_W, upd);
+      ctx.fillStyle = SKY;
+      ctx.fillRect(x, h - upd - ren, BAR_W, ren);
+      if (s.intervalMs > BUDGET_MS * 1.05) {
+        ctx.fillStyle = OVER_BUDGET;
+        ctx.fillRect(x, h - total, BAR_W, 2);
+      }
+      if (this.selected === BARS - 1 - i) {
+        ctx.fillStyle = "rgba(255,255,255,0.85)";
+        ctx.fillRect(x, 0, BAR_W, h);
+      }
     }
+  }
+
+  private pick(e: PointerEvent | MouseEvent): void {
+    const rect = this.graph.getBoundingClientRect();
+    const i = Math.floor(((e.clientX - rect.left) / rect.width) * BARS);
+    this.selected = Math.max(0, Math.min(BARS - 1, BARS - 1 - i));
+    this.drawGraph();
+    this.showFrame(this.session.recorder.get(this.selected));
+  }
+
+  private showFrame(s: FrameSample | undefined): void {
+    if (!s) {
+      this.inspector.textContent = this.session.paused
+        ? "paused: hover or click bars to inspect frames, or step forward"
+        : "hover the graph to inspect a frame · click to pause there";
+      this.inspector.style.color = "#8a9479";
+      return;
+    }
+    const over = s.intervalMs > BUDGET_MS * 1.05;
+    this.inspector.style.color = "#cfd6c4";
+    this.inspector.replaceChildren(
+      line(`tick ${s.tick} · ${s.scene ?? "no scene"} · `, [`${s.intervalMs.toFixed(1)} ms`, over ? OVER_BUDGET : LIME]),
+      line(
+        "",
+        [`update ${s.updateMs.toFixed(2)}`, LIME],
+        " · ",
+        [`render ${s.renderMs.toFixed(2)} ms`, SKY],
+        ` · ${s.steps} step${s.steps === 1 ? "" : "s"}`,
+      ),
+      line(`${s.quads} quads · ${s.drawCalls} draw calls${s.longTaskMs ? ` · long task ${s.longTaskMs.toFixed(0)} ms` : ""}`),
+      line("", [diagnose(s, BUDGET_MS), over ? AMBER : "#8a9479"]),
+    );
+  }
+
+  private refreshSession(): void {
+    const { session } = this;
+    this.pauseButton.textContent = session.paused ? "play" : "pause";
+    this.pauseButton.title = session.paused ? `Paused by ${session.pausedBy}` : "Pause the game loop";
+    if (!session.paused) this.selected = undefined;
+    // Activity log, newest first.
+    this.activityBox.replaceChildren(
+      ...session.activity
+        .slice(-30)
+        .reverse()
+        .map((a) => {
+          const row = el("div");
+          Object.assign(row.style, { display: "flex", gap: "6px", alignItems: "baseline" });
+          const who = el("span", {}, a.who);
+          who.style.color = a.who === "agent" ? VIOLET : a.who === "spike" ? OVER_BUDGET : LIME;
+          const what = el("span", {}, `${a.action}${a.detail ? ` ${a.detail}` : ""}`);
+          Object.assign(what.style, { color: "#cfd6c4", flex: "1", minWidth: "0", overflowWrap: "anywhere" });
+          row.append(who, what);
+          if (a.undo) {
+            const undo = button("undo", () => {
+              a.undo?.();
+              delete a.undo;
+              session.log("you", "undid", a.detail);
+            });
+            undo.style.padding = "0 4px";
+            row.append(undo);
+          }
+          return row;
+        }),
+    );
   }
 
   private buildParams(): void {
@@ -153,7 +323,7 @@ class Overlay {
         Object.assign(row.style, { display: "grid", gridTemplateColumns: "1fr 1.4fr 3.5em", gap: "6px", alignItems: "center" });
         const units = spec.type === "number" && spec.units ? ` (${spec.units})` : "";
         const name = el("span", { title: `${spec.description ?? id}${units}` }, key);
-        const input = el("input") as HTMLInputElement;
+        const input = el("input", { "data-param": id }) as HTMLInputElement;
         const readout = el("span");
         readout.style.textAlign = "right";
         if (spec.type === "boolean") {
@@ -163,7 +333,17 @@ class Overlay {
         } else {
           Object.assign(input, rangeFor(spec, value as number));
           input.style.accentColor = accent;
-          input.addEventListener("input", () => this.set(groupId, key, Number(input.value)));
+          // Remember the value a drag starts from, so the whole drag becomes one undoable change.
+          const remember = () => {
+            if (!this.dragStart.has(id)) this.dragStart.set(id, this.game.params.group(groupId)?.get(key) ?? value);
+          };
+          input.addEventListener("pointerdown", remember);
+          input.addEventListener("focus", remember);
+          input.addEventListener("input", () => {
+            remember();
+            this.set(groupId, key, Number(input.value), true);
+          });
+          input.addEventListener("change", () => this.set(groupId, key, Number(input.value)));
           readout.textContent = format(value as number);
         }
         this.inputs.set(id, input);
@@ -182,12 +362,26 @@ class Overlay {
     }
   }
 
-  private set(group: string, key: string, value: ParamValue): void {
+  /** Slider drags update live without logging; the final value is logged once (with undo). */
+  private set(group: string, key: string, value: ParamValue, live = false): void {
     try {
-      this.game.params.group(group)?.set(key, value);
+      if (live) this.game.params.group(group)?.set(key, value);
+      else this.commitSet(group, key, value);
     } catch (err) {
       console.warn(`[debuff overlay] ${err instanceof Error ? err.message : err}`);
     }
+  }
+
+  /** Value each slider had when the current drag began. */
+  private readonly dragStart = new Map<string, ParamValue>();
+
+  private commitSet(group: string, key: string, value: ParamValue): void {
+    const id = `${group}.${key}`;
+    const start = this.dragStart.get(id);
+    this.dragStart.delete(id);
+    // Put the pre-drag value back first so the session records one change with a correct undo.
+    if (start !== undefined) this.game.params.group(group)?.set(key, start);
+    this.session.setParam(group, key, value, "you");
   }
 
   /** Reflect changes made elsewhere (console, agents, scenarios) in the controls. */
@@ -223,6 +417,37 @@ function el(tag: string, attrs: Record<string, string> = {}, text?: string): HTM
   return node;
 }
 
+function chip(text: string, color: string): HTMLElement {
+  const c = el("span", {}, text);
+  Object.assign(c.style, { padding: "1px 6px", borderRadius: "999px", background: `${color}22`, color, whiteSpace: "nowrap" });
+  return c;
+}
+
+/** One inspector line from plain strings and [text, colour] pairs. */
+function line(...parts: (string | [string, string])[]): HTMLElement {
+  const div = el("div");
+  for (const p of parts) {
+    if (typeof p === "string") div.append(document.createTextNode(p));
+    else {
+      const span = el("span", {}, p[0]);
+      span.style.color = p[1];
+      div.append(span);
+    }
+  }
+  return div;
+}
+
+function inputStyle(): Partial<CSSStyleDeclaration> {
+  return {
+    font: "inherit",
+    background: "#1a2010",
+    color: "#e7ebe0",
+    border: `1px solid ${LIME}40`,
+    borderRadius: "4px",
+    padding: "1px 4px",
+  };
+}
+
 function button(text: string, onClick: () => void): HTMLButtonElement {
   const b = el("button", { type: "button" }, text) as HTMLButtonElement;
   Object.assign(b.style, {
@@ -245,11 +470,11 @@ function panelStyle(position: NonNullable<DevOverlayOptions["position"]>): Parti
     [v]: "8px",
     [h]: "8px",
     zIndex: "2147483647",
-    width: "260px",
+    width: "280px",
     maxHeight: "calc(100vh - 16px)",
     overflow: "auto",
     padding: "8px 10px",
-    background: "rgba(10, 12, 8, 0.88)",
+    background: "rgba(10, 12, 8, 0.9)",
     color: "#e5e7eb",
     font: "11px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
     border: `1px solid ${LIME}40`,
@@ -276,6 +501,7 @@ class Buff {
       boxShadow: "inset 0 3px 0 #d9f99d",
       animation: "debuff-buff-hop 1.2s ease-in-out infinite",
       transformOrigin: "50% 100%",
+      flex: "none",
     });
     this.eyes = [3, 9].map((left) => {
       const eye = el("span");

@@ -48,6 +48,8 @@ const WHITE = 0xffffffff;
 export class Draw {
   /** Global alpha multiplier for subsequent draws. */
   alpha = 1;
+  /** Quads (sprites, rects, glyph runs…) submitted this frame. Reset each frame; for diagnostics. */
+  quads = 0;
   /** Preallocated transform stack: push/pop copy six numbers and never allocate. */
   private readonly stack: Matrix[] = [];
   private depth = 0;
@@ -68,6 +70,11 @@ export class Draw {
   /** Which backend is active. */
   get kind(): "webgl2" | "2d" {
     return this.backend.kind;
+  }
+
+  /** Draw calls this frame: batched GPU calls on WebGL2, one per quad on Canvas 2D. */
+  get drawCalls(): number {
+    return this.backend.drawCalls ?? this.quads;
   }
 
   /** Raw `WebGL2RenderingContext` or `CanvasRenderingContext2D`. Mixing raw calls with `draw` calls requires care. */
@@ -186,6 +193,7 @@ export class Draw {
 
   rect(x: number, y: number, w: number, h: number, color: Color): void {
     this.local(x, y, w, h);
+    this.quads++;
     this.backend.quad(this.tmp, null, 0, 0, 1, 1, this.withAlpha(toRGBA(color), 1), 0, false);
   }
 
@@ -193,6 +201,7 @@ export class Draw {
   circle(x: number, y: number, radius: number, color: Color): void {
     this.local(x - radius, y - radius, radius * 2, radius * 2);
     const tex = this.circle64();
+    this.quads++;
     this.backend.quad(this.tmp, tex, 0, 0, 64, 64, this.withAlpha(toRGBA(color), 1), 0, true);
   }
 
@@ -243,6 +252,7 @@ export class Draw {
     const tint = o.tint === undefined ? WHITE : toRGBA(o.tint);
     const alpha = o.alpha ?? 1;
     const color = alpha === 1 && this.alpha === 1 ? tint : this.withAlpha(tint, alpha);
+    this.quads++;
     this.backend.quad(t, f.image, f.x, f.y, f.w, f.h, color, o.flash ?? 0, o.smooth ?? this.smooth);
   }
 
@@ -254,6 +264,7 @@ export class Draw {
     const ay = o.baseline === "middle" ? 0.5 : o.baseline === "bottom" ? 1 : 0;
     this.local(x - ax * entry.w, y - ay * entry.h, entry.w, entry.h);
     const color = this.withAlpha(toRGBA(o.color ?? "#ffffff"), o.alpha ?? 1);
+    this.quads++;
     this.backend.quad(this.tmp, entry.canvas, 0, 0, entry.canvas.width, entry.canvas.height, color, 0, true);
   }
 
@@ -270,6 +281,7 @@ export class Draw {
   /** @internal */
   begin(clear: Color, width: number, height: number, scale: number): void {
     this.renderScale = scale;
+    this.quads = 0;
     this.depth = 0;
     this.clips.length = 0;
     copy(IDENTITY, this.m);
