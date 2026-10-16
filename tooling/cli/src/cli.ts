@@ -7,6 +7,7 @@ import { amber, banner, lime, paint, pink, sky } from "create-debuff";
 import pc from "picocolors";
 import { compileAssets, findUnused } from "./assets/index.js";
 import { loadConfig } from "./config.js";
+import { inspectProject } from "./inspect.js";
 import type { ToolingPlugin } from "./plugin.js";
 import { buildReport, formatReport } from "./report.js";
 import { createDevServer, viteConfig } from "./vite.js";
@@ -149,42 +150,7 @@ cli
   .command("inspect", "JSON summary of the project for agents and tools")
   .option("--root <dir>", "Project root")
   .action(async (o: Common) => {
-    const root = rootOf(o);
-    const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as Record<string, unknown>;
-    const config = await loadConfig(root);
-    const { manifest, warnings } = await compileAssets(root, { plugins: config.plugins });
-    const dist = join(root, "dist");
-    console.log(
-      JSON.stringify(
-        {
-          name: pkg.name,
-          debuff: version,
-          dependencies: pkg.dependencies ?? {},
-          config: config.file ?? null,
-          plugins: config.plugins.map((pl) => ({
-            name: pl.name,
-            apiVersion: pl.apiVersion,
-            importers: (pl.assets ?? []).map((i) => ({
-              name: i.name,
-              extensions: i.extensions,
-              kind: "command" in i ? "command" : "function",
-            })),
-            vite: Boolean(pl.vite),
-          })),
-          assets: {
-            count: Object.keys(manifest.assets).length,
-            bytes: Object.values(manifest.assets).reduce((n, a) => n + a.bytes, 0),
-            byId: manifest.assets,
-            unused: findUnused(root, manifest),
-            warnings,
-          },
-          build: existsSync(dist) ? { totals: buildReport(dist).totals } : null,
-          runtime: "Live params and scene state: window.__DEBUFF_DEV__ in the dev server, or `debuff scenario`.",
-        },
-        null,
-        2,
-      ),
-    );
+    console.log(JSON.stringify(await inspectProject(rootOf(o)), null, 2));
     return 0;
   });
 

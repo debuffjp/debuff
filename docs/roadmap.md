@@ -10,7 +10,7 @@ A living document. Items move up only with evidence from real games and jam feed
 4. **Dev overlay plugin.** FPS/frame-time graph and live param sliders in the browser; the first thing people see.
 5. **Docs site** (`debuffjp/docs`). Guides, generated API reference, runnable examples.
 6. **Plugin phases 3–4.** CLI commands, scenario steps, templates from git/npm.
-7. **MCP adapter** over the CLI and dev hooks.
+7. ~~**MCP adapter**~~ Done: `@debuff/mcp` (project tools plus live-game tools); templates ship `.mcp.json`.
 8. ~~**Renderer benchmark.**~~ Done: ADR 0007. The `draw` API runs on batched WebGL2 (~200k sprites at 60 fps) with a Canvas 2D fallback.
 
 ## Now: foundation (0.x)
@@ -35,7 +35,7 @@ A living document. Items move up only with evidence from real games and jam feed
 
 ## Next: agent workflow
 
-- [ ] MCP adapter over the CLI and dev hooks
+- [x] MCP adapter over the CLI and dev hooks (`@debuff/mcp`)
 - [ ] `debuff params` to read/write param presets as files, with diffable before/after captures
 - [ ] Scenario recording from live play
 - [ ] Change reports: files, params, size delta, captures

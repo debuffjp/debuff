@@ -1,5 +1,6 @@
 export * from "./assets/index.js";
 export { CONFIG_FILES, type DebuffConfig, defineConfig, loadConfig, type ResolvedConfig, validatePlugins } from "./config.js";
+export { inspectProject } from "./inspect.js";
 export type * from "./plugin.js";
 export { TOOLING_API_VERSION } from "./plugin.js";
 export { type BuildReport, buildReport, DEV_TOKENS, type FileReport, formatReport } from "./report.js";
