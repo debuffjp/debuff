@@ -6,7 +6,16 @@ export interface SplashOptions {
 }
 
 const LIME = "#cffb2d";
-const INK = "#0d1208";
+const LIME_SOFT = "#e7fd96";
+const INK = "#11140d";
+const MUTED = "#9aa58a";
+const SKY = "#38bdf8";
+
+/** buff, the debuff mascot, as pixel rows (same art as the CLI): L lime, H highlight, K ink. */
+const BUFF = [".LLLLLL.", "LHHHHHHL", "LLKLLKLL", "LLKLLKLL", "LLLLLLLL", ".LLLLLL."];
+/** Mid-blink, the top row of each eye closes. */
+const BUFF_BLINK = [".LLLLLL.", "LHHHHHHL", "LLLLLLLL", "LLKLLKLL", "LLLLLLLL", ".LLLLLL."];
+const PIXEL: Record<string, string | undefined> = { L: LIME, H: LIME_SOFT, K: INK };
 
 /**
  * The "made with debuff" card shown when a game starts. Drawn with `draw` (no DOM, fonts or assets),
@@ -18,31 +27,39 @@ export function drawSplash(draw: Draw, width: number, height: number, t: number,
   draw.rect(0, 0, width, height, INK);
   draw.alpha = Math.max(0, fade);
 
-  // buff: a lime rectangle with eyes, hopping once.
-  const hop = reducedMotion ? 0 : Math.max(0, Math.sin(Math.min(1, t * 2.2) * Math.PI)) * 6 * unit;
-  const squash = reducedMotion ? 1 : 1 + 0.12 * Math.max(0, Math.sin(Math.min(1, t * 2.2 + 0.9) * Math.PI * 2)) * (hop > 0 ? 0 : 1);
-  const bw = 16 * unit * squash;
-  const bh = (13 * unit) / squash;
   const cx = width / 2;
-  const base = height / 2 + 2 * unit;
-  draw.rect(cx - bw / 2, base - bh - hop, bw, bh, LIME);
-  const blink = !reducedMotion && t > 0.55 && t < 0.6;
-  const eyeH = blink ? unit : 3 * unit;
-  draw.rect(cx - 4 * unit, base - bh - hop + 4 * unit + (3 * unit - eyeH), 2 * unit, eyeH, INK);
-  draw.rect(cx + 2 * unit, base - bh - hop + 4 * unit + (3 * unit - eyeH), 2 * unit, eyeH, INK);
+  const px = Math.max(1, Math.round(2 * unit));
+  const small = Math.max(6, Math.round(6 * unit));
+  const big = Math.round(small * 1.7);
+  // One centred stack: buff, "made with", the wordmark. Height ≈ icon + gap + both lines.
+  const stack = 6 * px + 5 * unit + small * 1.3 + big;
+  const top = (height - stack) / 2;
 
-  const size = Math.max(6, Math.round(6 * unit));
-  draw.text("made with", cx, base + 6 * unit, {
-    font: `${size}px system-ui, sans-serif`,
-    color: "#9aa58a",
-    align: "center",
-    baseline: "top",
+  // buff hops once and blinks.
+  const hop = reducedMotion ? 0 : Math.max(0, Math.sin(Math.min(1, t * 2.2) * Math.PI)) * 4 * unit;
+  const rows = !reducedMotion && t > 0.55 && t < 0.6 ? BUFF_BLINK : BUFF;
+  const left = Math.round(cx - 4 * px);
+  const iconTop = Math.round(top - hop);
+  rows.forEach((row, y) => {
+    for (let x = 0; x < row.length; x++) {
+      const color = PIXEL[row[x] ?? "."];
+      if (color) draw.rect(left + x * px, iconTop + y * px, px, px, color);
+    }
   });
-  draw.text("debuff", cx, base + 6 * unit + size * 1.25, {
-    font: `bold ${Math.round(size * 1.6)}px system-ui, sans-serif`,
+
+  const textTop = top + 6 * px + 5 * unit;
+  draw.text("made with", cx, textTop, { font: `${small}px system-ui, sans-serif`, color: MUTED, align: "center", baseline: "top" });
+  draw.text("debuff", cx, textTop + small * 1.3, {
+    font: `800 ${big}px Outfit, system-ui, sans-serif`,
     color: LIME,
     align: "center",
     baseline: "top",
+  });
+  draw.text("debuff.jp", cx, height - 4 * unit, {
+    font: `${Math.max(6, Math.round(5 * unit))}px system-ui, sans-serif`,
+    color: SKY,
+    align: "center",
+    baseline: "bottom",
   });
   draw.alpha = 1;
 }
