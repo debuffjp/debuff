@@ -1,6 +1,6 @@
 # create-debuff
 
-Scaffold a new [Debuff](https://github.com/debuff-dev/debuff) game.
+Scaffold a new [Debuff](https://github.com/debuffjp/debuff) game.
 
 ```bash
 npm create debuff@latest my-game
