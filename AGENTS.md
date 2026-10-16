@@ -23,4 +23,4 @@ Instructions for AI agents working **on this repository**. (Agents working on a 
 - No dev-only code outside `import.meta.env.DEV` branches or `@debuff/dev`.
 - Never modify source assets. Generated files (asset manifests, reports) are not committed.
 - Don't make creative or art-direction decisions in templates or docs; ask instead.
-- Root `README.md` and `NN-*.md` files are the maintainer's local planning notes. They're gitignored, so don't edit them.
+- `planning/` holds the maintainer's local planning notes. It's gitignored, so don't edit it.
