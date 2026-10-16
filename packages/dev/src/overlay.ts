@@ -10,6 +10,9 @@ export interface DevOverlayOptions {
 }
 
 const LIME = "#a3e635";
+/** Accent colours cycled across param groups, for splashes of colour. */
+const ACCENTS = ["#a3e635", "#38bdf8", "#f472b6", "#fbbf24", "#a78bfa"];
+const OVER_BUDGET = "#f87171";
 const HISTORY = 120;
 
 /**
@@ -30,6 +33,7 @@ class Overlay {
   private readonly root: HTMLElement;
   private readonly graph: HTMLCanvasElement;
   private readonly label: HTMLElement;
+  private readonly mascot: Deeb;
   private readonly paramsBox: HTMLElement;
   private readonly frameTimes = new Float32Array(HISTORY);
   private head = 0;
@@ -47,11 +51,20 @@ class Overlay {
     this.root.hidden = options.open === false;
 
     const header = el("div");
-    Object.assign(header.style, { display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "8px" });
+    Object.assign(header.style, { display: "flex", alignItems: "center", gap: "8px" });
+    this.mascot = new Deeb();
     const title = el("strong", {}, "debuff");
-    title.style.color = LIME;
+    Object.assign(title.style, { color: LIME, fontSize: "12px", letterSpacing: "0.02em" });
     this.label = el("span");
-    header.append(title, this.label);
+    Object.assign(this.label.style, {
+      marginLeft: "auto",
+      padding: "1px 6px",
+      borderRadius: "999px",
+      background: `${LIME}22`,
+      color: LIME,
+      fontVariantNumeric: "tabular-nums",
+    });
+    header.append(this.mascot.root, title, this.label);
 
     this.graph = el("canvas") as HTMLCanvasElement;
     this.graph.width = HISTORY * 2;
@@ -92,7 +105,13 @@ class Overlay {
     if (groups !== this.knownGroups) this.buildParams();
     if (this.head % 10 === 0) {
       const s = this.game.stats.summary();
-      this.label.textContent = `${s.fps} fps · ${s.workMs.toFixed(1)} ms work · p95 ${s.workP95Ms.toFixed(1)}`;
+      const slow = s.fps > 0 && s.fps < 55;
+      this.label.textContent = `${s.fps} fps · ${s.workMs.toFixed(1)} ms`;
+      this.label.title = `work p95 ${s.workP95Ms.toFixed(1)} ms`;
+      this.label.style.color = slow ? OVER_BUDGET : LIME;
+      this.label.style.background = `${slow ? OVER_BUDGET : LIME}22`;
+      // deeb reacts to the last frame: worried on a spike, calm otherwise.
+      this.mascot.mood((this.frameTimes[(this.head + HISTORY - 1) % HISTORY] ?? 0) > 17.5 || slow ? "worried" : "calm");
     }
     this.drawGraph();
   }
@@ -108,7 +127,7 @@ class Overlay {
     for (let i = 0; i < HISTORY; i++) {
       const ms = this.frameTimes[(this.head + i) % HISTORY] ?? 0;
       const bar = Math.min(h, ms * scale);
-      ctx.fillStyle = ms > 17.5 ? "#f87171" : LIME;
+      ctx.fillStyle = ms > 17.5 ? OVER_BUDGET : LIME;
       ctx.fillRect(i * 2, h - bar, 2, bar);
     }
   }
@@ -118,11 +137,14 @@ class Overlay {
     this.knownGroups = Object.keys(described).join(",");
     this.paramsBox.replaceChildren();
     this.inputs.clear();
+    let groupIndex = 0;
     for (const [groupId, { schema, values }] of Object.entries(described)) {
       if (groupId.startsWith("dev-")) continue;
+      const accent = ACCENTS[groupIndex++ % ACCENTS.length] ?? LIME;
       const box = el("details", { open: "" });
+      Object.assign(box.style, { borderLeft: `2px solid ${accent}`, paddingLeft: "8px", margin: "6px 0" });
       const summary = el("summary", {}, groupId);
-      Object.assign(summary.style, { cursor: "pointer", color: LIME, margin: "4px 0" });
+      Object.assign(summary.style, { cursor: "pointer", color: accent, margin: "4px 0", fontWeight: "600" });
       box.append(summary);
       for (const [key, spec] of Object.entries(schema)) {
         const id = `${groupId}.${key}`;
@@ -140,7 +162,7 @@ class Overlay {
           input.addEventListener("change", () => this.set(groupId, key, input.checked));
         } else {
           Object.assign(input, rangeFor(spec, value as number));
-          input.style.accentColor = LIME;
+          input.style.accentColor = accent;
           input.addEventListener("input", () => this.set(groupId, key, Number(input.value)));
           readout.textContent = format(value as number);
         }
@@ -234,4 +256,56 @@ function panelStyle(position: NonNullable<DevOverlayOptions["position"]>): Parti
     borderRadius: "6px",
     backdropFilter: "blur(4px)",
   };
+}
+
+/** deeb, the debuff mascot, drawn with DOM: a lime block with eyes that blinks and reacts to frame spikes. */
+class Deeb {
+  readonly root: HTMLElement;
+  private readonly eyes: HTMLElement[];
+  private current: "calm" | "worried" = "calm";
+
+  constructor() {
+    this.root = el("span", { "aria-hidden": "true" });
+    Object.assign(this.root.style, {
+      position: "relative",
+      display: "inline-block",
+      width: "16px",
+      height: "14px",
+      borderRadius: "3px",
+      background: LIME,
+      boxShadow: "inset 0 3px 0 #d9f99d",
+      animation: "debuff-deeb-hop 1.2s ease-in-out infinite",
+      transformOrigin: "50% 100%",
+    });
+    this.eyes = [3, 9].map((left) => {
+      const eye = el("span");
+      Object.assign(eye.style, {
+        position: "absolute",
+        left: `${left}px`,
+        top: "5px",
+        width: "3px",
+        height: "4px",
+        borderRadius: "1px",
+        background: "#11140d",
+        animation: "debuff-deeb-blink 3.3s infinite",
+      });
+      this.root.append(eye);
+      return eye;
+    });
+    if (!document.getElementById("debuff-deeb-style")) {
+      const style = el("style", { id: "debuff-deeb-style" });
+      style.textContent = `
+@keyframes debuff-deeb-hop { 0%,100% { transform: translateY(0) scale(1.08, .92) } 50% { transform: translateY(-2px) scale(.96, 1.04) } }
+@keyframes debuff-deeb-blink { 0%,46%,50%,100% { transform: scaleY(1) } 48% { transform: scaleY(.1) } }
+@media (prefers-reduced-motion: reduce) { [data-debuff-overlay] * { animation: none !important } }`;
+      document.head.append(style);
+    }
+  }
+
+  mood(next: "calm" | "worried"): void {
+    if (next === this.current) return;
+    this.current = next;
+    for (const eye of this.eyes) eye.style.background = next === "worried" ? OVER_BUDGET : "#11140d";
+    this.root.style.animationDuration = next === "worried" ? "0.4s" : "1.2s";
+  }
 }
