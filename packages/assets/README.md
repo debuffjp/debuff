@@ -1,10 +1,10 @@
-# @debuff/assets
+# @debuffjp/assets
 
 Runtime loader for the manifest that `debuff` generates from your project's `assets/` folder. No dependencies.
 
 ```ts
-import { Assets } from "@debuff/assets";
-import { Sprite } from "@debuff/core";
+import { Assets } from "@debuffjp/assets";
+import { Sprite } from "@debuffjp/core";
 
 const assets = new Assets(await (await fetch("assets/manifest.json")).json());
 await assets.load("default", ({ loaded, total }) => showProgress(loaded / total));

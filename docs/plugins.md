@@ -5,7 +5,7 @@ Plugins extend debuff through small, typed contracts ([ADR 0004](./adr/0004-plug
 ## The contract
 
 ```ts
-import type { Plugin } from "@debuff/core";
+import type { Plugin } from "@debuffjp/core";
 
 interface Plugin {
   readonly name: string; // unique, kebab-case
@@ -29,7 +29,7 @@ Every hook registration returns an unsubscribe function. Return a cleanup that c
 ## Example
 
 ```ts
-import type { Plugin } from "@debuff/core";
+import type { Plugin } from "@debuffjp/core";
 
 export interface DebugGridOptions {
   size?: number;
@@ -71,13 +71,13 @@ export function debugGrid(options: DebugGridOptions = {}): Plugin {
 
 ## Publishing
 
-- Name: `debuff-plugin-<name>` (or `@scope/debuff-plugin-<name>`). First-party plugins use `@debuff/plugin-<name>`.
-- Add the `debuff-plugin` keyword, and `@debuff/core` as a peer dependency.
+- Name: `debuff-plugin-<name>` (or `@scope/debuff-plugin-<name>`). First-party plugins use `@debuffjp/plugin-<name>`.
+- Add the `debuff-plugin` keyword, and `@debuffjp/core` as a peer dependency.
 - Expose browser code at `"."`. Tooling code (phase 2) will go at `"./tooling"`.
 
 ## Reference implementation
 
-`@debuff/dev` ships as the `dev-tools` plugin (`game.use(devTools({ input }))`). Read its source for a complete example with cleanup.
+`@debuffjp/dev` ships as the `dev-tools` plugin (`game.use(devTools({ input }))`). Read its source for a complete example with cleanup.
 
 ## CLI commands and scenario steps
 

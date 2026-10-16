@@ -13,9 +13,9 @@ The runtime packages are plain ES modules with no dependencies, so any page can 
     <script type="importmap">
       {
         "imports": {
-          "@debuff/core": "https://cdn.jsdelivr.net/npm/@debuff/core@0.1/dist/index.js",
-          "@debuff/input": "https://cdn.jsdelivr.net/npm/@debuff/input@0.1/dist/index.js",
-          "@debuff/juice": "https://cdn.jsdelivr.net/npm/@debuff/juice@0.1/dist/index.js"
+          "@debuffjp/core": "https://cdn.jsdelivr.net/npm/@debuffjp/core@0.1/dist/index.js",
+          "@debuffjp/input": "https://cdn.jsdelivr.net/npm/@debuffjp/input@0.1/dist/index.js",
+          "@debuffjp/juice": "https://cdn.jsdelivr.net/npm/@debuffjp/juice@0.1/dist/index.js"
         }
       }
     </script>
@@ -27,8 +27,8 @@ The runtime packages are plain ES modules with no dependencies, so any page can 
   <body>
     <main><canvas id="game"></canvas></main>
     <script type="module">
-      import { Game } from "@debuff/core";
-      import { Input } from "@debuff/input";
+      import { Game } from "@debuffjp/core";
+      import { Input } from "@debuffjp/input";
 
       const game = new Game({ canvas: document.querySelector("#game"), width: 320, height: 180 });
       const input = new Input(game, { bindings: { left: ["ArrowLeft"], right: ["ArrowRight"] } });
@@ -56,7 +56,7 @@ The runtime packages are plain ES modules with no dependencies, so any page can 
 | With the CLI | Without a build |
 | --- | --- |
 | Tree-shaking: you ship only what you import | Whole package modules are downloaded |
-| Asset pipeline and manifest | Load assets yourself, or hand-write a manifest for `@debuff/assets` |
+| Asset pipeline and manifest | Load assets yourself, or hand-write a manifest for `@debuffjp/assets` |
 | Size report and dev-boundary check | None |
 | `debuff scenario` tests and dev hooks | Not available |
 | TypeScript | Plain JavaScript (types still help in editors via JSDoc) |

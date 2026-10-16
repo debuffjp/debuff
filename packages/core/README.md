@@ -1,13 +1,13 @@
-# @debuff/core
+# @debuffjp/core
 
 Game loop, fixed-step clock, scenes, camera, sprites, typed creative parameters and a batched WebGL2 renderer with automatic Canvas 2D fallback. No dependencies.
 
 ```bash
-npm install @debuff/core
+npm install @debuffjp/core
 ```
 
 ```ts
-import { Game } from "@debuff/core";
+import { Game } from "@debuffjp/core";
 
 const game = new Game({ canvas, width: 320, height: 180, scale: "integer", pixelArt: true });
 

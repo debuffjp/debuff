@@ -14,7 +14,7 @@ describe("explainError", () => {
     const e = explainError(
       err("TypeError", "Cannot read properties of undefined (reading 'x')", [
         "Object.update (http://localhost:5173/src/main.ts?t=1:42:7)",
-        "Game.frame (http://localhost:5173/node_modules/.vite/deps/@debuff_core.js?v=1:900:3)",
+        "Game.frame (http://localhost:5173/node_modules/.vite/deps/@debuffjp_core.js?v=1:900:3)",
       ]),
       { phase: "update", scene: "play", tick: 9 },
       origin,
@@ -31,7 +31,7 @@ describe("explainError", () => {
   it("blames the caller when debuff rejects a call on purpose", () => {
     const e = explainError(
       err("Error", 'Unknown scene "menu". Added: play', [
-        "Game.go (http://localhost:5173/node_modules/.vite/deps/@debuff_core.js?v=1:200:11)",
+        "Game.go (http://localhost:5173/node_modules/.vite/deps/@debuffjp_core.js?v=1:200:11)",
         "start (http://localhost:5173/src/main.ts:10:6)",
       ]),
       {},
@@ -44,7 +44,7 @@ describe("explainError", () => {
   it("flags unexpected failures inside debuff as debuff bugs with a report link", () => {
     const e = explainError(
       err("TypeError", "this.units is undefined", [
-        "WebGL2Backend.flush (http://localhost:5173/node_modules/@debuff/core/dist/render/webgl2.js:280:5)",
+        "WebGL2Backend.flush (http://localhost:5173/node_modules/@debuffjp/core/dist/render/webgl2.js:280:5)",
         "loop (http://localhost:5173/src/main.ts:5:1)",
       ]),
       {},

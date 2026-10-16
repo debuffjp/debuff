@@ -1,4 +1,4 @@
-import type { TextureSource } from "@debuff/core";
+import type { TextureSource } from "@debuffjp/core";
 import { type ImageRegion, type MapObject, Tilemap, type Tileset } from "./tilemap.js";
 
 // Minimal shapes of Tiled's JSON format (https://doc.mapeditor.org/en/stable/reference/json-map-format/).

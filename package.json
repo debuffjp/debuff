@@ -23,7 +23,7 @@
     "lint:packages": "node scripts/lint-packages.mjs",
     "test:package-manager": "node scripts/smoke-package-manager.mjs",
     "prepare": "lefthook install",
-    "bench:renderer": "npm run bench -w @debuff/bench-renderer"
+    "bench:renderer": "npm run bench -w @debuffjp/bench-renderer"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",

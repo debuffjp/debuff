@@ -1,4 +1,4 @@
-/** The parts of `@debuff/core`'s `Draw` that juice effects use. Structural, so juice has no dependencies. */
+/** The parts of `@debuffjp/core`'s `Draw` that juice effects use. Structural, so juice has no dependencies. */
 export interface DrawLike {
   alpha: number;
   rect(x: number, y: number, w: number, h: number, color: string | number): void;

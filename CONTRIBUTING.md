@@ -40,4 +40,4 @@ Significant choices are recorded in `docs/adr/`. To propose a change in directio
 
 ## Releases
 
-[Changesets](https://github.com/changesets/changesets) manages versions. All `@debuff/*` packages and `create-debuff` share one version. Merging the bot's "Version packages" PR publishes to npm.
+[Changesets](https://github.com/changesets/changesets) manages versions. All `@debuffjp/*` packages and `create-debuff` share one version. Merging the bot's "Version packages" PR publishes to npm.

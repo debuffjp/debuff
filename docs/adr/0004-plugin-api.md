@@ -46,7 +46,7 @@ A plugin package exposes **a runtime entry and/or a tooling entry** through `exp
     ".": "./dist/runtime.js",       // optional: browser code
     "./tooling": "./dist/tooling.js" // optional: Node code
   },
-  "peerDependencies": { "@debuff/core": "^0.x", "@debuff/cli": "^0.x" },
+  "peerDependencies": { "@debuffjp/core": "^0.x", "@debuffjp/cli": "^0.x" },
   "keywords": ["debuff-plugin"]
 }
 ```
@@ -57,7 +57,7 @@ Maximum flexibility, but hard to type and document. Ordering bugs are hard to di
 
 ## Recommendation: C
 
-### Runtime contract (`@debuff/core`)
+### Runtime contract (`@debuffjp/core`)
 
 ```ts
 export interface RuntimePlugin {
@@ -81,12 +81,12 @@ Plugins contribute inspectable state through `game.inspect.register(name, () => 
 
 What runtime plugins are **not**: no global registries, no monkey-patching `Game`, no required base classes.
 
-### Tooling contract (`@debuff/cli`)
+### Tooling contract (`@debuffjp/cli`)
 
 Configured explicitly in an optional `debuff.config.ts`:
 
 ```ts
-import { defineConfig } from "@debuff/cli";
+import { defineConfig } from "@debuffjp/cli";
 import aseprite from "debuff-plugin-aseprite/tooling";
 
 export default defineConfig({
@@ -127,7 +127,7 @@ export interface AssetImporter {
 
 ### Naming
 
-- First-party: `@debuff/plugin-<name>`
+- First-party: `@debuffjp/plugin-<name>`
 - Community: `debuff-plugin-<name>` or `@scope/debuff-plugin-<name>`
 
 ### Templates
@@ -136,8 +136,8 @@ export interface AssetImporter {
 
 ## Delivery
 
-1. **Runtime contract.** `game.use`, `game.hooks`, `game.inspect`, `game.plugins`. Rebuild `@debuff/dev` and `@debuff/input`'s step hook on the new hooks to prove the contract.
-2. **Tooling contract.** `debuff.config.ts`, `defineConfig`, `assets` importers (the in-process and stdio forms), and `inspect` output. Ship `@debuff/plugin-aseprite` as the reference plugin.
+1. **Runtime contract.** `game.use`, `game.hooks`, `game.inspect`, `game.plugins`. Rebuild `@debuffjp/dev` and `@debuffjp/input`'s step hook on the new hooks to prove the contract.
+2. **Tooling contract.** `debuff.config.ts`, `defineConfig`, `assets` importers (the in-process and stdio forms), and `inspect` output. Ship `@debuffjp/plugin-aseprite` as the reference plugin.
 3. **Commands and scenario steps.** Merged JSON Schema for steps.
 4. **Templates from git/npm.**
 

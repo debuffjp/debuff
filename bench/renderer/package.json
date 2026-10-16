@@ -1,5 +1,5 @@
 {
-  "name": "@debuff/bench-renderer",
+  "name": "@debuffjp/bench-renderer",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,6 +10,6 @@
     "pixi.js": "^8.22.0"
   },
   "dependencies": {
-    "@debuff/core": "0.0.0"
+    "@debuffjp/core": "0.1.0"
   }
 }

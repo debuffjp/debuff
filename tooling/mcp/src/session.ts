@@ -9,7 +9,7 @@ import {
   type DevServerInfo,
   hooksReady,
   launchBrowser,
-} from "@debuff/cli";
+} from "@debuffjp/cli";
 import type { Browser, Page } from "playwright-core";
 import type { ViteDevServer } from "vite";
 

@@ -37,7 +37,7 @@ describe("debuff MCP server", () => {
 
   it("inspects the project", async () => {
     const info = await data("inspect_project");
-    expect(info.name).toBe("@debuff/template-basic");
+    expect(info.name).toBe("@debuffjp/template-basic");
   });
 
   it("explains live tools need a running game", async () => {

@@ -1,4 +1,4 @@
-# @debuff/mcp
+# @debuffjp/mcp
 
 An [MCP](https://modelcontextprotocol.io) server that lets AI agents inspect, build, test and **play** a debuff game. It uses the same evidence a human would want: real state, real frames, real test results.
 
@@ -7,13 +7,13 @@ An [MCP](https://modelcontextprotocol.io) server that lets AI agents inspect, bu
 New projects from `npm create debuff` include a `.mcp.json`, so MCP clients that read it (such as Claude Code) pick the server up automatically. For other clients:
 
 ```bash
-claude mcp add debuff -- npx -y @debuff/mcp        # Claude Code
+claude mcp add debuff -- npx -y @debuffjp/mcp        # Claude Code
 ```
 
 ```json
 {
   "mcpServers": {
-    "debuff": { "command": "npx", "args": ["-y", "@debuff/mcp"] }
+    "debuff": { "command": "npx", "args": ["-y", "@debuffjp/mcp"] }
   }
 }
 ```

@@ -2,7 +2,7 @@ import type { ToolingPlugin } from "../plugin.js";
 
 /**
  * A scenario is a JSON file of steps. Time only advances through `wait`, so runs are
- * deterministic. Validate with the JSON Schema in `@debuff/cli/schema/scenario.schema.json`.
+ * deterministic. Validate with the JSON Schema in `@debuffjp/cli/schema/scenario.schema.json`.
  */
 export interface Scenario {
   $schema?: string;

@@ -3,7 +3,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { join } from "node:path";
 import type { ViteDevServer } from "vite";
 
-/** Endpoints shared with `@debuff/dev` (page side) and `@debuff/mcp` (agent side). */
+/** Endpoints shared with `@debuffjp/dev` (page side) and `@debuffjp/mcp` (agent side). */
 export const AGENT_PATHS = {
   events: "/__debuff/agent/events",
   attach: "/__debuff/agent/attach",

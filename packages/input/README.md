@@ -1,9 +1,9 @@
-# @debuff/input
+# @debuffjp/input
 
 Action-based input across keyboard, mouse/touch/pen (Pointer Events) and gamepads (standard mapping). No dependencies.
 
 ```ts
-import { Input } from "@debuff/input";
+import { Input } from "@debuffjp/input";
 
 const input = new Input(game, {
   bindings: {

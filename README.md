@@ -58,16 +58,16 @@ More in [Why debuff](https://debuff.jp/guide/why). Agents can start from [llms.t
 
 | Package | What it does |
 | --- | --- |
-| [`@debuff/core`](./packages/core) | Game loop, fixed-step clock, seeded RNG, scenes, camera, sprites, params, storage, frame stats |
-| [`@debuff/input`](./packages/input) | Keyboard and pointer/touch with per-step edges and programmatic input |
-| [`@debuff/assets`](./packages/assets) | Manifest-driven loader with preload groups and actionable errors |
-| [`@debuff/audio`](./packages/audio) | Web Audio buses, autoplay unlock, parametric synth |
-| [`@debuff/tilemap`](./packages/tilemap) | Tilemaps: culled batched rendering, tile collision, Tiled and LDtk import |
-| [`@debuff/juice`](./packages/juice) | Tweens, easing, pooled particles, trails, squash-and-stretch |
-| [`@debuff/dev`](./packages/dev) | Dev panel (perf, tune, state, explained errors) and `window.__DEBUFF_DEV__`, stripped from production |
-| [`@debuff/cli`](./tooling/cli) | `debuff dev · build · assets · scenario · inspect · report` |
+| [`@debuffjp/core`](./packages/core) | Game loop, fixed-step clock, seeded RNG, scenes, camera, sprites, params, storage, frame stats |
+| [`@debuffjp/input`](./packages/input) | Keyboard and pointer/touch with per-step edges and programmatic input |
+| [`@debuffjp/assets`](./packages/assets) | Manifest-driven loader with preload groups and actionable errors |
+| [`@debuffjp/audio`](./packages/audio) | Web Audio buses, autoplay unlock, parametric synth |
+| [`@debuffjp/tilemap`](./packages/tilemap) | Tilemaps: culled batched rendering, tile collision, Tiled and LDtk import |
+| [`@debuffjp/juice`](./packages/juice) | Tweens, easing, pooled particles, trails, squash-and-stretch |
+| [`@debuffjp/dev`](./packages/dev) | Dev panel (perf, tune, state, explained errors) and `window.__DEBUFF_DEV__`, stripped from production |
+| [`@debuffjp/cli`](./tooling/cli) | `debuff dev · build · assets · scenario · inspect · report` |
 | [`create-debuff`](./tooling/create-debuff) | `npm create debuff` scaffolder |
-| [`@debuff/mcp`](./tooling/mcp) | MCP server: agents inspect, build, test and play your game |
+| [`@debuffjp/mcp`](./tooling/mcp) | MCP server: agents inspect, build, test and play your game |
 
 ## CLI
 
@@ -85,7 +85,7 @@ Every command accepts `--json` for machine-readable output where applicable.
 ## Repository layout
 
 ```text
-packages/    browser runtime libraries (@debuff/*)
+packages/    browser runtime libraries (@debuffjp/*)
 tooling/     Node-side tools (CLI, scaffolder)
 templates/   starter templates; built and scenario-tested in CI
 docs/        architecture, roadmap, decisions (docs/adr)

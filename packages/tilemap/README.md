@@ -1,9 +1,9 @@
-# @debuff/tilemap
+# @debuffjp/tilemap
 
 Tilemaps for debuff: culled, batched rendering through `draw`, tile collision, and importers for [Tiled](https://www.mapeditor.org/) and [LDtk](https://ldtk.io/).
 
 ```ts
-import { fromTiled } from "@debuff/tilemap";
+import { fromTiled } from "@debuffjp/tilemap";
 
 const map = fromTiled(assets.json("level1"), { image: (path) => assets.image("tiles") });
 const player = { x: 32, y: 32, w: 12, h: 14 };
