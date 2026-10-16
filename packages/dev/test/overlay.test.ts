@@ -88,3 +88,44 @@ describe("devOverlay collapse", () => {
     game.dispose();
   });
 });
+
+describe("devOverlay tabs and tuning", () => {
+  it("switches tabs, marks changed params and resets one by double-clicking its name", () => {
+    localStorage.clear();
+    const game = makeGame().use(devOverlay());
+    const tab = (name: string) =>
+      [...(panel()?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? [])].find((b) => b.textContent === name);
+    const pane = (name: string) => panel()?.querySelector<HTMLElement>(`[data-tab="${name}"]`);
+    expect(pane("perf")?.hidden).toBe(false);
+    tab("tune")?.click();
+    expect(pane("perf")?.hidden).toBe(true);
+    expect(pane("tune")?.hidden).toBe(false);
+    expect(game.inspect.snapshot()["dev-overlay"]).toMatchObject({ tab: "tune" });
+
+    game.params.group("player")?.set("speed", 250);
+    const slider = panel()?.querySelector<HTMLInputElement>('input[data-param="player.speed"]');
+    const name = slider?.previousElementSibling as HTMLElement;
+    expect(name.style.color).not.toBe("");
+    name.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+    expect(game.params.group("player")?.get("speed")).toBe(100);
+    expect(name.style.color).toBe("");
+    game.dispose();
+  });
+
+  it("shows live scene state and runtime errors", () => {
+    localStorage.clear();
+    const game = makeGame();
+    game.add({ id: "play", inspect: () => ({ hp: 7 }) }).go("play");
+    game.use(devOverlay());
+    const tab = (name: string) =>
+      [...(panel()?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? [])].find((b) => b.textContent === name);
+    tab("state")?.click();
+    expect(panel()?.querySelector('[data-tab="state"] pre')?.textContent).toContain('"hp": 7');
+    dispatchEvent(new ErrorEvent("error", { message: "boom" }));
+    const badge = [...(panel()?.querySelectorAll("button") ?? [])].find((b) => b.textContent === "1 error");
+    expect(badge?.hidden).toBe(false);
+    badge?.click();
+    expect(panel()?.querySelector('[data-tab="log"]')?.textContent).toContain("boom");
+    game.dispose();
+  });
+});
