@@ -1,4 +1,5 @@
 import type { Game, ParamDescription, ParamValue, Plugin } from "@debuff/core";
+import type { ExplainedError } from "./explain.js";
 import { DevSession, type FrameSample, type Note } from "./session.js";
 
 /** The parts of `@debuff/input`'s `Input` the hooks drive. Structural, so `dev` does not depend on `input`. */
@@ -56,8 +57,11 @@ export interface DevHooks {
   frames(n?: number): FrameSample[];
   /** Moments the human flagged in the overlay, with the game state at that tick. */
   notes(): Note[];
-  /** Uncaught errors and unhandled rejections since load. */
-  errors(): string[];
+  /**
+   * Runtime errors since load, explained: `kind` says whose problem it is ("your-code", "debuff-usage",
+   * "debuff-bug", "outside"), `where` points at the game's source, `hint` suggests a next step. Repeats are counted.
+   */
+  errors(): ExplainedError[];
   /** PNG data URL of the current frame. */
   capture(): string;
 }
@@ -110,7 +114,7 @@ export function exposeDevHooks(game: Game, options: DevHooksOptions = {}): DevHo
   return window.__DEBUFF_DEV__;
 }
 
-function createHooks(game: Game, session: DevSession, options: DevHooksOptions, errors: string[], who: () => string): DevHooks {
+function createHooks(game: Game, session: DevSession, options: DevHooksOptions, errors: ExplainedError[], who: () => string): DevHooks {
   const controlled = new URLSearchParams(location.search).has("debuff-scenario");
   if (controlled) {
     game.pauseWhenHidden = false;
@@ -170,7 +174,7 @@ function createHooks(game: Game, session: DevSession, options: DevHooksOptions, 
     setParam: (group, key, value) => session.setParam(group, key, value, who()),
     frames: (n = 60) => session.recorder.recent(n),
     notes: () => session.notes.map((n) => ({ ...n })),
-    errors: () => [...errors],
+    errors: () => errors.map((e) => ({ ...e })),
     capture: () => {
       // Re-render without advancing time: WebGL clears its buffer after presenting, so read in the same task.
       game.redraw();
@@ -183,7 +187,7 @@ function createHooks(game: Game, session: DevSession, options: DevHooksOptions, 
  * Agent link (page side): listen for commands from the dev server over Server-Sent Events, run them
  * on the dev hooks as "agent", and post results back. Silent when the page isn't served by `debuff dev`.
  */
-function linkAgent(game: Game, session: DevSession, options: DevHooksOptions, errors: string[]): (() => void) | undefined {
+function linkAgent(game: Game, session: DevSession, options: DevHooksOptions, errors: ExplainedError[]): (() => void) | undefined {
   if (typeof EventSource === "undefined" || !/^https?:$/.test(location.protocol)) return undefined;
   const hooks = createHooks(game, session, options, errors, () => "agent");
   const events = new EventSource(AGENT_EVENTS);
@@ -212,6 +216,7 @@ function linkAgent(game: Game, session: DevSession, options: DevHooksOptions, er
   return () => events.close();
 }
 
+export { type ErrorKind, type ExplainedError, explainError, type SourceLocation } from "./explain.js";
 export { type DevOverlayOptions, devOverlay } from "./overlay.js";
 export {
   type Activity,

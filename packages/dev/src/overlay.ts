@@ -1,4 +1,5 @@
 import type { Game, NumberParamSpec, ParamSpec, ParamValue, Plugin } from "@debuff/core";
+import { type ExplainedError, loc } from "./explain.js";
 import { DevSession, diagnose, type FrameSample, HITCH, summarize } from "./session.js";
 
 export interface DevOverlayOptions {
@@ -449,21 +450,7 @@ class Overlay {
       ...errors
         .slice(-5)
         .reverse()
-        .map((message) => {
-          const pre = el("pre", {}, message);
-          Object.assign(pre.style, {
-            margin: "0 0 4px",
-            padding: "4px 6px",
-            color: OVER_BUDGET,
-            background: `${OVER_BUDGET}14`,
-            borderRadius: "4px",
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-            maxHeight: "80px",
-            overflow: "auto",
-          });
-          return pre;
-        }),
+        .map((e) => errorCard(e, () => this.session.clearErrors())),
     );
 
     // Activity log, newest first.
@@ -634,6 +621,62 @@ class Overlay {
     this.game.go(id);
     this.session.log("you", "restarted", id);
   }
+}
+
+const KIND: Record<ExplainedError["kind"], [string, string]> = {
+  "your-code": ["your code", AMBER],
+  "debuff-usage": ["debuff rejected a call", SKY],
+  "debuff-bug": ["debuff bug", OVER_BUDGET],
+  outside: ["outside the game", MUTED],
+};
+
+/** One error, explained: whose problem it is, where to look (click to open in your editor), what to try. */
+function errorCard(e: ExplainedError, clear: () => void): HTMLElement {
+  const [label, color] = KIND[e.kind];
+  const card = el("div", { "data-error-kind": e.kind });
+  Object.assign(card.style, {
+    margin: "0 0 6px",
+    padding: "5px 7px",
+    borderLeft: `2px solid ${color}`,
+    background: `${color}12`,
+    borderRadius: "4px",
+  });
+  const head = row();
+  head.append(chip(label, color));
+  if (e.count > 1) head.append(hint(`×${e.count}`));
+  if (e.phase) head.append(hint(`in ${e.phase}${e.tick === undefined ? "" : ` · tick ${e.tick}`}`));
+  const msg = el("div", {}, `${e.name}: ${e.message}`);
+  Object.assign(msg.style, { color: "#fecaca", margin: "3px 0", overflowWrap: "anywhere" });
+  card.append(head, msg);
+  if (e.where) {
+    const where = loc(e.where);
+    // Vite's dev server opens files in your editor at this endpoint.
+    const link = el(
+      "a",
+      { href: `/__open-in-editor?file=${encodeURIComponent(where)}`, title: "Open in your editor" },
+      `→ ${where}${e.where.fn ? ` (${e.where.fn})` : ""}`,
+    );
+    Object.assign(link.style, { color: SKY, textDecoration: "none", display: "block" });
+    link.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      void fetch(link.getAttribute("href") ?? "");
+    });
+    card.append(link);
+  }
+  const tip = el("div", {}, e.hint);
+  Object.assign(tip.style, { color: TEXT, margin: "3px 0" });
+  card.append(tip);
+  const actions = row();
+  if (e.reportUrl) {
+    const report = el("a", { href: e.reportUrl, target: "_blank", rel: "noopener" }, "report to debuff");
+    Object.assign(report.style, { color: OVER_BUDGET });
+    actions.append(report);
+  }
+  const copy = button("copy for agent", () => navigator.clipboard?.writeText(JSON.stringify(e, null, 2)));
+  copy.title = "Copy the explained error as JSON to paste into a chat with an agent";
+  actions.append(copy, button("clear", clear));
+  card.append(actions);
+  return card;
 }
 
 function rangeFor(spec: NumberParamSpec, value: number): Partial<HTMLInputElement> {
