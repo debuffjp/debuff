@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 import { buildReport, compileAssets, findUnused, inspectProject, loadConfig, runScenarios, viteConfig } from "@debuffjp/cli";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { registerPrompts } from "./prompts.js";
 import { type GameSession, startSession } from "./session.js";
 
 type Content = { type: "text"; text: string } | { type: "image"; data: string; mimeType: string };
@@ -27,7 +28,7 @@ export function createServer(options: ServerOptions): McpServer {
         "Tools for building 2D web games with debuff. Start with inspect_project. To see the game, call game_start, then game_state / game_capture. " +
         "If the human has the game open under `debuff dev`, game_start attaches to it (mode live): they see your actions in their overlay, and their " +
         "flagged moments are in game_notes, so read those first. Otherwise you get a private paused copy (mode headless) where time only advances through game_step. " +
-        "Use game_pause before inspecting a live game, and game_frames to explain stutter. Prefer tuning params (game_params, game_set_param) over code changes, " +
+        "Use game_pause before inspecting a live game, and game_frames to explain stutter. Prompts (playtest, fix-errors, tune-feel, add-mechanic, explain-stutter) give step-by-step workflows. Prefer tuning params (game_params, game_set_param) over code changes, " +
         "and verify changes with run_scenarios. Creative direction belongs to the human: propose alternatives rather than deciding art or feel.",
     },
   );
@@ -288,6 +289,8 @@ export function createServer(options: ServerOptions): McpServer {
       return json({ ok: true });
     }),
   );
+
+  registerPrompts(server);
 
   const close = server.close.bind(server);
   server.close = async () => {
