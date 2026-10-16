@@ -168,7 +168,23 @@ const sfx = {
   win: () => audio.synth({ wave: "triangle", freq: 392, freqEnd: 1568, decay: 0.9, volume: 0.14 }),
 };
 
+// Render interpolation: the simulation runs at 60 Hz, displays often faster. Drawing each mover between its
+// previous and current step keeps motion smooth instead of jumping every few display frames.
+const prev = new WeakMap<object, { x: number; y: number }>();
+const remember = (o: { x: number; y: number }) => {
+  const p = prev.get(o);
+  if (p) {
+    p.x = o.x;
+    p.y = o.y;
+  } else prev.set(o, { x: o.x, y: o.y });
+};
+const smooth = (o: { x: number; y: number }, alpha: number) => {
+  const p = prev.get(o);
+  return p ? { x: p.x + (o.x - p.x) * alpha, y: p.y + (o.y - p.y) * alpha } : { x: o.x, y: o.y };
+};
+
 function placePlayer(at: { x: number; y: number }): void {
+  prev.delete(player);
   player.x = at.x + (T - player.w) / 2;
   player.y = at.y + (T - player.h) / 2;
   const s = screenOf(at.x + T / 2, at.y + T / 2);
@@ -416,6 +432,9 @@ const play: Scene = {
   },
 
   update(dt) {
+    remember(player);
+    for (const f of foesOnScreen) remember(f);
+    for (const s of shots) remember(s);
     const anyInput = ["left", "right", "up", "down", "attack"].some((a) => input.down(a as "left"));
     if (anyInput && titleTime > 0.5) titleTime = 0.5;
     titleTime = Math.max(0, titleTime - dt);
@@ -507,7 +526,7 @@ const play: Scene = {
     updatePickups();
   },
 
-  render(draw) {
+  render(draw, alpha) {
     draw.withCamera(game.camera, () => {
       map.draw(draw, { camera: game.camera });
       const bob = Math.floor(game.clock.time * 4) % 2;
@@ -520,27 +539,39 @@ const play: Scene = {
           const anim = Math.floor(game.clock.time * (f.kind === "moth" ? 8 : 4)) % 2;
           const i = f.kind === "warden" ? SPR.slime : SPR[f.kind];
           const scale = f.kind === "warden" ? 2 : 1;
-          draw.sprite(frame(i + anim), Math.round(f.x + f.w / 2), Math.round(f.y + f.h / 2 - (scale - 1) * 6), {
-            scaleX: scale,
-            scaleY: scale,
-            flash: f.hurt > 0 ? 0.8 : 0,
-            tint: f.kind === "warden" ? C.lilac : undefined,
-          });
+          draw.sprite(
+            frame(i + anim),
+            Math.round(smooth(f, alpha).x + f.w / 2),
+            Math.round(smooth(f, alpha).y + f.h / 2 - (scale - 1) * 6),
+            {
+              scaleX: scale,
+              scaleY: scale,
+              flash: f.hurt > 0 ? 0.8 : 0,
+              tint: f.kind === "warden" ? C.lilac : undefined,
+            },
+          );
         }
-        for (const s of shots) draw.sprite(frame(SPR.shot), Math.round(s.x), Math.round(s.y));
+        for (const s of shots) {
+          const at = smooth(s, alpha);
+          draw.sprite(frame(SPR.shot), Math.round(at.x), Math.round(at.y));
+        }
       }
 
       // Hero, with a blink while invulnerable and the blade drawn as two rects.
       const c = center();
+      const at = smooth(player, alpha);
+      const lag = { x: at.x - player.x, y: at.y - player.y };
       const blink = player.invuln > 0 && Math.floor(player.invuln * 16) % 2 === 0;
       if (state !== "lost" && !blink) {
         if (player.swing > 0) {
           const b = swordBox();
+          b.x += lag.x;
+          b.y += lag.y;
           draw.rect(b.x, b.y + (b.w > b.h ? 2 : 0), b.w > b.h ? b.w : 2, b.w > b.h ? 2 : b.h, C.cream);
           draw.rect(b.x + (b.w > b.h ? 0 : 2), b.y + (b.w > b.h ? 2 : 0), b.w > b.h ? b.w : 1, b.w > b.h ? 1 : b.h, C.lilac);
         }
         const step = player.swing > 0 ? 2 : Math.floor(player.walk * 8) % 2;
-        draw.sprite(frame(SPR.hero + DIR_ROW[player.facing] * 3 + step), Math.round(c.x), Math.round(c.y - 3));
+        draw.sprite(frame(SPR.hero + DIR_ROW[player.facing] * 3 + step), Math.round(c.x + lag.x), Math.round(c.y - 3 + lag.y));
       }
       particles.draw(draw);
     });

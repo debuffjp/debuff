@@ -384,6 +384,7 @@ export class Game {
 
   private render(alpha: number): void {
     const { draw } = this;
+    this.camera.renderAlpha = alpha;
     draw.begin(this.background, this.width, this.height, this.renderScale);
     this.phase = "beforeRender";
     this.hooks.emit("beforeRender", draw, alpha);

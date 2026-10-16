@@ -1,6 +1,6 @@
 import { Assets } from "@debuffjp/assets";
 import { Audio } from "@debuffjp/audio";
-import { approach, Game, overlaps, type Scene, Sprite, Storage } from "@debuffjp/core";
+import { approach, Game, lerp, overlaps, type Scene, Sprite, Storage } from "@debuffjp/core";
 import { devOverlay, devTools } from "@debuffjp/dev";
 import { Input } from "@debuffjp/input";
 import { Particles, squash, Tweens } from "@debuffjp/juice";
@@ -67,12 +67,16 @@ const player = { x: 0, y: 0, w: 12, h: 13, vx: 0, vy: 0, onGround: false, coyote
 let coins: (MapObject & { taken: boolean })[] = [];
 let score = 0;
 let won = false;
+// Where the player was at the previous step: drawing between the two keeps motion smooth on displays faster than 60 Hz.
+const prev = { x: 0, y: 0 };
 const center = () => ({ x: player.x + player.w / 2, y: player.y + player.h / 2 });
 const camTarget = { x: 0, y: 0 };
 
 function reset(): void {
   player.x = spawn.x;
   player.y = spawn.y;
+  prev.x = player.x;
+  prev.y = player.y;
   player.vx = player.vy = 0;
   coins = objects.filter((o) => o.type === "Coin").map((o) => ({ ...o, taken: false }));
   score = 0;
@@ -92,6 +96,8 @@ const play: Scene = {
   },
 
   update(dt) {
+    prev.x = player.x;
+    prev.y = player.y;
     const t = tuning.values;
     if (!won) {
       const dir = input.axis("left", "right");
@@ -166,7 +172,7 @@ const play: Scene = {
     particles.update(dt);
   },
 
-  render(draw) {
+  render(draw, alpha) {
     draw.withCamera(game.camera, () => {
       map.draw(draw, { camera: game.camera });
       const spin = coinFrames[Math.floor(game.clock.time * 8) % coinFrames.length];
@@ -174,8 +180,10 @@ const play: Scene = {
         for (const coin of coins) if (!coin.taken) draw.sprite(spin, coin.x + 6, coin.y + 6 + Math.sin(game.clock.time * 4 + coin.x) * 1.5);
       if (goal) draw.rect(goal.x + 7, goal.y, 2, goal.height, "#e7fd96");
       if (goal) draw.rect(goal.x + 9, goal.y, 10, 7, won ? "#fbbf24" : "#cffb2d");
-      buff.x = Math.round(center().x);
-      buff.y = Math.round(player.y + player.h);
+      const px = lerp(prev.x, player.x, alpha);
+      const py = lerp(prev.y, player.y, alpha);
+      buff.x = Math.round(px + player.w / 2);
+      buff.y = Math.round(py + player.h);
       buff.flipX = player.facing < 0;
       buff.scaleX = player.scaleX;
       buff.scaleY = player.scaleY;
