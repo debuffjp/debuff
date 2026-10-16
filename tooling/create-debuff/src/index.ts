@@ -9,6 +9,7 @@ export {
   listTemplates,
   ownVersion,
   packageName,
+  pinnedSource,
   resolveTemplate,
   type ScaffoldOptions,
   scaffold,

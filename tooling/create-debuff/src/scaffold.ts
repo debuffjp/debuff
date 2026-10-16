@@ -58,7 +58,7 @@ export function resolveTemplate(template: string): { kind: "local"; dir: string 
   const dir = join(templatesDir(), template);
   if (existsSync(join(dir, "package.json"))) return { kind: "local", dir };
   const official = OFFICIAL_TEMPLATES.find((t) => t.id === template);
-  if (official) return { kind: "remote", source: official.source };
+  if (official) return { kind: "remote", source: pinnedSource(official.source, ownVersion()) };
   throw new Error(
     `Unknown template "${template}". Available: ${listTemplates()
       .map((t) => t.id)
@@ -143,6 +143,11 @@ function copyTemplate(src: string, dest: string, name: string | undefined): stri
   }
   writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
   return dest;
+}
+
+/** Pin an official template to the git tag of this create-debuff release, so it matches the published CLI. */
+export function pinnedSource(source: string, version: string): string {
+  return version === "0.0.0" || source.includes("#") ? source : `${source}#create-debuff@${version}`;
 }
 
 export function ownVersion(): string {

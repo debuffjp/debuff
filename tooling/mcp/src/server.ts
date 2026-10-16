@@ -48,7 +48,9 @@ export function createServer(options: ServerOptions): McpServer {
         return fail(err instanceof Error ? err.message : String(err));
       }
     };
-  const root = { root: z.string().optional().describe("Project root, relative to the server's root. Default: the server's root.") };
+  const root = {
+    root: z.string().optional().describe("Project root. Absolute path, or relative to the server's root. Default: the server's root."),
+  };
 
   // ---- project tools -------------------------------------------------------------------------
 

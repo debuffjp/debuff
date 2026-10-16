@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, join, relative } from "node:path";
 import { amber, lime, paint } from "create-debuff";
 import pc from "picocolors";
 import type { Browser, Page } from "playwright-core";
@@ -121,7 +121,7 @@ async function runOne(page: Page, base: string, name: string, scenario: Scenario
           const result = await compareCapture(page, options, name, capture, tolerance, await call<string>("capture"));
           captures.push(result);
           if (result.status === "diff") {
-            return `capture "${capture}" differs: ${pct(result.diffRatio ?? 1)} of pixels (tolerance ${pct(tolerance)})`;
+            return captureDiffMessage(capture, result, tolerance, options.root);
           }
           if (result.status === "missing") return `capture "${capture}" has no baseline for ${process.platform} (run with --update)`;
           return undefined;
@@ -202,8 +202,27 @@ async function compareCapture(
     return { name, path, baseline, status: existed ? "updated" : "new" };
   }
   const expected = `data:image/png;base64,${readFileSync(baseline).toString("base64")}`;
-  const diffRatio = await page.evaluate(diffImages, [dataUrl, expected, PIXEL_THRESHOLD] as [string, string, number]);
-  return { name, path, baseline, status: diffRatio <= tolerance ? "match" : "diff", diffRatio };
+  const result = await page.evaluate(diffImages, [dataUrl, expected, PIXEL_THRESHOLD] as [string, string, number]);
+  if (result.ratio <= tolerance) return { name, path, baseline, status: "match", diffRatio: result.ratio };
+  let diff: string | undefined;
+  if (result.image) {
+    diff = join(outDir, `${name}.diff.png`);
+    writeFileSync(diff, Buffer.from(result.image.slice(result.image.indexOf(",") + 1), "base64"));
+  }
+  return { name, path, baseline, status: "diff", diffRatio: result.ratio, ...(diff ? { diff } : {}) };
+}
+
+export const UPDATE_HINT = "If this change is intended, run `npx debuff scenario --update`.";
+
+export function captureDiffMessage(capture: string, result: CaptureResult, tolerance: number, root: string): string {
+  const rel = (p: string) => relative(root, p).split("\\").join("/");
+  return [
+    `capture "${capture}" differs: ${pct(result.diffRatio ?? 1)} of pixels (tolerance ${pct(tolerance)})`,
+    `      actual:   ${rel(result.path)}`,
+    `      baseline: ${rel(result.baseline)}`,
+    ...(result.diff ? [`      diff:     ${rel(result.diff)}`] : []),
+    `    ${UPDATE_HINT}`,
+  ].join("\n");
 }
 
 const pct = (n: number) => `${(n * 100).toFixed(2)}%`;
