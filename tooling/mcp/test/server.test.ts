@@ -47,7 +47,7 @@ describe("debuff MCP server", () => {
   });
 
   it("plays the game: start, input, step, tune, capture", { timeout: 60_000 }, async () => {
-    const started = await data("game_start");
+    const started = await data("game_start", { mode: "headless" });
     expect(started.state).toMatchObject({ scene: "play", renderer: "webgl2" });
 
     await data("game_input", { action: "press", code: "ArrowRight" });

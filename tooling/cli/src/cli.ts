@@ -43,7 +43,7 @@ cli
   .option("--port <port>", "Port", { default: 5173 })
   .option("--host", "Expose on the local network (test on phones)")
   .action(async (o: Common & { port: number; host?: boolean }) => {
-    const server = await createDevServer(rootOf(o), { port: o.port, host: o.host ?? false });
+    const server = await createDevServer(rootOf(o), { port: o.port, host: o.host ?? false, agentLink: true });
     await server.listen();
     header("dev server", "more room for play");
     for (const url of server.resolvedUrls?.local ?? []) console.log(`  ${lime("➜")}  ${pc.bold("local")}    ${sky(url)}`);

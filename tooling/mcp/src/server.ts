@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { buildReport, compileAssets, findUnused, inspectProject, loadConfig, runScenarios, viteConfig } from "@debuff/cli";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { GameSession } from "./session.js";
+import { type GameSession, startSession } from "./session.js";
 
 type Content = { type: "text"; text: string } | { type: "image"; data: string; mimeType: string };
 
@@ -24,8 +24,10 @@ export function createServer(options: ServerOptions): McpServer {
     { name: "debuff", version: options.version },
     {
       instructions:
-        "Tools for building 2D web games with debuff. Start with inspect_project. To see the game, call game_start, then game_state / game_capture; " +
-        "time only advances through game_step, so results are deterministic. Prefer tuning params (game_params, game_set_param) over code changes, " +
+        "Tools for building 2D web games with debuff. Start with inspect_project. To see the game, call game_start, then game_state / game_capture. " +
+        "If the human has the game open under `debuff dev`, game_start attaches to it (mode live): they see your actions in their overlay, and their " +
+        "flagged moments are in game_notes, so read those first. Otherwise you get a private paused copy (mode headless) where time only advances through game_step. " +
+        "Use game_pause before inspecting a live game, and game_frames to explain stutter. Prefer tuning params (game_params, game_set_param) over code changes, " +
         "and verify changes with run_scenarios. Creative direction belongs to the human: propose alternatives rather than deciding art or feel.",
     },
   );
@@ -118,14 +120,20 @@ export function createServer(options: ServerOptions): McpServer {
     "game_start",
     {
       title: "Start game",
-      description: "Start the dev server and open the game in a headless browser, paused. Replaces any running game.",
-      inputSchema: { ...root, page: z.string().optional().describe('Path to open. Default "/".') },
+      description:
+        "Connect to the game. auto (default): attach to the human's live game if `debuff dev` has it open in a browser, else start a private " +
+        "headless copy, paused. Returns the mode, state and how many notes the human has flagged. Replaces any running session.",
+      inputSchema: {
+        ...root,
+        page: z.string().optional().describe('Path to open in headless mode. Default "/".'),
+        mode: z.enum(["auto", "live", "headless"]).optional().describe("Default auto."),
+      },
     },
-    safely(async ({ root: r, page }) => {
+    safely(async ({ root: r, page, mode }) => {
       await session?.stop();
       session = undefined;
-      session = await GameSession.start(rootOf(r), page ? { page } : {});
-      return json({ url: session.url, state: await session.call("state") });
+      session = await startSession(rootOf(r), { ...(page ? { page } : {}), ...(mode ? { mode } : {}) });
+      return json({ mode: session.mode, url: session.url, state: await session.call("state") });
     }),
   );
 
@@ -219,6 +227,41 @@ export function createServer(options: ServerOptions): McpServer {
   );
 
   server.registerTool(
+    "game_pause",
+    {
+      title: "Pause or resume",
+      description: "Pause or resume a live game (headless games are always paused). game_step also pauses first.",
+      inputSchema: { paused: z.boolean() },
+    },
+    safely(async ({ paused }) => json(await live().call(paused ? "pause" : "resume"))),
+  );
+
+  server.registerTool(
+    "game_frames",
+    {
+      title: "Frame breakdown",
+      description:
+        "Recent frames, oldest first: intervalMs (what the player feels), updateMs, renderMs, steps (>1 means catching up), quads, drawCalls and " +
+        "longTaskMs (browser-reported main-thread stalls). Use it to explain stutter; in headless mode times reflect stepping, not real play.",
+      inputSchema: { count: z.number().int().min(1).max(240).optional().describe("Default 60.") },
+      annotations: { readOnlyHint: true },
+    },
+    safely(async ({ count }) => json(await live().call("frames", count ?? 60))),
+  );
+
+  server.registerTool(
+    "game_notes",
+    {
+      title: "Human notes",
+      description:
+        "Moments the human flagged in the overlay (live mode): their words, the tick, the scene's inspect() state then, and the frames leading up to it.",
+      inputSchema: {},
+      annotations: { readOnlyHint: true },
+    },
+    safely(async () => json(await live().call("notes"))),
+  );
+
+  server.registerTool(
     "game_errors",
     {
       title: "Runtime errors",
@@ -231,7 +274,11 @@ export function createServer(options: ServerOptions): McpServer {
 
   server.registerTool(
     "game_stop",
-    { title: "Stop game", description: "Close the browser and dev server.", inputSchema: {} },
+    {
+      title: "Stop game",
+      description: "Headless: close the browser and dev server. Live: resume the human's game and disconnect.",
+      inputSchema: {},
+    },
     safely(async () => {
       await session?.stop();
       session = undefined;

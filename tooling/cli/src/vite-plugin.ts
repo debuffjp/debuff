@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { extname, join, resolve, sep } from "node:path";
 import type { Plugin, PluginOption } from "vite";
+import { attachAgentLink } from "./agent-link.js";
 import type { AtlasOptions } from "./assets/atlas.js";
 import { type CompileResult, compileAssets } from "./assets/compile.js";
 import type { ToolingPlugin } from "./plugin.js";
@@ -28,6 +29,8 @@ export interface DebuffViteOptions {
   plugins?: ToolingPlugin[];
   /** Atlas packing options; `false` disables. Default on. */
   atlas?: AtlasOptions | false;
+  /** Relay agent commands to the game open in the browser (`debuff dev` turns this on). Default false. */
+  agentLink?: boolean;
 }
 
 /**
@@ -79,6 +82,7 @@ export function debuff(options: DebuffViteOptions = {}): PluginOption[] {
       server.watcher.on("add", onChange);
       server.watcher.on("unlink", onChange);
       server.watcher.on("change", onChange);
+      if (options.agentLink) attachAgentLink(server, root);
       server.middlewares.use(async (req, res, next) => {
         const url = req.url?.split("?")[0];
         if (!url?.startsWith(URL_PREFIX)) return next();

@@ -1,3 +1,4 @@
+export { AGENT_PATHS, type AgentStatus, DEV_SERVER_FILE, type DevServerInfo } from "./agent-link.js";
 export * from "./assets/index.js";
 export { CONFIG_FILES, type DebuffConfig, defineConfig, loadConfig, type ResolvedConfig, validatePlugins } from "./config.js";
 export { inspectProject } from "./inspect.js";
