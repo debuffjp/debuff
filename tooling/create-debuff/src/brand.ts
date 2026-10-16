@@ -58,10 +58,10 @@ export function badge(text = " debuff "): string {
 export type Mood = "idle" | "happy" | "oops";
 
 /**
- * deeb, the debuff mascot, as pixel art. Each string is a pixel row:
+ * buff, the debuff mascot, as pixel art. Each string is a pixel row:
  * L lime, H highlight, K ink, R red (oops), . transparent.
  */
-const DEEB: Record<Mood, string[]> = {
+const BUFF: Record<Mood, string[]> = {
   idle: [".LLLLLL.", "LHHHHHHL", "LLKLLKLL", "LLKLLKLL", "LLLLLLLL", ".LLLLLL."],
   happy: [".LLLLLL.", "LHHHHHHL", "LKLKKLKL", "LLLLLLLL", "LLKKKKLL", ".LLLLLL."],
   oops: [".LLLLLL.", "LHHHHHHL", "LRLLLLRL", "LLRLLRLL", "LLLKKLLL", ".LLLLLL."],
@@ -70,12 +70,12 @@ const DEEB: Record<Mood, string[]> = {
 const PIXEL: Record<string, string | undefined> = { L: PALETTE.lime, H: PALETTE.limeSoft, K: PALETTE.ink, R: PALETTE.red };
 
 /**
- * deeb rendered with half-block characters: two pixel rows per text line (3 lines tall).
+ * buff rendered with half-block characters: two pixel rows per text line (3 lines tall).
  * Returns no lines when the terminal can't show 24-bit colour, so callers can just skip it.
  */
-export function deeb(mood: Mood = "idle"): string[] {
+export function buff(mood: Mood = "idle"): string[] {
   if (!truecolor) return [];
-  const rows = DEEB[mood];
+  const rows = BUFF[mood];
   const lines: string[] = [];
   for (let y = 0; y < rows.length; y += 2) {
     const top = rows[y] ?? "";
@@ -95,11 +95,11 @@ export function deeb(mood: Mood = "idle"): string[] {
 }
 
 /**
- * deeb beside up to three lines of text, for command headers and results.
- * Falls back to the badge and text when deeb can't be drawn.
+ * buff beside up to three lines of text, for command headers and results.
+ * Falls back to the badge and text when buff can't be drawn.
  */
 export function banner(mood: Mood, lines: string[]): string {
-  const art = deeb(mood);
+  const art = buff(mood);
   if (!art.length) return [`${badge()} ${lines[0] ?? ""}`, ...lines.slice(1).map((l) => `         ${l}`)].join("\n");
   return art.map((row, i) => `  ${row}  ${lines[i] ?? ""}`).join("\n");
 }

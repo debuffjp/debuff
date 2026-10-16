@@ -51,7 +51,7 @@ const play: Scene = {
 
   render(draw) {
     draw.withCamera(game.camera, () => {
-      // deeb, the debuff mascot: a lime block with eyes, squashing from its feet.
+      // buff, the debuff mascot: a lime block with eyes, squashing from its feet.
       draw.push();
       draw.translate(player.x, player.y);
       draw.scale(player.scaleX, player.scaleY);
