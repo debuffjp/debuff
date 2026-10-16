@@ -9,6 +9,7 @@
         "state.screen": { "eq": { "col": 1, "row": 1 } }
       }
     },
+    { "capture": "title" },
     { "set": { "enemies.mothSpeed": 0 } },
     { "press": "ArrowUp" },
     { "wait": 150 },
