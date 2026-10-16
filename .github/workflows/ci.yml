@@ -45,3 +45,33 @@ jobs:
             templates/*/.debuff/
             templates/*/scenarios/__baselines__/
           if-no-files-found: ignore
+
+  package-managers:
+    name: create + build with ${{ matrix.pm }} (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        pm: [npm, pnpm, yarn, bun]
+        include:
+          - os: windows-latest
+            pm: pnpm
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - if: matrix.pm == 'pnpm'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - if: matrix.pm == 'yarn'
+        run: corepack enable && corepack prepare yarn@stable --activate
+      - if: matrix.pm == 'bun'
+        uses: oven-sh/setup-bun@v2
+      - run: npm ci
+      - run: npm run build
+      # Packs every package, scaffolds with create-debuff, installs from the tarballs, builds and runs scenarios.
+      - run: node scripts/smoke-package-manager.mjs ${{ matrix.pm }} --scenarios
