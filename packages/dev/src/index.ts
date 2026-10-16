@@ -89,19 +89,13 @@ export function devTools(options: DevHooksOptions = {}): Plugin {
   return {
     name: "dev-tools",
     install(game) {
-      const errors: string[] = [];
-      const onError = (e: ErrorEvent) => errors.push(String(e.error?.stack ?? e.message));
-      const onRejection = (e: PromiseRejectionEvent) => errors.push(String(e.reason?.stack ?? e.reason));
-      addEventListener("error", onError);
-      addEventListener("unhandledrejection", onRejection);
       const session = DevSession.acquire(game);
+      const errors = session.errors;
       const hooks = createHooks(game, session, options, errors, () => (hooks.controlled ? "scenario" : "agent"));
       window.__DEBUFF_DEV__ = hooks;
       const unlink = options.agentLink === false || hooks.controlled ? undefined : linkAgent(game, session, options, errors);
       return () => {
         unlink?.();
-        removeEventListener("error", onError);
-        removeEventListener("unhandledrejection", onRejection);
         delete window.__DEBUFF_DEV__;
         session.release();
       };
@@ -219,4 +213,14 @@ function linkAgent(game: Game, session: DevSession, options: DevHooksOptions, er
 }
 
 export { type DevOverlayOptions, devOverlay } from "./overlay.js";
-export { type Activity, DevSession, diagnose, FrameRecorder, type FrameSample, type Note } from "./session.js";
+export {
+  type Activity,
+  DevSession,
+  diagnose,
+  FrameRecorder,
+  type FrameSample,
+  type FrameSummary,
+  HITCH,
+  type Note,
+  summarize,
+} from "./session.js";

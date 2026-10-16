@@ -206,6 +206,10 @@ export class DevSession {
   readonly recorder: FrameRecorder;
   readonly activity: Activity[] = [];
   readonly notes: Note[] = [];
+  /** Uncaught errors and unhandled rejections since the session started (newest last, max 50). */
+  readonly errors: string[] = [];
+  private readonly onError = (e: ErrorEvent) => this.addError(String(e.error?.stack ?? e.message));
+  private readonly onRejection = (e: PromiseRejectionEvent) => this.addError(String(e.reason?.stack ?? e.reason));
   /** Who paused the game, or undefined while running. */
   pausedBy: string | undefined;
   /** Pause automatically when a frame exceeds this many milliseconds (0 = off). */
@@ -224,6 +228,8 @@ export class DevSession {
         this.pause("spike", `${latest.intervalMs.toFixed(1)} ms frame at tick ${latest.tick}`);
       }
     };
+    addEventListener("error", this.onError);
+    addEventListener("unhandledrejection", this.onRejection);
   }
 
   /** The session for `game`, created on first use. Call `release()` when done. */
@@ -240,6 +246,8 @@ export class DevSession {
   release(): void {
     if (--this.refs > 0) return;
     this.recorder.dispose();
+    removeEventListener("error", this.onError);
+    removeEventListener("unhandledrejection", this.onRejection);
     sessions.delete(this.game);
   }
 
@@ -325,6 +333,12 @@ export class DevSession {
     return n;
   }
 
+  private addError(message: string): void {
+    this.errors.push(message);
+    if (this.errors.length > 50) this.errors.shift();
+    this.changed();
+  }
+
   log(who: string, action: string, detail?: string, undo?: () => void): void {
     this.activity.push({ at: Date.now(), who, action, ...(detail === undefined ? {} : { detail }), ...(undo ? { undo } : {}) });
     if (this.activity.length > 200) this.activity.shift();
@@ -353,6 +367,8 @@ const format = (v: ParamValue) => (typeof v === "number" && !Number.isInteger(v)
 export function diagnose(s: FrameSample, budgetMs = 1000 / 60): string {
   const work = s.updateMs + s.renderMs;
   if (s.intervalMs <= budgetMs * 1.05) return "on budget";
+  if (s.intervalMs <= budgetMs * HITCH && work <= budgetMs * 0.75)
+    return "a little late: normal display timing jitter, not a dropped frame";
   const parts: string[] = [];
   if (s.longTaskMs > 0) parts.push(`the browser reported a ${s.longTaskMs.toFixed(0)} ms main-thread stall`);
   if (s.steps > 1) parts.push(`the loop caught up ${s.steps} steps after a late frame`);
@@ -366,4 +382,51 @@ export function diagnose(s: FrameSample, budgetMs = 1000 / 60): string {
     parts.push(`the game only worked ${work.toFixed(1)} ms; the time went elsewhere (GC, another tab, the browser or OS)`);
   }
   return parts.join("; ");
+}
+
+/** A frame counts as a hitch (a visibly dropped frame) past this multiple of the budget. */
+export const HITCH = 1.5;
+
+export interface FrameSummary {
+  frames: number;
+  /** Seconds the summary covers. */
+  seconds: number;
+  avgWorkMs: number;
+  p95WorkMs: number;
+  /** Share of the frame budget left unused at p95 work, 0..1. */
+  headroom: number;
+  /** Frames longer than `HITCH` × budget. */
+  hitches: number;
+  /** Hitches where update + render alone used most of the budget: the game's own code. */
+  gameHitches: number;
+  /** Hitches where the game did little work: GC, other tabs, the browser or OS. */
+  outsideHitches: number;
+}
+
+/**
+ * Summarise recent frames into what matters: how much headroom the game has, and whether dropped
+ * frames come from the game's own work or from outside it.
+ */
+export function summarize(samples: readonly FrameSample[], budgetMs = 1000 / 60): FrameSummary {
+  const works = samples.map((s) => s.updateMs + s.renderMs).sort((a, b) => a - b);
+  const p95 = works[Math.min(works.length - 1, Math.floor(works.length * 0.95))] ?? 0;
+  let hitches = 0;
+  let gameHitches = 0;
+  let seconds = 0;
+  for (const s of samples) {
+    seconds += s.intervalMs / 1000;
+    if (s.intervalMs <= budgetMs * HITCH) continue;
+    hitches++;
+    if (s.updateMs + s.renderMs > budgetMs * 0.75) gameHitches++;
+  }
+  return {
+    frames: samples.length,
+    seconds,
+    avgWorkMs: works.length ? works.reduce((a, b) => a + b, 0) / works.length : 0,
+    p95WorkMs: p95,
+    headroom: Math.max(0, 1 - p95 / budgetMs),
+    hitches,
+    gameHitches,
+    outsideHitches: hitches - gameHitches,
+  };
 }

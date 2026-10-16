@@ -1,6 +1,6 @@
 import { Game } from "@debuff/core";
 import { describe, expect, it, vi } from "vitest";
-import { DevSession, diagnose, exposeDevHooks, type FrameSample } from "../src/index.js";
+import { DevSession, diagnose, exposeDevHooks, type FrameSample, summarize } from "../src/index.js";
 
 function makeGame() {
   window.history.replaceState(null, "", "/");
@@ -104,5 +104,18 @@ describe("dev hooks with a session", () => {
     expect(hooks.notes()[0]?.text).toBe("here");
     expect(hooks.resume().pausedBy).toBeNull();
     game.dispose();
+  });
+});
+
+describe("summarize", () => {
+  it("separates normal jitter, the game's own hitches and outside hitches", () => {
+    const frames = [
+      sample({ intervalMs: 16.7 }),
+      sample({ intervalMs: 20 }), // jitter: not a hitch
+      sample({ intervalMs: 40, updateMs: 30 }), // the game's fault
+      sample({ intervalMs: 50 }), // outside the game
+    ];
+    expect(summarize(frames)).toMatchObject({ frames: 4, hitches: 2, gameHitches: 1, outsideHitches: 1 });
+    expect(diagnose(sample({ intervalMs: 20 }))).toMatch(/jitter/);
   });
 });
