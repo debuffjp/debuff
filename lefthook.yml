@@ -1,3 +1,8 @@
+# Show only failures and the summary line.
+output:
+  - summary
+  - failure
+
 # Fast local checks so most problems never reach CI. Skip once with LEFTHOOK=0.
 pre-commit:
   parallel: true

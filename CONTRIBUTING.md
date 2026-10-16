@@ -1,4 +1,4 @@
-# Contributing to Debuff
+# Contributing to debuff
 
 Thanks for helping. Small, focused changes backed by a real need (a game, a jam entry, a measured problem) land fastest.
 

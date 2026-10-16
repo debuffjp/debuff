@@ -1,6 +1,6 @@
 # Writing plugins
 
-Plugins extend Debuff through small, typed contracts ([ADR 0004](./adr/0004-plugin-api.md)). This guide covers **runtime plugins**, which run in the browser. Tooling plugins (asset importers, CLI commands, scenario steps) come in phase 2.
+Plugins extend debuff through small, typed contracts ([ADR 0004](./adr/0004-plugin-api.md)). This guide covers **runtime plugins**, which run in the browser. Tooling plugins (asset importers, CLI commands, scenario steps) come in phase 2.
 
 ## The contract
 

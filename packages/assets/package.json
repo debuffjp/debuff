@@ -1,7 +1,7 @@
 {
   "name": "@debuff/assets",
   "version": "0.0.0",
-  "description": "Manifest-driven asset loader with preload groups for Debuff",
+  "description": "Manifest-driven asset loader with preload groups for debuff",
   "keywords": [
     "game",
     "assets",

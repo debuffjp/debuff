@@ -1,7 +1,7 @@
 {
   "name": "@debuff/audio",
   "version": "0.0.0",
-  "description": "Web Audio facade with buses, autoplay unlock and a tiny synth for Debuff",
+  "description": "Web Audio facade with buses, autoplay unlock and a tiny synth for debuff",
   "keywords": [
     "game",
     "audio",

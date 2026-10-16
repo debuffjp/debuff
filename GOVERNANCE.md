@@ -2,7 +2,7 @@
 
 ## Roles
 
-- **Users** build games with Debuff and tell us what works and what doesn't.
+- **Users** build games with debuff and tell us what works and what doesn't.
 - **Contributors** send issues, docs, templates, plugins and code.
 - **Maintainers** review and merge, cut releases, and own the roadmap. Contributors with a sustained record of good work are invited to become maintainers.
 

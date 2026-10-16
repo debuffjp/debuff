@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Debuff is pre-1.0. Only the latest published minor version receives fixes.
+debuff is pre-1.0. Only the latest published minor version receives fixes.
 
 ## Reporting a vulnerability
 

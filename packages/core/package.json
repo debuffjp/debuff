@@ -1,7 +1,7 @@
 {
   "name": "@debuff/core",
   "version": "0.0.0",
-  "description": "Game loop, fixed-step clock, scenes, camera, sprites and typed creative parameters for Debuff",
+  "description": "Game loop, fixed-step clock, scenes, camera, sprites and typed creative parameters for debuff",
   "keywords": [
     "game",
     "gamedev",

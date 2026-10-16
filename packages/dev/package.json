@@ -1,7 +1,7 @@
 {
   "name": "@debuff/dev",
   "version": "0.0.0",
-  "description": "Dev-only inspection hooks for Debuff games, for tools and AI agents",
+  "description": "Dev-only inspection hooks for debuff games, for tools and AI agents",
   "keywords": [
     "game",
     "devtools",

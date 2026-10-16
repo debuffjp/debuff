@@ -54,8 +54,12 @@ const play: Scene = {
     ctx.save();
     ctx.translate(player.x, player.y);
     ctx.scale(player.scaleX, player.scaleY);
+    // deeb, the debuff mascot: a lime block with eyes.
     ctx.fillStyle = "#a3e635";
     ctx.fillRect(-8, -16, 16, 16);
+    ctx.fillStyle = "#11140d";
+    ctx.fillRect(-5, -12, 3, 4);
+    ctx.fillRect(2, -12, 3, 4);
     ctx.restore();
     particles.draw(ctx);
     ctx.restore();

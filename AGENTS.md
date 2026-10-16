@@ -1,6 +1,6 @@
 # Agent guide
 
-Instructions for AI agents working **on this repository**. (Agents working on a game made with Debuff should use `debuff inspect`, `window.__DEBUFF_DEV__` and `debuff scenario`.)
+Instructions for AI agents working **on this repository**. (Agents working on a game made with debuff should use `debuff inspect`, `window.__DEBUFF_DEV__` and `debuff scenario`.)
 
 ## Orientation
 

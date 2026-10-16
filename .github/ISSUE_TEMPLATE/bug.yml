@@ -16,5 +16,5 @@ body:
   - type: input
     id: version
     attributes:
-      label: Debuff version
+      label: debuff version
       placeholder: npx debuff --version
