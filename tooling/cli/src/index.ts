@@ -1,6 +1,7 @@
 export { AGENT_PATHS, type AgentStatus, DEV_SERVER_FILE, type DevServerInfo } from "./agent-link.js";
 export * from "./assets/index.js";
 export { CONFIG_FILES, type DebuffConfig, defineConfig, loadConfig, type ResolvedConfig, validatePlugins } from "./config.js";
+export { DEFAULT_FUZZ_KEYS, type FuzzFinding, type FuzzOptions, type FuzzReport, runFuzz } from "./fuzz.js";
 export { inspectProject } from "./inspect.js";
 export type * from "./plugin.js";
 export { TOOLING_API_VERSION } from "./plugin.js";

@@ -45,6 +45,12 @@ describe("debuff MCP server", () => {
     expect(text).toMatch(/creative calls/);
   });
 
+  it("fuzzes the game deterministically and reports nothing on the healthy template", async () => {
+    const a = await data("fuzz", { runs: 1, seconds: 5, seed: 7 });
+    expect(a).toMatchObject({ seed: 7, runs: 1, steps: expect.any(Number), findings: [] });
+    expect(a.steps).toBeGreaterThanOrEqual(300);
+  }, 120_000);
+
   it("inspects the project", async () => {
     const info = await data("inspect_project");
     expect(info.name).toBe("@debuffjp/template-basic");

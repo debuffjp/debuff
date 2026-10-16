@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { buildReport, compileAssets, findUnused, inspectProject, loadConfig, runScenarios, viteConfig } from "@debuffjp/cli";
+import { buildReport, compileAssets, findUnused, inspectProject, loadConfig, runFuzz, runScenarios, viteConfig } from "@debuffjp/cli";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { registerPrompts } from "./prompts.js";
@@ -113,6 +113,35 @@ export function createServer(options: ServerOptions): McpServer {
       const reports = await runScenarios({ root: dir, files: files ?? [], plugins, update: update ?? false, strict: false });
       return json({ passed: reports.filter((x) => x.ok).length, total: reports.length, reports });
     }),
+  );
+
+  server.registerTool(
+    "fuzz",
+    {
+      title: "Fuzz playtest",
+      description:
+        "Play the game headlessly with random but plausible input (movement keys held, action keys tapped) to find runtime errors and stuck states. " +
+        "Each finding includes the explained error (kind, source-mapped file:line, hint) and `repro`: a scenario file that replays it exactly. " +
+        "Pass that file to run_scenarios to reproduce, then again after fixing to verify. The same seed gives the same inputs.",
+      inputSchema: {
+        ...root,
+        seconds: z.number().min(1).max(600).optional().describe("Simulated seconds of play per run. Default 60."),
+        runs: z.number().int().min(1).max(20).optional().describe("Independent runs. Default 3."),
+        seed: z.number().int().optional().describe("Input seed; reuse it to repeat a run exactly."),
+        keys: z.array(z.string()).optional().describe("KeyboardEvent.code values to press. Default: arrows, WASD, Space, Enter, Z, X."),
+      },
+    },
+    safely(async ({ root: r, seconds, runs, seed, keys }) =>
+      json(
+        await runFuzz({
+          root: rootOf(r),
+          ...(seconds === undefined ? {} : { seconds }),
+          ...(runs === undefined ? {} : { runs }),
+          ...(seed === undefined ? {} : { seed }),
+          ...(keys ? { keys } : {}),
+        }),
+      ),
+    ),
   );
 
   // ---- live game tools -----------------------------------------------------------------------
