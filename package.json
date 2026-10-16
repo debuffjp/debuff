@@ -12,19 +12,22 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "dev": "npm run dev -w sandbox",
-    "check": "npm run lint && npm run typecheck && npm test && npm run build && npm run test:scenarios",
+    "check": "npm run lint && npm run typecheck && npm test && npm run build && npm run lint:packages && npm run test:scenarios",
     "test:scenarios": "npm test -w templates/basic",
     "lint": "biome check .",
     "format": "biome check --write .",
     "changeset": "changeset",
     "release": "npm run check && changeset publish",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "lint:packages": "node scripts/lint-packages.mjs"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
     "@biomejs/biome": "^2.5.15",
     "@changesets/cli": "^3.0.3",
     "@vitest/coverage-v8": "^5.0.5",
     "happy-dom": "^21.0.3",
+    "publint": "^0.3.25",
     "typescript": "^7.0.2",
     "vite": "^8.3.4",
     "vitest": "^5.0.5"

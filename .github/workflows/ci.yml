@@ -32,6 +32,7 @@ jobs:
       - run: npm run typecheck
       - run: npm run test:coverage
       - run: npm run build
+      - run: npm run lint:packages
       # Scenarios drive the runner's preinstalled Chrome via playwright-core.
       # Baselines are per platform; a missing one is recorded (not failed) and uploaded below.
       - run: npm run test:scenarios
