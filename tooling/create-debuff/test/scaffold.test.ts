@@ -8,6 +8,7 @@ import {
   listTemplates,
   OFFICIAL_TEMPLATES,
   packageName,
+  pinnedSource,
   resolveTemplate,
   scaffold,
   templatesDir,
@@ -68,5 +69,15 @@ describe("official templates", () => {
     expect(listTemplates().map((t) => t.id)).toEqual(expect.arrayContaining(["basic", "platformer"]));
     expect(resolveTemplate("platformer").kind).toBe("local");
     expect(resolveTemplate("github:me/x")).toEqual({ kind: "remote", source: "github:me/x" });
+  });
+});
+
+describe("pinnedSource", () => {
+  it("pins official templates to the release tag, except in the monorepo or when a ref is given", () => {
+    expect(pinnedSource("github:debuffjp/debuff/templates/platformer", "0.2.0")).toBe(
+      "github:debuffjp/debuff/templates/platformer#create-debuff@0.2.0",
+    );
+    expect(pinnedSource("github:debuffjp/debuff/templates/platformer", "0.0.0")).toBe("github:debuffjp/debuff/templates/platformer");
+    expect(pinnedSource("github:me/x#dev", "0.2.0")).toBe("github:me/x#dev");
   });
 });
