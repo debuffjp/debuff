@@ -1,0 +1,44 @@
+import { Game } from "@debuff/core";
+import { describe, expect, it, vi } from "vitest";
+import { exposeDevHooks } from "../src/index.js";
+
+function setup(search = "") {
+  window.history.replaceState(null, "", `/${search}`);
+  const canvas = document.createElement("canvas");
+  vi.spyOn(canvas, "getContext").mockReturnValue(
+    new Proxy({}, { get: (_t, k) => (k === "canvas" ? canvas : () => undefined) }) as CanvasRenderingContext2D,
+  );
+  const game = new Game({ canvas, width: 100, height: 100, scale: "none" });
+  let x = 0;
+  game.params.define("player", { speed: { type: "number", default: 1, min: 0, max: 10 } });
+  game.add({ id: "play", update: () => x++, inspect: () => ({ x }) }).go("play");
+  const keys = { press: vi.fn(), release: vi.fn() };
+  const pointer = { press: vi.fn(), move: vi.fn(), release: vi.fn() };
+  const hooks = exposeDevHooks(game, { input: { keys, pointer } });
+  return { game, hooks, keys, pointer };
+}
+
+describe("exposeDevHooks", () => {
+  it("installs on window and reports state from Scene.inspect", () => {
+    const { hooks } = setup();
+    expect(window.__DEBUFF_DEV__).toBe(hooks);
+    expect(hooks.step(3)).toMatchObject({ scene: "play", tick: 3, state: { x: 3 } });
+  });
+
+  it("enters controlled mode with ?debuff-scenario", () => {
+    expect(setup("?debuff-scenario=1").hooks.controlled).toBe(true);
+    expect(setup().hooks.controlled).toBe(false);
+  });
+
+  it("drives input and params", () => {
+    const { hooks, keys, pointer, game } = setup();
+    hooks.press("Space");
+    hooks.tap(5, 6);
+    expect(keys.press).toHaveBeenCalledWith("Space");
+    expect(pointer.press).toHaveBeenCalledWith(5, 6);
+    expect(pointer.release).toHaveBeenCalled();
+    hooks.setParam("player", "speed", 4);
+    expect(game.params.group("player")?.get("speed")).toBe(4);
+    expect(() => hooks.setParam("nope", "x", 1)).toThrow(/Known: player/);
+  });
+});

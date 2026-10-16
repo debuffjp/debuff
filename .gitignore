@@ -16,3 +16,4 @@ Thumbs.db
 dist-types/
 **/public/assets/manifest.json
 .debuff/
+coverage/
