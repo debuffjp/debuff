@@ -1,4 +1,4 @@
-<p align="center"><img src="./.github/deeb.svg" width="120" alt="deeb, the debuff mascot"></p>
+<p align="center"><img src="./.github/buff.svg" width="120" alt="buff, the debuff mascot"></p>
 
 <h1 align="center">debuff</h1>
 

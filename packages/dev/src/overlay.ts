@@ -33,7 +33,7 @@ class Overlay {
   private readonly root: HTMLElement;
   private readonly graph: HTMLCanvasElement;
   private readonly label: HTMLElement;
-  private readonly mascot: Deeb;
+  private readonly mascot: Buff;
   private readonly paramsBox: HTMLElement;
   private readonly frameTimes = new Float32Array(HISTORY);
   private head = 0;
@@ -52,7 +52,7 @@ class Overlay {
 
     const header = el("div");
     Object.assign(header.style, { display: "flex", alignItems: "center", gap: "8px" });
-    this.mascot = new Deeb();
+    this.mascot = new Buff();
     const title = el("strong", {}, "debuff");
     Object.assign(title.style, { color: LIME, fontSize: "12px", letterSpacing: "0.02em" });
     this.label = el("span");
@@ -110,7 +110,7 @@ class Overlay {
       this.label.title = `work p95 ${s.workP95Ms.toFixed(1)} ms`;
       this.label.style.color = slow ? OVER_BUDGET : LIME;
       this.label.style.background = `${slow ? OVER_BUDGET : LIME}22`;
-      // deeb reacts to the last frame: worried on a spike, calm otherwise.
+      // buff reacts to the last frame: worried on a spike, calm otherwise.
       this.mascot.mood((this.frameTimes[(this.head + HISTORY - 1) % HISTORY] ?? 0) > 17.5 || slow ? "worried" : "calm");
     }
     this.drawGraph();
@@ -258,8 +258,8 @@ function panelStyle(position: NonNullable<DevOverlayOptions["position"]>): Parti
   };
 }
 
-/** deeb, the debuff mascot, drawn with DOM: a lime block with eyes that blinks and reacts to frame spikes. */
-class Deeb {
+/** buff, the debuff mascot, drawn with DOM: a lime block with eyes that blinks and reacts to frame spikes. */
+class Buff {
   readonly root: HTMLElement;
   private readonly eyes: HTMLElement[];
   private current: "calm" | "worried" = "calm";
@@ -274,7 +274,7 @@ class Deeb {
       borderRadius: "3px",
       background: LIME,
       boxShadow: "inset 0 3px 0 #d9f99d",
-      animation: "debuff-deeb-hop 1.2s ease-in-out infinite",
+      animation: "debuff-buff-hop 1.2s ease-in-out infinite",
       transformOrigin: "50% 100%",
     });
     this.eyes = [3, 9].map((left) => {
@@ -287,16 +287,16 @@ class Deeb {
         height: "4px",
         borderRadius: "1px",
         background: "#11140d",
-        animation: "debuff-deeb-blink 3.3s infinite",
+        animation: "debuff-buff-blink 3.3s infinite",
       });
       this.root.append(eye);
       return eye;
     });
-    if (!document.getElementById("debuff-deeb-style")) {
-      const style = el("style", { id: "debuff-deeb-style" });
+    if (!document.getElementById("debuff-buff-style")) {
+      const style = el("style", { id: "debuff-buff-style" });
       style.textContent = `
-@keyframes debuff-deeb-hop { 0%,100% { transform: translateY(0) scale(1.08, .92) } 50% { transform: translateY(-2px) scale(.96, 1.04) } }
-@keyframes debuff-deeb-blink { 0%,46%,50%,100% { transform: scaleY(1) } 48% { transform: scaleY(.1) } }
+@keyframes debuff-buff-hop { 0%,100% { transform: translateY(0) scale(1.08, .92) } 50% { transform: translateY(-2px) scale(.96, 1.04) } }
+@keyframes debuff-buff-blink { 0%,46%,50%,100% { transform: scaleY(1) } 48% { transform: scaleY(.1) } }
 @media (prefers-reduced-motion: reduce) { [data-debuff-overlay] * { animation: none !important } }`;
       document.head.append(style);
     }

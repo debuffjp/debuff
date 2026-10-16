@@ -59,7 +59,7 @@ export async function runCreate(options: CreateOptions): Promise<number> {
   const pm = detectPackageManager();
   const run = pm === "npm" ? "npm run" : pm;
   p.note([`cd ${relative(process.cwd(), dest) || "."}`, `${pm} install`, `${run} dev`].map((c) => sky(c)).join("\n"), "Next steps");
-  console.log(`\n${banner("happy", [lime(pc.bold("happy jamming!")), `${pc.dim("deeb is waiting in")} ${pink("src/main.ts")}`, ""])}\n`);
+  console.log(`\n${banner("happy", [lime(pc.bold("happy jamming!")), `${pc.dim("buff is waiting in")} ${pink("src/main.ts")}`, ""])}\n`);
   return 0;
 }
 

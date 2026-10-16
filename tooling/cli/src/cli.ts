@@ -20,10 +20,10 @@ interface Common {
   json?: boolean;
 }
 const rootOf = (o: Common) => resolve(o.root ?? process.cwd());
-/** Command header: deeb beside the name, version, command and a tagline. */
+/** Command header: buff beside the name, version, command and a tagline. */
 const header = (title: string, tagline: string) =>
   console.log(`\n${banner("idle", [`${lime(pc.bold("debuff"))} ${pc.dim(`v${version}`)}`, pc.bold(title), pc.dim(pc.italic(tagline))])}\n`);
-/** Result footer: deeb reacts to how it went. */
+/** Result footer: buff reacts to how it went. */
 const finish = (ok: boolean, title: string, detail = "") =>
   console.log(`\n${banner(ok ? "happy" : "oops", [ok ? lime(pc.bold(title)) : paint("red", pc.bold(title)), detail, ""])}\n`);
 const violetType = (type: string) => paint("violet", type);
