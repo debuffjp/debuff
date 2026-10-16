@@ -120,6 +120,19 @@ describe("collision", () => {
     expect(body.x + body.w).toBe(96);
   });
 
+  it("catches a jump that peaks just inside a one-way platform only with oneWayTolerance", () => {
+    const map = level();
+    // Peak with feet 3.7px below the ledge top (80): the plank art covers it, so the player expects to land.
+    const peak = () => ({ x: 20, y: 83.7 - 12, w: 10, h: 12 });
+    const strict = peak();
+    expect(map.move(strict, 0, 2).onGround).toBe(false);
+    const forgiving = peak();
+    expect(map.move(forgiving, 0, 2, { oneWayTolerance: 6 }).onGround).toBe(true);
+    expect(forgiving.y + forgiving.h).toBe(80);
+    // Deeper than the tolerance still falls through.
+    expect(map.move({ x: 20, y: 87 - 12, w: 10, h: 12 }, 0, 2, { oneWayTolerance: 6 }).onGround).toBe(false);
+  });
+
   it("passes up through one-way platforms and lands on them from above", () => {
     const map = level();
     const body = { x: 20, y: 100, w: 10, h: 12 };
