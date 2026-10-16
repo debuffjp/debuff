@@ -25,6 +25,12 @@ export interface MoveResult {
 export interface MoveOptions {
   /** Pass through one-way platforms (e.g. while holding down to drop). */
   dropThrough?: boolean;
+  /**
+   * How far (in pixels) a falling body may already be inside a one-way tile and still land on it, snapping
+   * up to its top. Set it to the platform art's thickness so a jump that visually reaches the plank catches it.
+   * Default 0.
+   */
+  oneWayTolerance?: number;
 }
 
 const EPS = 1e-6;
@@ -32,7 +38,7 @@ const EPS = 1e-6;
 /**
  * Move a body through the map, stopping at solid tiles. X then Y are resolved separately, and long
  * moves are split into tile-sized sub-steps so fast bodies never tunnel. One-way tiles only block a
- * body moving down whose bottom started at or above the tile's top. Mutates `body.x/y`.
+ * body moving down whose bottom started at or above the tile's top (plus `oneWayTolerance`). Mutates `body.x/y`.
  */
 export function move(map: Tilemap, body: Body, dx: number, dy: number, options: MoveOptions = {}): MoveResult {
   const result: MoveResult = { hitX: false, hitY: false, onGround: false, hitCeiling: false, hitLeft: false, hitRight: false };
@@ -85,7 +91,9 @@ function moveY(map: Tilemap, body: Body, dy: number, result: MoveResult, options
     const rowTop = row * th;
     for (let col = left; col <= right; col++) {
       const kind = map.collisionAt(col, row);
-      const blocks = kind === Collision.Solid || (kind === Collision.OneWay && !options.dropThrough && bottom <= rowTop + EPS);
+      const blocks =
+        kind === Collision.Solid ||
+        (kind === Collision.OneWay && !options.dropThrough && bottom <= rowTop + (options.oneWayTolerance ?? 0) + EPS);
       if (blocks) {
         body.y = rowTop - body.h;
         result.hitY = result.onGround = true;
