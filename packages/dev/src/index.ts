@@ -197,7 +197,9 @@ function linkAgent(game: Game, session: DevSession, options: DevHooksOptions, er
     // 404 (not served by debuff dev) closes the stream for good; nothing else to do.
     if (events.readyState === EventSource.CLOSED) events.close();
   });
-  events.addEventListener("presence", () => session.agentSeen());
+  events.addEventListener("presence", (e) =>
+    session.setAgentsAttached((JSON.parse((e as MessageEvent<string>).data) as { agents: number }).agents),
+  );
   events.addEventListener("command", (e) => {
     const { id, method, args } = JSON.parse((e as MessageEvent<string>).data) as { id: string; method: keyof DevHooks; args: unknown[] };
     session.agentSeen();

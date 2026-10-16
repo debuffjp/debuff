@@ -71,6 +71,12 @@ describe("DevSession", () => {
     expect(s.agentConnected).toBe(false);
     s.agentSeen();
     expect(s.agentConnected).toBe(true);
+    s.agentLastSeenAt = Number.NEGATIVE_INFINITY;
+    s.setAgentsAttached(1);
+    expect(s.agentConnected).toBe(true);
+    s.setAgentsAttached(0);
+    expect(s.agentConnected).toBe(false);
+    expect(s.activity.map((a) => a.action)).toEqual(["connected", "connected", "disconnected"]);
     expect(s.note("jump feels floaty")).toMatchObject({ id: 1, text: "jump feels floaty", state: { hp: 3 } });
     s.release();
   });

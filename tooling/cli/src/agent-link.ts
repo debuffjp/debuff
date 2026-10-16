@@ -6,6 +6,7 @@ import type { ViteDevServer } from "vite";
 /** Endpoints shared with `@debuff/dev` (page side) and `@debuff/mcp` (agent side). */
 export const AGENT_PATHS = {
   events: "/__debuff/agent/events",
+  attach: "/__debuff/agent/attach",
   result: "/__debuff/agent/result",
   rpc: "/__debuff/agent/rpc",
   status: "/__debuff/agent/status",
@@ -22,6 +23,8 @@ export interface DevServerInfo {
 export interface AgentStatus {
   /** Open game pages listening for agent commands. */
   pages: number;
+  /** Agents currently attached (holding an attach connection). */
+  agents: number;
 }
 
 interface Pending {
@@ -37,6 +40,10 @@ interface Pending {
 export function attachAgentLink(server: ViteDevServer, root: string): void {
   const pages: ServerResponse[] = [];
   const pending = new Map<string, Pending>();
+  let agents = 0;
+  const announce = () => {
+    for (const page of pages) send(page, "presence", { agents });
+  };
   let nextId = 1;
 
   const send = (res: ServerResponse, event: string, data: unknown) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
@@ -49,6 +56,7 @@ export function attachAgentLink(server: ViteDevServer, root: string): void {
         res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
         res.write(": debuff agent link\n\n");
         pages.push(res);
+        send(res, "presence", { agents });
         const keepAlive = setInterval(() => res.write(": ping\n\n"), 15_000);
         req.on("close", () => {
           clearInterval(keepAlive);
@@ -56,7 +64,21 @@ export function attachAgentLink(server: ViteDevServer, root: string): void {
         });
         return;
       }
-      if (url === AGENT_PATHS.status && req.method === "GET") return reply(res, 200, { pages: pages.length } satisfies AgentStatus);
+      if (url === AGENT_PATHS.status && req.method === "GET") return reply(res, 200, { pages: pages.length, agents } satisfies AgentStatus);
+      if (url === AGENT_PATHS.attach && req.method === "GET") {
+        // Held open by an agent for as long as it is attached; closing it (or the agent dying) detaches.
+        res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
+        res.write(": attached\n\n");
+        agents++;
+        announce();
+        const keepAlive = setInterval(() => res.write(": ping\n\n"), 15_000);
+        req.on("close", () => {
+          clearInterval(keepAlive);
+          agents--;
+          announce();
+        });
+        return;
+      }
       if (url === AGENT_PATHS.result && req.method === "POST") {
         const body = (await readJson(req)) as { id: string };
         const p = pending.get(body.id);

@@ -249,13 +249,28 @@ export class DevSession {
 
   /** An agent acted on this game in the last 30 seconds. */
   get agentConnected(): boolean {
-    return performance.now() - this.agentLastSeenAt < 30_000;
+    return this.agentsAttached > 0 || performance.now() - this.agentLastSeenAt < 30_000;
+  }
+
+  /** Agents holding an attach connection through the dev server (agent link). */
+  agentsAttached = 0;
+
+  /** Update attached agents from the dev server; logs connects and disconnects. */
+  setAgentsAttached(n: number): void {
+    const was = this.agentsAttached > 0;
+    this.agentsAttached = n;
+    if (n > 0 && !was) this.log("agent", "connected");
+    else if (n === 0 && was) {
+      this.agentLastSeenAt = Number.NEGATIVE_INFINITY;
+      this.log("agent", "disconnected");
+    } else this.changed();
   }
 
   agentSeen(): void {
     const wasConnected = this.agentConnected;
     this.agentLastSeenAt = performance.now();
     if (!wasConnected) this.log("agent", "connected");
+    else this.changed();
   }
 
   pause(who = "you", detail?: string): void {
