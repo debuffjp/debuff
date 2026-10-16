@@ -27,7 +27,11 @@ describe("compileAssets (built-in importer)", () => {
     expect(manifest.assets.hero).toMatchObject({ type: "image", src: "assets/hero@16x24.png", grid: { frameWidth: 16, frameHeight: 24 } });
     expect(manifest.assets["level1/map"]).toMatchObject({ type: "json", group: "level1", bytes: 2 });
     expect(Object.keys(manifest.assets)).toEqual(["hero", "level1/map"]);
-    expect(warnings).toEqual(["Skipped notes.psd: no importer for this file type"]);
+    expect(warnings).toEqual([
+      "Skipped notes.psd: no importer for this file type",
+      // The fixture PNG is fake bytes, which the atlas stage reports instead of crashing on.
+      "assets/hero@16x24.png: not a valid PNG, left out of atlases",
+    ]);
     expect(importedBy.hero).toBe("debuff:builtin");
     expect(existsSync(join(root, "assets", "manifest.json"))).toBe(false);
     expect(readFileSync(join(root, "assets/hero@16x24.png"), "utf8")).toBe("png-bytes");

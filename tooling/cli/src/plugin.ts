@@ -26,6 +26,8 @@ export interface AssetEntry {
   group?: string;
   /** Uniform sprite grid (from the `name@WxH.png` convention). */
   grid?: { frameWidth: number; frameHeight: number };
+  /** Region of `src` holding this image, when it was packed into an atlas. */
+  rect?: { x: number; y: number; w: number; h: number };
   /** Explicit frames, for `sheet` entries. */
   frames?: SheetFrame[];
   animations?: Record<string, SheetAnimation>;

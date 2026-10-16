@@ -11,10 +11,18 @@ const ID_MASK = 0x1fffffff;
 export const Collision = { None: 0, Solid: 1, OneWay: 2 } as const;
 export type Collision = (typeof Collision)[keyof typeof Collision];
 
+/** An image region, e.g. from `assets.frame(id)` when the tileset image was packed into an atlas. */
+export interface ImageRegion {
+  image: TextureSource;
+  x: number;
+  y: number;
+}
+
 export interface Tileset {
   /** First tile id (gid) this tileset covers. Tile id 0 always means "empty". */
   firstId: number;
-  image: TextureSource;
+  /** The tileset image, or a region of an atlas holding it. */
+  image: TextureSource | ImageRegion;
   tileWidth: number;
   tileHeight: number;
   columns: number;
@@ -285,10 +293,11 @@ export class Tilemap {
     const spacing = ts.spacing ?? 0;
     const col = local % ts.columns;
     const row = Math.floor(local / ts.columns);
+    const region = "image" in ts.image ? ts.image : { image: ts.image, x: 0, y: 0 };
     f = {
-      image: ts.image,
-      x: margin + col * (ts.tileWidth + spacing),
-      y: margin + row * (ts.tileHeight + spacing),
+      image: region.image,
+      x: region.x + margin + col * (ts.tileWidth + spacing),
+      y: region.y + margin + row * (ts.tileHeight + spacing),
       w: ts.tileWidth,
       h: ts.tileHeight,
     };

@@ -1,10 +1,15 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import type { AtlasOptions } from "./assets/atlas.js";
 import { TOOLING_API_VERSION, type ToolingPlugin } from "./plugin.js";
 
 /** Contents of `debuff.config.ts`. */
 export interface DebuffConfig {
   plugins?: ToolingPlugin[];
+  assets?: {
+    /** Atlas packing for PNG images (default on). `false` disables it. */
+    atlas?: AtlasOptions | false;
+  };
 }
 
 export interface ResolvedConfig {
@@ -12,6 +17,7 @@ export interface ResolvedConfig {
   /** Absolute path of the loaded config file, if any. */
   file: string | undefined;
   plugins: ToolingPlugin[];
+  atlas: AtlasOptions | false;
 }
 
 /** Identity helper that gives `debuff.config.ts` full type checking and editor completion. */
@@ -26,13 +32,13 @@ const NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 /** Load and validate `debuff.config.*` from `root`. A missing file is a valid empty config. */
 export async function loadConfig(root: string): Promise<ResolvedConfig> {
   const file = CONFIG_FILES.map((f) => join(root, f)).find((f) => existsSync(f));
-  if (!file) return { root, file: undefined, plugins: [] };
+  if (!file) return { root, file: undefined, plugins: [], atlas: {} };
   // Vite's module runner transpiles TypeScript without a separate loader dependency.
   const { runnerImport } = await import("vite");
   const { module } = await runnerImport<{ default?: DebuffConfig }>(file);
   const config = module.default;
   if (!config || typeof config !== "object") throw new Error(`${file} must \`export default defineConfig({ ... })\``);
-  return { root, file, plugins: validatePlugins(config.plugins ?? [], file) };
+  return { root, file, plugins: validatePlugins(config.plugins ?? [], file), atlas: config.assets?.atlas ?? {} };
 }
 
 export function validatePlugins(plugins: unknown[], source = "config"): ToolingPlugin[] {
