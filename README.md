@@ -62,8 +62,8 @@ More in [Why debuff](https://debuff.jp/docs/why). Agents can start from [llms.tx
 | [`@debuffjp/audio`](./packages/audio) | Web Audio buses, autoplay unlock, parametric synth |
 | [`@debuffjp/tilemap`](./packages/tilemap) | Tilemaps: culled batched rendering, tile collision, Tiled and LDtk import |
 | [`@debuffjp/juice`](./packages/juice) | Tweens, easing, pooled particles, trails, squash-and-stretch |
-| [`@debuffjp/dev`](./packages/dev) | Dev panel (perf, tune, state, explained errors) and `window.__DEBUFF_DEV__`, stripped from production |
-| [`@debuffjp/cli`](./tooling/cli) | `debuff dev · build · assets · scenario · inspect · report` |
+| [`@debuffjp/dev`](./packages/dev) | Dev panel (perf, tune, state, explained errors, replays) and `window.__DEBUFF_DEV__`, stripped from production |
+| [`@debuffjp/cli`](./tooling/cli) | `debuff dev · build · assets · scenario · fuzz · inspect · report` |
 | [`create-debuff`](./tooling/create-debuff) | `npm create debuff` scaffolder |
 | [`@debuffjp/mcp`](./tooling/mcp) | MCP server: agents inspect, build, test and play your game |
 
@@ -77,6 +77,7 @@ debuff assets           regenerate manifest, list unused assets
 debuff scenario         run scenarios/*.json headless, compare captures
 debuff fuzz             (next release) random playtesting; crashes come back as replay files
 debuff inspect          JSON project summary for agents
+debuff report           size report for an existing dist/
 ```
 
 Every command accepts `--json` for machine-readable output where applicable.
