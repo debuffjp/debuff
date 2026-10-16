@@ -128,6 +128,14 @@ export class Assets {
     return this.get(id, "text") as string;
   }
 
+  /**
+   * The asset's URL without downloading it, for streaming: `audio.stream(assets.url("music/theme"))`.
+   * Keep long tracks in a group you never `load()` (e.g. `assets/music/`) so they aren't fetched twice.
+   */
+  url(id: string): string {
+    return this.base + this.entry(id).src;
+  }
+
   entry(id: string): AssetEntry {
     const e = this.manifest.assets[id];
     if (!e) throw new AssetError(id, `Unknown asset "${id}". ${suggest(id, Object.keys(this.manifest.assets))}`);
