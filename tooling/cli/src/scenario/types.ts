@@ -58,6 +58,8 @@ export interface CaptureResult {
   /** `new`: no baseline existed and one was written. `missing`: no baseline and `--strict`. */
   status: "new" | "match" | "diff" | "updated" | "missing";
   diffRatio?: number;
+  /** Image highlighting the differing pixels, written when `status` is `diff` and sizes match. */
+  diff?: string;
 }
 
 export interface ScenarioReport {
