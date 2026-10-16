@@ -1,4 +1,5 @@
-import { resolve } from "node:path";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join, relative, resolve } from "node:path";
 import { buildReport, compileAssets, findUnused, inspectProject, loadConfig, runFuzz, runScenarios, viteConfig } from "@debuffjp/cli";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
@@ -289,6 +290,34 @@ export function createServer(options: ServerOptions): McpServer {
       annotations: { readOnlyHint: true },
     },
     safely(async () => json(await live().call("notes"))),
+  );
+
+  server.registerTool(
+    "game_replay",
+    {
+      title: "Save a replay",
+      description:
+        "Everything played since the game loaded (keys, pointer, param changes) up to `toTick` (default: now), saved as a scenario " +
+        "in .debuff/replays/ that replays it exactly. Use a note's `tick` to reproduce what the human saw when they flagged it, then " +
+        "run_scenarios with the returned file. `warnings` lists anything a replay can't reproduce (for example slow motion).",
+      inputSchema: { toTick: z.number().int().min(0).optional().describe("Last tick to include. Default: the current tick.") },
+    },
+    safely(async ({ toTick }) => {
+      const replay = await live().call<{ name: string; steps: unknown[]; ticks: number; warnings: string[] }>(
+        "replay",
+        ...(toTick === undefined ? [] : [toTick]),
+      );
+      const dir = join(options.root, ".debuff", "replays");
+      mkdirSync(dir, { recursive: true });
+      const file = join(dir, `replay-tick-${replay.ticks}.json`);
+      writeFileSync(file, `${JSON.stringify({ name: replay.name, steps: replay.steps }, null, 2)}\n`);
+      return json({
+        file: relative(options.root, file).split("\\").join("/"),
+        ticks: replay.ticks,
+        steps: replay.steps.length,
+        warnings: replay.warnings,
+      });
+    }),
   );
 
   server.registerTool(

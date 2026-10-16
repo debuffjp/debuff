@@ -222,7 +222,15 @@ class Overlay {
       if (e.key === "Enter") addNote();
     });
     noteRow.append(noteInput, button("flag", addNote));
-    this.addPane("log", this.errorsBox, this.activityBox, noteRow);
+    // Replays: everything played since load, as a scenario that reproduces it exactly.
+    const replayRow = row();
+    replayRow.style.marginTop = "6px";
+    const save = button("save replay", () => this.saveReplay(false));
+    save.title = "Download this session as a scenario (drop it in scenarios/ or run it with debuff scenario)";
+    const copyReplay = button("copy replay", () => this.saveReplay(true));
+    copyReplay.title = "Copy this session as scenario JSON, e.g. to paste to an agent";
+    replayRow.append(save, copyReplay, hint("replays the session exactly"));
+    this.addPane("log", this.errorsBox, this.activityBox, noteRow, replayRow);
 
     this.body = el("div");
     this.body.append(toolbar, tabBar, ...this.panes.values());
@@ -602,6 +610,27 @@ class Overlay {
     if (input.type === "checkbox") input.checked = value as boolean;
     else input.value = String(value);
     this.markChanged(id, value);
+  }
+
+  private saveReplay(copy: boolean): void {
+    const recording = this.session.recording;
+    if (!recording) {
+      this.session.log("you", "can't save a replay", "pass { input } to devTools() to record");
+      return;
+    }
+    const replay = recording.toReplay();
+    const json = `${JSON.stringify({ name: replay.name, steps: replay.steps }, null, 2)}\n`;
+    if (copy) void navigator.clipboard?.writeText(json);
+    else {
+      const a = el("a", {
+        href: URL.createObjectURL(new Blob([json], { type: "application/json" })),
+        download: `replay-tick-${replay.ticks}.json`,
+      });
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.getAttribute("href") ?? ""), 1000);
+    }
+    const note = replay.warnings.length ? ` (approximate: ${replay.warnings.join(" ")})` : "";
+    this.session.log("you", copy ? "copied a replay" : "saved a replay", `${replay.ticks} ticks${note}`);
   }
 
   private snapshot(): void {

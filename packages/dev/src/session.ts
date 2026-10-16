@@ -1,5 +1,7 @@
 import type { Game, GameErrorContext, ParamValue } from "@debuffjp/core";
 import { type ExplainedError, errorKey, explainError, mapLocation } from "./explain.js";
+import type { DrivableInput } from "./index.js";
+import { InputRecording } from "./replay.js";
 
 /** One recorded frame. Times are milliseconds. */
 export interface FrameSample {
@@ -207,6 +209,8 @@ export class DevSession {
   readonly recorder: FrameRecorder;
   readonly activity: Activity[] = [];
   readonly notes: Note[] = [];
+  /** Input recorded since page load, for replays (present once `attachInput` is called). */
+  recording: InputRecording | undefined;
   /** Uncaught errors, unhandled rejections and loop errors, explained and de-duplicated (max 50). */
   readonly errors: ExplainedError[] = [];
   /** The error object the loop just reported, so its rethrow isn't counted twice. */
@@ -255,6 +259,7 @@ export class DevSession {
   release(): void {
     if (--this.refs > 0) return;
     this.recorder.dispose();
+    this.recording?.dispose();
     removeEventListener("error", this.onError);
     this.unsubscribeLoopError();
     removeEventListener("unhandledrejection", this.onRejection);
@@ -312,7 +317,14 @@ export class DevSession {
     this.changed();
   }
 
+  /** Start recording this input for replays. Idempotent. */
+  attachInput(input: DrivableInput): void {
+    this.recording ??= new InputRecording(this.game, input);
+  }
+
   setSpeed(scale: number, who = "you"): void {
+    // Slow motion changes the simulation itself, so a replay (which always runs at 1×) can't match it.
+    if (scale !== 1) this.recording?.warn(`Speed was set to ${scale}× during the session; replays run at 1×.`);
     this.game.timeScale = scale;
     this.log(who, "speed", `${scale}×`);
   }

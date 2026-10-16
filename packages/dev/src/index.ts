@@ -1,5 +1,6 @@
 import type { Game, ParamDescription, ParamValue, Plugin } from "@debuffjp/core";
 import type { ExplainedError } from "./explain.js";
+import type { Replay } from "./replay.js";
 import { DevSession, type FrameSample, type Note } from "./session.js";
 
 /** The parts of `@debuffjp/input`'s `Input` the hooks drive. Structural, so `dev` does not depend on `input`. */
@@ -55,6 +56,11 @@ export interface DevHooks {
   setParam(group: string, key: string, value: ParamValue): void;
   /** The latest `n` frame breakdowns (update/render ms, steps, quads, draw calls, long tasks), oldest first. */
   frames(n?: number): FrameSample[];
+  /**
+   * Everything played since page load (keys, pointer, param changes) up to `toTick` (default: now), as a
+   * scenario that replays it exactly. Pass a note's `tick` to get the session leading up to that note.
+   */
+  replay(toTick?: number): Replay;
   /** Moments the human flagged in the overlay, with the game state at that tick. */
   notes(): Note[];
   /**
@@ -94,6 +100,7 @@ export function devTools(options: DevHooksOptions = {}): Plugin {
     name: "dev-tools",
     install(game) {
       const session = DevSession.acquire(game);
+      if (options.input) session.attachInput(options.input);
       const errors = session.errors;
       const hooks = createHooks(game, session, options, errors, () => (hooks.controlled ? "scenario" : "agent"));
       window.__DEBUFF_DEV__ = hooks;
@@ -173,6 +180,10 @@ function createHooks(game: Game, session: DevSession, options: DevHooksOptions, 
     params: () => game.params.describe(),
     setParam: (group, key, value) => session.setParam(group, key, value, who()),
     frames: (n = 60) => session.recorder.recent(n),
+    replay: (toTick) => {
+      if (!session.recording) throw new Error("Replays need input: use devTools({ input })");
+      return session.recording.toReplay(toTick);
+    },
     notes: () => session.notes.map((n) => ({ ...n })),
     errors: () => errors.map((e) => ({ ...e })),
     capture: () => {
@@ -218,6 +229,7 @@ function linkAgent(game: Game, session: DevSession, options: DevHooksOptions, er
 
 export { type ErrorKind, type ExplainedError, explainError, type SourceLocation } from "./explain.js";
 export { type DevOverlayOptions, devOverlay } from "./overlay.js";
+export { InputRecording, type Replay, type ReplayStep } from "./replay.js";
 export {
   type Activity,
   DevSession,
