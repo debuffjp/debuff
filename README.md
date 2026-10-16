@@ -75,7 +75,7 @@ debuff dev              dev server, hot reload, asset manifest watching
 debuff build            production build + size report (fails on dev leaks)
 debuff assets           regenerate manifest, list unused assets
 debuff scenario         run scenarios/*.json headless, compare captures
-debuff fuzz             play with random input; crashes and stuck states come back as replay files
+debuff fuzz             (next release) random playtesting; crashes come back as replay files
 debuff inspect          JSON project summary for agents
 ```
 
