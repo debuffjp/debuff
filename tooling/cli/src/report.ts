@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, extname, join, relative, sep } from "node:path";
 import { brotliCompressSync, gzipSync } from "node:zlib";
+import { lime, paint, pink, sky } from "create-debuff";
 import pc from "picocolors";
 
 export interface FileReport {
@@ -70,9 +71,9 @@ const kb = (n: number) => `${(n / 1024).toFixed(1)} kB`;
 export function formatReport(r: BuildReport): string {
   const w = Math.max(...r.files.map((f) => f.path.length), 4);
   const kindColor: Record<FileReport["kind"], (s: string) => string> = {
-    code: pc.cyan,
-    html: pc.blue,
-    asset: pc.magenta,
+    code: sky,
+    html: (s: string) => paint("violet", s),
+    asset: pink,
     map: pc.dim,
     other: pc.dim,
   };
@@ -91,7 +92,7 @@ export function formatReport(r: BuildReport): string {
   }
   if (r.largestAsset) lines.push(pc.dim(`largest asset: ${r.largestAsset.path} (${kb(r.largestAsset.bytes)})`));
   lines.push(
-    r.leaks.length ? pc.red(`✖ dev leaks: ${r.leaks.map((l) => `${l.token} in ${l.path}`).join(", ")}`) : pc.green("✔ dev boundary clean"),
+    r.leaks.length ? pc.red(`✖ dev leaks: ${r.leaks.map((l) => `${l.token} in ${l.path}`).join(", ")}`) : lime("✔ dev boundary clean"),
   );
   return lines.join("\n");
 }

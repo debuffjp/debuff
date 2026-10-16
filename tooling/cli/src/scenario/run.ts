@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
+import { amber, lime, paint } from "create-debuff";
 import pc from "picocolors";
 import type { Browser, Page } from "playwright-core";
 import type { StepDef } from "../plugin.js";
@@ -207,11 +208,11 @@ async function compareCapture(
 const pct = (n: number) => `${(n * 100).toFixed(2)}%`;
 
 export function formatScenario(r: ScenarioReport): string {
-  const lines = [`${r.ok ? pc.green("PASS") : pc.red("FAIL")} ${pc.bold(r.name)} ${pc.dim(`${r.durationMs} ms`)}`];
+  const lines = [`${r.ok ? lime("PASS") : paint("red", "FAIL")} ${pc.bold(r.name)} ${pc.dim(`${r.durationMs} ms`)}`];
   for (const s of r.steps) if (!s.ok) lines.push(`  ${pc.red("✖")} step ${s.index} ${pc.dim(JSON.stringify(s.step))}\n    ${s.message}`);
   for (const e of r.errors) lines.push(`  ${pc.red("✖")} runtime error: ${e.split("\n")[0]}`);
   for (const c of r.captures) {
-    const color = c.status === "match" ? pc.green : c.status === "diff" || c.status === "missing" ? pc.red : pc.yellow;
+    const color = c.status === "match" ? lime : c.status === "diff" || c.status === "missing" ? (s: string) => paint("red", s) : amber;
     lines.push(`  ${pc.dim("capture")} ${c.name}: ${color(c.status)}${c.diffRatio !== undefined ? pc.dim(` (${pct(c.diffRatio)})`) : ""}`);
   }
   return lines.join("\n");
