@@ -2,6 +2,17 @@
 
 A living document. Items move up only with evidence from real games and jam feedback.
 
+## Up next (in order)
+
+1. **Finish plugin phase 2.** `@debuff/plugin-aseprite` as the reference importer, `sheet` manifest entries, `assets.sheet(id)`, per-frame animation durations. Publish JSON Schemas for the manifest, `SourceFile` and `ImportResult`, with contract tests (ADR 0005).
+2. **Package-manager and distribution breadth.** CI scaffolds and builds the template with npm, pnpm, Yarn and Bun. Document no-build use from a CDN with import maps. Evaluate dual-publishing to JSR.
+3. **First release (0.1.0).** Confirm the npm scope, add the `NPM_TOKEN` secret with provenance, merge the Changesets release PR.
+4. **Dev overlay plugin.** FPS/frame-time graph and live param sliders in the browser; the first thing people see.
+5. **Docs site** (`debuffjp/docs`). Guides, generated API reference, runnable examples.
+6. **Plugin phases 3–4.** CLI commands, scenario steps, templates from git/npm.
+7. **MCP adapter** over the CLI and dev hooks.
+8. **Renderer benchmark.** Canvas 2D vs WebGL2 on representative scenes, recorded as an ADR.
+
 ## Now: foundation (0.x)
 
 - [x] Runtime: loop, scenes, camera, sprites, input, audio, juice, storage, params
@@ -13,12 +24,12 @@ A living document. Items move up only with evidence from real games and jam feed
 - [ ] Dev overlay: FPS/frame-time graph, live param sliders (`@debuff/dev`)
 - [x] Action-mapped input with gamepad support (Gamepad API)
 - [ ] Tilemaps (Tiled/LDtk import) and an atlas packer in the asset compiler
-- [ ] Aseprite JSON import (frames, tags → animations)
 
 ## Plugins (ADR 0004)
 
 - [x] Phase 1: runtime contract (`game.use`, `game.hooks`, `game.inspect`)
-- [ ] Phase 2: `debuff.config.ts`, asset importers (in-process and stdio), `@debuff/plugin-aseprite`
+- [x] Phase 2a: `debuff.config.ts`, asset importers (in-process and stdio), in-memory manifest
+- [ ] Phase 2b: `@debuff/plugin-aseprite`, sheet entries, contract schemas
 - [ ] Phase 3: plugin CLI commands (`debuff name:cmd`) and scenario steps
 - [ ] Phase 4: templates from git/npm
 
@@ -50,11 +61,11 @@ Keep this repo slim. These belong elsewhere:
 
 | Repo | Purpose |
 | --- | --- |
-| `debuff-docs` | Docs site and tutorials |
-| `debuff-jams` | Jam site, rules, submissions |
-| `debuff-examples` | Full example and benchmark games |
-| `debuff-assets` | CC0 starter art and audio packs |
-| `debuff-plugin-*` | Community extensions (naming convention) |
+| `debuffjp/docs` | Docs site and tutorials |
+| `debuffjp/jams` | Jam site, rules, submissions |
+| `debuffjp/examples` | Full example and benchmark games |
+| `debuffjp/assets` | CC0 starter art and audio packs |
+| `debuff-plugin-*` | Community extensions (npm naming convention) |
 
 ## Not planned
 
