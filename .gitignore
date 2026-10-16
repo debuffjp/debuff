@@ -14,6 +14,5 @@ Thumbs.db
 .idea/
 *.log
 dist-types/
-**/public/assets/manifest.json
 .debuff/
 coverage/
