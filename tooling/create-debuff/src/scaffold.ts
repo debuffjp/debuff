@@ -57,7 +57,11 @@ export function scaffold(options: ScaffoldOptions): string {
   const template = options.template ?? "basic";
   const src = join(templatesDir(), template);
   if (!existsSync(src)) {
-    throw new Error(`Unknown template "${template}". Available: ${listTemplates().map((t) => t.id).join(", ")}`);
+    throw new Error(
+      `Unknown template "${template}". Available: ${listTemplates()
+        .map((t) => t.id)
+        .join(", ")}`,
+    );
   }
   const skip = new Set(["template.json", "node_modules", "dist", ".debuff"]);
   cpSync(src, dest, { recursive: true, filter: (p) => !skip.has(basename(p)) });

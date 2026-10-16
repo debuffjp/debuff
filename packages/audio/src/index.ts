@@ -79,7 +79,10 @@ export class Audio {
     gain.gain.value = options.volume ?? 1;
     const pan = this.ctx.createStereoPanner();
     pan.pan.value = options.pan ?? 0;
-    src.connect(gain).connect(pan).connect(this.buses[options.bus ?? "sfx"]);
+    src
+      .connect(gain)
+      .connect(pan)
+      .connect(this.buses[options.bus ?? "sfx"]);
     src.start();
     return this.voice(src, gain);
   }

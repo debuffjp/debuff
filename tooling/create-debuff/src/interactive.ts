@@ -1,5 +1,5 @@
-import * as p from "@clack/prompts";
 import { relative } from "node:path";
+import * as p from "@clack/prompts";
 import pc from "picocolors";
 import { detectPackageManager, isEmptyDir, listTemplates, ownVersion, scaffold } from "./scaffold.js";
 

@@ -57,7 +57,7 @@ export class ParamGroup<S extends ParamSchema> {
   set(key: keyof S & string, value: ParamValue): void {
     const spec = this.schema[key];
     if (!spec) throw new Error(`Unknown param "${this.id}.${key}"`);
-    if (typeof value !== spec.type) {
+    if (spec.type === "number" ? typeof value !== "number" : typeof value !== "boolean") {
       throw new TypeError(`Param "${this.id}.${key}" expects ${spec.type}, got ${typeof value}`);
     }
     if (spec.type === "number") {

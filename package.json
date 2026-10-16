@@ -2,20 +2,22 @@
   "name": "debuff-monorepo",
   "private": true,
   "type": "module",
-  "workspaces": [
-    "packages/*",
-    "tooling/*",
-    "templates/*"
-  ],
+  "workspaces": ["packages/*", "tooling/*", "templates/*"],
   "scripts": {
     "build": "tsc -b && npm run build -w templates/basic",
     "typecheck": "tsc -b",
     "test": "vitest run",
     "dev": "npm run dev -w sandbox",
-    "check": "npm run typecheck && npm test && npm run build && npm run test:scenarios",
-    "test:scenarios": "npm test -w templates/basic"
+    "check": "npm run lint && npm run typecheck && npm test && npm run build && npm run test:scenarios",
+    "test:scenarios": "npm test -w templates/basic",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "changeset": "changeset",
+    "release": "npm run check && changeset publish"
   },
   "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@changesets/cli": "^2.27.9",
     "typescript": "^5.6.3",
     "vite": "^5.4.10",
     "vitest": "^2.1.4"

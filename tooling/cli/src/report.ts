@@ -69,16 +69,29 @@ const kb = (n: number) => `${(n / 1024).toFixed(1)} kB`;
 
 export function formatReport(r: BuildReport): string {
   const w = Math.max(...r.files.map((f) => f.path.length), 4);
-  const kindColor: Record<FileReport["kind"], (s: string) => string> = { code: pc.cyan, html: pc.blue, asset: pc.magenta, map: pc.dim, other: pc.dim };
+  const kindColor: Record<FileReport["kind"], (s: string) => string> = {
+    code: pc.cyan,
+    html: pc.blue,
+    asset: pc.magenta,
+    map: pc.dim,
+    other: pc.dim,
+  };
   const lines = [pc.dim(`${"file".padEnd(w)}  ${"raw".padStart(9)}  ${"gzip".padStart(9)}  ${"brotli".padStart(9)}`)];
   for (const f of r.files) {
-    lines.push(`${kindColor[f.kind](f.path.padEnd(w))}  ${pc.dim(kb(f.bytes).padStart(9))}  ${kb(f.gzip).padStart(9)}  ${pc.bold(kb(f.brotli).padStart(9))}`);
+    lines.push(
+      `${kindColor[f.kind](f.path.padEnd(w))}  ${pc.dim(kb(f.bytes).padStart(9))}  ${kb(f.gzip).padStart(9)}  ${pc.bold(kb(f.brotli).padStart(9))}`,
+    );
   }
   lines.push("");
   for (const [kind, t] of Object.entries(r.totals) as [FileReport["kind"], BuildReport["totals"]["code"]][]) {
-    if (t.bytes) lines.push(`${kindColor[kind](kind.padEnd(6))} ${pc.bold(kb(t.brotli))} brotli  ${pc.dim(`${kb(t.gzip)} gzip · ${kb(t.bytes)} raw`)}`);
+    if (t.bytes)
+      lines.push(
+        `${kindColor[kind](kind.padEnd(6))} ${pc.bold(kb(t.brotli))} brotli  ${pc.dim(`${kb(t.gzip)} gzip · ${kb(t.bytes)} raw`)}`,
+      );
   }
   if (r.largestAsset) lines.push(pc.dim(`largest asset: ${r.largestAsset.path} (${kb(r.largestAsset.bytes)})`));
-  lines.push(r.leaks.length ? pc.red(`✖ dev leaks: ${r.leaks.map((l) => `${l.token} in ${l.path}`).join(", ")}`) : pc.green("✔ dev boundary clean"));
+  lines.push(
+    r.leaks.length ? pc.red(`✖ dev leaks: ${r.leaks.map((l) => `${l.token} in ${l.path}`).join(", ")}`) : pc.green("✔ dev boundary clean"),
+  );
   return lines.join("\n");
 }

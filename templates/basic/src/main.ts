@@ -1,6 +1,6 @@
 import { Audio } from "@debuff/audio";
+import { Game, type Scene, Storage, approach } from "@debuff/core";
 import { exposeDevHooks } from "@debuff/dev";
-import { Game, Storage, approach, type Scene } from "@debuff/core";
 import { Keyboard, Pointer, axis } from "@debuff/input";
 import { Particles, Tweens, squash } from "@debuff/juice";
 
