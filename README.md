@@ -32,7 +32,7 @@
   <img src="https://raw.githubusercontent.com/debuffjp/docs/main/public/shots/dev-tune.png" width="300" alt="The dev panel's tune tab with live sliders">
 </p>
 
-More in [Why debuff](https://debuffjp.github.io/docs/guide/why). Agents can start from [llms.txt](https://debuffjp.github.io/docs/llms.txt).
+More in [Why debuff](https://debuff.jp/guide/why). Agents can start from [llms.txt](https://debuff.jp/llms.txt).
 
 ## Quick start
 
@@ -85,6 +85,7 @@ docs/        architecture, roadmap, decisions (docs/adr)
 
 ## Community
 
+- [debuff.jp](https://debuff.jp) · [Forums](https://forums.debuff.jp)
 - [Contributing](./CONTRIBUTING.md) · [Agent guide](./AGENTS.md) · [Governance](./GOVERNANCE.md)
 - [Code of conduct](./CODE_OF_CONDUCT.md) · [Security](./SECURITY.md) · [Versioning and stability](./docs/stability.md)
 - [Architecture](./docs/architecture.md) · [Roadmap](./docs/roadmap.md) · [Plugins](./docs/plugins.md) · [Decisions](./docs/adr)
