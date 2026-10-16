@@ -33,6 +33,7 @@ No build step? See [using debuff from a CDN](./docs/guides/no-build.md). Works w
 | [`@debuff/dev`](./packages/dev) | Dev-only inspection hooks (`window.__DEBUFF_DEV__`), stripped from production |
 | [`@debuff/cli`](./tooling/cli) | `debuff dev · build · assets · scenario · inspect · report` |
 | [`create-debuff`](./tooling/create-debuff) | `npm create debuff` scaffolder |
+| [`@debuff/mcp`](./tooling/mcp) | MCP server: agents inspect, build, test and play your game |
 
 ## CLI
 

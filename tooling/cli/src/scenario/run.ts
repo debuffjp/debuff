@@ -43,7 +43,8 @@ export function compare(actual: unknown, c: Comparison): string | undefined {
   return undefined;
 }
 
-async function launchBrowser(): Promise<Browser> {
+/** Launch the system Chrome/Edge (or DEBUFF_BROWSER) through playwright-core. */
+export async function launchBrowser(): Promise<Browser> {
   const { chromium } = await import("playwright-core");
   const executablePath = process.env.DEBUFF_BROWSER;
   if (executablePath) return chromium.launch({ executablePath });
