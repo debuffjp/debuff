@@ -60,7 +60,7 @@ Game code always uses logical units. The backing store follows `devicePixelRatio
 
 ## Start-up splash
 
-Production builds open with a short "made with debuff" card. It lasts 1.6 seconds and any key, click or tap skips it. It never shows in dev, or when time is driven by `step()` (scenarios and agents). To remove it:
+Production builds open with a short "made with debuff" card. It lasts 1.6 seconds and any key skips it. Clicking or tapping the card opens [debuff.jp](https://debuff.jp) in a new tab and skips it too. It never shows in dev, or when time is driven by `step()` (scenarios and agents). To remove it:
 
 ```ts
 new Game({ canvas, width, height, splash: false });

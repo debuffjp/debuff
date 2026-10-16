@@ -191,3 +191,22 @@ describe("Game splash", () => {
     vi.unstubAllEnvs();
   });
 });
+
+describe("Game splash link", () => {
+  it("a click on the splash opens debuff.jp and skips; keys only skip", () => {
+    vi.stubEnv("DEV", false);
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    const { game, canvas } = makeGame({ splash: true });
+    if (canvas.parentElement) document.body.append(canvas.parentElement);
+    canvas.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    expect(open).toHaveBeenCalledWith("https://debuff.jp", "_blank", "noopener");
+    expect(canvas.style.cursor).toBe("");
+    const second = makeGame({ splash: true });
+    dispatchEvent(new KeyboardEvent("keydown", { code: "Space" }));
+    expect(open).toHaveBeenCalledTimes(1);
+    game.dispose();
+    second.game.dispose();
+    open.mockRestore();
+    vi.unstubAllEnvs();
+  });
+});
