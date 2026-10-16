@@ -11,7 +11,7 @@ export interface DevOverlayOptions {
   position?: "top-left" | "top-right" | "bottom-left" | "bottom-right";
 }
 
-const LIME = "#a3e635";
+const LIME = "#cffb2d";
 const SKY = "#38bdf8";
 const VIOLET = "#a78bfa";
 const AMBER = "#fbbf24";
@@ -820,7 +820,7 @@ class Buff {
       height: "14px",
       borderRadius: "3px",
       background: LIME,
-      boxShadow: "inset 0 3px 0 #d9f99d",
+      boxShadow: "inset 0 3px 0 #e7fd96",
       animation: "debuff-buff-hop 1.2s ease-in-out infinite",
       transformOrigin: "50% 100%",
       flex: "none",

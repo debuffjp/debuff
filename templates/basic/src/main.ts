@@ -41,7 +41,7 @@ const play: Scene = {
     if (input.pressed("pop")) {
       save.set("pops", save.get("pops") + 1);
       squash(tweens, player, 0.35);
-      particles.emit({ x: player.x, y: player.y - 8, count: 16, colors: ["#a3e635", "#ecfccb"], gravity: 200 });
+      particles.emit({ x: player.x, y: player.y - 8, count: 16, colors: ["#cffb2d", "#f3fecb"], gravity: 200 });
       game.camera.shake(0.3);
       audio.synth({ freq: 660, freqEnd: 220, decay: 0.15 });
     }
@@ -55,7 +55,7 @@ const play: Scene = {
       draw.push();
       draw.translate(player.x, player.y);
       draw.scale(player.scaleX, player.scaleY);
-      draw.rect(-8, -16, 16, 16, "#a3e635");
+      draw.rect(-8, -16, 16, 16, "#cffb2d");
       draw.rect(-5, -12, 3, 4, "#11140d");
       draw.rect(2, -12, 3, 4, "#11140d");
       draw.pop();

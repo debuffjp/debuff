@@ -49,7 +49,7 @@ function makeTexture(): HTMLCanvasElement {
   const t = document.createElement("canvas");
   t.width = t.height = SIZE;
   const ctx = t.getContext("2d") as CanvasRenderingContext2D;
-  ctx.fillStyle = "#a3e635";
+  ctx.fillStyle = "#cffb2d";
   ctx.fillRect(2, 2, SIZE - 4, SIZE - 4);
   ctx.fillStyle = "#11140d";
   ctx.fillRect(5, 5, 2, 2);

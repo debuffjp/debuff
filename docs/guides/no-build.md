@@ -41,7 +41,7 @@ The runtime packages are plain ES modules with no dependencies, so any page can 
             x += input.axis("left", "right") * 120 * dt;
           },
           render(draw) {
-            draw.rect(x - 8, 120, 16, 16, "#a3e635");
+            draw.rect(x - 8, 120, 16, 16, "#cffb2d");
           },
         })
         .go("play");

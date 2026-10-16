@@ -44,7 +44,7 @@ const at = (m: Matrix, u: number, v: number) => [m[0] * u + m[2] * v + m[4], m[1
 
 describe("toRGBA", () => {
   it("parses hex forms and passes numbers through", () => {
-    expect(toRGBA("#a3e635")).toBe(0xa3e635ff);
+    expect(toRGBA("#cffb2d")).toBe(0xcffb2dff);
     expect(toRGBA("#fff")).toBe(0xffffffff);
     expect(toRGBA("#11223344")).toBe(0x11223344);
     expect(toRGBA(0x01020304)).toBe(0x01020304);

@@ -7,7 +7,7 @@ const plain = (s: string) => s.replace(ANSI, "");
 
 describe("brand", () => {
   it("defines the palette once", () => {
-    expect(PALETTE.lime).toBe("#a3e635");
+    expect(PALETTE.lime).toBe("#cffb2d");
     expect(Object.keys(PALETTE)).toEqual(["lime", "limeSoft", "ink", "sky", "pink", "amber", "violet", "red"]);
   });
 

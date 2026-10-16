@@ -35,10 +35,10 @@ describe("Canvas2DBackend", () => {
     const draw = new Draw(new Canvas2DBackend(ctx), false);
     draw.begin("#000", 100, 100, 1);
     calls.length = 0;
-    draw.rect(10, 20, 30, 40, "#a3e63580");
+    draw.rect(10, 20, 30, 40, "#cffb2d80");
     expect(calls[0]).toMatchObject({ name: "setTransform", args: [30, 0, 0, 40, 10, 20] });
     expect(calls[1]?.name).toBe("fillRect");
-    expect(String(calls[1]?.state.fill)).toMatch(/^rgba\(163,230,53,0\.50/);
+    expect(String(calls[1]?.state.fill)).toMatch(/^rgba\(207,251,45,0\.50/);
   });
 
   it("draws images from their source rect with alpha, smoothing and additive blending", () => {

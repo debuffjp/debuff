@@ -129,7 +129,7 @@ const play: Scene = {
         spread: 2.4,
         speed: [20, 60],
         life: [0.2, 0.4],
-        colors: ["#d9f99d", "#a3e635"],
+        colors: ["#e7fd96", "#cffb2d"],
         gravity: 300,
       });
     }
@@ -172,8 +172,8 @@ const play: Scene = {
       const spin = coinFrames[Math.floor(game.clock.time * 8) % coinFrames.length];
       if (spin)
         for (const coin of coins) if (!coin.taken) draw.sprite(spin, coin.x + 6, coin.y + 6 + Math.sin(game.clock.time * 4 + coin.x) * 1.5);
-      if (goal) draw.rect(goal.x + 7, goal.y, 2, goal.height, "#d9f99d");
-      if (goal) draw.rect(goal.x + 9, goal.y, 10, 7, won ? "#fbbf24" : "#a3e635");
+      if (goal) draw.rect(goal.x + 7, goal.y, 2, goal.height, "#e7fd96");
+      if (goal) draw.rect(goal.x + 9, goal.y, 10, 7, won ? "#fbbf24" : "#cffb2d");
       buff.x = Math.round(center().x);
       buff.y = Math.round(player.y + player.h);
       buff.flipX = player.facing < 0;
@@ -183,8 +183,8 @@ const play: Scene = {
       particles.draw(draw);
     });
     draw.text(`coins ${score}/${coins.length}`, 6, 5, { font: "8px monospace", color: "#fbbf24" });
-    draw.text(`best ${save.get("best")}`, 314, 5, { font: "8px monospace", color: "#d9f99d", align: "right" });
-    if (won) draw.text("you made it! jump to play again", 160, 80, { font: "8px monospace", color: "#a3e635", align: "center" });
+    draw.text(`best ${save.get("best")}`, 314, 5, { font: "8px monospace", color: "#e7fd96", align: "right" });
+    if (won) draw.text("you made it! jump to play again", 160, 80, { font: "8px monospace", color: "#cffb2d", align: "center" });
   },
 
   inspect: () => ({

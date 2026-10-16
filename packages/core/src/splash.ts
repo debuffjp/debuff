@@ -5,7 +5,7 @@ export interface SplashOptions {
   duration?: number;
 }
 
-const LIME = "#a3e635";
+const LIME = "#cffb2d";
 const INK = "#0d1208";
 
 /**
