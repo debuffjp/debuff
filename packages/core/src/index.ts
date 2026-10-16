@@ -17,3 +17,4 @@ export {
 export { Random } from "./random.js";
 export type { Scene } from "./scene.js";
 export { Sprite, originOffset, sliceGrid, type AnimationClip, type Frame, type Origin, type SpriteOptions } from "./sprite.js";
+export { Storage } from "./storage.js";
