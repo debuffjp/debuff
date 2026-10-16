@@ -10,6 +10,7 @@ import { Canvas2DBackend } from "./render/canvas2d.js";
 import { Draw } from "./render/draw.js";
 import { WebGL2Backend } from "./render/webgl2.js";
 import type { Scene } from "./scene.js";
+import { drawSplash, type SplashOptions } from "./splash.js";
 import { FrameStats } from "./stats.js";
 
 /** Camera shake multiplier when the player prefers reduced motion: a hint of feedback, not none. */
@@ -48,6 +49,12 @@ export interface GameOptions {
    * `prefers-reduced-motion` live; `true`/`false` force it.
    */
   reducedMotion?: "auto" | boolean;
+  /**
+   * A short "made with debuff" card when the game first starts, before your first frame. Any key,
+   * click or tap skips it. Not shown in dev, or when time is driven by `step()` (scenarios, agents).
+   * `false` removes it. Default on.
+   */
+  splash?: boolean | SplashOptions;
 }
 
 /** Owns the loop, clock, RNG, params, camera and active scene. Renders with the
@@ -101,6 +108,9 @@ export class Game {
   private readonly scenes = new Map<string, Scene>();
   private active: Scene | undefined;
   private frameHandle = 0;
+  private splashTotal = 0;
+  private splashLeft = 0;
+  private readonly onSplashSkip = () => this.skipSplash();
   private lastTime = 0;
   private running = false;
   /** Whether the caller wants the loop running; visibility pausing respects this. */
@@ -146,6 +156,17 @@ export class Game {
     }
     if (typeof matchMedia !== "undefined") this.watchDpr();
     if (typeof document !== "undefined") document.addEventListener("visibilitychange", this.onVisibility);
+    const splash = options.splash ?? true;
+    if (splash && !isDev() && typeof addEventListener !== "undefined") {
+      this.splashTotal = this.splashLeft = (splash === true ? undefined : splash.duration) ?? 1.6;
+      for (const type of ["keydown", "pointerdown"]) addEventListener(type, this.onSplashSkip);
+    }
+  }
+
+  /** End the start-up splash now (if it is showing or pending). */
+  skipSplash(): void {
+    this.splashLeft = 0;
+    for (const type of ["keydown", "pointerdown"]) removeEventListener(type, this.onSplashSkip);
   }
 
   /** Install a plugin. Throws if the name is invalid or already installed. */
@@ -162,6 +183,7 @@ export class Game {
   /** Stop the loop, run plugin cleanups (reverse order) and detach browser listeners. */
   dispose(): void {
     this.stop();
+    this.skipSplash();
     this.pluginRegistry.dispose();
     this.motionQuery?.removeEventListener("change", this.onMotionChange);
     this.draw.dispose();
@@ -287,7 +309,19 @@ export class Game {
     this.lastTime = performance.now();
     const loop = (now: number) => {
       if (!this.running) return;
-      this.frame((now - this.lastTime) / 1000);
+      const elapsed = (now - this.lastTime) / 1000;
+      if (this.splashLeft > 0) {
+        // The splash holds the game's first frame; time starts when it ends.
+        this.splashLeft = Math.max(0, this.splashLeft - Math.min(elapsed, 0.1));
+        if (this.splashLeft === 0) this.skipSplash();
+        this.draw.begin("#000", this.width, this.height, this.renderScale);
+        try {
+          drawSplash(this.draw, this.width, this.height, 1 - this.splashLeft / this.splashTotal, this.reducedMotion);
+        } catch {
+          this.skipSplash(); // never let branding break a game
+        }
+        this.draw.end();
+      } else this.frame(elapsed);
       this.lastTime = now;
       this.frameHandle = requestAnimationFrame(loop);
     };
@@ -322,6 +356,11 @@ export class Game {
     this.hooks.emit("afterRender", draw, alpha);
     draw.end();
   }
+}
+
+/** True under a bundler's dev mode (Vite: `import.meta.env.DEV`); false elsewhere. */
+function isDev(): boolean {
+  return import.meta.env?.DEV === true;
 }
 
 function createBackend(canvas: HTMLCanvasElement, choice: "auto" | "webgl2" | "2d"): Backend {
