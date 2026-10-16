@@ -12,6 +12,9 @@ import { WebGL2Backend } from "./render/webgl2.js";
 import type { Scene } from "./scene.js";
 import { FrameStats } from "./stats.js";
 
+/** Camera shake multiplier when the player prefers reduced motion: a hint of feedback, not none. */
+const REDUCED_SHAKE = 0.25;
+
 /**
  * How the logical resolution maps onto the page:
  * - `fit`: scale to fill the container, preserving aspect ratio (letterboxed).
@@ -40,6 +43,11 @@ export interface GameOptions {
   clock?: FixedClockOptions;
   /** Opaque background colour, cleared every frame. Default "#000". */
   background?: string;
+  /**
+   * Honour the player's reduced-motion preference. `"auto"` (default) follows
+   * `prefers-reduced-motion` live; `true`/`false` force it.
+   */
+  reducedMotion?: "auto" | boolean;
 }
 
 /** Owns the loop, clock, RNG, params, camera and active scene. Renders with the
@@ -64,12 +72,30 @@ export class Game {
   background: string;
   /** Multiplier on simulation dt; 0.5 = slow motion. */
   timeScale = 1;
+  /**
+   * True when the player prefers reduced motion. Camera shake is scaled down automatically; read this
+   * to tone down your own effects (flashes, screen-wide particles, parallax speed).
+   */
+  get reducedMotion(): boolean {
+    return this.motionReduced;
+  }
+
+  set reducedMotion(value: boolean) {
+    this.motionReduced = value;
+    this.camera.motionScale = value ? REDUCED_SHAKE : 1;
+  }
+
   /** Pause automatically while the tab is hidden. */
   pauseWhenHidden = true;
   /** Current backing-store pixels per logical unit (CSS scale × devicePixelRatio). */
   renderScale = 1;
 
   private freezeTime = 0;
+  private motionReduced = false;
+  private motionQuery: MediaQueryList | undefined;
+  private readonly onMotionChange = () => {
+    this.reducedMotion = this.motionQuery?.matches ?? false;
+  };
   private lastAlpha = 0;
   private readonly pluginRegistry = new PluginRegistry();
   private readonly scenes = new Map<string, Scene>();
@@ -101,6 +127,16 @@ export class Game {
     this.camera = new Camera({ width: this.width, height: this.height });
     this.camera.x = this.width / 2;
     this.camera.y = this.height / 2;
+    const motion = options.reducedMotion ?? "auto";
+    if (motion === "auto") {
+      if (typeof matchMedia !== "undefined") {
+        this.motionQuery = matchMedia("(prefers-reduced-motion: reduce)");
+        this.motionQuery.addEventListener("change", this.onMotionChange);
+        this.onMotionChange();
+      }
+    } else {
+      this.reducedMotion = motion;
+    }
     this.container = options.container ?? this.canvas.parentElement;
     if (this.pixelArt) this.canvas.style.imageRendering = "pixelated";
     this.resize();
@@ -127,6 +163,7 @@ export class Game {
   dispose(): void {
     this.stop();
     this.pluginRegistry.dispose();
+    this.motionQuery?.removeEventListener("change", this.onMotionChange);
     this.draw.dispose();
     this.observer?.disconnect();
     if (typeof document !== "undefined") document.removeEventListener("visibilitychange", this.onVisibility);

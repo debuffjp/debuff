@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { FrameStats, Game, type Scene } from "../src/index.js";
 import { fakeCanvas } from "./helpers.js";
 
@@ -107,5 +107,27 @@ describe("FrameStats", () => {
     expect(sum.workMs).toBe(4);
     expect(sum.workP95Ms).toBe(10);
     expect(sum.samples).toBe(4);
+  });
+});
+
+describe("reduced motion", () => {
+  it("follows prefers-reduced-motion live and scales camera shake", () => {
+    let listener: (() => void) | undefined;
+    const query = { matches: true, addEventListener: (_: string, fn: () => void) => (listener = fn), removeEventListener: () => {} };
+    const other = { matches: false, addEventListener: () => {}, removeEventListener: () => {} };
+    vi.stubGlobal("matchMedia", (q: string) => (q.includes("reduced-motion") ? query : other));
+    const { game } = makeGame();
+    expect(game.reducedMotion).toBe(true);
+    expect(game.camera.motionScale).toBe(0.25);
+    query.matches = false;
+    listener?.();
+    expect(game.reducedMotion).toBe(false);
+    expect(game.camera.motionScale).toBe(1);
+    vi.unstubAllGlobals();
+  });
+
+  it("can be forced either way", () => {
+    expect(makeGame({ reducedMotion: true }).game.camera.motionScale).toBe(0.25);
+    expect(makeGame({ reducedMotion: false }).game.reducedMotion).toBe(false);
   });
 });

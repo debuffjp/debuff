@@ -22,6 +22,8 @@ export class Camera {
   shakeAmplitude = 8;
   /** Trauma lost per second. */
   shakeDecay = 1.5;
+  /** Multiplier on shake. `Game` lowers it when the player prefers reduced motion. */
+  motionScale = 1;
 
   private trauma = 0;
   private offsetX = 0;
@@ -63,7 +65,7 @@ export class Camera {
     }
     this.clamp();
     this.trauma = Math.max(0, this.trauma - this.shakeDecay * dt);
-    const power = this.trauma * this.trauma * this.shakeAmplitude;
+    const power = this.trauma * this.trauma * this.shakeAmplitude * this.motionScale;
     this.offsetX = power * random.range(-1, 1);
     this.offsetY = power * random.range(-1, 1);
   }
