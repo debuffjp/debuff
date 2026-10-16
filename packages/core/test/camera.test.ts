@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Camera, Random, approach, damp, overlaps } from "../src/index.js";
+import { approach, Camera, damp, overlaps, Random } from "../src/index.js";
 
 describe("Camera", () => {
   it("snaps to target and clamps to bounds", () => {

@@ -1,10 +1,11 @@
 import { Audio } from "@debuff/audio";
-import { Game, type Scene, Storage, approach } from "@debuff/core";
+import { approach, Game, type Scene, Storage } from "@debuff/core";
 import { exposeDevHooks } from "@debuff/dev";
-import { Keyboard, Pointer, axis } from "@debuff/input";
-import { Particles, Tweens, squash } from "@debuff/juice";
+import { axis, Keyboard, Pointer } from "@debuff/input";
+import { Particles, squash, Tweens } from "@debuff/juice";
 
-const canvas = document.querySelector<HTMLCanvasElement>("#game")!;
+const canvas = document.querySelector<HTMLCanvasElement>("#game");
+if (!canvas) throw new Error('Missing <canvas id="game">');
 const game = new Game({ canvas, width: 320, height: 180, background: "#14141f", scale: "fit" });
 const keys = new Keyboard();
 const pointer = new Pointer(canvas, { width: game.width, height: game.height });

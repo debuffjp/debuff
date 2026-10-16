@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { extname, join, relative, sep } from "node:path";
 
 export type AssetType = "image" | "json" | "audio" | "text";
@@ -61,7 +61,7 @@ export function compileAssets(root: string): { manifest: CompiledManifest; warni
     }
     const parts = rel.split("/");
     const group = parts.length > 1 ? parts[0] : undefined;
-    let base = parts[parts.length - 1]!.slice(0, -ext.length);
+    let base = (parts.at(-1) ?? rel).slice(0, -ext.length);
     const grid = GRID.exec(base);
     if (grid) base = base.slice(0, grid.index);
     const id = (group ? `${group}/` : "") + base;
@@ -82,7 +82,7 @@ export function compileAssets(root: string): { manifest: CompiledManifest; warni
   }
   const manifest: CompiledManifest = { version: 1, assets };
   const path = join(dir, "manifest.json");
-  if (existsSync(dir)) writeFileSync(path, JSON.stringify(manifest, null, 2) + "\n");
+  if (existsSync(dir)) writeFileSync(path, `${JSON.stringify(manifest, null, 2)}\n`);
   return { manifest, warnings, path };
 }
 
@@ -93,7 +93,7 @@ export function findUnused(root: string, manifest: CompiledManifest): string[] {
     .map((f) => readFileSync(f, "utf8"))
     .join("\n");
   return Object.keys(manifest.assets).filter((id) => {
-    const group = manifest.assets[id]!.group;
+    const group = manifest.assets[id]?.group;
     // Loading a whole group counts as using its members only if referenced individually elsewhere;
     // we stay conservative and treat group usage as use.
     const quoted = (s: string) => source.includes(`"${s}"`) || source.includes(`'${s}'`) || source.includes(`\`${s}\``);

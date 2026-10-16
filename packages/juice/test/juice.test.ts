@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Particles, Tweens, ease, squash } from "../src/index.js";
+import { ease, Particles, squash, Tweens } from "../src/index.js";
 
 describe("Tweens", () => {
   it("interpolates and completes", async () => {

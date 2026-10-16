@@ -90,7 +90,9 @@ export class ParamRegistry {
 
   define<S extends ParamSchema>(id: string, schema: S): ParamGroup<S> {
     if (this.groups.has(id)) throw new Error(`Param group "${id}" already defined`);
-    const group = new ParamGroup(id, schema, (c) => this.listeners.forEach((l) => l(c)));
+    const group = new ParamGroup(id, schema, (c) => {
+      for (const l of this.listeners) l(c);
+    });
     this.groups.set(id, group);
     return group;
   }

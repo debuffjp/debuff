@@ -96,7 +96,10 @@ export class Tweens {
       let t = Math.min(a.time / a.duration, a.yoyo ? 2 : 1);
       if (t > 1) t = 2 - t;
       const k = a.easing(t);
-      for (const key in a.to) a.target[key] = a.from[key]! + (a.to[key]! - a.from[key]!) * k;
+      for (const key in a.to) {
+        const from = a.from[key] ?? 0;
+        a.target[key] = from + ((a.to[key] ?? from) - from) * k;
+      }
       if (a.time >= span) {
         if (a.repeat !== 0) {
           a.time -= span;

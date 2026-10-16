@@ -1,4 +1,4 @@
-import { cpSync, existsSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -79,7 +79,7 @@ export function scaffold(options: ScaffoldOptions): string {
       if (typeof deps === "object") for (const dep of Object.keys(deps)) if (dep.startsWith("@debuff/")) deps[dep] = `^${version}`;
     }
   }
-  writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
+  writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
   return dest;
 }
 
