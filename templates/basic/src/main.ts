@@ -1,6 +1,6 @@
 import { Audio } from "@debuff/audio";
 import { approach, clamp, Game, type Scene, Storage } from "@debuff/core";
-import { devTools } from "@debuff/dev";
+import { devOverlay, devTools } from "@debuff/dev";
 import { Input } from "@debuff/input";
 import { Particles, squash, Tweens } from "@debuff/juice";
 
@@ -70,5 +70,6 @@ const play: Scene = {
 game.add(play).go("play");
 game.start();
 
-// Dev-only plugin: exposes window.__DEBUFF_DEV__ for scenarios and agents. Stripped from production.
-if (import.meta.env.DEV) game.use(devTools({ input }));
+// Dev-only plugins: window.__DEBUFF_DEV__ for scenarios and agents, and an overlay (toggle with `) with
+// a frame-time graph and live sliders for every param. Both are stripped from production builds.
+if (import.meta.env.DEV) game.use(devTools({ input })).use(devOverlay());
