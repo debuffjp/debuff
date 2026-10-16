@@ -29,7 +29,7 @@ jobs:
       - run: npm run check
       - name: Upload scenario captures and baselines
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: scenarios-${{ matrix.os }}-node${{ matrix.node }}
           path: |
