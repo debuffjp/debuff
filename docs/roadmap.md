@@ -1,73 +1,76 @@
 # Roadmap
 
-A living document. Items move up only with evidence from real games and jam feedback.
+A living document. Items move up only with evidence from real games, jams and first-run tests.
+
+**Status:** 0.1 is on npm (`npm create debuff@latest`), and [debuff.jp](https://debuff.jp) is live.
 
 ## Up next (in order)
 
-1. **Finish plugin phase 2.** `@debuffjp/plugin-aseprite` as the reference importer, `sheet` manifest entries, `assets.sheet(id)`, per-frame animation durations. Publish JSON Schemas for the manifest, `SourceFile` and `ImportResult`, with contract tests (ADR 0005).
-2. ~~**Package-manager and distribution breadth.**~~ Done: CI proves npm, pnpm, Yarn and Bun; [no-build guide](./guides/no-build.md); JSR deferred (ADR 0006).
-3. **First release (0.1.0).** Confirm the npm scope, add the `NPM_TOKEN` secret with provenance, merge the Changesets release PR.
-4. **Dev overlay plugin.** FPS/frame-time graph and live param sliders in the browser; the first thing people see.
-5. **Docs site** (`debuffjp/docs`). Guides, generated API reference, runnable examples.
-6. **Plugin phases 3–4.** CLI commands, scenario steps, templates from git/npm.
-7. ~~**MCP adapter**~~ Done: `@debuffjp/mcp` (project tools plus live-game tools); templates ship `.mcp.json`.
-8. ~~**Renderer benchmark.**~~ Done: ADR 0007. The `draw` API runs on batched WebGL2 (~200k sprites at 60 fps) with a Canvas 2D fallback.
+1. **First-run fixes.** Run the agent first-run test (a fresh agent goes from debuff.jp to a playable game), then fix every blocker it finds before anything else.
+2. **Releases from CI.** npm trusted publishing with provenance from the release workflow, so publishes no longer need local 2FA or manual staging approval.
+3. **Deterministic replays.** Record a session's inputs plus its seed, then replay it exactly, scrub through it in the dev panel and attach it to bug reports. (See *Differentiators*.)
+4. **`debuff publish`.** One command to ship: itch.io (via butler), static web hosts, and desktop through Tauri. Size budget enforced.
+5. **Finish plugin phase 2b.** `@debuffjp/plugin-aseprite` as the reference importer, `sheet` manifest entries, per-frame durations, and JSON Schemas for the manifest, `SourceFile` and `ImportResult`, with contract tests (ADR 0005).
+6. **SEO and agent discovery, phase 2.** Comparison pages, recipes, the jam kit and a showcase. Registry listings: MCP registries, npm keywords, awesome lists.
 
-## Now: foundation (0.x)
+## Done in 0.1
 
-- [x] Runtime: loop, scenes, camera, sprites, input, audio, juice, storage, params
-- [x] Responsive, DPR-aware Canvas 2D with pixel-perfect mode
-- [x] CLI: create, dev, build + size report, assets, scenario, inspect
+- [x] Runtime: fixed-step loop, scenes, camera, sprites, input (keys, pointer, touch, gamepad, action bindings), audio, juice, storage, params, reduced motion
+- [x] Batched WebGL2 renderer with a Canvas 2D fallback, about 200k sprites at 60 fps (ADR 0007); `draw.clip`; recovers from GPU context loss
+- [x] Assets: generated manifest, automatic atlas packing, only referenced files ship
+- [x] Tilemaps: culled rendering, solid and one-way collision with landing tolerance, Tiled and LDtk import
+- [x] Loop errors stop cleanly instead of freezing (`hooks.error`, `game.lastError`)
+- [x] Dev panel (`@debuffjp/dev`): perf (dropped-frame causes, headroom), tune (live params with undo), state, log (explained, source-mapped errors), pause, step and slow motion
+- [x] CLI: create, dev, build with size report and dev-leak check, assets, scenario, inspect
 - [x] Deterministic scenarios with screenshot baselines
-- [x] CI matrix, Changesets releases
-- [ ] First npm release (naming/registry check first)
-- [ ] Dev overlay: FPS/frame-time graph, live param sliders (`@debuffjp/dev`)
-- [x] Action-mapped input with gamepad support (Gamepad API)
-- [x] Tilemaps: culled batched rendering, tile collision, Tiled and LDtk import (`@debuffjp/tilemap`)
-- [ ] Atlas packer in the asset compiler
+- [x] MCP server (`@debuffjp/mcp`): project tools, live attach to the open game, notes, frames, explained errors, workflow prompts
+- [x] New projects ship `AGENTS.md`, `CLAUDE.md` and `.mcp.json`
+- [x] "Made with debuff" splash (any input skips it, `splash: false` removes it)
+- [x] Plugins: runtime contract; `debuff.config.ts`, asset importers, CLI commands, scenario steps; templates from git
+- [x] Templates: basic (bundled) and platformer (downloaded on demand)
+- [x] debuff.jp: guides, API reference, `llms.txt` and `llms-full.txt`, sitemap, structured data, playable plinko demo
+- [x] Desktop builds with Tauri (guide; tested on Windows)
 
-## Plugins (ADR 0004)
+## Differentiators: what makes debuff the obvious choice
 
-- [x] Phase 1: runtime contract (`game.use`, `game.hooks`, `game.inspect`)
-- [x] Phase 2a: `debuff.config.ts`, asset importers (in-process and stdio), in-memory manifest
-- [ ] Phase 2b: `@debuffjp/plugin-aseprite`, sheet entries, contract schemas
-- [x] Phase 3: plugin CLI commands (`debuff name:cmd`) and scenario steps
-- [x] Phase 4: templates from git (npm-hosted templates deferred)
+Proposals, ordered by leverage. Each builds on something debuff already has (a fixed-step clock, seeded RNG, scenarios, explained errors, the MCP server) that PixiJS (a renderer, not a game loop) and raw canvas don't.
 
-## Next: agent workflow
-
-- [x] MCP adapter over the CLI and dev hooks (`@debuffjp/mcp`)
-- [ ] `debuff params` to read/write param presets as files, with diffable before/after captures
-- [ ] Scenario recording from live play
-- [ ] Change reports: files, params, size delta, captures
+- [ ] **Deterministic replays and time travel.** Inputs plus seed are a complete recording. Rewind and scrub in the dev panel, share a replay file that reproduces a bug exactly, and turn any replay into a scenario.
+- [ ] **Fuzz playtesting.** `debuff fuzz` drives random and biased inputs headlessly for N minutes, and reports explained errors and stuck states, each with a replay file. It works in CI, and agents can use it via MCP.
+- [ ] **Accessibility checks in scenarios.** Flash safety (frame-to-frame luminance, following WCAG 2.3.1's limit of three flashes a second), contrast of key UI against the background, reduced-motion coverage. Most engines don't ship this, and it's cheap given the scenario runner.
+- [ ] **State-preserving hot reload.** Edit `update` or `render` and keep the running game's state, so tuning a boss fight doesn't mean replaying to it.
+- [ ] **Scenario recording from live play.** Play a sequence, save it as a scenario with captures.
+- [ ] **Change reports.** For any change (yours or an agent's): files, params, size delta, before and after captures.
 
 ## Later: performance and reach
 
-- [ ] Renderer benchmark: Canvas 2D vs a WebGL2 batcher on representative scenes (ADR to follow)
-- [ ] Optional WebGL2 sprite batcher and filters as a separate package
-- [ ] OffscreenCanvas/worker rendering experiment
+- [ ] OffscreenCanvas and worker rendering experiment
 - [ ] Platform adapters (itch.io, Wavedash, Poki, CrazyGames…) as optional packages
 - [ ] Audio compression and image optimisation policies in the asset compiler
+- [ ] `debuff params` presets as files, with diffable before and after captures
+- [ ] Desktop: verify macOS and Linux, then a `debuff desktop` command
 
 ## Community
 
-- [ ] Docs site
-- [ ] More templates (platformer, top-down, arcade) kept tiny
-- [ ] Private jam, then first open jam
+- [x] Project site and docs: [debuff.jp](https://debuff.jp)
+- [ ] Forums (forums.debuff.jp): in progress
+- [ ] Jam kit: template, itch page, "made with debuff" badge
+- [ ] More templates (top-down, arcade), kept tiny
+- [ ] Private jam, then a first open jam
 - [ ] Showcase of community games
 
-## Separate repositories (when needed)
+## Separate repositories
 
-Keep this repo slim. These belong elsewhere:
+Keep this repo slim. These live elsewhere:
 
 | Repo | Purpose |
 | --- | --- |
-| `debuffjp/docs` | Docs site and tutorials |
-| `debuffjp/jams` | Jam site, rules, submissions |
-| `debuffjp/examples` | Full example and benchmark games |
-| `debuffjp/assets` | CC0 starter art and audio packs |
+| `debuffjp/docs` | debuff.jp: guides, API reference, examples like plinko |
+| `debuffjp/brand` | Foundation mark, wordmark, buff, social card |
+| `debuffjp/jams` | Jam site, rules, submissions (when needed) |
+| `debuffjp/assets` | CC0 starter art and audio packs (when needed) |
 | `debuff-plugin-*` | Community extensions (npm naming convention) |
 
 ## Not planned
 
-Visual editor, 3D, mandatory cloud services, proprietary project format.
+Visual editor, 3D, mandatory cloud services, proprietary project format, telemetry in games or tools.
