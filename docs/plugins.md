@@ -78,3 +78,33 @@ export function debugGrid(options: DebugGridOptions = {}): Plugin {
 ## Reference implementation
 
 `@debuff/dev` ships as the `dev-tools` plugin (`game.use(devTools({ input }))`). Read its source for a complete example with cleanup.
+
+## CLI commands and scenario steps
+
+Tooling plugins can also add namespaced CLI commands and scenario step types:
+
+```ts
+export default defineConfig({
+  plugins: [
+    {
+      name: "demo",
+      apiVersion: 1,
+      commands: [{ name: "greet", description: "Say hello", run: ({ args }) => (console.log("hello", ...args), 0) }],
+      scenarioSteps: [
+        {
+          name: "expect-pops",
+          description: "Assert the pop counter",
+          schema: { type: "integer", minimum: 0 },
+          run: async (value, { call }) => {
+            const { state } = await call<{ state: { pops: number } }>("state");
+            return state.pops === value ? undefined : `expected ${value} pops, got ${state.pops}`;
+          },
+        },
+      ],
+    },
+  ],
+});
+```
+
+- `debuff demo:greet` runs the command, and `debuff --help` lists it.
+- `{ "demo:expect-pops": 1 }` works in any scenario. `debuff scenario` writes `.debuff/scenario.schema.json` with every plugin step, so point `$schema` there for editor completion.

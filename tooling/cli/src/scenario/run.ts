@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { basename, join } from "node:path";
 import pc from "picocolors";
 import type { Browser, Page } from "playwright-core";
+import type { StepDef } from "../plugin.js";
 import { createDevServer } from "../vite.js";
 import { callHook, diffImages, hooksReady } from "./browser.js";
 import type { CaptureResult, Comparison, RunOptions, Scenario, ScenarioReport, Step, StepResult } from "./types.js";
@@ -92,21 +93,38 @@ async function runOne(page: Page, base: string, name: string, scenario: Scenario
   await page.waitForFunction(hooksReady, undefined, { timeout: 15_000 });
 
   const call = <R>(method: string, ...args: unknown[]) => page.evaluate(callHook, [method, args] as [string, unknown[]]) as Promise<R>;
+  const pluginSteps = new Map<string, StepDef>();
+  for (const plugin of options.plugins ?? [])
+    for (const def of plugin.scenarioSteps ?? []) pluginSteps.set(`${plugin.name}:${def.name}`, def);
+  const stepContext = {
+    call,
+    // Playwright serialises fn into the page; the cast bridges its overloads to our simpler signature.
+    evaluate: <R, A>(fn: (arg: A) => R | Promise<R>, arg: A) => page.evaluate(fn as (arg: unknown) => R | Promise<R>, arg) as Promise<R>,
+  };
   const steps: StepResult[] = [];
   const captures: CaptureResult[] = [];
 
   for (const [index, step] of scenario.steps.entries()) {
     let message: string | undefined;
     try {
-      message = await runStep(step, call, async (capture, tolerance) => {
-        const result = await compareCapture(page, options, name, capture, tolerance, await call<string>("capture"));
-        captures.push(result);
-        if (result.status === "diff") {
-          return `capture "${capture}" differs: ${pct(result.diffRatio ?? 1)} of pixels (tolerance ${pct(tolerance)})`;
-        }
-        if (result.status === "missing") return `capture "${capture}" has no baseline for ${process.platform} (run with --update)`;
-        return undefined;
-      });
+      // Plugin steps are namespaced ("plugin:step"); everything else is a built-in step.
+      const key = Object.keys(step)[0] ?? "";
+      if (key.includes(":")) {
+        const plugin = pluginSteps.get(key);
+        message = plugin
+          ? await plugin.run((step as Record<string, unknown>)[key], stepContext)
+          : `Unknown plugin step "${key}". Is its plugin listed in debuff.config.ts?`;
+      } else {
+        message = await runStep(step, call, async (capture, tolerance) => {
+          const result = await compareCapture(page, options, name, capture, tolerance, await call<string>("capture"));
+          captures.push(result);
+          if (result.status === "diff") {
+            return `capture "${capture}" differs: ${pct(result.diffRatio ?? 1)} of pixels (tolerance ${pct(tolerance)})`;
+          }
+          if (result.status === "missing") return `capture "${capture}" has no baseline for ${process.platform} (run with --update)`;
+          return undefined;
+        });
+      }
     } catch (err) {
       message = err instanceof Error ? (err.message.split("\n")[0] ?? err.message) : String(err);
     }

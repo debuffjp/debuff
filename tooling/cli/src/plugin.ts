@@ -88,6 +88,53 @@ export interface CommandImporter extends ImporterBase {
 
 export type AssetImporter = FunctionImporter | CommandImporter;
 
+export interface CommandOption {
+  /** cac-style flags, e.g. "--out <dir>" or "-w, --watch". */
+  flags: string;
+  description: string;
+  default?: unknown;
+}
+
+export interface CommandContext {
+  /** Project root. */
+  root: string;
+  /** Positional arguments after the command name. */
+  args: string[];
+  /** Parsed options (camelCased). */
+  options: Record<string, unknown>;
+  /** Emit machine-readable output when true (`--json`). */
+  json: boolean;
+}
+
+/** A CLI command, exposed as `debuff <plugin>:<name>`. */
+export interface CommandDef {
+  /** kebab-case; the full command is `<plugin name>:<name>`. */
+  name: string;
+  description: string;
+  options?: CommandOption[];
+  /** Return an exit code (0 = success). */
+  run(ctx: CommandContext): number | Promise<number>;
+}
+
+/** What a scenario step handler can do in the running game. */
+export interface StepContext {
+  /** Call a `window.__DEBUFF_DEV__` method, e.g. `call("press", "Space")`. */
+  call<R = unknown>(method: string, ...args: unknown[]): Promise<R>;
+  /** Evaluate a function in the page (Playwright semantics). */
+  evaluate<R, A>(fn: (arg: A) => R | Promise<R>, arg: A): Promise<R>;
+}
+
+/** A scenario step type, used in JSON as `{ "<plugin>:<name>": value }`. */
+export interface StepDef<V = unknown> {
+  /** kebab-case; the step key is `<plugin name>:<name>`. */
+  name: string;
+  description: string;
+  /** JSON Schema for the step's value; merged into the scenario schema for editors and agents. */
+  schema: Record<string, unknown>;
+  /** Return a failure message, or undefined if the step passed. */
+  run(value: V, ctx: StepContext): string | undefined | Promise<string | undefined>;
+}
+
 /** Tooling plugin contract (ADR 0004). */
 export interface ToolingPlugin {
   /** Unique kebab-case id. */
@@ -95,6 +142,10 @@ export interface ToolingPlugin {
   /** Contract version this plugin targets. */
   apiVersion: 1;
   assets?: AssetImporter[];
+  /** CLI commands, namespaced as `debuff <name>:<command>`. */
+  commands?: CommandDef[];
+  /** Scenario step types, namespaced as `"<name>:<step>"`. */
+  scenarioSteps?: StepDef[];
   /** Extra Vite plugins (escape hatch). */
   vite?: PluginOption;
 }

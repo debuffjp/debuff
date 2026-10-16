@@ -1,3 +1,5 @@
+import type { ToolingPlugin } from "../plugin.js";
+
 /**
  * A scenario is a JSON file of steps. Time only advances through `wait`, so runs are
  * deterministic. Validate with the JSON Schema in `@debuff/cli/schema/scenario.schema.json`.
@@ -38,7 +40,9 @@ export type Step =
   /** Assert on dev state paths: "scene", "tick", "state.score", "stats.fps". */
   | { expect: Record<string, Comparison> }
   /** Screenshot compared against the per-platform baseline. */
-  | { capture: string; tolerance?: number };
+  | { capture: string; tolerance?: number }
+  /** Plugin step: `{ "<plugin>:<step>": value }`. */
+  | { [pluginStep: `${string}:${string}`]: unknown };
 
 export interface StepResult {
   index: number;
@@ -67,6 +71,8 @@ export interface ScenarioReport {
 }
 
 export interface RunOptions {
+  /** Tooling plugins whose `scenarioSteps` should be available. */
+  plugins?: ToolingPlugin[];
   root: string;
   /** Scenario files relative to root. Default: every `scenarios/*.json`. */
   files: string[];
