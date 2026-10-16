@@ -48,6 +48,13 @@ export function validatePlugins(plugins: unknown[], source = "config"): ToolingP
     }
     if (seen.has(plugin.name)) throw new Error(`Plugin "${plugin.name}" is listed twice`);
     seen.add(plugin.name);
+    for (const kind of ["commands", "scenarioSteps"] as const) {
+      for (const def of plugin[kind] ?? []) {
+        if (!def || typeof def.name !== "string" || !NAME.test(def.name) || typeof def.run !== "function") {
+          throw new Error(`Plugin "${plugin.name}": every entry in ${kind} needs a kebab-case name and a run() function`);
+        }
+      }
+    }
     for (const importer of plugin.assets ?? []) {
       const ok = importer?.extensions?.length && ("import" in importer || ("command" in importer && importer.command?.length));
       if (!ok) throw new Error(`Plugin "${plugin.name}": importer "${importer?.name}" needs extensions and either import() or command`);

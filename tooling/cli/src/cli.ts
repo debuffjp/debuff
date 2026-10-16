@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import * as p from "@clack/prompts";
 import cac from "cac";
@@ -7,6 +7,7 @@ import { badge } from "create-debuff";
 import pc from "picocolors";
 import { compileAssets, findUnused } from "./assets/index.js";
 import { loadConfig } from "./config.js";
+import type { ToolingPlugin } from "./plugin.js";
 import { buildReport, formatReport } from "./report.js";
 import { createDevServer, viteConfig } from "./vite.js";
 
@@ -109,7 +110,17 @@ cli
       // A spinner here cancels itself when the browser process starts, so use a plain status line.
       p.log.step("Starting dev server and browser");
     }
-    const reports = await runScenarios({ root: rootOf(o), files, update: o.update ?? false, strict: o.strict ?? false });
+    const root = rootOf(o);
+    const { plugins } = await loadConfig(root);
+    // Write the scenario schema including plugin steps, so editors and agents can validate them.
+    const { scenarioSchema } = await import("./scenario/index.js");
+    mkdirSync(join(root, ".debuff"), { recursive: true });
+    writeFileSync(
+      join(root, ".debuff", "scenario.schema.json"),
+      `${JSON.stringify(scenarioSchema(plugins), null, 2)}
+`,
+    );
+    const reports = await runScenarios({ root, files, plugins, update: o.update ?? false, strict: o.strict ?? false });
     finished = true;
     const failed = reports.filter((r) => !r.ok).length;
     if (o.json) console.log(JSON.stringify(reports, null, 2));
@@ -184,9 +195,40 @@ function report(root: string, json: boolean): number {
 cli.help();
 cli.version(version);
 
+/** Register `debuff <plugin>:<command>` for every command contributed by plugins in debuff.config.ts. */
+async function registerPluginCommands(): Promise<void> {
+  const argv = process.argv.slice(2);
+  const command = argv.find((a) => !a.startsWith("-"));
+  const wantsHelp = argv.length === 0 || argv.includes("--help") || argv.includes("-h");
+  if (!command?.includes(":") && !wantsHelp) return;
+  const rootIndex = argv.indexOf("--root");
+  const root = resolve(rootIndex >= 0 ? (argv[rootIndex + 1] ?? ".") : process.cwd());
+  let plugins: ToolingPlugin[];
+  try {
+    ({ plugins } = await loadConfig(root));
+  } catch (err) {
+    if (!wantsHelp) throw err;
+    return;
+  }
+  for (const plugin of plugins) {
+    for (const def of plugin.commands ?? []) {
+      const cmd = cli.command(`${plugin.name}:${def.name} [...args]`, `${def.description} ${pc.dim(`(${plugin.name})`)}`);
+      cmd.option("--root <dir>", "Project root").option("--json", "Machine-readable output");
+      for (const opt of def.options ?? [])
+        cmd.option(opt.flags, opt.description, opt.default === undefined ? undefined : { default: opt.default });
+      cmd.action((args: string[], options: Record<string, unknown> & Common) =>
+        def.run({ root: rootOf(options), args, options, json: Boolean(options.json) }),
+      );
+    }
+  }
+}
+
 async function main(): Promise<void> {
+  await registerPluginCommands();
   cli.parse(process.argv, { run: false });
   if (!cli.matchedCommand) {
+    // cac has already printed help or the version for these flags.
+    if (cli.options.help || cli.options.version) return;
     if (process.argv.length > 2) {
       console.error(pc.red(`Unknown command: ${process.argv.slice(2).join(" ")}\n`));
       cli.outputHelp();
