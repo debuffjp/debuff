@@ -14,7 +14,7 @@ The boundary is enforced: `debuff build` scans output for dev-only tokens and fa
 
 ```text
 @debuff/core     Game, FixedClock, Random, Scene, Camera, Sprite, ParamRegistry, Storage, FrameStats, math
-@debuff/input    Keyboard, Pointer (no deps)
+@debuff/input    Input (actions over keyboard, pointer, gamepad), Keyboard, Pointer, Gamepads (no deps)
 @debuff/assets   Assets loader (no deps)
 @debuff/audio    Audio (no deps)
 @debuff/juice    Tweens, Particles, Trail, squash (no deps)

@@ -11,7 +11,7 @@ A living document. Items move up only with evidence from real games and jam feed
 - [x] CI matrix, Changesets releases
 - [ ] First npm release (naming/registry check first)
 - [ ] Dev overlay: FPS/frame-time graph, live param sliders (`@debuff/dev`)
-- [ ] Gamepad input (Gamepad API) and an action-mapping layer
+- [x] Action-mapped input with gamepad support (Gamepad API)
 - [ ] Tilemaps (Tiled/LDtk import) and an atlas packer in the asset compiler
 - [ ] Aseprite JSON import (frames, tags → animations)
 

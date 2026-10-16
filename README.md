@@ -52,9 +52,11 @@ templates/   starter templates; built and scenario-tested in CI
 docs/        architecture, roadmap, decisions (docs/adr)
 ```
 
-## Contributing
+## Community
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md). Agents should read [AGENTS.md](./AGENTS.md) first.
+- [Contributing](./CONTRIBUTING.md) · [Agent guide](./AGENTS.md) · [Governance](./GOVERNANCE.md)
+- [Code of conduct](./CODE_OF_CONDUCT.md) · [Security](./SECURITY.md) · [Versioning and stability](./docs/stability.md)
+- [Architecture](./docs/architecture.md) · [Roadmap](./docs/roadmap.md) · [Decisions](./docs/adr)
 
 ## License
 
