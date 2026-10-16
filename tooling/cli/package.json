@@ -1,7 +1,22 @@
 {
   "name": "@debuff/cli",
   "version": "0.0.0",
-  "private": true,
+  "description": "The Debuff CLI: dev server, builds with size reports, assets, scenarios",
+  "keywords": [
+    "game",
+    "cli",
+    "vite",
+    "gamedev",
+    "debuff"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/debuff-dev/debuff#readme",
+  "bugs": "https://github.com/debuff-dev/debuff/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/debuff-dev/debuff.git",
+    "directory": "tooling/cli"
+  },
   "type": "module",
   "bin": {
     "debuff": "./dist/cli.js"
@@ -17,7 +32,8 @@
   },
   "files": [
     "dist",
-    "schema"
+    "schema",
+    "README.md"
   ],
   "scripts": {
     "build": "tsc -b"
@@ -32,5 +48,12 @@
   },
   "devDependencies": {
     "@types/node": "^24.0.0"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }

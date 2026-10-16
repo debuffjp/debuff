@@ -1,8 +1,22 @@
 {
   "name": "create-debuff",
   "version": "0.0.0",
-  "private": true,
   "description": "Scaffold a new Debuff game: npm create debuff",
+  "keywords": [
+    "game",
+    "create",
+    "scaffold",
+    "template",
+    "debuff"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/debuff-dev/debuff#readme",
+  "bugs": "https://github.com/debuff-dev/debuff/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/debuff-dev/debuff.git",
+    "directory": "tooling/create-debuff"
+  },
   "type": "module",
   "bin": {
     "create-debuff": "./dist/cli.js"
@@ -17,7 +31,8 @@
   },
   "files": [
     "dist",
-    "templates"
+    "templates",
+    "README.md"
   ],
   "scripts": {
     "build": "tsc -b",
@@ -29,5 +44,12 @@
   },
   "devDependencies": {
     "@types/node": "^24.0.0"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }

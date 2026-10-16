@@ -1,7 +1,22 @@
 {
   "name": "@debuff/assets",
   "version": "0.0.0",
-  "private": true,
+  "description": "Manifest-driven asset loader with preload groups for Debuff",
+  "keywords": [
+    "game",
+    "assets",
+    "loader",
+    "preload",
+    "debuff"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/debuff-dev/debuff#readme",
+  "bugs": "https://github.com/debuff-dev/debuff/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/debuff-dev/debuff.git",
+    "directory": "packages/assets"
+  },
   "type": "module",
   "sideEffects": false,
   "main": "./dist/index.js",
@@ -13,9 +28,14 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
     "build": "tsc -b"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }

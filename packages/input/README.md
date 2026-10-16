@@ -1,0 +1,38 @@
+# @debuff/input
+
+Action-based input across keyboard, mouse/touch/pen (Pointer Events) and gamepads (standard mapping). No dependencies.
+
+```ts
+import { Input } from "@debuff/input";
+
+const input = new Input(game, {
+  bindings: {
+    left: ["ArrowLeft", "KeyA", "PadLeft", "PadStickLeft"],
+    right: ["ArrowRight", "KeyD", "PadRight", "PadStickRight"],
+    jump: ["Space", "PadA", "Pointer"],
+  },
+});
+
+// inside Scene.update
+const dx = input.axis("left", "right");
+if (input.pressed("jump")) jump();
+```
+
+Edges clear automatically after each simulation step, so a tap shorter than a frame is never missed.
+
+## Binding names
+
+| Source | Names |
+| --- | --- |
+| Keyboard | [`KeyboardEvent.code`](https://developer.mozilla.org/docs/Web/API/KeyboardEvent/code): `Space`, `KeyZ`, `ArrowUp`, … |
+| Pointer | `Pointer` (primary mouse button, touch or pen) |
+| Gamepad | `PadA` `PadB` `PadX` `PadY` `PadL1` `PadR1` `PadL2` `PadR2` `PadSelect` `PadStart` `PadL3` `PadR3` `PadUp` `PadDown` `PadLeft` `PadRight` |
+| Left stick | `PadStickUp` `PadStickDown` `PadStickLeft` `PadStickRight` |
+
+## API
+
+- `input.down(action)`, `input.pressed(action)`, `input.released(action)`, `input.axis(neg, pos)`
+- `input.pointer`: `x`, `y` (logical), `down`, `pressed`, `released`, `touches`
+- `input.keys`: `down(code)`, `pressed(code)`, `released(code)`
+- `input.pads`: `stickX`, `stickY`, `connected`, `deadzone`
+- Programmatic control for tests and on-screen buttons: `keys.press/release`, `pointer.press/move/release`
