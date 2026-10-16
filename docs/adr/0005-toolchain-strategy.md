@@ -1,6 +1,6 @@
 # ADR 0005: Toolchain strategy: orchestrate, don't rebuild; contracts are the core
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-10-16
 
 ## Question

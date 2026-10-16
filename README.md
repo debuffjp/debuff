@@ -56,7 +56,7 @@ docs/        architecture, roadmap, decisions (docs/adr)
 
 - [Contributing](./CONTRIBUTING.md) · [Agent guide](./AGENTS.md) · [Governance](./GOVERNANCE.md)
 - [Code of conduct](./CODE_OF_CONDUCT.md) · [Security](./SECURITY.md) · [Versioning and stability](./docs/stability.md)
-- [Architecture](./docs/architecture.md) · [Roadmap](./docs/roadmap.md) · [Decisions](./docs/adr)
+- [Architecture](./docs/architecture.md) · [Roadmap](./docs/roadmap.md) · [Plugins](./docs/plugins.md) · [Decisions](./docs/adr)
 
 ## License
 

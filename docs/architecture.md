@@ -18,7 +18,7 @@ The boundary is enforced: `debuff build` scans output for dev-only tokens and fa
 @debuff/assets   Assets loader (no deps)
 @debuff/audio    Audio (no deps)
 @debuff/juice    Tweens, Particles, Trail, squash (no deps)
-@debuff/dev      exposeDevHooks (depends on core; dev builds only)
+@debuff/dev      devTools plugin, exposeDevHooks (depends on core; dev builds only)
 ```
 
 Packages other than `dev` don't depend on each other unless they must. Games compose them, so a game that skips audio pays nothing for it.
@@ -27,7 +27,11 @@ Packages other than `dev` don't depend on each other unless they must. Games com
 
 - **Fixed-step simulation** (`FixedClock`, default 1/60 s) with render interpolation `alpha`. This makes scenarios reproducible.
 - **Seeded RNG** on `game.random`. Effects take a random source so captures are stable.
-- `game.freeze(s)` for hit-stop, `game.timeScale` for slow motion, `afterUpdate` hooks for clearing input edges.
+- `game.freeze(s)` for hit-stop, `game.timeScale` for slow motion, typed lifecycle hooks on `game.hooks`.
+
+### Plugins
+
+`game.use(plugin)` installs a runtime plugin, which extends the game only through `hooks`, `params`, `inspect` and the other public services. See [plugins.md](./plugins.md) and ADR 0004.
 - Pauses when the tab is hidden, and respects an explicit `stop()`.
 
 ### Rendering

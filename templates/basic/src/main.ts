@@ -1,6 +1,6 @@
 import { Audio } from "@debuff/audio";
 import { approach, clamp, Game, type Scene, Storage } from "@debuff/core";
-import { exposeDevHooks } from "@debuff/dev";
+import { devTools } from "@debuff/dev";
 import { Input } from "@debuff/input";
 import { Particles, squash, Tweens } from "@debuff/juice";
 
@@ -70,4 +70,5 @@ const play: Scene = {
 game.add(play).go("play");
 game.start();
 
-if (import.meta.env.DEV) exposeDevHooks(game, { input });
+// Dev-only plugin: exposes window.__DEBUFF_DEV__ for scenarios and agents. Stripped from production.
+if (import.meta.env.DEV) game.use(devTools({ input }));
