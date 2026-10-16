@@ -12,26 +12,24 @@
 - **Agents help, you decide.** An MCP server lets coding agents play the game you have open, read state, frames and errors, and verify changes with deterministic screenshot tests. Everything they do shows in your dev panel.
 - **Web standards only.** ES modules, a canvas, Pointer Events, Gamepad and Web Audio. No proprietary runtime, editor or project format.
 
-> **Status: early development (0.x).** The packages aren't on npm yet, so run debuff from source (below). APIs will change.
+> **Status: 0.1, early development.** APIs will change, and feedback from real games shapes them.
 
 ## Try it
 
-You need Node.js 22 or newer and git. These steps are tested from a fresh clone (on Node 24) and take about a minute and a half:
+You need Node.js 22 or newer.
 
 ```bash
-git clone https://github.com/debuffjp/debuff
-cd debuff
+npm create debuff@latest my-game
+cd my-game
 npm install
-npm run build
-cd templates/platformer   # or templates/basic for a minimal starter
-npx debuff dev
+npm run dev
 ```
 
-Open the URL it prints, then press <kbd>`</kbd> in the game for the dev panel. Edit `src/main.ts` and the game reloads.
+Open the URL it prints, then press <kbd>`</kbd> in the game for the dev panel. Edit `src/main.ts` and the game reloads. For a tilemap platformer instead of the minimal starter, add `-- --template platformer` to the first command. pnpm, Yarn and Bun work too (`pnpm create debuff`, and so on).
 
-Once the packages are published, `npm create debuff@latest my-game` will scaffold a standalone project.
+New projects include a `.mcp.json`, so a coding agent like Claude Code can play and inspect the game you have open. See the [agent guide](https://debuff.jp/guide/agents).
 
-**With a coding agent:** the repo's `.mcp.json` connects the debuff MCP server to the platformer, so an agent like Claude Code can play and inspect the game you have open. See the [agent guide](https://debuff.jp/guide/agents).
+**Working on debuff itself?** Clone the repo, then run `npm install` and `npm run build`. `cd templates/platformer && npx debuff dev` runs a template against your local packages, and the repo's `.mcp.json` points the MCP server at it. See [CONTRIBUTING](./CONTRIBUTING.md).
 
 ## Why not just canvas and JavaScript?
 
