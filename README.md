@@ -5,20 +5,40 @@
   </picture>
 </h1>
 
-**more room for play.** An open-source, agent-native toolkit for small, polished 2D web games, built for game jams and instant-play distribution.
+**more room for play.** debuff is an open-source toolkit for small, polished 2D games that run in the browser. It takes care of the setup and plumbing, so you spend your time on mechanics, art and weird ideas, with or without a coding agent.
 
-- **Web-standard.** WebGL2 with a Canvas 2D fallback, Pointer Events, Gamepad, Web Audio, ES modules. No proprietary runtime, editor or project format.
-- **Lean by default.** The runtime is split into tree-shakeable packages. `debuff build` reports raw/gzip/brotli size for every file and fails if dev tooling leaks into production.
-- **Agent-ready, human-led.** Typed creative parameters, a dev inspection surface, and deterministic JSON scenarios with screenshot baselines. Agents get evidence, and humans keep creative control.
+- **Small and fast.** About 200,000 sprites at 60 fps on batched WebGL2 (with a Canvas 2D fallback), and the starter game ships at about 13 kB brotli.
+- **Dev tools that explain things.** Errors say whose bug it is and link the exact source line. Dropped frames say whether your code caused them. Feel values become live sliders you can undo.
+- **Agents help, you decide.** An MCP server lets coding agents play the game you have open, read state, frames and errors, and verify changes with deterministic screenshot tests. Everything they do shows in your dev panel.
+- **Web standards only.** ES modules, a canvas, Pointer Events, Gamepad and Web Audio. No proprietary runtime, editor or project format.
 
-> Status: early development (0.x). APIs will change.
+> **Status: early development (0.x).** The packages aren't on npm yet, so run debuff from source (below). APIs will change.
+
+## Try it
+
+You need Node.js 22 or newer and git. These steps are tested from a fresh clone (on Node 24) and take about a minute and a half:
+
+```bash
+git clone https://github.com/debuffjp/debuff
+cd debuff
+npm install
+npm run build
+cd templates/platformer   # or templates/basic for a minimal starter
+npx debuff dev
+```
+
+Open the URL it prints, then press <kbd>`</kbd> in the game for the dev panel. Edit `src/main.ts` and the game reloads.
+
+Once the packages are published, `npm create debuff@latest my-game` will scaffold a standalone project.
+
+**With a coding agent:** the repo's `.mcp.json` connects the debuff MCP server to the platformer, so an agent like Claude Code can play and inspect the game you have open. See the [agent guide](https://debuff.jp/guide/agents).
 
 ## Why not just canvas and JavaScript?
 
 | | Raw canvas + JS | debuff |
 | --- | --- | --- |
 | Sprites at 60 fps | ~5,000 | **~200,000** (batched WebGL2, Canvas 2D fallback) |
-| Small game, shipped | what you write | **12.9 kB** brotli for the starter, everything included |
+| Small game, shipped | what you write | **~13 kB** brotli for the starter, everything included |
 | A crash in `update` | the loop dies silently | stops, says **whose bug it is**, links the source line |
 | Tuning feel | edit, reload, replay | sliders while you play, with undo and copy back to code |
 | AI agents | read code and guess | **play your game**: state, frames and errors, and you see what they did |
@@ -33,18 +53,6 @@
 </p>
 
 More in [Why debuff](https://debuff.jp/guide/why). Agents can start from [llms.txt](https://debuff.jp/llms.txt).
-
-## Quick start
-
-```bash
-npm create debuff@latest my-game                          # minimal starter
-npm create debuff@latest my-game -- --template platformer # tilemap platformer
-cd my-game
-npm install
-npm run dev
-```
-
-No build step? See [using debuff from a CDN](./docs/guides/no-build.md). Works with npm, pnpm, Yarn and Bun.
 
 ## Packages
 
@@ -85,7 +93,7 @@ docs/        architecture, roadmap, decisions (docs/adr)
 
 ## Community
 
-- [debuff.jp](https://debuff.jp) · [Forums](https://forums.debuff.jp)
+- [debuff.jp](https://debuff.jp) · [Issues](https://github.com/debuffjp/debuff/issues)
 - [Contributing](./CONTRIBUTING.md) · [Agent guide](./AGENTS.md) · [Governance](./GOVERNANCE.md)
 - [Code of conduct](./CODE_OF_CONDUCT.md) · [Security](./SECURITY.md) · [Versioning and stability](./docs/stability.md)
 - [Architecture](./docs/architecture.md) · [Roadmap](./docs/roadmap.md) · [Plugins](./docs/plugins.md) · [Decisions](./docs/adr)
