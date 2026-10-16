@@ -16,7 +16,8 @@
 ## Quick start
 
 ```bash
-npm create debuff@latest my-game
+npm create debuff@latest my-game                          # minimal starter
+npm create debuff@latest my-game -- --template platformer # tilemap platformer
 cd my-game
 npm install
 npm run dev

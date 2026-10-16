@@ -2,7 +2,16 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { isEmptyDir, isRemoteTemplate, listTemplates, packageName, scaffold } from "../src/index.js";
+import {
+  isEmptyDir,
+  isRemoteTemplate,
+  listTemplates,
+  OFFICIAL_TEMPLATES,
+  packageName,
+  resolveTemplate,
+  scaffold,
+  templatesDir,
+} from "../src/index.js";
 
 const tmp = () => mkdtempSync(join(tmpdir(), "create-debuff-"));
 
@@ -42,6 +51,22 @@ describe("remote templates", () => {
     expect(isRemoteTemplate("github:me/my-template")).toBe(true);
     expect(isRemoteTemplate("gitlab:me/repo/sub#v1")).toBe(true);
     expect(isRemoteTemplate("basic")).toBe(false);
-    expect(() => scaffold({ dir: join(tmp(), "x"), template: "github:me/t" })).toThrow(/use scaffoldRemote/);
+    expect(() => scaffold({ dir: join(tmp(), "x"), template: "github:me/t" })).toThrow(/use create\(\) or scaffoldRemote\(\)/);
+  });
+});
+
+describe("official templates", () => {
+  it("each official template exists in the repo and is not bundled into the package", () => {
+    for (const t of OFFICIAL_TEMPLATES) {
+      const meta = JSON.parse(readFileSync(join(templatesDir(), t.id, "template.json"), "utf8"));
+      expect(meta.bundled, t.id).toBe(false);
+      expect(t.source).toBe(`github:debuffjp/debuff/templates/${t.id}`);
+    }
+  });
+
+  it("lists bundled and official templates, and resolves locally in a repo checkout", () => {
+    expect(listTemplates().map((t) => t.id)).toEqual(expect.arrayContaining(["basic", "platformer"]));
+    expect(resolveTemplate("platformer").kind).toBe("local");
+    expect(resolveTemplate("github:me/x")).toEqual({ kind: "remote", source: "github:me/x" });
   });
 });

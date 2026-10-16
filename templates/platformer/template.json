@@ -1,0 +1,5 @@
+{
+  "title": "Platformer",
+  "bundled": false,
+  "description": "buff runs and jumps through a Tiled level: tilemap, collision, atlas, tunable movement, coins"
+}

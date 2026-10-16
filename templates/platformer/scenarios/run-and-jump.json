@@ -1,0 +1,30 @@
+{
+  "$schema": "../node_modules/@debuff/cli/schema/scenario.schema.json",
+  "steps": [
+    { "wait": 30 },
+    {
+      "expect": {
+        "scene": { "eq": "play" },
+        "renderer": { "eq": "webgl2" },
+        "state.player.onGround": { "eq": true },
+        "state.coins": { "eq": 12 }
+      }
+    },
+    { "press": "ArrowRight" },
+    { "wait": 40 },
+    { "release": "ArrowRight" },
+    { "expect": { "state.player.x": { "gt": 80 } } },
+    { "press": "Space" },
+    { "wait": 10 },
+    { "expect": { "state.player.onGround": { "eq": false } } },
+    { "release": "Space" },
+    { "wait": 60 },
+    { "expect": { "state.player.onGround": { "eq": true } } },
+    { "capture": "landed" },
+    { "set": { "player.jumpSpeed": 450 } },
+    { "press": "Space" },
+    { "wait": 12 },
+    { "release": "Space" },
+    { "expect": { "state.player.y": { "lt": 100 } } }
+  ]
+}

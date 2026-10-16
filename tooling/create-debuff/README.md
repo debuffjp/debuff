@@ -9,7 +9,7 @@ npm create debuff@latest my-game
 
 Options:
 
-- `--template <id>`: pick a template (default `basic`)
+- `--template <id>`: `basic` (default, bundled) or `platformer` (downloaded on demand), or any git source such as `github:user/repo`
 - `--yes`: accept defaults without prompting (CI, agents)
 
 Runs without prompts when stdin isn't a TTY.
