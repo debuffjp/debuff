@@ -1,0 +1,12 @@
+{
+  "name": "@debuff/bench-renderer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bench": "node run.mjs"
+  },
+  "devDependencies": {
+    "pixi.js": "^8.22.0"
+  }
+}

@@ -1,6 +1,6 @@
 # ADR 0001: Canvas 2D first, renderer swappable later
 
-- Status: accepted (provisional)
+- Status: amended by ADR 0007 (WebGL2 is the performance path)
 - Date: 2026-10-16
 
 ## Context
