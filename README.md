@@ -27,7 +27,7 @@ npm run dev
 
 Open the URL it prints, then press <kbd>`</kbd> in the game for the dev panel. Edit `src/main.ts` and the game reloads. For a tilemap platformer instead of the minimal starter, add `-- --template platformer` to the first command. pnpm, Yarn and Bun work too (`pnpm create debuff`, and so on).
 
-New projects include a `.mcp.json`, so a coding agent like Claude Code can play and inspect the game you have open. See the [agent guide](https://debuff.jp/guide/agents).
+New projects include a `.mcp.json`, so a coding agent like Claude Code can play and inspect the game you have open. See the [agent guide](https://debuff.jp/docs/agents).
 
 **Working on debuff itself?** Clone the repo, then run `npm install` and `npm run build`. `cd templates/platformer && npx debuff dev` runs a template against your local packages, and the repo's `.mcp.json` points the MCP server at it. See [CONTRIBUTING](./CONTRIBUTING.md).
 
@@ -50,7 +50,7 @@ New projects include a `.mcp.json`, so a coding agent like Claude Code can play 
   <img src="https://raw.githubusercontent.com/debuffjp/docs/main/public/shots/dev-tune.png" width="300" alt="The dev panel's tune tab with live sliders">
 </p>
 
-More in [Why debuff](https://debuff.jp/guide/why). Agents can start from [llms.txt](https://debuff.jp/llms.txt).
+More in [Why debuff](https://debuff.jp/docs/why). Agents can start from [llms.txt](https://debuff.jp/llms.txt).
 
 ## Packages
 
