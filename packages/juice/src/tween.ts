@@ -1,4 +1,4 @@
-import { ease, type EaseName, type Easing } from "./ease.js";
+import { type EaseName, type Easing, ease } from "./ease.js";
 
 type NumericKeys<T> = { [K in keyof T]: T[K] extends number ? K : never }[keyof T];
 

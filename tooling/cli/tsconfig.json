@@ -3,16 +3,10 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
-    "lib": [
-      "ES2022"
-    ],
-    "types": [
-      "node"
-    ]
+    "lib": ["ES2022"],
+    "types": ["node"]
   },
-  "include": [
-    "src"
-  ],
+  "include": ["src"],
   "references": [
     {
       "path": "../create-debuff"

@@ -92,7 +92,7 @@ export class Particles {
         this.pool.push(p);
         continue;
       }
-      const d = p.drag === 1 ? 1 : Math.pow(p.drag, dt);
+      const d = p.drag === 1 ? 1 : p.drag ** dt;
       p.vx *= d;
       p.vy = p.vy * d + p.gravity * dt;
       p.x += p.vx * dt;

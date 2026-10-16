@@ -70,7 +70,8 @@ function get(obj: unknown, path: string): unknown {
 
 export function compare(actual: unknown, c: Comparison): string | undefined {
   const n = actual as number;
-  if ("eq" in c && JSON.stringify(actual) !== JSON.stringify(c.eq)) return `expected ${JSON.stringify(c.eq)}, got ${JSON.stringify(actual)}`;
+  if ("eq" in c && JSON.stringify(actual) !== JSON.stringify(c.eq))
+    return `expected ${JSON.stringify(c.eq)}, got ${JSON.stringify(actual)}`;
   if (c.gt !== undefined && !(n > c.gt)) return `expected > ${c.gt}, got ${actual}`;
   if (c.gte !== undefined && !(n >= c.gte)) return `expected >= ${c.gte}, got ${actual}`;
   if (c.lt !== undefined && !(n < c.lt)) return `expected < ${c.lt}, got ${actual}`;
@@ -156,7 +157,8 @@ async function runOne(page: PageLike, base: string, name: string, scenario: Scen
   // Functions are serialised into the page, so build the call there from a source string.
   const dev = <R>(expr: string, arg?: unknown) =>
     page.evaluate<R>(
-      ([e, a]: [string, unknown]) => new Function("d", "arg", `return ${e}`)((globalThis as unknown as { __DEBUFF_DEV__: unknown }).__DEBUFF_DEV__, a),
+      ([e, a]: [string, unknown]) =>
+        new Function("d", "arg", `return ${e}`)((globalThis as unknown as { __DEBUFF_DEV__: unknown }).__DEBUFF_DEV__, a),
       [expr, arg] as never,
     );
   const results: StepResult[] = [];
@@ -201,14 +203,15 @@ async function runOne(page: PageLike, base: string, name: string, scenario: Scen
           captures.push({ name: step.capture, path, baseline, status: existed ? "updated" : "new" });
         } else {
           const baseUrl = `data:image/png;base64,${readFileSync(baseline).toString("base64")}`;
-          const diffRatio = await page.evaluate<number>(
-            ([src, args]: [string, unknown]) => (0, eval)(`(${src})`)(args),
-            [DIFF, [dataUrl, baseUrl]] as never,
-          );
+          const diffRatio = await page.evaluate<number>(([src, args]: [string, unknown]) => new Function(`return (${src})`)()(args), [
+            DIFF,
+            [dataUrl, baseUrl],
+          ] as never);
           const tolerance = step.tolerance ?? 0.002;
           const ok = diffRatio <= tolerance;
           captures.push({ name: step.capture, path, baseline, status: ok ? "match" : "diff", diffRatio });
-          if (!ok) message = `capture "${step.capture}" differs from baseline: ${(diffRatio * 100).toFixed(2)}% pixels (tolerance ${(tolerance * 100).toFixed(2)}%)`;
+          if (!ok)
+            message = `capture "${step.capture}" differs from baseline: ${(diffRatio * 100).toFixed(2)}% pixels (tolerance ${(tolerance * 100).toFixed(2)}%)`;
         }
       } else {
         message = `Unknown step: ${JSON.stringify(step)}`;
@@ -236,6 +239,7 @@ export function formatScenario(r: ScenarioReport): string {
   const lines = [`${r.ok ? "PASS" : "FAIL"} ${r.name} (${r.durationMs} ms)`];
   for (const s of r.steps) if (!s.ok) lines.push(`  step ${s.index} ${JSON.stringify(s.step)}: ${s.message}`);
   for (const e of r.errors) lines.push(`  runtime error: ${e.split("\n")[0]}`);
-  for (const c of r.captures) lines.push(`  capture ${c.name}: ${c.status}${c.diffRatio !== undefined ? ` (${(c.diffRatio * 100).toFixed(3)}%)` : ""}`);
+  for (const c of r.captures)
+    lines.push(`  capture ${c.name}: ${c.status}${c.diffRatio !== undefined ? ` (${(c.diffRatio * 100).toFixed(3)}%)` : ""}`);
   return lines.join("\n");
 }

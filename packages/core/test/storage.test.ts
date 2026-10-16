@@ -13,7 +13,12 @@ describe("Storage", () => {
   });
 
   it("survives throwing storage and corrupt data", () => {
-    vi.stubGlobal("localStorage", { getItem: () => "{not json", setItem: () => { throw new Error("quota"); } });
+    vi.stubGlobal("localStorage", {
+      getItem: () => "{not json",
+      setItem: () => {
+        throw new Error("quota");
+      },
+    });
     const s = new Storage("t", { best: 0 });
     expect(s.get("best")).toBe(0);
     expect(() => s.set("best", 5)).not.toThrow();

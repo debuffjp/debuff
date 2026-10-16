@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-import * as p from "@clack/prompts";
-import cac from "cac";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import * as p from "@clack/prompts";
+import cac from "cac";
 import pc from "picocolors";
 import { compileAssets, findUnused } from "./assets.js";
 import { buildReport, formatReport } from "./report.js";

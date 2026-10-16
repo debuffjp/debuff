@@ -8,11 +8,7 @@ export interface Frame {
 }
 
 /** Slice a uniform sprite sheet into frames, row-major. */
-export function sliceGrid(
-  image: CanvasImageSource & { width: number; height: number },
-  frameWidth: number,
-  frameHeight: number,
-): Frame[] {
+export function sliceGrid(image: CanvasImageSource & { width: number; height: number }, frameWidth: number, frameHeight: number): Frame[] {
   const cols = Math.floor(image.width / frameWidth);
   const rows = Math.floor(image.height / frameHeight);
   const frames: Frame[] = [];
