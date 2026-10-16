@@ -15,4 +15,4 @@ Thumbs.db
 .idea/
 *.log
 dist-types/
-public/assets/manifest.json
+**/public/assets/manifest.json
