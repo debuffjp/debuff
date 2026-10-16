@@ -108,3 +108,14 @@ export default defineConfig({
 
 - `debuff demo:greet` runs the command, and `debuff --help` lists it.
 - `{ "demo:expect-pops": 1 }` works in any scenario. `debuff scenario` writes `.debuff/scenario.schema.json` with every plugin step, so point `$schema` there for editor completion.
+
+## Templates
+
+Share a starter as any git repository with a `package.json` at its root (or in a subfolder):
+
+```bash
+npm create debuff@latest my-game -- --template github:you/your-template
+npm create debuff@latest my-game -- --template gitlab:you/repo/templates/arcade#v1
+```
+
+`github:`, `gitlab:`, `bitbucket:` and `sourcehut:` sources are supported, with optional subfolders and `#ref`. No git binary is needed.
