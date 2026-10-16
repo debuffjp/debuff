@@ -247,6 +247,11 @@ export class Draw {
     this.backend.end();
   }
 
+  /** @internal Release GPU resources and listeners. */
+  dispose(): void {
+    this.backend.dispose();
+  }
+
   /** @internal */
   resize(w: number, h: number): void {
     this.backend.resize(w, h);

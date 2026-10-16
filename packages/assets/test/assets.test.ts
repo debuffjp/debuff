@@ -73,13 +73,24 @@ describe("atlas frames", () => {
   it("shares one request per atlas and slices frames inside the rect", async () => {
     const loads: string[] = [];
     class FakeImage {
-      src = "";
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
       naturalWidth = 64;
       naturalHeight = 48;
       width = 64;
       height = 48;
-      async decode() {
-        loads.push(this.src);
+      private url = "";
+      get src() {
+        return this.url;
+      }
+      set src(value: string) {
+        this.url = value;
+        loads.push(value);
+        queueMicrotask(() => this.onload?.());
+      }
+      // Simulates browsers that never resolve decode() in background tabs: loading must not wait on it.
+      decode() {
+        return new Promise<void>(() => {});
       }
     }
     vi.stubGlobal("Image", FakeImage);

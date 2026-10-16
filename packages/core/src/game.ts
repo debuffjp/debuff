@@ -127,6 +127,7 @@ export class Game {
   dispose(): void {
     this.stop();
     this.pluginRegistry.dispose();
+    this.draw.dispose();
     this.observer?.disconnect();
     if (typeof document !== "undefined") document.removeEventListener("visibilitychange", this.onVisibility);
   }

@@ -174,8 +174,14 @@ export class Assets {
 async function loadOne(type: AssetType, url: string): Promise<Loaded> {
   if (type === "image") {
     const img = new Image();
-    img.src = url;
-    await img.decode();
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error("image failed to load or decode"));
+      img.src = url;
+    });
+    // decode() avoids a hitch on first draw, but it can stall indefinitely in background tabs and
+    // throttled iframes. The load event already guarantees the image is usable, so it's only a hint.
+    img.decode().catch(() => {});
     return img;
   }
   const res = await fetch(url);

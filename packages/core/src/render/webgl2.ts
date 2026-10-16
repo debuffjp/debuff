@@ -64,10 +64,28 @@ export class WebGL2Backend implements Backend {
   private readonly data = new ArrayBuffer(this.capacity * STRIDE);
   private readonly f32 = new Float32Array(this.data);
   private readonly u32 = new Uint32Array(this.data);
-  private readonly instanceBuffer: WebGLBuffer;
-  private readonly viewLoc: WebGLUniformLocation | null;
+  // GPU objects are recreated after a context loss, so they are not readonly.
+  private instanceBuffer!: WebGLBuffer;
+  private viewLoc: WebGLUniformLocation | null = null;
   private readonly textures = new Map<TextureSource, CachedTexture>();
-  private readonly white: CachedTexture;
+  private white!: CachedTexture;
+  /** True between webglcontextlost and webglcontextrestored: drawing is skipped. */
+  private lost = false;
+  private readonly onLost = (e: Event) => {
+    // preventDefault tells the browser we will handle restoration.
+    e.preventDefault();
+    this.lost = true;
+  };
+  private readonly onRestored = () => {
+    // Every GPU object died with the context. Sources are still in memory, so textures re-upload lazily.
+    this.textures.clear();
+    this.lastSrc = null;
+    this.last = undefined;
+    this.count = 0;
+    this.unitCount = 0;
+    this.setup();
+    this.lost = false;
+  };
   private readonly units: (WebGLTexture | null)[] = new Array(UNITS).fill(null);
   private unitCount = 0;
   private lastSrc: TextureSource | null = null;
@@ -80,6 +98,19 @@ export class WebGL2Backend implements Backend {
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
     this.raw = { kind: "webgl2", gl };
+    this.setup();
+    gl.canvas.addEventListener("webglcontextlost", this.onLost);
+    gl.canvas.addEventListener("webglcontextrestored", this.onRestored);
+  }
+
+  /** True while the GPU context is lost (e.g. a mobile tab was backgrounded or the driver reset). */
+  get contextLost(): boolean {
+    return this.lost;
+  }
+
+  /** Create program, buffers and the white texture. Runs at start and after a context restore. */
+  private setup(): void {
+    const gl = this.gl;
     const program = link(gl, VERT, FRAG);
     gl.useProgram(program);
     this.viewLoc = gl.getUniformLocation(program, "u_view");
@@ -123,6 +154,7 @@ export class WebGL2Backend implements Backend {
   }
 
   begin(clear: number, width: number, height: number): void {
+    if (this.lost) return;
     const gl = this.gl;
     gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
     gl.uniform2f(this.viewLoc, width, height);
@@ -142,6 +174,7 @@ export class WebGL2Backend implements Backend {
     flash: number,
     smooth: boolean,
   ): void {
+    if (this.lost) return;
     // Fast path: consecutive draws from the same source skip the texture lookup.
     const t = src === null ? this.white : src === this.lastSrc && this.last?.smooth === smooth ? this.last : this.texture(src, smooth);
     this.lastSrc = src;
@@ -181,7 +214,7 @@ export class WebGL2Backend implements Backend {
   }
 
   setBlend(mode: BlendMode): void {
-    if (mode === this.blend) return;
+    if (mode === this.blend || this.lost) return;
     this.flush();
     this.blend = mode;
     this.applyBlend();
@@ -205,11 +238,18 @@ export class WebGL2Backend implements Backend {
   }
 
   dispose(): void {
-    for (const { tex } of this.textures.values()) this.gl.deleteTexture(tex);
+    this.gl.canvas.removeEventListener("webglcontextlost", this.onLost);
+    this.gl.canvas.removeEventListener("webglcontextrestored", this.onRestored);
+    if (!this.lost) for (const { tex } of this.textures.values()) this.gl.deleteTexture(tex);
     this.textures.clear();
   }
 
   private flush(): void {
+    if (this.lost) {
+      this.count = 0;
+      this.unitCount = 0;
+      return;
+    }
     if (this.count === 0) {
       this.unitCount = 0;
       return;
