@@ -10,7 +10,7 @@ function recordingContext() {
     globalCompositeOperation: "source-over",
     imageSmoothingEnabled: true,
   };
-  for (const name of ["setTransform", "fillRect", "drawImage", "clearRect"]) {
+  for (const name of ["setTransform", "fillRect", "drawImage", "clearRect", "save", "restore", "beginPath", "rect", "clip"]) {
     ctx[name] = (...args: unknown[]) =>
       calls.push({
         name,
@@ -54,5 +54,16 @@ describe("Canvas2DBackend", () => {
     expect(img?.state.alpha).toBeCloseTo(0.5, 2);
     expect(img?.state.op).toBe("lighter");
     expect(raw.imageSmoothingEnabled).toBe(false);
+  });
+});
+
+describe("Canvas2DBackend clip", () => {
+  it("clips with save/rect/clip and restores before changing", () => {
+    const { ctx, calls } = recordingContext();
+    const backend = new Canvas2DBackend(ctx);
+    backend.setClip({ x: 1, y: 2, w: 3, h: 4 });
+    backend.setClip(null);
+    expect(calls.map((c) => c.name)).toEqual(["save", "setTransform", "beginPath", "rect", "clip", "restore"]);
+    expect(calls.find((c) => c.name === "rect")?.args).toEqual([1, 2, 3, 4]);
   });
 });

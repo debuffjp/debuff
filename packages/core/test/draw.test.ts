@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Camera, toRGBA } from "../src/index.js";
-import type { Backend, Matrix, TextureSource } from "../src/render/backend.js";
+import type { Backend, ClipRect, Matrix, TextureSource } from "../src/render/backend.js";
 import { Draw } from "../src/render/draw.js";
 
 interface Quad {
@@ -15,6 +15,7 @@ interface Quad {
 function recorder() {
   const quads: Quad[] = [];
   const blends: string[] = [];
+  const clips: (ClipRect | null)[] = [];
   const backend: Backend = {
     kind: "2d",
     raw: { kind: "2d", ctx: {} as CanvasRenderingContext2D },
@@ -22,6 +23,7 @@ function recorder() {
     quad: (m, src, sx, sy, sw, sh, color, flash, smooth) =>
       quads.push({ m: [...m] as Matrix, src, uv: [sx, sy, sw, sh], color, flash, smooth }),
     setBlend: (mode) => blends.push(mode),
+    setClip: (rect) => clips.push(rect),
     end: () => {},
     resize: () => {},
     invalidate: () => {},
@@ -34,7 +36,7 @@ function recorder() {
     if (!q) throw new Error(`no quad ${i}`);
     return q;
   };
-  return { draw, quads, quad, blends };
+  return { draw, quads, quad, blends, clips };
 }
 
 /** Where the unit square's corner (u, v) lands. */
@@ -114,5 +116,27 @@ describe("Draw", () => {
     expect(x).toBeCloseTo(0);
     expect(y).toBeCloseTo(10);
     expect(blends.at(-1)).toBe("add");
+  });
+});
+
+describe("Draw.clip", () => {
+  it("clips in backing pixels, intersects nested clips and restores", () => {
+    const { draw, clips } = recorder();
+    draw.renderScale = 2;
+    draw.translate(10, 0);
+    draw.clip(0, 0, 50, 40, () => {
+      draw.clip(30, 20, 100, 100, () => {});
+    });
+    expect(clips).toEqual([{ x: 20, y: 0, w: 100, h: 80 }, { x: 80, y: 40, w: 40, h: 40 }, { x: 20, y: 0, w: 100, h: 80 }, null]);
+  });
+
+  it("restores the clip even if the callback throws", () => {
+    const { draw, clips } = recorder();
+    expect(() =>
+      draw.clip(0, 0, 10, 10, () => {
+        throw new Error("boom");
+      }),
+    ).toThrow("boom");
+    expect(clips.at(-1)).toBeNull();
   });
 });

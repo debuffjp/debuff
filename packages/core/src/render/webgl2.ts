@@ -1,4 +1,4 @@
-import type { Backend, BlendMode, Matrix, RawContext, TextureSource } from "./backend.js";
+import type { Backend, BlendMode, ClipRect, Matrix, RawContext, TextureSource } from "./backend.js";
 
 /** Texture units sampled per batch. 8 is guaranteed on every WebGL2 implementation's fragment stage (min 16). */
 const UNITS = 8;
@@ -220,8 +220,22 @@ export class WebGL2Backend implements Backend {
     this.applyBlend();
   }
 
+  setClip(rect: ClipRect | null): void {
+    if (this.lost) return;
+    this.flush();
+    const gl = this.gl;
+    if (!rect) {
+      gl.disable(gl.SCISSOR_TEST);
+      return;
+    }
+    gl.enable(gl.SCISSOR_TEST);
+    // WebGL's scissor origin is bottom-left.
+    gl.scissor(rect.x, gl.drawingBufferHeight - rect.y - rect.h, rect.w, rect.h);
+  }
+
   end(): void {
     this.flush();
+    this.gl.disable(this.gl.SCISSOR_TEST);
   }
 
   resize(): void {
