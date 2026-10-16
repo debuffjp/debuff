@@ -5,12 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>My Debuff game</title>
     <style>
-      html, body { margin: 0; height: 100%; background: #111; display: grid; place-items: center; }
-      canvas { max-width: 100vw; max-height: 100vh; aspect-ratio: 16 / 9; width: 100%; image-rendering: pixelated; }
+      html, body { margin: 0; height: 100%; background: #0b0b12; overflow: hidden; }
+      /* The game scales the canvas to fit this container (see GameOptions.scale). */
+      #app { position: fixed; inset: 0; display: grid; place-items: center; }
+      canvas { display: block; outline: none; }
     </style>
   </head>
   <body>
-    <canvas id="game"></canvas>
+    <main id="app"><canvas id="game" tabindex="0"></canvas></main>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

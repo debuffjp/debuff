@@ -22,6 +22,7 @@ export interface DevState {
   tick: number;
   time: number;
   frozen: boolean;
+  stats: ReturnType<Game["stats"]["summary"]>;
   state: unknown;
 }
 
@@ -63,6 +64,7 @@ export function exposeDevHooks(game: Game, options: DevHooksOptions = {}): DevHo
       tick: game.clock.tick,
       time: game.clock.time,
       frozen: game.frozen,
+      stats: game.stats.summary(),
       state: scene?.inspect?.(),
     };
   };
