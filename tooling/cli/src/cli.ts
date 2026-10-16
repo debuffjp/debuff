@@ -4,7 +4,8 @@ import { join, resolve } from "node:path";
 import * as p from "@clack/prompts";
 import cac from "cac";
 import pc from "picocolors";
-import { compileAssets, findUnused } from "./assets.js";
+import { compileAssets, findUnused } from "./assets/index.js";
+import { loadConfig } from "./config.js";
 import { buildReport, formatReport } from "./report.js";
 import { createDevServer, viteConfig } from "./vite.js";
 
@@ -53,7 +54,7 @@ cli
     if (!o.json) banner("build");
     const s = o.json ? undefined : p.spinner();
     s?.start("Bundling");
-    await build(viteConfig(root, { logLevel: "error", build: { sourcemap: o.sourcemap ?? false } }));
+    await build(await viteConfig(root, { logLevel: "error", build: { sourcemap: o.sourcemap ?? false } }));
     s?.stop("Bundled");
     return report(root, o.json ?? false);
   });
@@ -65,20 +66,24 @@ cli
   .action((o: Common) => report(rootOf(o), o.json ?? false));
 
 cli
-  .command("assets", "Regenerate the asset manifest and list unused assets")
+  .command("assets", "Run the asset pipeline and print the manifest summary")
   .option("--root <dir>", "Project root")
-  .option("--json", "Machine-readable output")
-  .action((o: Common) => {
+  .option("--json", "Print the full manifest and diagnostics as JSON")
+  .action(async (o: Common) => {
     const root = rootOf(o);
-    const { manifest, warnings, path } = compileAssets(root);
+    const config = await loadConfig(root);
+    const { manifest, warnings, importedBy, outputs } = await compileAssets(root, { plugins: config.plugins });
     const unused = findUnused(root, manifest);
     const count = Object.keys(manifest.assets).length;
     if (o.json) {
-      console.log(JSON.stringify({ path, count, warnings, unused }, null, 2));
+      console.log(JSON.stringify({ manifest, importedBy, generated: [...outputs.keys()], warnings, unused }, null, 2));
       return 0;
     }
     banner("assets");
-    p.log.success(`${count} assets → ${pc.dim(path)}`);
+    for (const [id, a] of Object.entries(manifest.assets)) {
+      p.log.message(`${pc.cyan(id)} ${pc.dim(a.type)}  ${pc.dim(`${(a.bytes / 1024).toFixed(1)} kB · ${importedBy[id]}`)}`);
+    }
+    p.log.success(`${count} assets${outputs.size ? `, ${outputs.size} generated` : ""}`);
     for (const w of warnings) p.log.warn(w);
     if (unused.length) p.log.info(`Possibly unused (no id reference in src/): ${unused.map((u) => pc.yellow(u)).join(", ")}`);
     p.outro("Done");
@@ -93,12 +98,19 @@ cli
   .option("--json", "Machine-readable output")
   .action(async (files: string[], o: Common & { update?: boolean; strict?: boolean }) => {
     const { runScenarios, formatScenario } = await import("./scenario/index.js");
-    const s = o.json ? undefined : p.spinner();
-    if (!o.json) banner("scenarios");
-    s?.start("Starting dev server and browser");
+    // Never let an early exit read as success in CI.
+    let finished = false;
+    process.once("exit", (code) => {
+      if (!finished && code === 0) process.exitCode = 1;
+    });
+    if (!o.json) {
+      banner("scenarios");
+      // A spinner here cancels itself when the browser process starts, so use a plain status line.
+      p.log.step("Starting dev server and browser");
+    }
     const reports = await runScenarios({ root: rootOf(o), files, update: o.update ?? false, strict: o.strict ?? false });
+    finished = true;
     const failed = reports.filter((r) => !r.ok).length;
-    s?.stop(`Ran ${reports.length} scenario${reports.length === 1 ? "" : "s"}`);
     if (o.json) console.log(JSON.stringify(reports, null, 2));
     else {
       for (const r of reports) {
@@ -116,10 +128,11 @@ cli
 cli
   .command("inspect", "JSON summary of the project for agents and tools")
   .option("--root <dir>", "Project root")
-  .action((o: Common) => {
+  .action(async (o: Common) => {
     const root = rootOf(o);
     const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as Record<string, unknown>;
-    const { manifest, warnings } = compileAssets(root);
+    const config = await loadConfig(root);
+    const { manifest, warnings } = await compileAssets(root, { plugins: config.plugins });
     const dist = join(root, "dist");
     console.log(
       JSON.stringify(
@@ -127,6 +140,17 @@ cli
           name: pkg.name,
           debuff: version,
           dependencies: pkg.dependencies ?? {},
+          config: config.file ?? null,
+          plugins: config.plugins.map((pl) => ({
+            name: pl.name,
+            apiVersion: pl.apiVersion,
+            importers: (pl.assets ?? []).map((i) => ({
+              name: i.name,
+              extensions: i.extensions,
+              kind: "command" in i ? "command" : "function",
+            })),
+            vite: Boolean(pl.vite),
+          })),
           assets: {
             count: Object.keys(manifest.assets).length,
             bytes: Object.values(manifest.assets).reduce((n, a) => n + a.bytes, 0),
