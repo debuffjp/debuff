@@ -47,11 +47,44 @@ class FakeContext {
   });
   decodeAudioData = vi.fn(async () => ({ duration: 1 }));
   createBuffer = () => ({ getChannelData: () => new Float32Array(8) });
+  createMediaElementSource = node;
+  listeners: Record<string, (() => void)[]> = {};
+  addEventListener(type: string, fn: () => void) {
+    const list = this.listeners[type] ?? [];
+    list.push(fn);
+    this.listeners[type] = list;
+  }
+}
+
+class FakeAudioElement {
+  static last: FakeAudioElement | undefined;
+  src = "";
+  loop = false;
+  preload = "";
+  crossOrigin: string | null = null;
+  playing = false;
+  allowPlay = true;
+  constructor() {
+    FakeAudioElement.last = this;
+  }
+  play() {
+    if (!this.allowPlay) return Promise.reject(new Error("NotAllowedError"));
+    this.playing = true;
+    return Promise.resolve();
+  }
+  pause() {
+    this.playing = false;
+  }
+  removeAttribute(name: string) {
+    if (name === "src") this.src = "";
+  }
+  load() {}
 }
 
 beforeEach(() => {
   created.length = 0;
   vi.stubGlobal("AudioContext", FakeContext);
+  vi.stubGlobal("Audio", FakeAudioElement);
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -79,6 +112,44 @@ describe("Audio", () => {
     audio.synth({ wave: "noise", freq: 1000, decay: 0.1 });
     expect(created.filter((n) => n.started)).toHaveLength(2);
     voice.stop(0.1);
+  });
+
+  it("streams music through the music bus and controls it", async () => {
+    const audio = new Audio();
+    const track = audio.stream("assets/music/theme.ogg", { volume: 0.5 });
+    const el = FakeAudioElement.last;
+    expect(el).toMatchObject({ src: "assets/music/theme.ogg", loop: true, crossOrigin: "anonymous" });
+    await Promise.resolve();
+    expect(el?.playing).toBe(true);
+    track.pause();
+    expect(el?.playing).toBe(false);
+    track.resume();
+    await Promise.resolve();
+    expect(el?.playing).toBe(true);
+    track.stop();
+    expect(el?.src).toBe("");
+  });
+
+  it("waits for the autoplay unlock when the browser blocks playback", async () => {
+    const audio = new Audio();
+    const el = new FakeAudioElement();
+    el.allowPlay = false;
+    vi.stubGlobal(
+      "Audio",
+      class {
+        constructor() {
+          // biome-ignore lint/correctness/noConstructorReturn: hand back the prepared fake element
+          return el;
+        }
+      },
+    );
+    audio.stream("theme.ogg");
+    await new Promise((r) => setTimeout(r, 0));
+    expect(el.playing).toBe(false);
+    el.allowPlay = true;
+    for (const fn of (audio.ctx as unknown as FakeContext).listeners.statechange ?? []) fn();
+    await Promise.resolve();
+    expect(el.playing).toBe(true);
   });
 
   it("sets bus volume", () => {
