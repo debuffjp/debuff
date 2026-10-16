@@ -28,6 +28,7 @@ Run it from the game's folder, or pass `--root <dir>` (or set `DEBUFF_ROOT`).
 | `list_assets` | Every asset with its type, size and importer, plus warnings and possibly unused ids |
 | `build` | Production build plus size report; `leaks` must be empty |
 | `run_scenarios` | Run `scenarios/*.json` headless; per-step results, errors, captures |
+| `fuzz` | Play with random input; each crash or stuck state comes with an explained error and a scenario that replays it |
 | `game_start` | Attach to the live game, or open a private headless copy, paused (see below) |
 | `game_step` | Advance fixed simulation steps (pausing first); returns state |
 | `game_pause` | Pause or resume a live game |

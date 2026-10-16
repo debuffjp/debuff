@@ -17,6 +17,8 @@ export default defineConfig({
         "tooling/create-debuff/src/interactive.ts",
         "tooling/cli/src/scenario/browser.ts",
         "tooling/cli/src/scenario/run.ts",
+        // Drives a real browser; covered end to end by the MCP server test (`fuzz` tool).
+        "tooling/cli/src/fuzz.ts",
         "tooling/mcp/src/session.ts",
         "packages/core/src/render/webgl2.ts",
       ],

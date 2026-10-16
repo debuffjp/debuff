@@ -148,6 +148,53 @@ cli
   });
 
 cli
+  .command("fuzz", "Play the game with random input to find crashes and stuck states")
+  .option("--root <dir>", "Project root")
+  .option("--seconds <n>", "Simulated seconds of play per run", { default: 60 })
+  .option("--runs <n>", "Independent runs", { default: 3 })
+  .option("--seed <n>", "Input seed, to repeat a run exactly")
+  .option("--keys <codes>", "Comma-separated KeyboardEvent.code values to press")
+  .option("--json", "Machine-readable output")
+  .action(async (o: Common & { seconds: number; runs: number; seed?: number; keys?: string }) => {
+    const { runFuzz } = await import("./fuzz.js");
+    if (!o.json) {
+      header("fuzz", "random hands, real bugs");
+      p.log.step(`Playing ${o.runs} × ${o.seconds} s with random input`);
+    }
+    const report = await runFuzz({
+      root: rootOf(o),
+      seconds: Number(o.seconds),
+      runs: Number(o.runs),
+      ...(o.seed === undefined ? {} : { seed: Number(o.seed) }),
+      ...(o.keys
+        ? {
+            keys: o.keys
+              .split(",")
+              .map((k) => k.trim())
+              .filter(Boolean),
+          }
+        : {}),
+    });
+    const errors = report.findings.filter((f) => f.kind === "error");
+    if (o.json) console.log(JSON.stringify(report, null, 2));
+    else {
+      for (const f of report.findings) {
+        const where = (f.error as { where?: { file: string; line: number } } | undefined)?.where;
+        const text = `${f.kind === "error" ? pink("error") : amber("stuck")} run ${f.run} · tick ${f.tick} · ${f.message}${where ? sky(` → ${where.file}:${where.line}`) : ""}\n  replay: ${pc.dim(`debuff scenario ${f.repro}`)}`;
+        if (f.kind === "error") p.log.error(text);
+        else p.log.warn(text);
+      }
+      const minutes = (report.steps / 3600).toFixed(1);
+      finish(
+        !errors.length,
+        `${report.findings.length ? `${report.findings.length} finding${report.findings.length === 1 ? "" : "s"}` : "no crashes or stuck states"} in ${minutes} min of play`,
+        `seed ${report.seed} · repeat with --seed ${report.seed}`,
+      );
+    }
+    return errors.length ? 1 : 0;
+  });
+
+cli
   .command("inspect", "JSON summary of the project for agents and tools")
   .option("--root <dir>", "Project root")
   .action(async (o: Common) => {
