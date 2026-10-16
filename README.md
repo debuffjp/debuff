@@ -1,6 +1,9 @@
-<p align="center"><img src="./.github/buff.svg" width="120" alt="buff, the debuff mascot"></p>
-
-<h1 align="center">debuff</h1>
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./.github/lockup-lime.svg">
+    <img src="./.github/lockup-ink.svg" width="360" alt="debuff">
+  </picture>
+</h1>
 
 **More room for play.** An open-source, agent-native toolkit for small, polished 2D web games, built for game jams and instant-play distribution.
 
