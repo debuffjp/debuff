@@ -13,7 +13,7 @@ npx debuff --help
 | `debuff dev [--port] [--host]` | Dev server with hot reload; regenerates the asset manifest on change |
 | `debuff build [--sourcemap]` | Production build, then a raw/gzip/brotli report. Fails if dev-only code leaks |
 | `debuff report` | Size report for an existing `dist/` |
-| `debuff assets` | Regenerate `public/assets/manifest.json`, list possibly unused assets |
+| `debuff assets` | Run the asset pipeline: list every asset, its importer and size, plus unused and generated files |
 | `debuff scenario [files] [--update] [--strict]` | Run `scenarios/*.json` in headless Chrome/Edge |
 | `debuff inspect` | JSON summary of the project |
 
@@ -40,4 +40,25 @@ Time advances only through `wait` steps, so runs are deterministic. Captures are
 
 ```ts
 import { buildReport, compileAssets, runScenarios } from "@debuff/cli";
+```
+
+## Assets and plugins
+
+Put source assets in `assets/`. The pipeline builds an in-memory manifest (`/assets/manifest.json`). Only files the manifest references are served in dev and emitted in builds, and sources are never modified.
+
+Add tooling plugins in `debuff.config.ts`:
+
+```ts
+import { defineConfig } from "@debuff/cli";
+
+export default defineConfig({
+  plugins: [
+    {
+      name: "maps",
+      apiVersion: 1,
+      // Any language: SourceFile JSON on stdin, ImportResult JSON on stdout.
+      assets: [{ name: "maps", extensions: [".map"], command: ["python", "tools/import_map.py"] }],
+    },
+  ],
+});
 ```

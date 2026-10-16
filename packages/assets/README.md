@@ -1,6 +1,6 @@
 # @debuff/assets
 
-Runtime loader for the manifest that `debuff` generates from `public/assets/`. No dependencies.
+Runtime loader for the manifest that `debuff` generates from your project's `assets/` folder. No dependencies.
 
 ```ts
 import { Assets } from "@debuff/assets";
@@ -17,9 +17,9 @@ const frames = sliceGrid(assets.image("hero"), hero.grid!.frameWidth, hero.grid!
 
 | File | Asset id | Group |
 | --- | --- | --- |
-| `public/assets/logo.png` | `logo` | `default` |
-| `public/assets/level1/map.json` | `level1/map` | `level1` |
-| `public/assets/hero@16x24.png` | `hero` (grid 16×24) | `default` |
+| `assets/logo.png` | `logo` | `default` |
+| `assets/level1/map.json` | `level1/map` | `level1` |
+| `assets/hero@16x24.png` | `hero` (grid 16×24) | `default` |
 
 ## API
 
