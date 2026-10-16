@@ -3,6 +3,13 @@ export type Matrix = [number, number, number, number, number, number];
 
 export type BlendMode = "normal" | "add";
 
+export interface ClipRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 /** Raw access for advanced users. The backends are not interchangeable at this level. */
 export type RawContext = { kind: "webgl2"; gl: WebGL2RenderingContext } | { kind: "2d"; ctx: CanvasRenderingContext2D };
 
@@ -36,6 +43,8 @@ export interface Backend {
     smooth: boolean,
   ): void;
   setBlend(mode: BlendMode): void;
+  /** Restrict drawing to a rectangle in backing-store pixels (top-left origin), or remove the clip. */
+  setClip(rect: ClipRect | null): void;
   /** Submit everything queued this frame. */
   end(): void;
   resize(backingWidth: number, backingHeight: number): void;

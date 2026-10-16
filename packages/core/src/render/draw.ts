@@ -1,4 +1,4 @@
-import type { Backend, BlendMode, Matrix, RawContext, TextureSource } from "./backend.js";
+import type { Backend, BlendMode, ClipRect, Matrix, RawContext, TextureSource } from "./backend.js";
 import { type Color, toRGBA } from "./color.js";
 
 /** A rectangular region of an image, in source pixels. */
@@ -53,6 +53,7 @@ export class Draw {
   private depth = 0;
   private readonly m: Matrix = [1, 0, 0, 1, 0, 0];
   private readonly frames = new WeakMap<TextureSource, Frame>();
+  private readonly clips: ClipRect[] = [];
   private readonly tmp: Matrix = [1, 0, 0, 1, 0, 0];
   private readonly textCache = new TextCache();
   private circleTexture: HTMLCanvasElement | OffscreenCanvas | undefined;
@@ -114,6 +115,48 @@ export class Draw {
     this.m[1] = b * c + d * s;
     this.m[2] = cc * c - a * s;
     this.m[3] = d * c - b * s;
+  }
+
+  /**
+   * Run `fn` with drawing restricted to a rectangle (in current units), then restore. Nested clips
+   * intersect. Clips are axis-aligned on screen: under rotation the rectangle's screen bounds are used.
+   */
+  clip(x: number, y: number, w: number, h: number, fn: () => void): void {
+    const m = this.m;
+    const s = this.renderScale;
+    let x0 = Number.POSITIVE_INFINITY;
+    let y0 = Number.POSITIVE_INFINITY;
+    let x1 = Number.NEGATIVE_INFINITY;
+    let y1 = Number.NEGATIVE_INFINITY;
+    for (const [px, py] of [
+      [x, y],
+      [x + w, y],
+      [x, y + h],
+      [x + w, y + h],
+    ] as const) {
+      const sx = (m[0] * px + m[2] * py + m[4]) * s;
+      const sy = (m[1] * px + m[3] * py + m[5]) * s;
+      x0 = Math.min(x0, sx);
+      y0 = Math.min(y0, sy);
+      x1 = Math.max(x1, sx);
+      y1 = Math.max(y1, sy);
+    }
+    let rect: ClipRect = {
+      x: Math.round(x0),
+      y: Math.round(y0),
+      w: Math.max(0, Math.round(x1) - Math.round(x0)),
+      h: Math.max(0, Math.round(y1) - Math.round(y0)),
+    };
+    const outer = this.clips.at(-1);
+    if (outer) rect = intersect(rect, outer);
+    this.clips.push(rect);
+    this.backend.setClip(rect);
+    try {
+      fn();
+    } finally {
+      this.clips.pop();
+      this.backend.setClip(this.clips.at(-1) ?? null);
+    }
   }
 
   /** Run `fn` with the camera's view applied, then restore. */
@@ -228,6 +271,7 @@ export class Draw {
   begin(clear: Color, width: number, height: number, scale: number): void {
     this.renderScale = scale;
     this.depth = 0;
+    this.clips.length = 0;
     copy(IDENTITY, this.m);
     this.alpha = 1;
     this.backend.setBlend("normal");
@@ -237,6 +281,10 @@ export class Draw {
   /** @internal Reset transform and blend between scene and afterRender hooks. */
   reset(): void {
     this.depth = 0;
+    if (this.clips.length) {
+      this.clips.length = 0;
+      this.backend.setClip(null);
+    }
     copy(IDENTITY, this.m);
     this.alpha = 1;
     this.backend.setBlend("normal");
@@ -302,6 +350,12 @@ export class Draw {
 }
 
 const IDENTITY: Matrix = [1, 0, 0, 1, 0, 0];
+
+function intersect(a: ClipRect, b: ClipRect): ClipRect {
+  const x = Math.max(a.x, b.x);
+  const y = Math.max(a.y, b.y);
+  return { x, y, w: Math.max(0, Math.min(a.x + a.w, b.x + b.w) - x), h: Math.max(0, Math.min(a.y + a.h, b.y + b.h) - y) };
+}
 
 function copy(from: Matrix, to: Matrix): void {
   to[0] = from[0];

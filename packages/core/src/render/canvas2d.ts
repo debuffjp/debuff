@@ -1,4 +1,4 @@
-import type { Backend, BlendMode, Matrix, RawContext, TextureSource } from "./backend.js";
+import type { Backend, BlendMode, ClipRect, Matrix, RawContext, TextureSource } from "./backend.js";
 import { rgbaToCss } from "./color.js";
 
 /**
@@ -12,6 +12,8 @@ export class Canvas2DBackend implements Backend {
   private scale = 1;
   private smoothing: boolean | undefined;
   private scratch: HTMLCanvasElement | OffscreenCanvas | undefined;
+  private clipped = false;
+  private blendMode: BlendMode = "normal";
 
   constructor(ctx: CanvasRenderingContext2D) {
     this.ctx = ctx;
@@ -61,10 +63,29 @@ export class Canvas2DBackend implements Backend {
   }
 
   setBlend(mode: BlendMode): void {
+    this.blendMode = mode;
     this.ctx.globalCompositeOperation = mode === "add" ? "lighter" : "source-over";
   }
 
+  setClip(rect: ClipRect | null): void {
+    const ctx = this.ctx;
+    // Canvas clips only shrink, so each change restores to the unclipped state first.
+    if (this.clipped) {
+      ctx.restore();
+      this.clipped = false;
+      this.setBlend(this.blendMode);
+    }
+    if (!rect) return;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.beginPath();
+    ctx.rect(rect.x, rect.y, rect.w, rect.h);
+    ctx.clip();
+    this.clipped = true;
+  }
+
   end(): void {
+    this.setClip(null);
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.globalAlpha = 1;
   }

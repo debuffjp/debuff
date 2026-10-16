@@ -18,7 +18,7 @@ export {
 } from "./params.js";
 export type { Plugin } from "./plugin.js";
 export { Random } from "./random.js";
-export type { BlendMode, Matrix, RawContext, TextureSource } from "./render/backend.js";
+export type { BlendMode, ClipRect, Matrix, RawContext, TextureSource } from "./render/backend.js";
 export { type Color, toRGBA } from "./render/color.js";
 export { Draw, type Frame, type SpriteDrawOptions, type TextDrawOptions } from "./render/draw.js";
 export type { Scene } from "./scene.js";
