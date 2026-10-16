@@ -17,6 +17,8 @@ npm install
 npm run dev
 ```
 
+No build step? See [using Debuff from a CDN](./docs/guides/no-build.md). Works with npm, pnpm, Yarn and Bun.
+
 ## Packages
 
 | Package | What it does |

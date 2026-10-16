@@ -5,7 +5,7 @@ A living document. Items move up only with evidence from real games and jam feed
 ## Up next (in order)
 
 1. **Finish plugin phase 2.** `@debuff/plugin-aseprite` as the reference importer, `sheet` manifest entries, `assets.sheet(id)`, per-frame animation durations. Publish JSON Schemas for the manifest, `SourceFile` and `ImportResult`, with contract tests (ADR 0005).
-2. **Package-manager and distribution breadth.** CI scaffolds and builds the template with npm, pnpm, Yarn and Bun. Document no-build use from a CDN with import maps. Evaluate dual-publishing to JSR.
+2. ~~**Package-manager and distribution breadth.**~~ Done: CI proves npm, pnpm, Yarn and Bun; [no-build guide](./guides/no-build.md); JSR deferred (ADR 0006).
 3. **First release (0.1.0).** Confirm the npm scope, add the `NPM_TOKEN` secret with provenance, merge the Changesets release PR.
 4. **Dev overlay plugin.** FPS/frame-time graph and live param sliders in the browser; the first thing people see.
 5. **Docs site** (`debuffjp/docs`). Guides, generated API reference, runnable examples.
