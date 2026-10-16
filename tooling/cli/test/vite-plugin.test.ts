@@ -33,6 +33,16 @@ describe("debuff Vite plugin", () => {
     expect(Object.keys(manifest.assets).sort()).toEqual(["data", "hero"]);
   });
 
+  it("preloads the manifest and default-group images in the HTML", async () => {
+    const root = project({ "assets/hero.png": "png", "assets/level2/boss.png": "png" });
+    const plugin = corePlugin(root);
+    const tags = (await plugin.transformIndexHtml()) as { attrs: Record<string, string> }[];
+    expect(tags.map((t) => [t.attrs.href, t.attrs.as])).toEqual([
+      ["assets/manifest.json", "fetch"],
+      ["assets/hero.png", "image"],
+    ]);
+  });
+
   it("serves the manifest and referenced files in dev, and 404s everything else", async () => {
     const root = project({ "assets/hero.png": "png", "assets/secret.psd": "x" });
     const plugin = corePlugin(root);

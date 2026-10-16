@@ -94,6 +94,21 @@ export function debuff(options: DebuffViteOptions = {}): PluginOption[] {
         res.end(body);
       });
     },
+    // Preload the manifest and the default group's images so they download alongside the code,
+    // instead of only after the game script has run and asked for them.
+    async transformIndexHtml() {
+      const r = await latest();
+      const images = new Set<string>();
+      for (const a of Object.values(r.manifest.assets)) if (a.type === "image" && !a.group) images.add(a.src);
+      return [
+        {
+          tag: "link",
+          attrs: { rel: "preload", href: `${ASSETS_DIR}/manifest.json`, as: "fetch", crossorigin: "anonymous" },
+          injectTo: "head" as const,
+        },
+        ...[...images].map((href) => ({ tag: "link", attrs: { rel: "preload", href, as: "image" }, injectTo: "head" as const })),
+      ];
+    },
     async generateBundle() {
       const r = await latest();
       const files = new Set(["manifest.json", ...r.outputs.keys()]);
