@@ -22,8 +22,8 @@
   </style>
   <ellipse class="shadow" cx="60" cy="108" rx="30" ry="5" fill="#0a0c08"/>
   <g class="body">
-    <rect x="28" y="40" width="64" height="64" rx="12" fill="#a3e635"/>
-    <rect x="28" y="40" width="64" height="12" rx="6" fill="#bef264" opacity=".6"/>
+    <rect x="28" y="40" width="64" height="64" rx="12" fill="#cffb2d"/>
+    <rect x="28" y="40" width="64" height="12" rx="6" fill="#ddfc6c" opacity=".6"/>
     <g class="eyes" fill="#11140d">
       <rect x="44" y="58" width="9" height="12" rx="3"/>
       <rect x="67" y="58" width="9" height="12" rx="3"/>

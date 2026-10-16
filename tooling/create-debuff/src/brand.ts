@@ -2,8 +2,8 @@ import pc from "picocolors";
 
 /** debuff palette. Lime is the brand; the accents are for splashes of colour in tooling. */
 export const PALETTE = {
-  lime: "#a3e635",
-  limeSoft: "#d9f99d",
+  lime: "#cffb2d",
+  limeSoft: "#e7fd96",
   ink: "#11140d",
   sky: "#38bdf8",
   pink: "#f472b6",
