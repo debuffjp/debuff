@@ -19,7 +19,7 @@
   },
   "type": "module",
   "bin": {
-    "create-debuff": "./bin/create-debuff.js"
+    "create-debuff": "bin/create-debuff.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
