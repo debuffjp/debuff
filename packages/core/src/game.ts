@@ -111,6 +111,11 @@ export class Game {
   private splashTotal = 0;
   private splashLeft = 0;
   private readonly onSplashSkip = () => this.skipSplash();
+  /** A click or tap on the splash opens the debuff site (the gesture allows the new tab); elsewhere it just skips. */
+  private readonly onSplashPointer = (e: Event) => {
+    if (e.target === this.canvas) window.open(SPLASH_URL, "_blank", "noopener");
+    this.skipSplash();
+  };
   private lastTime = 0;
   private running = false;
   /** Whether the caller wants the loop running; visibility pausing respects this. */
@@ -159,14 +164,22 @@ export class Game {
     const splash = options.splash ?? true;
     if (splash && !isDev() && typeof addEventListener !== "undefined") {
       this.splashTotal = this.splashLeft = (splash === true ? undefined : splash.duration) ?? 1.6;
-      for (const type of ["keydown", "pointerdown"]) addEventListener(type, this.onSplashSkip);
+      addEventListener("keydown", this.onSplashSkip);
+      addEventListener("pointerdown", this.onSplashPointer);
+      this.canvas.style.cursor = "pointer";
+      this.canvas.title = "made with debuff";
     }
   }
 
   /** End the start-up splash now (if it is showing or pending). */
   skipSplash(): void {
-    this.splashLeft = 0;
-    for (const type of ["keydown", "pointerdown"]) removeEventListener(type, this.onSplashSkip);
+    if (this.splashTotal > 0) {
+      this.canvas.style.cursor = "";
+      this.canvas.removeAttribute("title");
+    }
+    this.splashTotal = this.splashLeft = 0;
+    removeEventListener("keydown", this.onSplashSkip);
+    removeEventListener("pointerdown", this.onSplashPointer);
   }
 
   /** Install a plugin. Throws if the name is invalid or already installed. */
@@ -316,7 +329,7 @@ export class Game {
         if (this.splashLeft === 0) this.skipSplash();
         this.draw.begin("#000", this.width, this.height, this.renderScale);
         try {
-          drawSplash(this.draw, this.width, this.height, 1 - this.splashLeft / this.splashTotal, this.reducedMotion);
+          drawSplash(this.draw, this.width, this.height, 1 - this.splashLeft / (this.splashTotal || 1), this.reducedMotion);
         } catch {
           this.skipSplash(); // never let branding break a game
         }
@@ -357,6 +370,9 @@ export class Game {
     draw.end();
   }
 }
+
+/** Where a click on the start-up splash goes. */
+const SPLASH_URL = "https://debuff.jp";
 
 /** True under a bundler's dev mode (Vite: `import.meta.env.DEV`); false elsewhere. */
 function isDev(): boolean {
