@@ -1,4 +1,4 @@
-import type { Game, ParamDescription, ParamValue } from "@debuff/core";
+import type { Game, ParamDescription, ParamValue, Plugin } from "@debuff/core";
 
 /** The parts of `@debuff/input`'s `Input` the hooks drive. Structural, so `dev` does not depend on `input`. */
 export interface DrivableInput {
@@ -14,6 +14,10 @@ export interface DevState {
   stats: ReturnType<Game["stats"]["summary"]>;
   /** Whatever the active scene's `inspect()` returns. */
   state: unknown;
+  /** Installed plugin names, in install order. */
+  pluginNames: readonly string[];
+  /** Snapshots from `game.inspect` providers, keyed by name. */
+  plugins: Record<string, unknown>;
 }
 
 /**
@@ -53,14 +57,36 @@ export interface DevHooksOptions {
 }
 
 /**
- * Install `window.__DEBUFF_DEV__`. Call inside `if (import.meta.env.DEV)` so bundlers drop it
- * from production; `debuff build` fails if it leaks.
+ * The dev tools as a runtime plugin. Installs `window.__DEBUFF_DEV__` and removes it on `game.dispose()`.
+ * Use inside `if (import.meta.env.DEV)` so bundlers drop it; `debuff build` fails if it leaks.
  */
-export function exposeDevHooks(game: Game, options: DevHooksOptions = {}): DevHooks {
-  const errors: string[] = [];
-  addEventListener("error", (e) => errors.push(String(e.error?.stack ?? e.message)));
-  addEventListener("unhandledrejection", (e) => errors.push(String(e.reason?.stack ?? e.reason)));
+export function devTools(options: DevHooksOptions = {}): Plugin {
+  return {
+    name: "dev-tools",
+    install(game) {
+      const errors: string[] = [];
+      const onError = (e: ErrorEvent) => errors.push(String(e.error?.stack ?? e.message));
+      const onRejection = (e: PromiseRejectionEvent) => errors.push(String(e.reason?.stack ?? e.reason));
+      addEventListener("error", onError);
+      addEventListener("unhandledrejection", onRejection);
+      window.__DEBUFF_DEV__ = createHooks(game, options, errors);
+      return () => {
+        removeEventListener("error", onError);
+        removeEventListener("unhandledrejection", onRejection);
+        delete window.__DEBUFF_DEV__;
+      };
+    },
+  };
+}
 
+/** Shorthand for `game.use(devTools(options))`; returns the installed hooks. */
+export function exposeDevHooks(game: Game, options: DevHooksOptions = {}): DevHooks {
+  game.use(devTools(options));
+  if (!window.__DEBUFF_DEV__) throw new Error("dev-tools plugin did not install");
+  return window.__DEBUFF_DEV__;
+}
+
+function createHooks(game: Game, options: DevHooksOptions, errors: string[]): DevHooks {
   const controlled = new URLSearchParams(location.search).has("debuff-scenario");
   if (controlled) {
     game.pauseWhenHidden = false;
@@ -79,6 +105,8 @@ export function exposeDevHooks(game: Game, options: DevHooksOptions = {}): DevHo
     frozen: game.frozen,
     stats: game.stats.summary(),
     state: game.scene?.inspect?.(),
+    pluginNames: game.plugins,
+    plugins: game.inspect.snapshot(),
   });
 
   const hooks: DevHooks = {
@@ -108,6 +136,5 @@ export function exposeDevHooks(game: Game, options: DevHooksOptions = {}): DevHo
     errors: () => [...errors],
     capture: () => game.canvas.toDataURL("image/png"),
   };
-  window.__DEBUFF_DEV__ = hooks;
   return hooks;
 }

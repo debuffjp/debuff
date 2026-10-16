@@ -16,7 +16,7 @@ export type Bindings<A extends string> = Record<A, readonly Binding[]>;
 export interface InputHost {
   canvas: HTMLElement;
   toLogical: ToLogical;
-  afterUpdate(hook: () => void): () => void;
+  hooks: { afterUpdate(fn: (dt: number) => void): () => void };
 }
 
 export interface InputOptions<A extends string> {
@@ -50,7 +50,7 @@ export class Input<A extends string> {
     this.bindings = options.bindings;
     this.keys = new Keyboard(options.keyboardTarget ?? window);
     this.pointer = new Pointer(host.canvas, host.toLogical);
-    this.unhook = host.afterUpdate(() => this.endStep());
+    this.unhook = host.hooks.afterUpdate(() => this.endStep());
   }
 
   /** Any binding for the action is held. */

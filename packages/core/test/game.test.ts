@@ -67,7 +67,7 @@ describe("Game", () => {
     game.add({ id: "s", update: (dt) => seen.push(dt) }).go("s");
     game.timeScale = 0.5;
     const order: string[] = [];
-    const off = game.afterUpdate(() => order.push("hook"));
+    const off = game.hooks.afterUpdate(() => order.push("hook"));
     game.step(1);
     off();
     game.step(1);

@@ -15,6 +15,13 @@ A living document. Items move up only with evidence from real games and jam feed
 - [ ] Tilemaps (Tiled/LDtk import) and an atlas packer in the asset compiler
 - [ ] Aseprite JSON import (frames, tags → animations)
 
+## Plugins (ADR 0004)
+
+- [x] Phase 1: runtime contract (`game.use`, `game.hooks`, `game.inspect`)
+- [ ] Phase 2: `debuff.config.ts`, asset importers (in-process and stdio), `@debuff/plugin-aseprite`
+- [ ] Phase 3: plugin CLI commands (`debuff name:cmd`) and scenario steps
+- [ ] Phase 4: templates from git/npm
+
 ## Next: agent workflow
 
 - [ ] MCP adapter over the CLI and dev hooks

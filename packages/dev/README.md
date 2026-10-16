@@ -3,9 +3,9 @@
 Dev-only inspection and control hooks that let browser tools, the `debuff` CLI and AI agents see and drive a running game.
 
 ```ts
-import { exposeDevHooks } from "@debuff/dev";
+import { devTools } from "@debuff/dev";
 
-if (import.meta.env.DEV) exposeDevHooks(game, { input });
+if (import.meta.env.DEV) game.use(devTools({ input }));
 ```
 
 Bundlers drop the call from production builds, and `debuff build` fails if it leaks.
@@ -16,7 +16,7 @@ All arguments and return values are JSON-serialisable.
 
 | Method | Returns |
 | --- | --- |
-| `state()` | `{ scene, tick, time, frozen, stats, state }`, where `state` is the active scene's `inspect()` |
+| `state()` | `{ scene, tick, time, frozen, stats, state, pluginNames, plugins }`. `state` is the active scene's `inspect()`, and `plugins` holds `game.inspect` snapshots |
 | `step(n)` | advances `n` fixed steps, returns `state()` |
 | `params()` / `setParam(group, key, value)` | typed parameter schemas and values |
 | `press(code)` / `release(code)` | keyboard |

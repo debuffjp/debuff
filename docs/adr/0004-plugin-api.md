@@ -1,6 +1,6 @@
 # ADR 0004: Plugin API
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-10-16
 - Related: ADR 0005 (toolchain strategy)
 
@@ -149,8 +149,8 @@ Each phase ships with docs, a plugin authoring guide and contract tests that plu
 - A plugin's runtime cost is visible in the size report, because it's an ordinary import.
 - Some extensions won't fit the contracts. The `vite` escape hatch and plain libraries remain available, and we add extension points only when several plugins need them.
 
-## Open questions for maintainers
+## Resolved questions
 
-1. Should the config file be TypeScript only (`debuff.config.ts`), or also JSON for tools that can't execute TS?
-2. Command namespacing: `debuff aseprite:watch`, or `debuff plugin aseprite watch`?
-3. Should plugins be allowed to add runtime packages to the dev-boundary allowlist (e.g. a plugin's own dev-only module)?
+1. **Config format:** TypeScript only (`debuff.config.ts`). Tools that can't run TS read `debuff inspect --json`.
+2. **Command namespacing:** colon form, e.g. `debuff aseprite:watch`.
+3. **Dev-boundary allowlist:** plugins can't extend it. Plugin dev code lives behind `import.meta.env.DEV`, like everyone else's.

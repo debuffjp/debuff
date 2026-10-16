@@ -37,6 +37,9 @@ game.start();
 | Export | Purpose |
 | --- | --- |
 | `Game` | Loop, scenes, scaling, `camera`, `random`, `params`, `stats`, `freeze()`, `timeScale`, `step(n)` |
+| `game.use(plugin)`, `Plugin` | Install runtime plugins. See [docs/plugins.md](../../docs/plugins.md) |
+| `game.hooks` | `beforeUpdate`, `afterUpdate`, `beforeRender`, `afterRender`, `sceneChange`. Each returns an unsubscribe function |
+| `game.inspect` | `register(name, () => json)` for dev tools and scenarios |
 | `Scene` | `{ id, enter?, update?, render?, exit?, inspect? }` |
 | `Camera` | Smoothed follow, deadzone, bounds, trauma shake, culling, `toWorld()` |
 | `Sprite`, `sliceGrid` | Frames, named animations, origin, flip, impact flash |

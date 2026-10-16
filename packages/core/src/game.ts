@@ -1,6 +1,9 @@
 import { Camera } from "./camera.js";
 import { FixedClock, type FixedClockOptions } from "./clock.js";
+import { Hooks } from "./hooks.js";
+import { InspectRegistry } from "./inspect.js";
 import { ParamRegistry } from "./params.js";
+import { type Plugin, PluginRegistry } from "./plugin.js";
 import { Random } from "./random.js";
 import type { Scene } from "./scene.js";
 import { FrameStats } from "./stats.js";
@@ -42,6 +45,10 @@ export class Game {
   readonly params = new ParamRegistry();
   readonly camera: Camera;
   readonly stats = new FrameStats();
+  /** Typed lifecycle hooks for plugins and game code. */
+  readonly hooks = new Hooks();
+  /** Named JSON snapshot providers for dev tools and scenarios. */
+  readonly inspect = new InspectRegistry();
   readonly scaleMode: ScaleMode;
   readonly pixelArt: boolean;
   background: string;
@@ -53,7 +60,7 @@ export class Game {
   renderScale = 1;
 
   private freezeTime = 0;
-  private readonly postUpdate = new Set<(dt: number) => void>();
+  private readonly pluginRegistry = new PluginRegistry();
   private readonly scenes = new Map<string, Scene>();
   private active: Scene | undefined;
   private frameHandle = 0;
@@ -96,9 +103,21 @@ export class Game {
     if (typeof document !== "undefined") document.addEventListener("visibilitychange", this.onVisibility);
   }
 
-  /** Stop the loop and detach browser listeners. */
+  /** Install a plugin. Throws if the name is invalid or already installed. */
+  use(plugin: Plugin): this {
+    this.pluginRegistry.install(this, plugin);
+    return this;
+  }
+
+  /** Names of installed plugins, in install order. */
+  get plugins(): readonly string[] {
+    return this.pluginRegistry.names;
+  }
+
+  /** Stop the loop, run plugin cleanups (reverse order) and detach browser listeners. */
   dispose(): void {
     this.stop();
+    this.pluginRegistry.dispose();
     this.observer?.disconnect();
     if (typeof document !== "undefined") document.removeEventListener("visibilitychange", this.onVisibility);
   }
@@ -120,9 +139,11 @@ export class Game {
   go(id: string): void {
     const next = this.scenes.get(id);
     if (!next) throw new Error(`Unknown scene "${id}". Added: ${[...this.scenes.keys()].join(", ") || "none"}`);
-    this.active?.exit?.(this);
+    const previous = this.active;
+    previous?.exit?.(this);
     this.active = next;
     next.enter?.(this);
+    this.hooks.emit("sceneChange", next, previous);
   }
 
   start(): void {
@@ -146,9 +167,10 @@ export class Game {
         return;
       }
       const scaled = dt * this.timeScale;
+      this.hooks.emit("beforeUpdate", scaled);
       this.camera.update(scaled, this.random);
       this.active?.update?.(scaled, this);
-      for (const hook of this.postUpdate) hook(scaled);
+      this.hooks.emit("afterUpdate", scaled);
     });
     this.render(alpha);
     this.stats.record(elapsed * 1000, performance.now() - t0);
@@ -161,12 +183,6 @@ export class Game {
 
   get frozen(): boolean {
     return this.freezeTime > 0;
-  }
-
-  /** Run after every scene update, e.g. to clear input edges. Returns an unsubscribe. */
-  afterUpdate(hook: (dt: number) => void): () => void {
-    this.postUpdate.add(hook);
-    return () => this.postUpdate.delete(hook);
   }
 
   /** Advance exactly `steps` simulation steps (deterministic; for scenarios). */
@@ -248,6 +264,10 @@ export class Game {
     const { ctx } = this;
     ctx.fillStyle = this.background;
     ctx.fillRect(0, 0, this.width, this.height);
+    this.hooks.emit("beforeRender", ctx, alpha);
     this.active?.render?.(ctx, alpha, this);
+    // Guarantee afterRender draws in logical units even if the scene left a transform applied.
+    ctx.setTransform(this.renderScale, 0, 0, this.renderScale, 0, 0);
+    this.hooks.emit("afterRender", ctx, alpha);
   }
 }

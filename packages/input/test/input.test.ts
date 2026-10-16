@@ -7,9 +7,13 @@ function host() {
   return {
     canvas,
     toLogical: (x: number, y: number) => ({ x: x / 2, y: y / 2 }),
-    afterUpdate: (h: () => void) => {
-      hooks.add(h);
-      return () => hooks.delete(h);
+    hooks: {
+      afterUpdate: (h: () => void) => {
+        hooks.add(h);
+        return () => {
+          hooks.delete(h);
+        };
+      },
     },
     endStep: () => {
       for (const h of hooks) h();

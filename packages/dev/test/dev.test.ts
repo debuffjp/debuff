@@ -19,10 +19,23 @@ function setup(search = "") {
 }
 
 describe("exposeDevHooks", () => {
-  it("installs on window and reports state from Scene.inspect", () => {
-    const { hooks } = setup();
+  it("installs as a plugin and reports scene and plugin state", () => {
+    const { hooks, game } = setup();
     expect(window.__DEBUFF_DEV__).toBe(hooks);
-    expect(hooks.step(3)).toMatchObject({ scene: "play", tick: 3, state: { x: 3 } });
+    game.inspect.register("extra", () => ({ ok: true }));
+    expect(hooks.step(3)).toMatchObject({
+      scene: "play",
+      tick: 3,
+      state: { x: 3 },
+      pluginNames: ["dev-tools"],
+      plugins: { extra: { ok: true } },
+    });
+  });
+
+  it("removes itself on game.dispose()", () => {
+    const { game } = setup();
+    game.dispose();
+    expect(window.__DEBUFF_DEV__).toBeUndefined();
   });
 
   it("enters controlled mode with ?debuff-scenario", () => {
