@@ -24,7 +24,7 @@ jobs:
       - run: npm install -g npm@^11.5.1
       - run: npm ci
       # Opens a "Version packages" PR from pending changesets; publishes when it merges.
-      - uses: changesets/action@v1
+      - uses: changesets/action@v2
         with:
           publish: npm run release
         env:
