@@ -186,7 +186,7 @@ function reset(): void {
   kills = 0;
   drops = [];
   state = "play";
-  titleTime = 2.5;
+  titleTime = Infinity; // the title card stays until the first input, then fades
   scroll = fade = undefined;
   placePlayer(spawnAt);
   game.camera.lerp = 0;
@@ -416,6 +416,8 @@ const play: Scene = {
   },
 
   update(dt) {
+    const anyInput = ["left", "right", "up", "down", "attack"].some((a) => input.down(a as "left"));
+    if (anyInput && titleTime > 0.5) titleTime = 0.5;
     titleTime = Math.max(0, titleTime - dt);
     particles.update(dt);
 
@@ -560,9 +562,18 @@ const play: Scene = {
     if (fade) draw.rect(0, HUD, game.width, game.height - HUD, `rgba(26,16,32,${Math.min(1, fade.t < 1 ? fade.t : 2 - fade.t)})`);
     const mid = HUD + 88;
     if (titleTime > 0) {
-      const a = Math.min(1, titleTime);
-      draw.text("mossfell", 128, mid - 30, { font: "16px monospace", color: C.pale, align: "center", alpha: a });
-      draw.text("find the mossheart below the fell", 128, mid - 12, { color: C.lilac, align: "center", alpha: a });
+      // A framed card over the fell, faded out once the player starts.
+      const a = Math.min(1, titleTime * 2);
+      draw.alpha = a;
+      draw.rect(48, mid - 44, 160, 64, C.lilac);
+      draw.rect(49, mid - 43, 158, 62, C.ink);
+      draw.rect(51, mid - 41, 154, 58, C.plum);
+      draw.rect(52, mid - 40, 152, 56, C.ink);
+      draw.text("mossfell", 128, mid - 34, { font: "bold 16px monospace", color: C.pale, align: "center", baseline: "top" });
+      draw.rect(92, mid - 13, 72, 1, C.plum);
+      draw.text("find the mossheart", 128, mid - 8, { color: C.lilac, align: "center", baseline: "top" });
+      draw.text("arrows move  ·  z swings", 128, mid + 4, { color: C.sage, align: "center", baseline: "top" });
+      draw.alpha = 1;
     }
     if (state === "won") {
       draw.rect(0, mid - 22, game.width, 40, "rgba(26,16,32,0.8)");
