@@ -4,18 +4,30 @@
   "private": true,
   "description": "Scaffold a new Debuff game: npm create debuff",
   "type": "module",
-  "bin": { "create-debuff": "./dist/cli.js" },
+  "bin": {
+    "create-debuff": "./dist/cli.js"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
-  "files": ["dist", "templates"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "templates"
+  ],
   "scripts": {
     "build": "tsc -b",
     "prepack": "node scripts/copy-templates.mjs"
   },
   "dependencies": {
-    "@clack/prompts": "^0.8.2",
+    "@clack/prompts": "^1.8.1",
     "picocolors": "^1.1.1"
   },
-  "devDependencies": { "@types/node": "^22.9.0" }
+  "devDependencies": {
+    "@types/node": "^24.0.0"
+  }
 }

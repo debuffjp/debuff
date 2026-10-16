@@ -37,14 +37,14 @@ export class FrameStats {
   private mean(buf: Float64Array): number {
     if (!this.count) return 0;
     let sum = 0;
-    for (let i = 0; i < this.count; i++) sum += buf[i]!;
+    for (const v of buf.subarray(0, this.count)) sum += v;
     return sum / this.count;
   }
 
   private percentile(buf: Float64Array, p: number): number {
     if (!this.count) return 0;
     const sorted = buf.slice(0, this.count).sort();
-    return sorted[Math.min(this.count - 1, Math.floor(p * this.count))]!;
+    return sorted[Math.min(this.count - 1, Math.floor(p * this.count))] ?? 0;
   }
 }
 

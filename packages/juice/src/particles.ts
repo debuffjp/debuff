@@ -83,12 +83,13 @@ export class Particles {
 
   update(dt: number): void {
     for (let i = this.live.length - 1; i >= 0; i--) {
-      const p = this.live[i]!;
+      const p = this.live[i];
+      if (!p) continue;
       p.life -= dt;
       if (p.life <= 0) {
         // Swap-remove to avoid shifting.
-        this.live[i] = this.live[this.live.length - 1]!;
-        this.live.pop();
+        const last = this.live.pop();
+        if (last && last !== p) this.live[i] = last;
         this.pool.push(p);
         continue;
       }

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 
 /** A scenario is plain JSON so humans, agents and tools can all write it.
@@ -143,7 +143,7 @@ export async function runScenarios(options: RunOptions): Promise<ScenarioReport[
   }
   const outDir = join(options.root, ".debuff", "reports");
   mkdirSync(outDir, { recursive: true });
-  for (const r of reports) writeFileSync(join(outDir, `scenario-${r.name}.json`), JSON.stringify(r, null, 2) + "\n");
+  for (const r of reports) writeFileSync(join(outDir, `scenario-${r.name}.json`), `${JSON.stringify(r, null, 2)}\n`);
   return reports;
 }
 
@@ -193,7 +193,7 @@ async function runOne(page: PageLike, base: string, name: string, scenario: Scen
         const baselineDir = join(options.root, "scenarios", "__baselines__", name);
         mkdirSync(dir, { recursive: true });
         mkdirSync(baselineDir, { recursive: true });
-        const png = Buffer.from(dataUrl.split(",")[1]!, "base64");
+        const png = Buffer.from(dataUrl.slice(dataUrl.indexOf(",") + 1), "base64");
         const path = join(dir, `${step.capture}.png`);
         const baseline = join(baselineDir, `${step.capture}.png`);
         writeFileSync(path, png);

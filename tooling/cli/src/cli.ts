@@ -151,7 +151,7 @@ cli
 
 function report(root: string, json: boolean): number {
   const r = buildReport(join(root, "dist"));
-  writeFileSync(join(root, "dist", "debuff-report.json"), JSON.stringify(r, null, 2) + "\n");
+  writeFileSync(join(root, "dist", "debuff-report.json"), `${JSON.stringify(r, null, 2)}\n`);
   if (json) console.log(JSON.stringify(r, null, 2));
   else {
     console.log(formatReport(r));

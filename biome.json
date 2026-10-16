@@ -1,16 +1,8 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
-  "files": { "ignore": ["**/dist", "**/.debuff", "**/templates/*/public/assets/manifest.json"] },
+  "files": { "includes": ["**", "!**/dist", "!**/.debuff", "!**/public/assets/manifest.json"] },
   "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 140 },
-  "organizeImports": { "enabled": true },
-  "linter": {
-    "enabled": true,
-    "rules": {
-      "recommended": true,
-      "style": { "noNonNullAssertion": "off", "useTemplate": "off" },
-      "complexity": { "noForEach": "off" },
-      "suspicious": { "noAssignInExpressions": "off" }
-    }
-  }
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
+  "linter": { "enabled": true, "rules": { "preset": "recommended" } }
 }

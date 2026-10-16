@@ -34,8 +34,8 @@ export class Trail {
       ctx.globalAlpha = prevAlpha * t;
       ctx.lineWidth = this.width * t;
       ctx.beginPath();
-      ctx.moveTo(this.xs[i - 1]!, this.ys[i - 1]!);
-      ctx.lineTo(this.xs[i]!, this.ys[i]!);
+      ctx.moveTo(this.xs[i - 1] ?? 0, this.ys[i - 1] ?? 0);
+      ctx.lineTo(this.xs[i] ?? 0, this.ys[i] ?? 0);
       ctx.stroke();
     }
     ctx.globalAlpha = prevAlpha;

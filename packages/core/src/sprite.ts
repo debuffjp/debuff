@@ -115,7 +115,11 @@ export class Sprite {
     if (this.flash > 0) {
       // Flash only the sprite's own pixels by compositing a white rect onto a scratch canvas.
       const scratch = flashCanvas(f.w, f.h);
-      const sctx = scratch.getContext("2d")!;
+      const sctx = scratch.getContext("2d") as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+      if (!sctx) {
+        ctx.restore();
+        return;
+      }
       sctx.clearRect(0, 0, f.w, f.h);
       sctx.globalCompositeOperation = "source-over";
       sctx.drawImage(f.image, f.x, f.y, f.w, f.h, 0, 0, f.w, f.h);

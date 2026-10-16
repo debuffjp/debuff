@@ -1,12 +1,12 @@
-export { runCreate, type CreateOptions } from "./interactive.js";
+export { type CreateOptions, runCreate } from "./interactive.js";
 export {
   detectPackageManager,
   isEmptyDir,
   listTemplates,
   ownVersion,
   packageName,
-  scaffold,
-  templatesDir,
   type ScaffoldOptions,
+  scaffold,
   type TemplateInfo,
+  templatesDir,
 } from "./scaffold.js";
