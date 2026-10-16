@@ -19,7 +19,7 @@
   },
   "type": "module",
   "bin": {
-    "debuff": "./bin/debuff.js"
+    "debuff": "bin/debuff.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

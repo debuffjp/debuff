@@ -19,7 +19,7 @@
   },
   "type": "module",
   "bin": {
-    "debuff-mcp": "./bin/debuff-mcp.js"
+    "debuff-mcp": "bin/debuff-mcp.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
