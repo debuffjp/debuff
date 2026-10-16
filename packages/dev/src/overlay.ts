@@ -53,6 +53,9 @@ class Overlay {
   private knownGroups = "";
   /** Frames-ago index of the bar under the pointer or selected, or undefined. */
   private selected: number | undefined;
+  private readonly body: HTMLElement;
+  private readonly collapseButton: HTMLButtonElement;
+  private collapsed = false;
   private frameCounter = 0;
 
   constructor(
@@ -75,7 +78,14 @@ class Overlay {
     this.label = chip("", LIME);
     this.label.style.marginLeft = "auto";
     this.label.style.fontVariantNumeric = "tabular-nums";
-    header.append(this.mascot.root, title, this.agentBadge, this.label);
+    this.collapseButton = button("", () => this.setCollapsed(!this.collapsed));
+    Object.assign(this.collapseButton.style, { padding: "0 6px", minWidth: "22px" });
+    header.append(this.mascot.root, title, this.agentBadge, this.label, this.collapseButton);
+    // Double-click the header bar to collapse or expand, like a window title bar.
+    header.addEventListener("dblclick", (e) => {
+      if (e.target !== this.collapseButton) this.setCollapsed(!this.collapsed);
+    });
+    header.style.userSelect = "none";
 
     this.graph = el("canvas") as HTMLCanvasElement;
     this.graph.width = BARS * BAR_W;
@@ -158,7 +168,10 @@ class Overlay {
     noteRow.append(noteInput, button("flag", addNote));
     activity.append(summary, this.activityBox, noteRow);
 
-    this.root.append(header, this.graph, this.controls, this.inspector, this.paramsBox, activity);
+    this.body = el("div");
+    this.body.append(this.graph, this.controls, this.inspector, this.paramsBox, activity);
+    this.root.append(header, this.body);
+    this.setCollapsed(readCollapsed());
     document.body.append(this.root);
 
     const key = options.toggleKey ?? "Backquote";
@@ -171,10 +184,26 @@ class Overlay {
     this.cleanups.push(() => removeEventListener("keydown", onKey));
     this.cleanups.push(game.hooks.afterRender(() => this.frame()));
     this.cleanups.push(game.params.onChange((c) => this.sync(`${c.group}.${c.key}`, c.value)));
-    this.cleanups.push(game.inspect.register("dev-overlay", () => ({ open: !this.root.hidden, paused: this.session.paused })));
+    this.cleanups.push(
+      game.inspect.register("dev-overlay", () => ({ open: !this.root.hidden, collapsed: this.collapsed, paused: this.session.paused })),
+    );
     this.cleanups.push(this.session.subscribe(() => this.refreshSession()));
     this.buildParams();
     this.refreshSession();
+  }
+
+  /** Collapse to just the header bar (mascot, fps and agent badge); remembered across reloads. */
+  setCollapsed(collapsed: boolean): void {
+    this.collapsed = collapsed;
+    this.body.hidden = collapsed;
+    this.collapseButton.textContent = collapsed ? "▸" : "▾";
+    this.collapseButton.title = collapsed ? "Expand the dev panel" : "Collapse the dev panel";
+    this.collapseButton.setAttribute("aria-expanded", String(!collapsed));
+    try {
+      localStorage.setItem(COLLAPSED_KEY, collapsed ? "1" : "0");
+    } catch {
+      // Storage blocked: the state just isn't remembered.
+    }
   }
 
   dispose(): void {
@@ -206,6 +235,7 @@ class Overlay {
 
   /** Stacked bars: update (lime) + render (sky); the rest of the interval is shown dim. Red cap = over budget. */
   private drawGraph(): void {
+    if (this.collapsed) return;
     const ctx = this.graph.getContext("2d");
     if (!ctx) return;
     const { width: w, height: h } = this.graph;
@@ -408,6 +438,16 @@ function rangeFor(spec: NumberParamSpec, value: number): Partial<HTMLInputElemen
 
 function format(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(2);
+}
+
+const COLLAPSED_KEY = "debuff:dev-overlay:collapsed";
+
+function readCollapsed(): boolean {
+  try {
+    return localStorage.getItem(COLLAPSED_KEY) === "1";
+  } catch {
+    return false;
+  }
 }
 
 function el(tag: string, attrs: Record<string, string> = {}, text?: string): HTMLElement {

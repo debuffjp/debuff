@@ -68,3 +68,23 @@ describe("devOverlay controls", () => {
     game.dispose();
   });
 });
+
+describe("devOverlay collapse", () => {
+  it("collapses to the header, remembers it, and expands again", () => {
+    localStorage.removeItem("debuff:dev-overlay:collapsed");
+    let game = makeGame().use(devOverlay());
+    const toggle = () => panel()?.querySelector<HTMLButtonElement>("button[aria-expanded]");
+    const body = () => toggle()?.parentElement?.nextElementSibling as HTMLElement | null;
+    expect(toggle()?.getAttribute("aria-expanded")).toBe("true");
+    toggle()?.click();
+    expect(body()?.hidden).toBe(true);
+    expect(game.inspect.snapshot()["dev-overlay"]).toMatchObject({ collapsed: true });
+    game.dispose();
+
+    game = makeGame().use(devOverlay());
+    expect(body()?.hidden).toBe(true);
+    toggle()?.click();
+    expect(body()?.hidden).toBe(false);
+    game.dispose();
+  });
+});
