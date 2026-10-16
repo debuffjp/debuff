@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "debuff": {
+      "command": "node",
+      "args": ["tooling/mcp/bin/debuff-mcp.js", "--root", "templates/platformer"]
+    }
+  }
+}

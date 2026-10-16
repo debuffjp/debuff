@@ -227,7 +227,7 @@ describe("Game loop errors", () => {
       })
       .go("play");
     const seen: unknown[] = [];
-    game.hooks.error((err, ctx) => seen.push(ctx));
+    game.hooks.error((_err, ctx) => seen.push(ctx));
     game.start();
     expect(() => callbacks.shift()?.(performance.now() + 20)).toThrow("boom");
     expect(game.isRunning).toBe(false);

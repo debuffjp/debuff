@@ -119,3 +119,23 @@ describe("summarize", () => {
     expect(diagnose(sample({ intervalMs: 20 }))).toMatch(/jitter/);
   });
 });
+
+describe("DevSession errors", () => {
+  it("counts repeats of the same error even after its location is source-mapped", () => {
+    const game = makeGame();
+    const s = DevSession.acquire(game);
+    const boom = () => {
+      const e = new TypeError("x is undefined");
+      e.stack = "TypeError: x is undefined\n    at update (http://localhost:3000/src/main.ts:5:1)";
+      return e;
+    };
+    dispatchEvent(new ErrorEvent("error", { error: boom() }));
+    const first = s.errors[0];
+    if (first?.where) first.where = { ...first.where, line: 2 }; // as if mapped
+    dispatchEvent(new ErrorEvent("error", { error: boom() }));
+    dispatchEvent(new ErrorEvent("error", { error: boom() }));
+    expect(s.errors).toHaveLength(1);
+    expect(s.errors[0]?.count).toBe(3);
+    s.release();
+  });
+});

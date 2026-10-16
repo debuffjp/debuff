@@ -56,7 +56,8 @@ export class Input<A extends string> {
         for (const b of list) if (b !== "Pointer" && !b.startsWith("Pad")) this.keys.captured.add(b);
       }
     }
-    this.pointer = new Pointer(host.canvas, host.toLogical);
+    // Call through the host so a class method keeps its `this`.
+    this.pointer = new Pointer(host.canvas, (x, y) => host.toLogical(x, y));
     this.unhook = host.hooks.afterUpdate(() => this.endStep());
   }
 

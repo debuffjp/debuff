@@ -139,3 +139,22 @@ describe("embedding", () => {
     input.dispose();
   });
 });
+
+describe("Input with a class host", () => {
+  it("calls toLogical with its own this (regression: pointer moves threw)", () => {
+    class Host {
+      readonly canvas = document.createElement("canvas");
+      readonly scale = 2;
+      readonly hooks = host().hooks;
+      toLogical(x: number, y: number) {
+        return { x: x / this.scale, y: y / this.scale };
+      }
+    }
+    const h = new Host();
+    const input = new Input(h, { bindings: {} });
+    expect(() => h.canvas.dispatchEvent(new PointerEvent("pointermove", { clientX: 40, clientY: 20, isPrimary: true }))).not.toThrow();
+    expect(input.pointer.x).toBe(20);
+    expect(input.pointer.y).toBe(10);
+    input.dispose();
+  });
+});
