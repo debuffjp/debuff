@@ -22,6 +22,10 @@ export const DEFAULT_FUZZ_KEYS = [
   "KeyX",
 ];
 const MOVE_KEYS = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "KeyA", "KeyD", "KeyW", "KeyS"]);
+/** Steps between state samples while fuzzing; loops shorter than this can slip through. */
+const SAMPLE_STEPS = 10;
+/** A field flipping between the same two values this many times with input unchanged counts as a loop. */
+const LOOP_FLIPS = 4;
 
 export interface FuzzOptions {
   root: string;
@@ -40,7 +44,7 @@ export interface FuzzOptions {
 }
 
 export interface FuzzFinding {
-  kind: "error" | "stuck";
+  kind: "error" | "stuck" | "loop";
   run: number;
   /** Simulation tick when it was found. */
   tick: number;
@@ -132,6 +136,12 @@ export async function runFuzz(options: FuzzOptions): Promise<FuzzReport> {
         let lastState = "";
         let changedAt = 0;
         let stuckReported = false;
+        let loopReported = false;
+        // Loop detection: per top-level state field, the values it took since input last changed.
+        let flips = new Map<string, string[]>();
+        const inputChanged = () => {
+          flips = new Map();
+        };
 
         const save = (label: string): string => {
           const file = join(outDir, `fuzz-${seed}-run${run}-${label}.json`);
@@ -144,10 +154,44 @@ export async function runFuzz(options: FuzzOptions): Promise<FuzzReport> {
           // Relative to the project root, so it reads well and works as an argument to `debuff scenario`.
           return relative(options.root, file).split("\\").join("/");
         };
+        /** Bouncing back and forth between two values with input unchanged, e.g. a door or stairs that send you straight back. */
+        const checkLoop = (state: { scene?: string; state?: unknown; tick: number }) => {
+          if (loopReported || held.size === 0) return;
+          const fields: [string, unknown][] = [["scene", state.scene]];
+          if (state.state && typeof state.state === "object")
+            fields.push(...Object.entries(state.state).map(([k, v]): [string, unknown] => [`state.${k}`, v]));
+          for (const [path, value] of fields) {
+            // true/false phase flags (scrolling, attacking) flip all the time in normal play.
+            if (typeof value === "boolean") continue;
+            const json = JSON.stringify(value) ?? "undefined";
+            const seen = flips.get(path) ?? [];
+            if (seen.at(-1) !== json) seen.push(json);
+            flips.set(path, seen);
+            if (seen.length >= LOOP_FLIPS + 1 && new Set(seen).size === 2) {
+              loopReported = true;
+              findings.push({
+                kind: "loop",
+                run,
+                tick: state.tick,
+                message: `${path} kept flipping between ${seen[0]} and ${seen[1]} while ${[...held].join("+")} stayed held. Possible loop (e.g. a door or stairs that send the player straight back).`,
+                repro: save("loop"),
+              });
+              return;
+            }
+          }
+        };
         const advance = async (n: number): Promise<HookResult<unknown>> => {
-          steps.push({ wait: n });
-          played += n;
-          return callSafe(page, "step", [n]);
+          // Step in short chunks so loops shorter than one hold are seen.
+          let result: HookResult<unknown> = { ok: true, value: undefined };
+          for (let left = n; left > 0 && result.ok; left -= SAMPLE_STEPS) {
+            const chunk = Math.min(SAMPLE_STEPS, left);
+            steps.push({ wait: chunk });
+            played += chunk;
+            result = await callSafe(page, "step", [chunk]);
+            const value = result.ok ? (result.value as { scene?: string; state?: unknown; tick: number } | undefined) : undefined;
+            if (value && typeof value.tick === "number") checkLoop(value);
+          }
+          return result;
         };
 
         while (played < budget) {
@@ -158,6 +202,7 @@ export async function runFuzz(options: FuzzOptions): Promise<FuzzReport> {
           if (roll < 0.15) {
             result = await advance(1 + Math.floor(random() * 20));
           } else if (MOVE_KEYS.has(key) || roll < 0.35) {
+            inputChanged();
             if (held.has(key)) {
               held.delete(key);
               steps.push({ release: key });
@@ -167,13 +212,16 @@ export async function runFuzz(options: FuzzOptions): Promise<FuzzReport> {
               steps.push({ press: key });
               await callSafe(page, "press", [key]);
             }
-            result = await advance(6 + Math.floor(random() * 50));
+            // Mostly short holds; sometimes a long one, which is what walks into loops and softlocks.
+            result = await advance(random() < 0.1 ? 120 + Math.floor(random() * 180) : 6 + Math.floor(random() * 50));
           } else {
+            inputChanged();
             steps.push({ press: key });
             await callSafe(page, "press", [key]);
             result = await advance(1 + Math.floor(random() * 4));
             steps.push({ release: key });
             await callSafe(page, "release", [key]);
+            inputChanged();
           }
 
           if (!result.ok) {

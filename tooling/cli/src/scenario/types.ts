@@ -37,6 +37,8 @@ export type Step =
   | { pointerUp: true }
   /** Set params: `{ "player.speed": 300 }` sets group "player", key "speed". */
   | { set: Record<string, number | boolean> }
+  /** Run a command the game registered with `devTools({ commands })`. */
+  | { command: string; args?: unknown[] }
   /** Assert on dev state paths: "scene", "tick", "state.score", "stats.fps". */
   | { expect: Record<string, Comparison> }
   /** Screenshot compared against the per-platform baseline. */

@@ -25,6 +25,25 @@ function setup(search = "") {
 }
 
 describe("exposeDevHooks", () => {
+  it("runs game commands and records them in replays", () => {
+    window.history.replaceState(null, "", "/");
+    const canvas = document.createElement("canvas");
+    const ctx = new Proxy({}, { get: (_t, k) => (k === "canvas" ? canvas : () => undefined), set: () => true });
+    vi.spyOn(canvas, "getContext").mockImplementation(((type: string) =>
+      type === "2d" ? ctx : null) as unknown as typeof canvas.getContext);
+    const game = new Game({ canvas, width: 100, height: 100, scale: "none" });
+    game.add({ id: "play" }).go("play");
+    const warp = vi.fn((to: string) => `went ${to}`);
+    const input = { keys: { press: vi.fn(), release: vi.fn() }, pointer: { press: vi.fn(), move: vi.fn(), release: vi.fn() } };
+    const hooks = exposeDevHooks(game, { input, commands: { warp } });
+    expect(hooks.commands()).toEqual(["warp"]);
+    expect(hooks.command("warp", "hollow")).toBe("went hollow");
+    expect(warp).toHaveBeenCalledWith("hollow");
+    expect(hooks.replay().steps).toContainEqual({ command: "warp", args: ["hollow"] });
+    expect(() => hooks.command("nope")).toThrow(/Unknown command "nope"\. Registered: warp/);
+    game.dispose();
+  });
+
   it("installs as a plugin and reports scene and plugin state", () => {
     const { hooks, game } = setup();
     expect(window.__DEBUFF_DEV__).toBe(hooks);

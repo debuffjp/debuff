@@ -148,7 +148,7 @@ cli
   });
 
 cli
-  .command("fuzz", "Play the game with random input to find crashes and stuck states")
+  .command("fuzz", "Play the game with random input to find crashes, stuck states and loops")
   .option("--root <dir>", "Project root")
   .option("--seconds <n>", "Simulated seconds of play per run", { default: 60 })
   .option("--runs <n>", "Independent runs", { default: 3 })
@@ -180,14 +180,14 @@ cli
     else {
       for (const f of report.findings) {
         const where = (f.error as { where?: { file: string; line: number } } | undefined)?.where;
-        const text = `${f.kind === "error" ? pink("error") : amber("stuck")} run ${f.run} · tick ${f.tick} · ${f.message}${where ? sky(` → ${where.file}:${where.line}`) : ""}\n  replay: ${pc.dim(`debuff scenario ${f.repro}`)}`;
+        const text = `${f.kind === "error" ? pink("error") : amber(f.kind)} run ${f.run} · tick ${f.tick} · ${f.message}${where ? sky(` → ${where.file}:${where.line}`) : ""}\n  replay: ${pc.dim(`debuff scenario ${f.repro}`)}`;
         if (f.kind === "error") p.log.error(text);
         else p.log.warn(text);
       }
       const minutes = (report.steps / 3600).toFixed(1);
       finish(
         !errors.length,
-        `${report.findings.length ? `${report.findings.length} finding${report.findings.length === 1 ? "" : "s"}` : "no crashes or stuck states"} in ${minutes} min of play`,
+        `${report.findings.length ? `${report.findings.length} finding${report.findings.length === 1 ? "" : "s"}` : "no crashes, stuck states or loops"} in ${minutes} min of play`,
         `seed ${report.seed} · repeat with --seed ${report.seed}`,
       );
     }

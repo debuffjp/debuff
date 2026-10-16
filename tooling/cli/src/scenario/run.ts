@@ -156,6 +156,7 @@ async function runStep(step: Step, call: Call, capture: Capture): Promise<string
   else if ("pointerDown" in step) await call("pointerDown", ...step.pointerDown);
   else if ("pointerMove" in step) await call("pointerMove", ...step.pointerMove);
   else if ("pointerUp" in step) await call("pointerUp");
+  else if ("command" in step) await call("command", step.command, ...(step.args ?? []));
   else if ("set" in step) {
     for (const [path, value] of Object.entries(step.set)) {
       const dot = path.indexOf(".");
@@ -196,14 +197,19 @@ async function compareCapture(
 
   const existed = existsSync(baseline);
   if (!existed && options.strict && !options.update) return { name, path, baseline, status: "missing" };
-  if (!existed || options.update) {
+  if (!existed) {
     mkdirSync(baselineDir, { recursive: true });
     writeFileSync(baseline, png);
-    return { name, path, baseline, status: existed ? "updated" : "new" };
+    return { name, path, baseline, status: "new" };
   }
   const expected = `data:image/png;base64,${readFileSync(baseline).toString("base64")}`;
   const result = await page.evaluate(diffImages, [dataUrl, expected, PIXEL_THRESHOLD] as [string, string, number]);
   if (result.ratio <= tolerance) return { name, path, baseline, status: "match", diffRatio: result.ratio };
+  // Only rewrite baselines that actually changed, so `--update` leaves a reviewable diff.
+  if (options.update) {
+    writeFileSync(baseline, png);
+    return { name, path, baseline, status: "updated", diffRatio: result.ratio };
+  }
   let diff: string | undefined;
   if (result.image) {
     diff = join(outDir, `${name}.diff.png`);

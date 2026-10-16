@@ -9,7 +9,8 @@ export type ReplayStep =
   | { pointerDown: [number, number] }
   | { pointerMove: [number, number] }
   | { pointerUp: true }
-  | { set: Record<string, ParamValue> };
+  | { set: Record<string, ParamValue> }
+  | { command: string; args?: unknown[] };
 
 /** A recorded session as a scenario: run it with `debuff scenario <file>` to replay it exactly. */
 export interface Replay {
@@ -110,6 +111,11 @@ export class InputRecording {
 
   dispose(): void {
     for (const r of this.restore.reverse()) r();
+  }
+
+  /** Record a game command (see `DevHooksOptions.commands`) so replays run it at the same tick. */
+  command(name: string, args: unknown[]): void {
+    this.add(args.length ? { command: name, args } : { command: name });
   }
 
   private add(step: ReplayStep): void {
