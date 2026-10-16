@@ -9,10 +9,20 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["packages/*/src/**", "tooling/*/src/**"],
-      exclude: ["tooling/cli/src/cli.ts", "tooling/create-debuff/src/cli.ts", "tooling/cli/src/scenario/browser.ts"],
+      // Entry points and code that only runs in a real browser or TTY. These are covered end to end
+      // by `npm run test:scenarios` (WebGL2, scenario runner) and the MCP test (live game session), which
+      // execute built output and so don't count toward source coverage.
+      exclude: [
+        "**/src/cli.ts",
+        "tooling/create-debuff/src/interactive.ts",
+        "tooling/cli/src/scenario/browser.ts",
+        "tooling/cli/src/scenario/run.ts",
+        "tooling/mcp/src/session.ts",
+        "packages/core/src/render/webgl2.ts",
+      ],
       reporter: ["text-summary", "html"],
       // Floor, not target: raise as coverage grows. Scenario runner and CLI entry are covered end-to-end by `npm run test:scenarios`.
-      thresholds: { lines: 70, functions: 70, branches: 55, statements: 68 },
+      thresholds: { lines: 80, functions: 75, branches: 60, statements: 78 },
     },
   },
 });
