@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://debuff.dev/schema/scenario.schema.json",
+  "$id": "https://raw.githubusercontent.com/debuffjp/debuff/main/tooling/cli/schema/scenario.schema.json",
   "title": "Debuff scenario",
   "description": "Deterministic gameplay scenario run by `debuff scenario`. Time only advances through `wait` steps.",
   "type": "object",

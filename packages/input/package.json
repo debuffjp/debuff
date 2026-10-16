@@ -11,11 +11,11 @@
     "debuff"
   ],
   "license": "MIT",
-  "homepage": "https://github.com/debuff-dev/debuff#readme",
-  "bugs": "https://github.com/debuff-dev/debuff/issues",
+  "homepage": "https://github.com/debuffjp/debuff#readme",
+  "bugs": "https://github.com/debuffjp/debuff/issues",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/debuff-dev/debuff.git",
+    "url": "git+https://github.com/debuffjp/debuff.git",
     "directory": "packages/input"
   },
   "type": "module",
