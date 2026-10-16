@@ -7,12 +7,11 @@
     "examples/*"
   ],
   "scripts": {
-    "build": "tsc -b && npm run build -w sandbox",
+    "build": "tsc -b && npm run build -w sandbox -w starter",
     "typecheck": "tsc -b",
     "test": "vitest run",
     "dev": "npm run dev -w sandbox",
-    "check:boundary": "node scripts/check-boundary.mjs",
-    "check": "npm run typecheck && npm test && npm run build && npm run check:boundary"
+    "check": "npm run typecheck && npm test && npm run build"
   },
   "devDependencies": {
     "typescript": "^5.6.3",

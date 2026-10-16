@@ -4,12 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "dev": "debuff dev",
+    "build": "tsc -b && debuff build"
   },
   "dependencies": {
     "@debuff/core": "0.0.0",
     "@debuff/input": "0.0.0"
+  },
+  "devDependencies": {
+    "@debuff/cli": "0.0.0"
   }
 }
