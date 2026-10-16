@@ -1,6 +1,6 @@
 // Bunnymark: N textured sprites bouncing under gravity. Same simulation for every renderer;
-// only the drawing differs. Controlled by ?renderer=canvas2d|debuff-webgl|pixi-sprite|pixi-particle
-import { WebGLBatcher } from "./webgl-batcher.js";
+// only the drawing differs. ?renderer=canvas2d|debuff-webgl|debuff-2d|pixi-sprite|pixi-particle
+import { Game } from "@debuff/core";
 
 const WIDTH = 960;
 const HEIGHT = 540;
@@ -74,16 +74,29 @@ async function setup(): Promise<{ draw: Draw; sync: () => void | Promise<void> }
       sync: () => createImageBitmap(canvas).then((bitmap) => bitmap.close()),
     };
   }
-  if (renderer === "debuff-webgl") {
-    const batcher = new WebGLBatcher(canvas);
-    const tex = batcher.createTexture(texture);
+  if (renderer === "debuff-webgl" || renderer === "debuff-2d") {
+    // The real public API: Game + draw.sprite, on the WebGL2 backend or the Canvas 2D fallback.
+    const game = new Game({
+      canvas,
+      width: WIDTH,
+      height: HEIGHT,
+      scale: "none",
+      pixelArt: true,
+      background: "#11140d",
+      renderer: renderer === "debuff-2d" ? "2d" : "webgl2",
+    });
+    game
+      .add({
+        id: "bench",
+        render: (draw) => {
+          for (const b of bunnies) draw.sprite(texture, b.x, b.y);
+        },
+      })
+      .go("bench");
+    const raw = game.draw.raw;
     return {
-      draw: () => {
-        batcher.begin(WIDTH, HEIGHT, [0.067, 0.078, 0.051]);
-        for (const b of bunnies) batcher.draw(tex, b.x, b.y, SIZE, SIZE);
-        batcher.flush();
-      },
-      sync: () => readPixel(batcher.gl),
+      draw: () => game.redraw(),
+      sync: () => (raw.kind === "webgl2" ? readPixel(raw.gl) : createImageBitmap(canvas).then((bitmap) => bitmap.close())),
     };
   }
   // PixiJS v8, the most widely used web 2D renderer, with its standard and particle paths.

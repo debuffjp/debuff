@@ -23,6 +23,6 @@ particles.update(dt);
 
 - `Tweens`: `to(target, props, { duration, ease, delay, yoyo, repeat, onComplete })` → `{ done, cancel(), finished }`, `kill(target)`, `update(dt)`
 - `ease`: `linear`, `in/out/inOutQuad`, `in/out/inOutCubic`, `outBack`, `outElastic`, `outBounce`
-- `Particles`: `emit({ x, y, count, speed, angle, spread, life, size, sizeEnd, colors, gravity, drag, shape, additive })`, `update(dt)`, `draw(ctx)`, `clear()`
-- `Trail`: `push(x, y)`, `draw(ctx)`, `clear()`
+- `Particles`: `emit({ x, y, count, speed, angle, spread, life, size, sizeEnd, colors, gravity, drag, shape, additive })`, `update(dt)`, `draw(draw)`, `clear()`
+- `Trail`: `push(x, y)`, `draw(draw)`, `clear()`
 - `squash(tweens, target, amount?, duration?)`

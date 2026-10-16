@@ -11,6 +11,8 @@ export interface DevState {
   tick: number;
   time: number;
   frozen: boolean;
+  /** Active rendering backend. */
+  renderer: "webgl2" | "2d";
   stats: ReturnType<Game["stats"]["summary"]>;
   /** Whatever the active scene's `inspect()` returns. */
   state: unknown;
@@ -103,6 +105,7 @@ function createHooks(game: Game, options: DevHooksOptions, errors: string[]): De
     tick: game.clock.tick,
     time: game.clock.time,
     frozen: game.frozen,
+    renderer: game.draw.kind,
     stats: game.stats.summary(),
     state: game.scene?.inspect?.(),
     pluginNames: game.plugins,
@@ -134,7 +137,11 @@ function createHooks(game: Game, options: DevHooksOptions, errors: string[]): De
       g.set(key, value);
     },
     errors: () => [...errors],
-    capture: () => game.canvas.toDataURL("image/png"),
+    capture: () => {
+      // Re-render without advancing time: WebGL clears its buffer after presenting, so read in the same task.
+      game.redraw();
+      return game.canvas.toDataURL("image/png");
+    },
   };
   return hooks;
 }

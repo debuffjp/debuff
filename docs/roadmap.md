@@ -11,7 +11,7 @@ A living document. Items move up only with evidence from real games and jam feed
 5. **Docs site** (`debuffjp/docs`). Guides, generated API reference, runnable examples.
 6. **Plugin phases 3–4.** CLI commands, scenario steps, templates from git/npm.
 7. **MCP adapter** over the CLI and dev hooks.
-8. **Renderer benchmark.** Canvas 2D vs WebGL2 on representative scenes, recorded as an ADR.
+8. ~~**Renderer benchmark.**~~ Done: ADR 0007. The `draw` API runs on batched WebGL2 (~200k sprites at 60 fps) with a Canvas 2D fallback.
 
 ## Now: foundation (0.x)
 

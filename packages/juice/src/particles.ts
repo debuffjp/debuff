@@ -1,3 +1,5 @@
+import type { DrawLike } from "./draw-like.js";
+
 /** Pooled particle system drawn as rects or circles. Particles live in world space;
  *  draw inside the camera transform. */
 export interface EmitOptions {
@@ -101,25 +103,23 @@ export class Particles {
     }
   }
 
-  draw(ctx: CanvasRenderingContext2D): void {
-    const prevOp = ctx.globalCompositeOperation;
-    const prevAlpha = ctx.globalAlpha;
+  /** Draw in the current transform (e.g. inside `draw.withCamera`). Additive particles batch together. */
+  draw(draw: DrawLike): void {
+    const baseAlpha = draw.alpha;
+    let additive = false;
     for (const p of this.live) {
+      if (p.additive !== additive) {
+        additive = p.additive;
+        draw.blend(additive ? "add" : "normal");
+      }
       const t = p.life / p.maxLife;
       const s = p.size * (p.sizeEnd + (1 - p.sizeEnd) * t);
-      ctx.globalCompositeOperation = p.additive ? "lighter" : "source-over";
-      ctx.globalAlpha = prevAlpha * Math.min(1, t * 2);
-      ctx.fillStyle = p.color;
-      if (p.circle) {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, s / 2, 0, Math.PI * 2);
-        ctx.fill();
-      } else {
-        ctx.fillRect(p.x - s / 2, p.y - s / 2, s, s);
-      }
+      draw.alpha = baseAlpha * Math.min(1, t * 2);
+      if (p.circle) draw.circle(p.x, p.y, s / 2, p.color);
+      else draw.rect(p.x - s / 2, p.y - s / 2, s, s, p.color);
     }
-    ctx.globalCompositeOperation = prevOp;
-    ctx.globalAlpha = prevAlpha;
+    if (additive) draw.blend("normal");
+    draw.alpha = baseAlpha;
   }
 
   clear(): void {

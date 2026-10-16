@@ -9,7 +9,7 @@ import { chromium } from "playwright-core";
 import { build, preview } from "vite";
 
 const root = dirname(fileURLToPath(import.meta.url));
-const ALL = ["canvas2d", "debuff-webgl", "pixi-sprite", "pixi-particle"];
+const ALL = ["canvas2d", "debuff-2d", "debuff-webgl", "pixi-sprite", "pixi-particle"];
 const renderers = process.argv.slice(2).filter((a) => ALL.includes(a));
 const COUNTS = [1_000, 2_000, 5_000, 10_000, 20_000, 50_000, 100_000, 200_000, 400_000, 800_000];
 const FRAME_BUDGET_MS = 1000 / 60; // full CPU+GPU frame must fit a 60 Hz frame
