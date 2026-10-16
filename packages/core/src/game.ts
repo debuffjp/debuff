@@ -141,7 +141,8 @@ export class Game {
     const t0 = performance.now();
     const alpha = this.clock.advance(elapsed, (dt) => {
       if (this.freezeTime > 0) {
-        this.freezeTime = Math.max(0, this.freezeTime - dt);
+        // Epsilon absorbs float drift so freeze(n * step) pauses exactly n steps.
+        this.freezeTime = this.freezeTime - dt > 1e-9 ? this.freezeTime - dt : 0;
         return;
       }
       const scaled = dt * this.timeScale;

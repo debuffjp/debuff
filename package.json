@@ -17,11 +17,14 @@
     "lint": "biome check .",
     "format": "biome check --write .",
     "changeset": "changeset",
-    "release": "npm run check && changeset publish"
+    "release": "npm run check && changeset publish",
+    "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
     "@changesets/cli": "^3.0.3",
+    "@vitest/coverage-v8": "^5.0.5",
+    "happy-dom": "^21.0.3",
     "typescript": "^7.0.2",
     "vite": "^8.3.4",
     "vitest": "^5.0.5"
