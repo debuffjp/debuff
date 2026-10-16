@@ -2,9 +2,12 @@
   "name": "debuff-monorepo",
   "private": true,
   "type": "module",
-  "workspaces": ["packages/*", "examples/*"],
+  "workspaces": [
+    "packages/*",
+    "examples/*"
+  ],
   "scripts": {
-    "build": "npm run build -w @debuff/core -w @debuff/input && npm run build -w sandbox",
+    "build": "tsc -b && npm run build -w sandbox",
     "typecheck": "tsc -b",
     "test": "vitest run",
     "dev": "npm run dev -w sandbox",
@@ -16,5 +19,7 @@
     "vite": "^5.4.10",
     "vitest": "^2.1.4"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }

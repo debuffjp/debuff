@@ -1,0 +1,102 @@
+import type { Random } from "./random.js";
+
+export interface CameraOptions {
+  /** Viewport size in logical pixels. */
+  width: number;
+  height: number;
+  /** World bounds the camera may not leave. Omit for unbounded. */
+  bounds?: { x: number; y: number; width: number; height: number };
+}
+
+/** 2D camera with smoothed follow, deadzone and trauma-based shake.
+ *  `x`/`y` is the world point at the viewport centre. */
+export class Camera {
+  x = 0;
+  y = 0;
+  zoom = 1;
+  /** Follow responsiveness in 1/s; higher snaps faster. 0 disables smoothing. */
+  lerp = 8;
+  /** Half-size of the region the target may move in without the camera moving. */
+  deadzone = { x: 0, y: 0 };
+  /** Max shake offset in pixels at trauma 1. */
+  shakeAmplitude = 8;
+  /** Trauma lost per second. */
+  shakeDecay = 1.5;
+
+  private trauma = 0;
+  private offsetX = 0;
+  private offsetY = 0;
+  private target: { x: number; y: number } | undefined;
+  readonly width: number;
+  readonly height: number;
+  bounds: CameraOptions["bounds"];
+
+  constructor(options: CameraOptions) {
+    this.width = options.width;
+    this.height = options.height;
+    this.bounds = options.bounds;
+  }
+
+  follow(target: { x: number; y: number } | undefined, snap = true): void {
+    this.target = target;
+    if (target && snap) {
+      this.x = target.x;
+      this.y = target.y;
+      this.clamp();
+    }
+  }
+
+  /** Add shake trauma in [0, 1]. Shake intensity scales with trauma². */
+  shake(amount: number): void {
+    this.trauma = Math.min(1, this.trauma + amount);
+  }
+
+  update(dt: number, random: Random): void {
+    if (this.target) {
+      const dx = this.target.x - this.x;
+      const dy = this.target.y - this.y;
+      const tx = Math.abs(dx) > this.deadzone.x ? this.target.x - Math.sign(dx) * this.deadzone.x : this.x;
+      const ty = Math.abs(dy) > this.deadzone.y ? this.target.y - Math.sign(dy) * this.deadzone.y : this.y;
+      const k = this.lerp > 0 ? 1 - Math.exp(-this.lerp * dt) : 1;
+      this.x += (tx - this.x) * k;
+      this.y += (ty - this.y) * k;
+    }
+    this.clamp();
+    this.trauma = Math.max(0, this.trauma - this.shakeDecay * dt);
+    const power = this.trauma * this.trauma * this.shakeAmplitude;
+    this.offsetX = power * random.range(-1, 1);
+    this.offsetY = power * random.range(-1, 1);
+  }
+
+  /** Apply the camera transform. Pair with `ctx.restore()`. */
+  apply(ctx: CanvasRenderingContext2D): void {
+    ctx.save();
+    ctx.translate(this.width / 2, this.height / 2);
+    ctx.scale(this.zoom, this.zoom);
+    ctx.translate(-Math.round(this.x + this.offsetX), -Math.round(this.y + this.offsetY));
+  }
+
+  /** Convert a viewport point (e.g. pointer) to world coordinates. */
+  toWorld(sx: number, sy: number): { x: number; y: number } {
+    return {
+      x: (sx - this.width / 2) / this.zoom + this.x,
+      y: (sy - this.height / 2) / this.zoom + this.y,
+    };
+  }
+
+  /** True if a world-space rectangle overlaps the view (for culling). */
+  sees(x: number, y: number, w: number, h: number): boolean {
+    const hw = this.width / 2 / this.zoom;
+    const hh = this.height / 2 / this.zoom;
+    return x + w >= this.x - hw && x <= this.x + hw && y + h >= this.y - hh && y <= this.y + hh;
+  }
+
+  private clamp(): void {
+    const b = this.bounds;
+    if (!b) return;
+    const hw = this.width / 2 / this.zoom;
+    const hh = this.height / 2 / this.zoom;
+    this.x = b.width <= hw * 2 ? b.x + b.width / 2 : Math.min(Math.max(this.x, b.x + hw), b.x + b.width - hw);
+    this.y = b.height <= hh * 2 ? b.y + b.height / 2 : Math.min(Math.max(this.y, b.y + hh), b.y + b.height - hh);
+  }
+}
