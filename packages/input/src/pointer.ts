@@ -1,101 +1,94 @@
-/** Unified mouse/touch/pen input in the game's logical coordinates.
- *  Like `Keyboard`, edges are reported per simulation step; call `endStep()` after update. */
-export interface PointerState {
+/** Maps client (event) coordinates to the game's logical coordinates. `Game.toLogical` fits. */
+export type ToLogical = (clientX: number, clientY: number) => { x: number; y: number };
+
+export interface TouchPoint {
   readonly id: number;
   x: number;
   y: number;
-  down: boolean;
 }
 
-export interface PointerOptions {
-  /** Logical game size, used to map client pixels onto the canvas. */
-  width: number;
-  height: number;
-}
-
+/**
+ * Unified mouse, touch and pen input via Pointer Events, in logical game coordinates.
+ *
+ * `x`, `y`, `down`, `pressed` and `released` describe the primary pointer. Edges are
+ * latched until `endStep()`. All active contacts are in `touches` for multi-touch.
+ */
 export class Pointer {
-  /** Primary pointer position in logical coordinates. */
   x = 0;
   y = 0;
-  private isDown = false;
-  private pressedThisStep = false;
-  private releasedThisStep = false;
-  private readonly active = new Map<number, PointerState>();
+  down = false;
+  pressed = false;
+  released = false;
+  /** Active contacts keyed by pointerId. */
+  readonly touches = new Map<number, TouchPoint>();
+
+  private readonly element: HTMLElement;
+  private readonly toLogical: ToLogical;
 
   private readonly onDown = (e: PointerEvent) => {
-    this.canvas.setPointerCapture?.(e.pointerId);
-    this.track(e, true);
-    if (e.isPrimary) this.press(this.x, this.y);
+    this.element.setPointerCapture?.(e.pointerId);
+    const p = this.track(e);
+    if (e.isPrimary) this.press(p.x, p.y);
     e.preventDefault();
   };
-  private readonly onMove = (e: PointerEvent) => this.track(e, this.active.get(e.pointerId)?.down ?? false);
+  private readonly onMove = (e: PointerEvent) => {
+    if (this.touches.has(e.pointerId) || e.isPrimary) this.track(e);
+  };
   private readonly onUp = (e: PointerEvent) => {
-    this.active.delete(e.pointerId);
+    this.touches.delete(e.pointerId);
     if (e.isPrimary) this.release();
   };
 
-  constructor(
-    private readonly canvas: HTMLCanvasElement,
-    private readonly options: PointerOptions,
-  ) {
-    canvas.style.touchAction = "none";
-    canvas.addEventListener("pointerdown", this.onDown);
-    canvas.addEventListener("pointermove", this.onMove);
-    canvas.addEventListener("pointerup", this.onUp);
-    canvas.addEventListener("pointercancel", this.onUp);
+  constructor(element: HTMLElement, toLogical: ToLogical) {
+    this.element = element;
+    this.toLogical = toLogical;
+    element.style.touchAction = "none";
+    element.addEventListener("pointerdown", this.onDown);
+    element.addEventListener("pointermove", this.onMove);
+    element.addEventListener("pointerup", this.onUp);
+    element.addEventListener("pointercancel", this.onUp);
   }
 
-  get held(): boolean {
-    return this.isDown;
-  }
-  get pressed(): boolean {
-    return this.pressedThisStep;
-  }
-  get released(): boolean {
-    return this.releasedThisStep;
-  }
-  /** All active pointers (multi-touch). */
-  get pointers(): Iterable<PointerState> {
-    return this.active.values();
-  }
-
-  /** Programmatic input, used by scenarios and tests. */
+  /** Simulate pressing the primary pointer at logical coordinates. */
   press(x: number, y: number): void {
     this.x = x;
     this.y = y;
-    if (this.isDown) return;
-    this.isDown = true;
-    this.pressedThisStep = true;
+    if (this.down) return;
+    this.down = true;
+    this.pressed = true;
   }
 
+  /** Simulate moving the primary pointer. */
   move(x: number, y: number): void {
     this.x = x;
     this.y = y;
   }
 
+  /** Simulate releasing the primary pointer. */
   release(): void {
-    if (!this.isDown) return;
-    this.isDown = false;
-    this.releasedThisStep = true;
+    if (!this.down) return;
+    this.down = false;
+    this.released = true;
   }
 
+  /** Clear edges. Call once after each simulation step. */
   endStep(): void {
-    this.pressedThisStep = false;
-    this.releasedThisStep = false;
+    this.pressed = false;
+    this.released = false;
   }
 
   dispose(): void {
-    this.canvas.removeEventListener("pointerdown", this.onDown);
-    this.canvas.removeEventListener("pointermove", this.onMove);
-    this.canvas.removeEventListener("pointerup", this.onUp);
-    this.canvas.removeEventListener("pointercancel", this.onUp);
+    this.element.removeEventListener("pointerdown", this.onDown);
+    this.element.removeEventListener("pointermove", this.onMove);
+    this.element.removeEventListener("pointerup", this.onUp);
+    this.element.removeEventListener("pointercancel", this.onUp);
   }
 
-  private track(e: PointerEvent, down: boolean): void {
-    const rect = this.canvas.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * this.options.width;
-    const y = ((e.clientY - rect.top) / rect.height) * this.options.height;
-    this.active.set(e.pointerId, { id: e.pointerId, x, y, down });
+  private track(e: PointerEvent): TouchPoint {
+    const { x, y } = this.toLogical(e.clientX, e.clientY);
+    const point = { id: e.pointerId, x, y };
+    if (e.buttons || e.type === "pointerdown") this.touches.set(e.pointerId, point);
     if (e.isPrimary) this.move(x, y);
+    return point;
   }
 }
