@@ -211,6 +211,7 @@ export class DevSession {
   readonly errors: ExplainedError[] = [];
   /** The error object the loop just reported, so its rethrow isn't counted twice. */
   private lastLoopError: unknown;
+  private readonly errorKeys = new WeakMap<ExplainedError, string>();
   private readonly onError = (e: ErrorEvent) => {
     if (e.error !== undefined && e.error === this.lastLoopError) return;
     this.addError(explainError(e.error ?? new Error(e.message)));
@@ -352,14 +353,16 @@ export class DevSession {
   }
 
   private addError(e: ExplainedError): ExplainedError {
+    // Key on the location as first reported: source-mapping later changes `where`, and repeats must still match.
     const key = errorKey(e);
-    const same = this.errors.find((x) => errorKey(x) === key);
+    const same = this.errors.find((x) => this.errorKeys.get(x) === key);
     if (same) {
       same.count++;
       this.changed();
       return same;
     }
     this.errors.push(e);
+    this.errorKeys.set(e, key);
     if (this.errors.length > 50) this.errors.shift();
     this.changed();
     // Point at the original source line, not the compiled module the browser ran.

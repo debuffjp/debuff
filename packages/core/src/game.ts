@@ -316,14 +316,14 @@ export class Game {
     if (!this.running) this.render(0);
   }
 
-  /** Convert client (event) coordinates to logical game coordinates. */
-  toLogical(clientX: number, clientY: number): { x: number; y: number } {
+  /** Convert client (event) coordinates to logical game coordinates. Bound, so it can be passed around (e.g. to `Input`). */
+  readonly toLogical = (clientX: number, clientY: number): { x: number; y: number } => {
     const rect = this.canvas.getBoundingClientRect();
     return {
       x: ((clientX - rect.left) / rect.width) * this.width,
       y: ((clientY - rect.top) / rect.height) * this.height,
     };
-  }
+  };
 
   private run(): void {
     if (this.running) return;
