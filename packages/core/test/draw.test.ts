@@ -52,6 +52,17 @@ describe("toRGBA", () => {
 });
 
 describe("Draw", () => {
+  it("puts unrotated pixel-art sprites on whole pixels, but not smooth or rotated ones", () => {
+    const { draw, quad } = recorder();
+    const frame = { image: {} as TextureSource, x: 0, y: 0, w: 8, h: 8 };
+    draw.sprite(frame, 10.4, 20.6);
+    draw.sprite(frame, 10.4, 20.6, { smooth: true });
+    draw.sprite(frame, 10.4, 20.6, { rotation: 0.5 });
+    expect(at(quad(0).m, 0, 0)).toEqual([6, 17]);
+    expect(at(quad(1).m, 0, 0)[0]).toBeCloseTo(6.4);
+    expect(Number.isInteger(at(quad(2).m, 0, 0)[0])).toBe(false);
+  });
+
   it("maps rects onto the unit square", () => {
     const { draw, quad } = recorder();
     draw.rect(10, 20, 30, 40, "#ff0000");
