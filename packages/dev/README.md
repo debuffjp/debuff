@@ -29,7 +29,7 @@ All arguments and return values are JSON-serialisable.
 
 ## Overlay
 
-`devOverlay()` adds a panel (toggle with the backquote key). It has pause, step, slow motion (½×, ¼×) and **pause on spike**, which freezes on the first frame over twice the budget. The graph stacks update (lime) and render (sky) time per frame. Click a bar to inspect that frame, with a plain-words diagnosis: a slow update, a heavy render, loop catch-up, or a browser stall outside the game. Params get sliders. An activity log records who changed what (you, an agent or a scenario), with undo. Phases also appear as `debuff:update` and `debuff:render` in the browser profiler.
+`devOverlay()` adds a panel. The backquote key hides it, and the ▾ button (or double-clicking the header) collapses it to a single bar showing fps and the agent badge; collapsing is remembered across reloads. It has pause, step, slow motion (½×, ¼×) and **pause on spike**, which freezes on the first frame over twice the budget. The graph stacks update (lime) and render (sky) time per frame. Click a bar to inspect that frame, with a plain-words diagnosis: a slow update, a heavy render, loop catch-up, or a browser stall outside the game. Params get sliders. An activity log records who changed what (you, an agent or a scenario), with undo. Phases also appear as `debuff:update` and `debuff:render` in the browser profiler.
 
 ## Agent link
 
