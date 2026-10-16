@@ -13,6 +13,27 @@
 
 > Status: early development (0.x). APIs will change.
 
+## Why not just canvas and JavaScript?
+
+| | Raw canvas + JS | debuff |
+| --- | --- | --- |
+| Sprites at 60 fps | ~5,000 | **~200,000** (batched WebGL2, Canvas 2D fallback) |
+| Small game, shipped | what you write | **12.9 kB** brotli for the starter, everything included |
+| A crash in `update` | the loop dies silently | stops, says **whose bug it is**, links the source line |
+| Tuning feel | edit, reload, replay | sliders while you play, with undo and copy back to code |
+| AI agents | read code and guess | **play your game**: state, frames and errors, and you see what they did |
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/debuffjp/docs/main/public/shots/bench.svg" width="640" alt="Sprites at 60 fps: debuff WebGL2 200k, PixiJS ParticleContainer 200k, PixiJS Sprite 50k, Canvas 2D 5k">
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/debuffjp/docs/main/public/shots/dev-error.png" width="300" alt="The dev panel explaining an error: your code, the source line and a hint">
+  <img src="https://raw.githubusercontent.com/debuffjp/docs/main/public/shots/dev-tune.png" width="300" alt="The dev panel's tune tab with live sliders">
+</p>
+
+More in [Why debuff](https://debuffjp.github.io/docs/guide/why). Agents can start from [llms.txt](https://debuffjp.github.io/docs/llms.txt).
+
 ## Quick start
 
 ```bash
@@ -35,7 +56,7 @@ No build step? See [using debuff from a CDN](./docs/guides/no-build.md). Works w
 | [`@debuff/audio`](./packages/audio) | Web Audio buses, autoplay unlock, parametric synth |
 | [`@debuff/tilemap`](./packages/tilemap) | Tilemaps: culled batched rendering, tile collision, Tiled and LDtk import |
 | [`@debuff/juice`](./packages/juice) | Tweens, easing, pooled particles, trails, squash-and-stretch |
-| [`@debuff/dev`](./packages/dev) | Dev-only inspection hooks (`window.__DEBUFF_DEV__`), stripped from production |
+| [`@debuff/dev`](./packages/dev) | Dev panel (perf, tune, state, explained errors) and `window.__DEBUFF_DEV__`, stripped from production |
 | [`@debuff/cli`](./tooling/cli) | `debuff dev · build · assets · scenario · inspect · report` |
 | [`create-debuff`](./tooling/create-debuff) | `npm create debuff` scaffolder |
 | [`@debuff/mcp`](./tooling/mcp) | MCP server: agents inspect, build, test and play your game |
