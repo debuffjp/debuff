@@ -70,6 +70,10 @@ export interface DevHooks {
   errors(): ExplainedError[];
   /** PNG data URL of the current frame. */
   capture(): string;
+  /** Names of the commands the game registered with `devTools({ commands })`. */
+  commands(): string[];
+  /** Run a game command, e.g. to start a scenario at a checkpoint. Recorded in replays. */
+  command(name: string, ...args: unknown[]): unknown;
 }
 
 declare global {
@@ -85,6 +89,11 @@ export interface DevHooksOptions {
    * works on this live game and its actions show in the overlay. Default true.
    */
   agentLink?: boolean;
+  /**
+   * Game-defined commands that scenarios (`{ "command": "warp", "args": ["hollow"] }`) and agents can run,
+   * e.g. jumping to a checkpoint or granting an item. Keeps test shortcuts out of the game's own code paths.
+   */
+  commands?: Record<string, (...args: never[]) => unknown>;
 }
 
 /** Dev-server endpoints for the agent link (see `@debuffjp/cli`). */
@@ -186,6 +195,14 @@ function createHooks(game: Game, session: DevSession, options: DevHooksOptions, 
     },
     notes: () => session.notes.map((n) => ({ ...n })),
     errors: () => errors.map((e) => ({ ...e })),
+    commands: () => Object.keys(options.commands ?? {}),
+    command: (name, ...args) => {
+      const fn = options.commands?.[name];
+      if (!fn) throw new Error(`Unknown command "${name}". Registered: ${Object.keys(options.commands ?? {}).join(", ") || "none"}`);
+      session.recording?.command(name, args);
+      session.log(who(), "command", name);
+      return (fn as (...a: unknown[]) => unknown)(...args);
+    },
     capture: () => {
       // Re-render without advancing time: WebGL clears its buffer after presenting, so read in the same task.
       game.redraw();

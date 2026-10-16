@@ -8,7 +8,7 @@ This is a 2D browser game made with **debuff** (https://debuff.jp). These notes 
 | --- | --- |
 | `npm run dev` | Dev server with hot reload. Press <kbd>`</kbd> in the game for the dev panel |
 | `npm test` | Runs `scenarios/*.json` in a headless browser and compares screenshots |
-| `npx debuff fuzz` | Plays the game with random input for a few minutes. Each crash or stuck state is saved as a scenario in `.debuff/fuzz/` that replays it exactly |
+| `npx debuff fuzz` | Plays the game with random input for a few minutes. Each crash, stuck state or back-and-forth loop is saved as a scenario in `.debuff/fuzz/` that replays it exactly |
 | `npm run build` | Type-checks, builds to `dist/` and prints a size report. Fails if dev-only code leaks |
 | `npm run assets` | Regenerates the asset manifest and lists unused assets |
 | `npx debuff inspect` | Project summary as JSON: packages, plugins, assets, last build size |
