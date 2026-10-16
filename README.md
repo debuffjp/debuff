@@ -5,9 +5,9 @@
   </picture>
 </h1>
 
-**More room for play.** An open-source, agent-native toolkit for small, polished 2D web games, built for game jams and instant-play distribution.
+**more room for play.** An open-source, agent-native toolkit for small, polished 2D web games, built for game jams and instant-play distribution.
 
-- **Web-standard.** Canvas 2D, Pointer Events, Web Audio, ES modules. No proprietary runtime, editor or project format.
+- **Web-standard.** WebGL2 with a Canvas 2D fallback, Pointer Events, Gamepad, Web Audio, ES modules. No proprietary runtime, editor or project format.
 - **Lean by default.** The runtime is split into tree-shakeable packages. `debuff build` reports raw/gzip/brotli size for every file and fails if dev tooling leaks into production.
 - **Agent-ready, human-led.** Typed creative parameters, a dev inspection surface, and deterministic JSON scenarios with screenshot baselines. Agents get evidence, and humans keep creative control.
 
