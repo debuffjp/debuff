@@ -249,11 +249,18 @@ export class Draw {
     t[3] = (m[1] * c + m[3] * d) * f.h;
     t[4] = m[0] * lx + m[2] * ly + m[4];
     t[5] = m[1] * lx + m[3] * ly + m[5];
+    const smooth = o.smooth ?? this.smooth;
+    if (!smooth && t[1] === 0 && t[2] === 0) {
+      // Pixel art: put unrotated sprites on whole pixels. Nearest sampling at fractional positions
+      // makes edges gain and lose a pixel from frame to frame, which reads as flicker.
+      t[4] = Math.round(t[4]);
+      t[5] = Math.round(t[5]);
+    }
     const tint = o.tint === undefined ? WHITE : toRGBA(o.tint);
     const alpha = o.alpha ?? 1;
     const color = alpha === 1 && this.alpha === 1 ? tint : this.withAlpha(tint, alpha);
     this.quads++;
-    this.backend.quad(t, f.image, f.x, f.y, f.w, f.h, color, o.flash ?? 0, o.smooth ?? this.smooth);
+    this.backend.quad(t, f.image, f.x, f.y, f.w, f.h, color, o.flash ?? 0, smooth);
   }
 
   /** Text, rasterised once and cached as a texture (crisp at the current render scale). */
