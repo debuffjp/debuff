@@ -5,7 +5,8 @@
   "workspaces": [
     "packages/*",
     "tooling/*",
-    "templates/*"
+    "templates/*",
+    "bench/*"
   ],
   "scripts": {
     "build": "tsc -b && npm run build -w templates/basic",
@@ -21,7 +22,8 @@
     "test:coverage": "vitest run --coverage",
     "lint:packages": "node scripts/lint-packages.mjs",
     "test:package-manager": "node scripts/smoke-package-manager.mjs",
-    "prepare": "lefthook install"
+    "prepare": "lefthook install",
+    "bench:renderer": "npm run bench -w @debuff/bench-renderer"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
