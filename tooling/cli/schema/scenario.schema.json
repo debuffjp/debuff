@@ -76,6 +76,15 @@
         },
         {
           "type": "object",
+          "required": ["command"],
+          "additionalProperties": false,
+          "properties": {
+            "command": { "type": "string", "description": "A command the game registered with devTools({ commands })." },
+            "args": { "type": "array", "description": "Arguments passed to the command." }
+          }
+        },
+        {
+          "type": "object",
           "required": ["expect"],
           "additionalProperties": false,
           "properties": {

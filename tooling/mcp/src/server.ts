@@ -121,7 +121,7 @@ export function createServer(options: ServerOptions): McpServer {
     {
       title: "Fuzz playtest",
       description:
-        "Play the game headlessly with random but plausible input (movement keys held, action keys tapped) to find runtime errors and stuck states. " +
+        "Play the game headlessly with random but plausible input (movement keys held, action keys tapped) to find runtime errors, stuck states and back-and-forth loops. " +
         "Each finding includes the explained error (kind, source-mapped file:line, hint) and `repro`: a scenario file that replays it exactly. " +
         "Pass that file to run_scenarios to reproduce, then again after fixing to verify. The same seed gives the same inputs.",
       inputSchema: {
