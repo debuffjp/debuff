@@ -1,0 +1,58 @@
+import { describe, expect, it } from "vitest";
+import { Canvas2DBackend } from "../src/render/canvas2d.js";
+import { Draw } from "../src/render/draw.js";
+
+function recordingContext() {
+  const calls: { name: string; args: unknown[]; state: { alpha: number; fill: unknown; op: string } }[] = [];
+  const ctx: Record<string, unknown> = {
+    globalAlpha: 1,
+    fillStyle: "",
+    globalCompositeOperation: "source-over",
+    imageSmoothingEnabled: true,
+  };
+  for (const name of ["setTransform", "fillRect", "drawImage", "clearRect"]) {
+    ctx[name] = (...args: unknown[]) =>
+      calls.push({
+        name,
+        args,
+        state: { alpha: ctx.globalAlpha as number, fill: ctx.fillStyle, op: ctx.globalCompositeOperation as string },
+      });
+  }
+  return { ctx: ctx as unknown as CanvasRenderingContext2D, calls, raw: ctx };
+}
+
+describe("Canvas2DBackend", () => {
+  it("clears with the background and scales logical units to the backing store", () => {
+    const { ctx, calls } = recordingContext();
+    const draw = new Draw(new Canvas2DBackend(ctx), false);
+    draw.begin("#11140d", 320, 180, 2);
+    expect(calls[0]).toMatchObject({ name: "setTransform", args: [2, 0, 0, 2, 0, 0] });
+    expect(calls[1]).toMatchObject({ name: "fillRect", args: [0, 0, 320, 180], state: { fill: "rgba(17,20,13,1)" } });
+  });
+
+  it("draws rects as transformed unit squares with their colour", () => {
+    const { ctx, calls } = recordingContext();
+    const draw = new Draw(new Canvas2DBackend(ctx), false);
+    draw.begin("#000", 100, 100, 1);
+    calls.length = 0;
+    draw.rect(10, 20, 30, 40, "#a3e63580");
+    expect(calls[0]).toMatchObject({ name: "setTransform", args: [30, 0, 0, 40, 10, 20] });
+    expect(calls[1]?.name).toBe("fillRect");
+    expect(String(calls[1]?.state.fill)).toMatch(/^rgba\(163,230,53,0\.50/);
+  });
+
+  it("draws images from their source rect with alpha, smoothing and additive blending", () => {
+    const { ctx, calls, raw } = recordingContext();
+    const draw = new Draw(new Canvas2DBackend(ctx), true);
+    draw.begin("#000", 100, 100, 1);
+    calls.length = 0;
+    const image = { width: 32, height: 32 } as unknown as HTMLImageElement;
+    draw.blend("add");
+    draw.sprite({ image, x: 8, y: 0, w: 8, h: 8 }, 50, 50, { alpha: 0.5, smooth: false });
+    const img = calls.find((c) => c.name === "drawImage");
+    expect(img?.args.slice(1)).toEqual([8, 0, 8, 8, 0, 0, 1, 1]);
+    expect(img?.state.alpha).toBeCloseTo(0.5, 2);
+    expect(img?.state.op).toBe("lighter");
+    expect(raw.imageSmoothingEnabled).toBe(false);
+  });
+});

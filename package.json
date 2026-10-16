@@ -13,7 +13,7 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "dev": "npm run dev -w sandbox",
-    "check": "npm run lint && npm run typecheck && npm test && npm run build && npm run lint:packages && npm run test:scenarios",
+    "check": "npm run lint && npm run typecheck && npm run test:coverage && npm run build && npm run lint:packages && npm run test:scenarios",
     "test:scenarios": "npm test -w templates/basic",
     "lint": "biome check .",
     "format": "biome check --write .",
