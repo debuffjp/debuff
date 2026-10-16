@@ -4,15 +4,16 @@
   "type": "module",
   "workspaces": [
     "packages/*",
-    "examples/*"
+    "tooling/*",
+    "templates/*"
   ],
   "scripts": {
-    "build": "tsc -b && npm run build -w sandbox -w starter",
+    "build": "tsc -b && npm run build -w templates/basic",
     "typecheck": "tsc -b",
     "test": "vitest run",
     "dev": "npm run dev -w sandbox",
     "check": "npm run typecheck && npm test && npm run build && npm run test:scenarios",
-    "test:scenarios": "npm test -w starter"
+    "test:scenarios": "npm test -w templates/basic"
   },
   "devDependencies": {
     "typescript": "^5.6.3",

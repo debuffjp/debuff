@@ -15,15 +15,18 @@
     }
   },
   "files": [
-    "dist",
-    "templates"
+    "dist"
   ],
   "scripts": {
     "build": "tsc -b"
   },
   "dependencies": {
     "vite": "^5.4.10",
-    "playwright-core": "^1.48.0"
+    "playwright-core": "^1.48.0",
+    "@clack/prompts": "^0.8.2",
+    "cac": "^6.7.14",
+    "picocolors": "^1.1.1",
+    "create-debuff": "0.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.9.0"

@@ -20,10 +20,10 @@
       "path": "packages/dev"
     },
     {
-      "path": "packages/cli"
+      "path": "tooling/create-debuff"
     },
     {
-      "path": "examples/sandbox"
+      "path": "tooling/cli"
     }
   ]
 }
