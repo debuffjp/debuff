@@ -1,3 +1,4 @@
+export { badge, LIME, lime } from "./brand.js";
 export { type CreateOptions, runCreate } from "./interactive.js";
 export {
   detectPackageManager,
