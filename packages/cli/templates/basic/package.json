@@ -1,0 +1,21 @@
+{
+  "name": "my-game",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "debuff dev",
+    "build": "tsc --noEmit && debuff build",
+    "assets": "debuff assets"
+  },
+  "dependencies": {
+    "@debuff/audio": "0.0.0",
+    "@debuff/core": "0.0.0",
+    "@debuff/input": "0.0.0",
+    "@debuff/juice": "0.0.0"
+  },
+  "devDependencies": {
+    "@debuff/cli": "0.0.0",
+    "typescript": "^5.6.3"
+  }
+}

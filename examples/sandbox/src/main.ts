@@ -36,7 +36,7 @@ game.add(play).go("play");
 game.start();
 
 // Dev-only inspection hook for agents and browser tooling. Vite strips this branch
-// from production builds; scripts/check-boundary.mjs verifies it.
+// from production builds; `debuff build` verifies it.
 if (import.meta.env.DEV) {
   (window as unknown as Record<string, unknown>).__DEBUFF_DEV__ = {
     game,
