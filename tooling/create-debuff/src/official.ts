@@ -6,7 +6,7 @@ export interface OfficialTemplate {
   id: string;
   title: string;
   description: string;
-  /** giget source: where the template lives in the debuff repo. */
+  /** giget source: where the template lives in the debuff repo. `create()` pins it to this release's tag. */
   source: string;
 }
 

@@ -258,7 +258,7 @@ async function main(): Promise<void> {
     // cac has already printed help or the version for these flags.
     if (cli.options.help || cli.options.version) return;
     if (process.argv.length > 2) {
-      console.error(pc.red(`Unknown command: ${process.argv.slice(2).join(" ")}\n`));
+      console.error(pc.red(`unknown command: ${process.argv.slice(2).find((a) => !a.startsWith("-")) ?? process.argv[2]}\n`));
       cli.outputHelp();
       process.exit(1);
     }
