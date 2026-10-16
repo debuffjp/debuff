@@ -25,6 +25,14 @@ export class Camera {
   /** Multiplier on shake. `Game` lowers it when the player prefers reduced motion. */
   motionScale = 1;
 
+  /**
+   * Where between the previous and current simulation step to draw, in [0, 1]. `Game` sets it before
+   * each render so the camera moves smoothly on displays faster than the 60 Hz simulation.
+   */
+  renderAlpha = 1;
+
+  private prevX = Number.NaN;
+  private prevY = Number.NaN;
   private trauma = 0;
   private offsetX = 0;
   private offsetY = 0;
@@ -45,6 +53,8 @@ export class Camera {
       this.x = target.x;
       this.y = target.y;
       this.clamp();
+      this.prevX = this.x;
+      this.prevY = this.y;
     }
   }
 
@@ -54,6 +64,8 @@ export class Camera {
   }
 
   update(dt: number, random: Random): void {
+    this.prevX = this.x;
+    this.prevY = this.y;
     if (this.target) {
       const dx = this.target.x - this.x;
       const dy = this.target.y - this.y;
@@ -74,7 +86,11 @@ export class Camera {
    *  Use with `draw.withCamera(camera, () => { ... })`. Positions snap to whole pixels. */
   view(): [number, number, number, number, number, number] {
     const z = this.zoom;
-    return [z, 0, 0, z, this.width / 2 - z * Math.round(this.x + this.offsetX), this.height / 2 - z * Math.round(this.y + this.offsetY)];
+    // Before the first update there is no previous step to blend from.
+    const a = Number.isNaN(this.prevX) ? 1 : this.renderAlpha;
+    const x = a === 1 ? this.x : this.prevX + (this.x - this.prevX) * a;
+    const y = a === 1 ? this.y : this.prevY + (this.y - this.prevY) * a;
+    return [z, 0, 0, z, this.width / 2 - z * Math.round(x + this.offsetX), this.height / 2 - z * Math.round(y + this.offsetY)];
   }
 
   /** Convert a viewport point (e.g. pointer) to world coordinates. */

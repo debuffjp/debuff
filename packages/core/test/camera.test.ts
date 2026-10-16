@@ -36,3 +36,19 @@ describe("math", () => {
     expect(overlaps({ x: 0, y: 0, w: 10, h: 10 }, { x: 10, y: 0, w: 5, h: 5 })).toBe(false);
   });
 });
+
+describe("Camera interpolation", () => {
+  it("draws between the previous and current step by renderAlpha", () => {
+    const cam = new Camera({ width: 100, height: 100 });
+    cam.lerp = 0;
+    const target = { x: 50, y: 50 };
+    cam.follow(target);
+    expect(cam.view()[4]).toBe(0);
+    target.x = 60;
+    cam.update(1 / 60, new Random(1));
+    cam.renderAlpha = 0.5;
+    expect(cam.view()[4]).toBe(-5);
+    cam.renderAlpha = 1;
+    expect(cam.view()[4]).toBe(-10);
+  });
+});

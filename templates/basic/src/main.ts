@@ -1,5 +1,5 @@
 import { Audio } from "@debuffjp/audio";
-import { approach, clamp, Game, type Scene, Storage } from "@debuffjp/core";
+import { approach, clamp, Game, lerp, type Scene, Storage } from "@debuffjp/core";
 import { devOverlay, devTools } from "@debuffjp/dev";
 import { Input } from "@debuffjp/input";
 import { Particles, squash, Tweens } from "@debuffjp/juice";
@@ -27,12 +27,14 @@ const tuning = game.params.define("player", {
   accel: { type: "number", default: 1200, min: 0, max: 5000, units: "px/s²" },
 });
 
-const player = { x: 160, y: 120, vx: 0, scaleX: 1, scaleY: 1 };
+// prevX is where buff was a step ago: render blends toward x so motion stays smooth on fast displays.
+const player = { x: 160, prevX: 160, y: 120, vx: 0, scaleX: 1, scaleY: 1 };
 
 const play: Scene = {
   id: "play",
 
   update(dt) {
+    player.prevX = player.x;
     let dir = input.axis("left", "right");
     if (input.pointer.down) dir = Math.sign(input.pointer.x - player.x);
     player.vx = approach(player.vx, dir * tuning.values.speed, tuning.values.accel * dt);
@@ -49,11 +51,11 @@ const play: Scene = {
     particles.update(dt);
   },
 
-  render(draw) {
+  render(draw, alpha) {
     draw.withCamera(game.camera, () => {
       // buff, the debuff mascot: a lime block with eyes, squashing from its feet.
       draw.push();
-      draw.translate(player.x, player.y);
+      draw.translate(lerp(player.prevX, player.x, alpha), player.y);
       draw.scale(player.scaleX, player.scaleY);
       draw.rect(-8, -16, 16, 16, "#cffb2d");
       draw.rect(-5, -12, 3, 4, "#11140d");
