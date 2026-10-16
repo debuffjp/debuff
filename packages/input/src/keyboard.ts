@@ -10,11 +10,22 @@ export class Keyboard {
   private readonly releasedEdge = new Set<string>();
   private readonly target: Window | HTMLElement;
 
+  /**
+   * Keys whose browser default (scrolling with arrows/Space, find-as-you-type…) is blocked so an
+   * embedded game doesn't move the page. Never applied while the user types in a form field.
+   */
+  readonly captured = new Set<string>();
+
   private readonly onDown = (e: Event) => {
     const k = e as KeyboardEvent;
+    if (this.shouldCapture(k)) k.preventDefault();
     if (!k.repeat) this.press(k.code);
   };
-  private readonly onUp = (e: Event) => this.release((e as KeyboardEvent).code);
+  private readonly onUp = (e: Event) => {
+    const k = e as KeyboardEvent;
+    if (this.shouldCapture(k)) k.preventDefault();
+    this.release(k.code);
+  };
   private readonly onBlur = () => this.releaseAll();
 
   constructor(target: Window | HTMLElement = window) {
@@ -60,6 +71,13 @@ export class Keyboard {
   endStep(): void {
     this.pressedEdge.clear();
     this.releasedEdge.clear();
+  }
+
+  private shouldCapture(e: KeyboardEvent): boolean {
+    if (!this.captured.has(e.code) || e.ctrlKey || e.metaKey || e.altKey) return false;
+    const t = e.target as HTMLElement | null;
+    const editable = t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+    return !editable;
   }
 
   dispose(): void {
