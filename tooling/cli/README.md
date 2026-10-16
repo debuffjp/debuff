@@ -1,6 +1,6 @@
 # @debuffjp/cli
 
-The `debuff` command: dev server, production builds with size reports, asset manifests, browser scenarios and project inspection. Built on Vite.
+The `debuff` command: dev server, production builds with size reports, asset manifests, browser scenarios, fuzz playtesting and project inspection. Built on Vite.
 
 ```bash
 npm install -D @debuffjp/cli
@@ -15,6 +15,7 @@ npx debuff --help
 | `debuff report` | Size report for an existing `dist/` |
 | `debuff assets` | Run the asset pipeline: list every asset, its importer and size, plus unused and generated files |
 | `debuff scenario [files] [--update] [--strict]` | Run `scenarios/*.json` in headless Chrome/Edge |
+| `debuff fuzz [--seconds] [--runs] [--seed] [--keys]` | (next release) Play headless with random but plausible input. Reports explained errors and stuck states, each saved as a scenario in `.debuff/fuzz/` that reproduces it. Exits 1 on errors |
 | `debuff inspect` | JSON summary of the project |
 
 Add `--json` for machine-readable output and `--root <dir>` to target another project.
@@ -34,7 +35,7 @@ Add `--json` for machine-readable output and `--root <dir>` to target another pr
 }
 ```
 
-Time advances only through `wait` steps, so runs are deterministic. Captures are compared against per-platform baselines in `scenarios/__baselines__/`. A missing baseline is recorded unless you pass `--strict`. Set `DEBUFF_BROWSER` to use a specific Chromium build.
+Time advances only through `wait` steps, so runs are deterministic. Replays saved from the dev panel (or the MCP `game_replay` tool) are scenarios too. Captures are compared against per-platform baselines in `scenarios/__baselines__/`. A missing baseline is recorded unless you pass `--strict`. Set `DEBUFF_BROWSER` to use a specific Chromium build.
 
 ## Programmatic use
 

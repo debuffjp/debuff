@@ -34,12 +34,17 @@ Run it from the game's folder, or pass `--root <dir>` (or set `DEBUFF_ROOT`).
 | `game_pause` | Pause or resume a live game |
 | `game_frames` | Recent frame breakdown: update/render ms, catch-up steps, quads, draw calls, long tasks |
 | `game_notes` | Moments the human flagged in the overlay, with the state at that tick |
+| `game_replay` | Save the live session up to a tick (for example a note's) as a scenario in `.debuff/replays/` that reproduces it |
 | `game_input` | `press` / `release` keys; `tap`, `pointer_down`, `pointer_move`, `pointer_up` |
 | `game_state` | Scene, tick, renderer, frame stats, your `inspect()` data |
 | `game_params` / `game_set_param` | Read and tune typed params (validated) |
 | `game_capture` | The current frame as a PNG image |
 | `game_errors` | Runtime errors, explained: whose problem (your code, a rejected call, a debuff bug), the source line, a hint |
 | `game_stop` | Close the game |
+
+## Prompts
+
+Workflows clients can offer as slash commands: `playtest`, `fix-errors`, `tune-feel`, `add-mechanic` and `explain-stutter`.
 
 ## Live and headless
 
