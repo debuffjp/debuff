@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and show-and-tell
+    url: https://github.com/debuff-dev/debuff/discussions
+    about: Ask for help, share games and discuss ideas.
+  - name: Security report
+    url: https://github.com/debuff-dev/debuff/security/advisories/new
+    about: Report vulnerabilities privately.
