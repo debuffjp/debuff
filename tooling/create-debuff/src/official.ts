@@ -17,4 +17,11 @@ export const OFFICIAL_TEMPLATES: readonly OfficialTemplate[] = [
     description: "buff runs and jumps through a Tiled level: tilemap, collision, atlas, tunable movement, coins",
     source: "github:debuffjp/debuff/templates/platformer",
   },
+  {
+    id: "mossfell",
+    title: "Mossfell",
+    description:
+      "Top-down action-adventure: screen-by-screen scrolling, sword combat, hearts, enemies, a key and locked door, a small dungeon",
+    source: "github:debuffjp/debuff/templates/mossfell",
+  },
 ];

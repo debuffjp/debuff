@@ -1,0 +1,26 @@
+{
+  "$schema": "../node_modules/@debuffjp/cli/schema/scenario.schema.json",
+  "steps": [
+    { "set": { "enemies.slimeSpeed": 0, "enemies.knockback": 0 } },
+    { "wait": 30 },
+    { "expect": { "state.enemies.length": { "eq": 1 }, "state.player.hp": { "eq": 6 } } },
+    { "press": "ArrowUp" },
+    { "wait": 27 },
+    { "release": "ArrowUp" },
+    { "press": "ArrowRight" },
+    { "wait": 64 },
+    { "release": "ArrowRight" },
+    { "press": "KeyZ" },
+    { "wait": 4 },
+    { "expect": { "state.player.swinging": { "eq": true } } },
+    { "release": "KeyZ" },
+    { "wait": 20 },
+    { "expect": { "state.enemies.0.hp": { "eq": 1 } } },
+    { "press": "KeyZ" },
+    { "wait": 4 },
+    { "release": "KeyZ" },
+    { "wait": 20 },
+    { "expect": { "state.kills": { "eq": 1 }, "state.enemies.length": { "eq": 0 }, "state.player.hp": { "eq": 6 } } },
+    { "capture": "slime-down" }
+  ]
+}

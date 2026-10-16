@@ -1,0 +1,32 @@
+{
+  "$schema": "../node_modules/@debuffjp/cli/schema/scenario.schema.json",
+  "steps": [
+    { "wait": 30 },
+    {
+      "expect": {
+        "scene": { "eq": "play" },
+        "state.state": { "eq": "play" },
+        "state.screen": { "eq": { "col": 1, "row": 1 } }
+      }
+    },
+    { "set": { "enemies.mothSpeed": 0 } },
+    { "press": "ArrowUp" },
+    { "wait": 150 },
+    { "expect": { "state.screen": { "eq": { "col": 1, "row": 0 } } } },
+    { "wait": 30 },
+    { "release": "ArrowUp" },
+    { "wait": 10 },
+    {
+      "expect": {
+        "state.scrolling": { "eq": false },
+        "state.enemies": { "eq": [{ "kind": "moth", "hp": 1, "x": 370, "y": 66 }, { "kind": "moth", "hp": 1, "x": 386, "y": 98 }] }
+      }
+    },
+    { "capture": "north-meadow" },
+    { "press": "ArrowDown" },
+    { "wait": 60 },
+    { "release": "ArrowDown" },
+    { "wait": 10 },
+    { "expect": { "state.screen": { "eq": { "col": 1, "row": 1 } } } }
+  ]
+}

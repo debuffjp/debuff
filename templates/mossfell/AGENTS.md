@@ -1,0 +1,46 @@
+# Agent guide
+
+This is **mossfell**, a top-down action-adventure made with **debuff** (https://debuff.jp). These notes are for AI coding agents working on it. The human you're working with makes the creative calls; you do the implementation, testing and chores.
+
+## Commands
+
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Dev server with hot reload. Press <kbd>`</kbd> in the game for the dev panel |
+| `npm test` | Runs `scenarios/*.json` in a headless browser and compares screenshots |
+| `npx debuff fuzz` | Plays the game with random input for a few minutes. Each crash or stuck state is saved as a scenario in `.debuff/fuzz/` that replays it exactly |
+| `npm run build` | Type-checks, builds to `dist/` and prints a size report. Fails if dev-only code leaks |
+| `npm run assets` | Regenerates the asset manifest and lists unused assets |
+| `npx debuff inspect` | Project summary as JSON: packages, plugins, assets, last build size |
+| `npx debuff scenario --update` | Accept new screenshot baselines. **Only after the human has approved the visual change** |
+
+## Layout
+
+- `src/main.ts`: the game, which creates `new Game(...)`, scenes (`update`, `render`, `inspect`) and params.
+- `assets/`: source art, audio and data. The manifest and atlases are generated from it, and only files the game references ship. Don't edit generated files.
+- `scenarios/`: JSON test scripts (steps, inputs, expectations, captures). Add one for each mechanic you build.
+- `.mcp.json`: connects the debuff MCP server, so you can play and inspect the running game.
+
+## How the game is put together
+
+- `assets/world.tmj` is one Tiled map: a 4×2 grid of 16×11-tile screens. Columns 0–2 are the overworld ("the fell"), column 3 is the dungeon ("the hollow"). Objects in the `entities` layer place the spawn, enemies (`Slime`, `Moth`, `Thorn`, `Warden`), pickups (`Seed`, `Heart`, `Key`), the `Relic`, and the stairs targets (`Arrive`, `Return`).
+- Walking off a screen edge starts a scroll; enemies respawn whenever a screen is entered. Stairs fade between the fell and the hollow.
+- Feel values are in three param groups: `player`, `world` and `enemies`.
+- `inspect()` reports `state` (`play`/`won`/`lost`), `screen`, `player` (hp in half-hearts, keys, seeds), `enemies`, `kills`, `doorOpen`, `wardenDown`.
+- In dev only, `?start=hollow` begins at the bottom of the hollow (the key+door scenario uses it).
+
+## Work loop
+
+1. **Look before you change.** With the MCP server, call `game_start`. If the human has the game open under `npm run dev`, you attach to it live, so read `game_notes` first: they're moments the human flagged, and `game_replay` with a note's tick saves a scenario that reproduces it. Then use `game_state`, `game_capture` and `game_errors`.
+2. **Tune before you rewrite.** Feel values (speed, gravity, timings) live in `game.params.define(...)`. Change them with `game_set_param` and show the human before editing code. The human can undo your changes in the dev panel.
+3. **Make the smallest change that works.** Keep dev-only code inside `if (import.meta.env.DEV)`.
+4. **Verify.** Run `npm test` and `npm run build`, and check `game_errors` is empty. Before calling a feature done, run `npx debuff fuzz`: to fix a finding, replay its file with `npx debuff scenario <file>`, fix, and replay again until it passes. Errors come back explained: `kind` says whose bug it is (`your-code`, `debuff-usage`, `debuff-bug`, `outside`) and `where` gives the source line.
+5. **Report** what changed, what you verified, and anything you couldn't check.
+
+## Rules
+
+- **Creative direction belongs to the human:** art, feel, difficulty, story and names. Propose two or three options; don't decide.
+- Don't update screenshot baselines (`--update`) without the human's say-so.
+- If `game_errors` reports `debuff-bug`, it's a bug in debuff, not this game. Tell the human and share its `reportUrl`; don't work around debuff internals.
+- Prefer debuff's APIs (`draw`, `input`, `assets`, `params`, `juice`) over adding new runtime dependencies. The game should stay small.
+- API reference: https://debuff.jp/api/ · Guides: https://debuff.jp/docs/getting-started
