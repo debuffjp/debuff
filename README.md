@@ -32,6 +32,7 @@ No build step? See [using debuff from a CDN](./docs/guides/no-build.md). Works w
 | [`@debuff/input`](./packages/input) | Keyboard and pointer/touch with per-step edges and programmatic input |
 | [`@debuff/assets`](./packages/assets) | Manifest-driven loader with preload groups and actionable errors |
 | [`@debuff/audio`](./packages/audio) | Web Audio buses, autoplay unlock, parametric synth |
+| [`@debuff/tilemap`](./packages/tilemap) | Tilemaps: culled batched rendering, tile collision, Tiled and LDtk import |
 | [`@debuff/juice`](./packages/juice) | Tweens, easing, pooled particles, trails, squash-and-stretch |
 | [`@debuff/dev`](./packages/dev) | Dev-only inspection hooks (`window.__DEBUFF_DEV__`), stripped from production |
 | [`@debuff/cli`](./tooling/cli) | `debuff dev · build · assets · scenario · inspect · report` |

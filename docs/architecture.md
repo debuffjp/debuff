@@ -17,6 +17,7 @@ The boundary is enforced: `debuff build` scans output for dev-only tokens and fa
 @debuff/input    Input (actions over keyboard, pointer, gamepad), Keyboard, Pointer, Gamepads (no deps)
 @debuff/assets   Assets loader (no deps)
 @debuff/audio    Audio (no deps)
+@debuff/tilemap  Tilemap, move (collision), fromTiled, fromLdtk (peer: core)
 @debuff/juice    Tweens, Particles, Trail, squash (no deps)
 @debuff/dev      devTools plugin, exposeDevHooks (depends on core; dev builds only)
 ```

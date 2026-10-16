@@ -17,6 +17,9 @@
       "path": "packages/audio"
     },
     {
+      "path": "packages/tilemap"
+    },
+    {
       "path": "packages/dev"
     },
     {

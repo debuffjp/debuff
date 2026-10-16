@@ -23,7 +23,8 @@ A living document. Items move up only with evidence from real games and jam feed
 - [ ] First npm release (naming/registry check first)
 - [ ] Dev overlay: FPS/frame-time graph, live param sliders (`@debuff/dev`)
 - [x] Action-mapped input with gamepad support (Gamepad API)
-- [ ] Tilemaps (Tiled/LDtk import) and an atlas packer in the asset compiler
+- [x] Tilemaps: culled batched rendering, tile collision, Tiled and LDtk import (`@debuff/tilemap`)
+- [ ] Atlas packer in the asset compiler
 
 ## Plugins (ADR 0004)
 
