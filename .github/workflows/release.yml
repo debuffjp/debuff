@@ -12,6 +12,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      # npm trusted publishing (OIDC): no NPM_TOKEN, provenance is automatic.
       id-token: write
     steps:
       - uses: actions/checkout@v4
@@ -19,7 +20,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          registry-url: https://registry.npmjs.org
+      # Trusted publishing needs npm >= 11.5.1; Node 22 ships npm 10.
+      - run: npm install -g npm@^11.5.1
       - run: npm ci
       # Opens a "Version packages" PR from pending changesets; publishes when it merges.
       - uses: changesets/action@v1
@@ -27,5 +29,3 @@ jobs:
           publish: npm run release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_CONFIG_PROVENANCE: true
