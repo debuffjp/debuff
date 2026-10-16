@@ -1,4 +1,4 @@
-import type { Game, NumberParamSpec, ParamSpec, ParamValue, Plugin } from "@debuff/core";
+import type { Game, NumberParamSpec, ParamSpec, ParamValue, Plugin } from "@debuffjp/core";
 import { type ExplainedError, loc } from "./explain.js";
 import { DevSession, diagnose, type FrameSample, HITCH, summarize } from "./session.js";
 

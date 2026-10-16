@@ -1,10 +1,10 @@
-import { Assets } from "@debuff/assets";
-import { Audio } from "@debuff/audio";
-import { approach, Game, overlaps, type Scene, Sprite, Storage } from "@debuff/core";
-import { devOverlay, devTools } from "@debuff/dev";
-import { Input } from "@debuff/input";
-import { Particles, squash, Tweens } from "@debuff/juice";
-import { fromTiled, type MapObject } from "@debuff/tilemap";
+import { Assets } from "@debuffjp/assets";
+import { Audio } from "@debuffjp/audio";
+import { approach, Game, overlaps, type Scene, Sprite, Storage } from "@debuffjp/core";
+import { devOverlay, devTools } from "@debuffjp/dev";
+import { Input } from "@debuffjp/input";
+import { Particles, squash, Tweens } from "@debuffjp/juice";
+import { fromTiled, type MapObject } from "@debuffjp/tilemap";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game");
 if (!canvas) throw new Error('Missing <canvas id="game">');

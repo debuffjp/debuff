@@ -134,11 +134,11 @@ function copyTemplate(src: string, dest: string, name: string | undefined): stri
   const pkg = JSON.parse(readFileSync(pkgPath, "utf8")) as Record<string, Record<string, string> | string>;
   pkg.name = name ?? packageName(dest);
   const version = ownVersion();
-  // Pin @debuff/* to this release; the 0.0.0 placeholders are only meaningful inside the monorepo.
+  // Pin @debuffjp/* to this release; the 0.0.0 placeholders are only meaningful inside the monorepo.
   if (version !== "0.0.0") {
     for (const field of ["dependencies", "devDependencies"] as const) {
       const deps = pkg[field];
-      if (typeof deps === "object") for (const dep of Object.keys(deps)) if (dep.startsWith("@debuff/")) deps[dep] = `^${version}`;
+      if (typeof deps === "object") for (const dep of Object.keys(deps)) if (dep.startsWith("@debuffjp/")) deps[dep] = `^${version}`;
     }
   }
   writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);

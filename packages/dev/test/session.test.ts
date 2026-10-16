@@ -1,4 +1,4 @@
-import { Game } from "@debuff/core";
+import { Game } from "@debuffjp/core";
 import { describe, expect, it, vi } from "vitest";
 import { DevSession, diagnose, exposeDevHooks, type FrameSample, summarize } from "../src/index.js";
 

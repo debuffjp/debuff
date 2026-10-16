@@ -159,8 +159,7 @@ function parseStack(stack: string, origin: string): Frame[] {
       sameOrigin = origin === "";
     }
     const file = path.replace(/^\/(@fs\/)?/, "");
-    const debuff =
-      /(^|\/)@debuff[/_]|\.vite\/deps\/@debuff|\/packages\/(core|dev|input|audio|assets|tilemap|particles|tween|storage)\//.test(path);
+    const debuff = /(^|\/)@debuffjp[/_]|\.vite\/deps\/@debuffjp|\/packages\/(core|dev|input|audio|assets|tilemap|juice)\//.test(path);
     const thirdParty = !debuff && /node_modules\//.test(path);
     frames.push({ file, line: Number(m[3]), column: Number(m[4]), debuff, thirdParty, sameOrigin, ...(m[1] ? { fn: m[1] } : {}) });
   }

@@ -1,9 +1,9 @@
-# @debuff/dev
+# @debuffjp/dev
 
 Dev-only inspection and control hooks that let browser tools, the `debuff` CLI and AI agents see and drive a running game.
 
 ```ts
-import { devTools } from "@debuff/dev";
+import { devTools } from "@debuffjp/dev";
 
 if (import.meta.env.DEV) game.use(devTools({ input }));
 ```
@@ -40,6 +40,6 @@ The toolbar has pause, step, speed (1×, ½×, ¼×), **snap** (download the cur
 
 ## Agent link
 
-Under `debuff dev`, the page listens for commands from `@debuff/mcp` over the dev server, so agents work on the game you're looking at. Pass `agentLink: false` to opt out.
+Under `debuff dev`, the page listens for commands from `@debuffjp/mcp` over the dev server, so agents work on the game you're looking at. Pass `agentLink: false` to opt out.
 
 Open the page with `?debuff-scenario` to stop the loop so time advances only through `step()`. `debuff scenario` uses this mode.

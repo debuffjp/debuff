@@ -42,7 +42,7 @@ for (const dir of dirs) {
 const game = join(work, "game");
 run("node", [join(repo, "tooling/create-debuff/bin/create-debuff.js"), game, "--yes"], work);
 
-// 3. Point every @debuff/* dependency, direct and transitive, at the tarballs.
+// 3. Point every @debuffjp/* dependency, direct and transitive, at the tarballs.
 const pkgPath = join(game, "package.json");
 const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
 for (const field of ["dependencies", "devDependencies"]) {

@@ -1,4 +1,4 @@
-import type { Game, GameErrorContext, ParamValue } from "@debuff/core";
+import type { Game, GameErrorContext, ParamValue } from "@debuffjp/core";
 import { type ExplainedError, errorKey, explainError, mapLocation } from "./explain.js";
 
 /** One recorded frame. Times are milliseconds. */

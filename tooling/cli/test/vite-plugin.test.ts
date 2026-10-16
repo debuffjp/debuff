@@ -81,7 +81,7 @@ describe("viteConfig and inspectProject", () => {
 
   it("summarises a project", async () => {
     const root = project({
-      "package.json": '{"name":"game","dependencies":{"@debuff/core":"0.1.0"}}',
+      "package.json": '{"name":"game","dependencies":{"@debuffjp/core":"0.1.0"}}',
       "assets/a.txt": "a",
       "src/main.ts": '"a"',
     });

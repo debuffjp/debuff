@@ -1,6 +1,6 @@
 // Bunnymark: N textured sprites bouncing under gravity. Same simulation for every renderer;
 // only the drawing differs. ?renderer=canvas2d|debuff-webgl|debuff-2d|pixi-sprite|pixi-particle
-import { Game } from "@debuff/core";
+import { Game } from "@debuffjp/core";
 
 const WIDTH = 960;
 const HEIGHT = 540;

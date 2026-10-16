@@ -1,9 +1,9 @@
-# @debuff/cli
+# @debuffjp/cli
 
 The `debuff` command: dev server, production builds with size reports, asset manifests, browser scenarios and project inspection. Built on Vite.
 
 ```bash
-npm install -D @debuff/cli
+npm install -D @debuffjp/cli
 npx debuff --help
 ```
 
@@ -23,7 +23,7 @@ Add `--json` for machine-readable output and `--root <dir>` to target another pr
 
 ```json
 {
-  "$schema": "../node_modules/@debuff/cli/schema/scenario.schema.json",
+  "$schema": "../node_modules/@debuffjp/cli/schema/scenario.schema.json",
   "steps": [
     { "press": "ArrowRight" },
     { "wait": 30 },
@@ -39,7 +39,7 @@ Time advances only through `wait` steps, so runs are deterministic. Captures are
 ## Programmatic use
 
 ```ts
-import { buildReport, compileAssets, runScenarios } from "@debuff/cli";
+import { buildReport, compileAssets, runScenarios } from "@debuffjp/cli";
 ```
 
 ## Assets and plugins
@@ -49,7 +49,7 @@ Put source assets in `assets/`. The pipeline builds an in-memory manifest (`/ass
 Add tooling plugins in `debuff.config.ts`:
 
 ```ts
-import { defineConfig } from "@debuff/cli";
+import { defineConfig } from "@debuffjp/cli";
 
 export default defineConfig({
   plugins: [

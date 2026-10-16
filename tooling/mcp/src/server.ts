@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { buildReport, compileAssets, findUnused, inspectProject, loadConfig, runScenarios, viteConfig } from "@debuff/cli";
+import { buildReport, compileAssets, findUnused, inspectProject, loadConfig, runScenarios, viteConfig } from "@debuffjp/cli";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { type GameSession, startSession } from "./session.js";

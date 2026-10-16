@@ -4,7 +4,7 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["@debuff/cli/client"],
+    "types": ["@debuffjp/cli/client"],
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true

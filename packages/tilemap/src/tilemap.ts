@@ -1,4 +1,4 @@
-import type { Draw, Frame, TextureSource } from "@debuff/core";
+import type { Draw, Frame, TextureSource } from "@debuffjp/core";
 import { type Body, type MoveOptions, type MoveResult, move } from "./collide.js";
 
 /** Tile flip/rotation flags stored in the top bits of a tile id (Tiled's convention). */

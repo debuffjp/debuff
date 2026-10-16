@@ -1,9 +1,9 @@
-# @debuff/audio
+# @debuffjp/audio
 
 A small Web Audio facade: music and SFX buses, autoplay unlock on the first gesture, buffer playback with pitch variation, and an asset-free synth for placeholder or stylised SFX. No dependencies.
 
 ```ts
-import { Audio } from "@debuff/audio";
+import { Audio } from "@debuffjp/audio";
 
 const audio = new Audio();
 await audio.decode("coin", assets.audio("coin"));

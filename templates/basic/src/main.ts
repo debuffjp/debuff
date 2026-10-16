@@ -1,8 +1,8 @@
-import { Audio } from "@debuff/audio";
-import { approach, clamp, Game, type Scene, Storage } from "@debuff/core";
-import { devOverlay, devTools } from "@debuff/dev";
-import { Input } from "@debuff/input";
-import { Particles, squash, Tweens } from "@debuff/juice";
+import { Audio } from "@debuffjp/audio";
+import { approach, clamp, Game, type Scene, Storage } from "@debuffjp/core";
+import { devOverlay, devTools } from "@debuffjp/dev";
+import { Input } from "@debuffjp/input";
+import { Particles, squash, Tweens } from "@debuffjp/juice";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game");
 if (!canvas) throw new Error('Missing <canvas id="game">');

@@ -1,5 +1,5 @@
 {
-  "name": "@debuff/template-platformer",
+  "name": "@debuffjp/template-platformer",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,16 +10,16 @@
     "test": "debuff scenario"
   },
   "dependencies": {
-    "@debuff/assets": "0.0.0",
-    "@debuff/audio": "0.0.0",
-    "@debuff/core": "0.0.0",
-    "@debuff/input": "0.0.0",
-    "@debuff/juice": "0.0.0",
-    "@debuff/tilemap": "0.0.0"
+    "@debuffjp/assets": "0.1.0",
+    "@debuffjp/audio": "0.1.0",
+    "@debuffjp/core": "0.1.0",
+    "@debuffjp/input": "0.1.0",
+    "@debuffjp/juice": "0.1.0",
+    "@debuffjp/tilemap": "0.1.0"
   },
   "devDependencies": {
-    "@debuff/cli": "0.0.0",
+    "@debuffjp/cli": "0.1.0",
     "typescript": "^7.0.2",
-    "@debuff/dev": "0.0.0"
+    "@debuffjp/dev": "0.1.0"
   }
 }

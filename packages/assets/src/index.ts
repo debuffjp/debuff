@@ -1,4 +1,4 @@
-/** Runtime asset manifest and loader. The build-time compiler (see `@debuff/cli`)
+/** Runtime asset manifest and loader. The build-time compiler (see `@debuffjp/cli`)
  *  produces the manifest; at runtime this only fetches and caches. */
 export type AssetType = "image" | "json" | "audio" | "text";
 
@@ -25,7 +25,7 @@ export interface LoadProgress {
   total: number;
 }
 
-/** An image region, structurally compatible with `@debuff/core`'s `Frame`. */
+/** An image region, structurally compatible with `@debuffjp/core`'s `Frame`. */
 export interface ImageFrame {
   image: HTMLImageElement;
   x: number;
@@ -119,7 +119,7 @@ export class Assets {
     return this.get(id, "json") as T;
   }
 
-  /** Raw encoded audio; decode with `@debuff/audio`. */
+  /** Raw encoded audio; decode with `@debuffjp/audio`. */
   audio(id: string): ArrayBuffer {
     return this.get(id, "audio") as ArrayBuffer;
   }

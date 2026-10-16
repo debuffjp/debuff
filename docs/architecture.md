@@ -13,13 +13,13 @@ The boundary is enforced: `debuff build` scans output for dev-only tokens and fa
 ## Runtime packages
 
 ```text
-@debuff/core     Game, FixedClock, Random, Scene, Camera, Sprite, ParamRegistry, Storage, FrameStats, math
-@debuff/input    Input (actions over keyboard, pointer, gamepad), Keyboard, Pointer, Gamepads (no deps)
-@debuff/assets   Assets loader (no deps)
-@debuff/audio    Audio (no deps)
-@debuff/tilemap  Tilemap, move (collision), fromTiled, fromLdtk (peer: core)
-@debuff/juice    Tweens, Particles, Trail, squash (no deps)
-@debuff/dev      devTools plugin, exposeDevHooks (depends on core; dev builds only)
+@debuffjp/core     Game, FixedClock, Random, Scene, Camera, Sprite, ParamRegistry, Storage, FrameStats, math
+@debuffjp/input    Input (actions over keyboard, pointer, gamepad), Keyboard, Pointer, Gamepads (no deps)
+@debuffjp/assets   Assets loader (no deps)
+@debuffjp/audio    Audio (no deps)
+@debuffjp/tilemap  Tilemap, move (collision), fromTiled, fromLdtk (peer: core)
+@debuffjp/juice    Tweens, Particles, Trail, squash (no deps)
+@debuffjp/dev      devTools plugin, exposeDevHooks (depends on core; dev builds only)
 ```
 
 Packages other than `dev` don't depend on each other unless they must. Games compose them, so a game that skips audio pays nothing for it.
@@ -41,7 +41,7 @@ Standard Canvas 2D (see ADR 0001). The canvas is sized to its container with `Re
 
 ## Tooling
 
-- **CLI** (`@debuff/cli`): wraps Vite for dev/build. The debuff Vite plugin runs the asset pipeline over `assets/`, serves the manifest and referenced files in dev, and emits only those files in builds.
+- **CLI** (`@debuffjp/cli`): wraps Vite for dev/build. The debuff Vite plugin runs the asset pipeline over `assets/`, serves the manifest and referenced files in dev, and emits only those files in builds.
 - **Config** (`debuff.config.ts`): lists tooling plugins (ADR 0004).
 - **Asset compiler**: subfolders become preload groups, `name@WxH.png` declares a sprite grid, and content hashes are recorded. It never touches sources.
 - **Scenarios**: JSON steps (`wait`, `press`, `tap`, `set`, `expect`, `capture`). They run against the dev server in a system Chromium via `playwright-core`, with screenshots diffed against baselines in `scenarios/__baselines__/`.

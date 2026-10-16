@@ -2,9 +2,9 @@
   "$schema": "https://unpkg.com/@changesets/config@3.0.3/schema.json",
   "changelog": "@changesets/cli/changelog",
   "commit": false,
-  "fixed": [["@debuff/*", "create-debuff"]],
+  "fixed": [["@debuffjp/*", "create-debuff"]],
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@debuff/template-basic"]
+  "ignore": ["@debuffjp/template-basic"]
 }

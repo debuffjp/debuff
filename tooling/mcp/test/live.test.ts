@@ -1,7 +1,7 @@
 import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { AGENT_PATHS, createDevServer, DEV_SERVER_FILE } from "@debuff/cli";
+import { AGENT_PATHS, createDevServer, DEV_SERVER_FILE } from "@debuffjp/cli";
 import { describe, expect, it } from "vitest";
 import { LiveSession, startSession } from "../src/index.js";
 

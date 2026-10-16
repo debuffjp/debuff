@@ -1,9 +1,9 @@
-# @debuff/juice
+# @debuffjp/juice
 
 Game-feel building blocks: tweens, easing, pooled particles, trails and squash-and-stretch. No dependencies, and each export can be used on its own.
 
 ```ts
-import { Particles, squash, Tweens } from "@debuff/juice";
+import { Particles, squash, Tweens } from "@debuffjp/juice";
 
 const tweens = new Tweens();
 const particles = new Particles(() => game.random.next()); // seeded, so captures are reproducible

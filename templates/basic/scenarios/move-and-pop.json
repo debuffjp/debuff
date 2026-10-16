@@ -1,5 +1,5 @@
 {
-  "$schema": "../node_modules/@debuff/cli/schema/scenario.schema.json",
+  "$schema": "../node_modules/@debuffjp/cli/schema/scenario.schema.json",
   "steps": [
     {
       "wait": 10

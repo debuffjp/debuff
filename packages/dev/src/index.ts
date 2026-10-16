@@ -1,8 +1,8 @@
-import type { Game, ParamDescription, ParamValue, Plugin } from "@debuff/core";
+import type { Game, ParamDescription, ParamValue, Plugin } from "@debuffjp/core";
 import type { ExplainedError } from "./explain.js";
 import { DevSession, type FrameSample, type Note } from "./session.js";
 
-/** The parts of `@debuff/input`'s `Input` the hooks drive. Structural, so `dev` does not depend on `input`. */
+/** The parts of `@debuffjp/input`'s `Input` the hooks drive. Structural, so `dev` does not depend on `input`. */
 export interface DrivableInput {
   keys: { press(code: string): void; release(code: string): void };
   pointer: { press(x: number, y: number): void; move(x: number, y: number): void; release(): void };
@@ -75,13 +75,13 @@ declare global {
 export interface DevHooksOptions {
   input?: DrivableInput;
   /**
-   * Accept commands from agents through the dev server (`debuff dev` + `@debuff/mcp`), so an agent
+   * Accept commands from agents through the dev server (`debuff dev` + `@debuffjp/mcp`), so an agent
    * works on this live game and its actions show in the overlay. Default true.
    */
   agentLink?: boolean;
 }
 
-/** Dev-server endpoints for the agent link (see `@debuff/cli`). */
+/** Dev-server endpoints for the agent link (see `@debuffjp/cli`). */
 export const AGENT_EVENTS = "/__debuff/agent/events";
 export const AGENT_RESULT = "/__debuff/agent/result";
 

@@ -1,4 +1,4 @@
-import type { Draw, TextureSource } from "@debuff/core";
+import type { Draw, TextureSource } from "@debuffjp/core";
 import { describe, expect, it } from "vitest";
 import { Collision, FLIP_D, FLIP_H, FLIP_V, fromLdtk, fromTiled, type LdtkProject, type TiledMap, Tilemap } from "../src/index.js";
 

@@ -12,5 +12,5 @@ Include affected packages and versions, a description, and reproduction steps if
 
 ## Scope notes
 
-- `@debuff/dev` and the CLI's scenario runner are development tools. They expose control hooks by design and must not ship to production. `debuff build` fails if they do.
+- `@debuffjp/dev` and the CLI's scenario runner are development tools. They expose control hooks by design and must not ship to production. `debuff build` fails if they do.
 - Games load only the assets their own manifest lists. Treat third-party asset packs like any other dependency.

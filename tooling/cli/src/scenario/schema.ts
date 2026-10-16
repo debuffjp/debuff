@@ -3,7 +3,7 @@ import type { ToolingPlugin } from "../plugin.js";
 
 type JsonObject = Record<string, unknown>;
 
-/** The built-in scenario schema shipped as `@debuff/cli/schema/scenario.schema.json`. */
+/** The built-in scenario schema shipped as `@debuffjp/cli/schema/scenario.schema.json`. */
 export function baseScenarioSchema(): JsonObject {
   return JSON.parse(readFileSync(new URL("../../schema/scenario.schema.json", import.meta.url), "utf8")) as JsonObject;
 }

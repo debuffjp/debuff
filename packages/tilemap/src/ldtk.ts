@@ -1,4 +1,4 @@
-import type { TextureSource } from "@debuff/core";
+import type { TextureSource } from "@debuffjp/core";
 import { Collision, FLIP_H, FLIP_V, type ImageRegion, type MapObject, Tilemap, type Tileset } from "./tilemap.js";
 
 // Minimal shapes of LDtk's JSON format (https://ldtk.io/json/).
