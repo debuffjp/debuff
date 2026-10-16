@@ -138,3 +138,5 @@ function createHooks(game: Game, options: DevHooksOptions, errors: string[]): De
   };
   return hooks;
 }
+
+export { type DevOverlayOptions, devOverlay } from "./overlay.js";
