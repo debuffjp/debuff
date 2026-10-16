@@ -5,7 +5,7 @@ import { Keyboard, Pointer, axis } from "@debuff/input";
 import { Particles, Tweens, squash } from "@debuff/juice";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game")!;
-const game = new Game({ canvas, width: 320, height: 180, background: "#14141f" });
+const game = new Game({ canvas, width: 320, height: 180, background: "#14141f", scale: "fit" });
 const keys = new Keyboard();
 const pointer = new Pointer(canvas, { width: game.width, height: game.height });
 const audio = new Audio();
