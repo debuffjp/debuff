@@ -399,7 +399,8 @@ export class Game {
 }
 
 /** Where a click on the start-up splash goes. */
-const SPLASH_URL = "https://debuff.jp";
+// The ref tag lets debuff.jp count visits from games built with debuff (cookieless analytics, no player data).
+const SPLASH_URL = "https://debuff.jp/?ref=made-with";
 
 /** True under a bundler's dev mode (Vite: `import.meta.env.DEV`); false elsewhere. */
 function isDev(): boolean {

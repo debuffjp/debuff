@@ -199,7 +199,7 @@ describe("Game splash link", () => {
     const { game, canvas } = makeGame({ splash: true });
     if (canvas.parentElement) document.body.append(canvas.parentElement);
     canvas.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
-    expect(open).toHaveBeenCalledWith("https://debuff.jp", "_blank", "noopener");
+    expect(open).toHaveBeenCalledWith("https://debuff.jp/?ref=made-with", "_blank", "noopener");
     expect(canvas.style.cursor).toBe("");
     const second = makeGame({ splash: true });
     dispatchEvent(new KeyboardEvent("keydown", { code: "Space" }));
