@@ -265,7 +265,10 @@ export function createServer(options: ServerOptions): McpServer {
     "game_errors",
     {
       title: "Runtime errors",
-      description: "Uncaught errors and unhandled rejections since the game started.",
+      description:
+        "Runtime errors since the game started, explained: kind (your-code, debuff-usage, debuff-bug, outside), where (source file:line, " +
+        "source-mapped), a hint, the loop phase and tick, and a repeat count. A loop error stops the game; fix it, then game_pause false to resume. " +
+        "For debuff-bug, tell the human and share reportUrl rather than working around it.",
       inputSchema: {},
       annotations: { readOnlyHint: true },
     },

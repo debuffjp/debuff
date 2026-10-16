@@ -24,7 +24,7 @@ All arguments and return values are JSON-serialisable.
 | `params()` / `setParam(group, key, value)` | typed parameter schemas and values |
 | `press(code)` / `release(code)` | keyboard |
 | `tap(x, y)` / `pointerDown` / `pointerMove` / `pointerUp` | pointer, in logical coordinates |
-| `errors()` | uncaught errors since load |
+| `errors()` | runtime errors since load, explained: `kind` (`your-code`, `debuff-usage`, `debuff-bug`, `outside`), source-mapped `where`, `hint`, `count` |
 | `capture()` | PNG data URL of the current frame |
 
 ## Overlay
@@ -36,7 +36,7 @@ The toolbar has pause, step, speed (1×, ½×, ¼×), **snap** (download the cur
 - **perf**: a frame graph coloured by health: lime is on time, amber is a little late (normal display jitter) and red is a dropped frame. Update and render time are stacked inside each bar. A summary shows your headroom and whether recent dropped frames came from the game's own work or from outside it (GC, the browser, other tabs). Click a bar to pause and inspect that frame with a plain-words diagnosis, or tick **pause on dropped frame**. Phases also appear as `debuff:update` and `debuff:render` in the browser profiler.
 - **tune**: sliders for every `game.params` group. Values you've changed from their defaults turn amber. Double-click a name to reset it, and **copy changes** copies just your changes, ready to paste into the param definitions.
 - **state**: your scene's `inspect()` data and plugin snapshots, updating live.
-- **log**: runtime errors, plus an activity log of who changed what (you, an agent or a scenario) with undo, and notes you can flag for agents.
+- **log**: runtime errors, each labelled with whose problem it is (your code, a call debuff rejected, a debuff bug, or something outside the game), with a link that opens the exact source line in your editor, a hint, and a report link for debuff bugs. Also plus an activity log of who changed what (you, an agent or a scenario) with undo, and notes you can flag for agents.
 
 ## Agent link
 

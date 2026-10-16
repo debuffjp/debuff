@@ -210,3 +210,34 @@ describe("Game splash link", () => {
     vi.unstubAllEnvs();
   });
 });
+
+describe("Game loop errors", () => {
+  it("stops cleanly, reports where it broke, and can be started again", () => {
+    const callbacks: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => callbacks.push(cb));
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+    const { game } = makeGame({ splash: false });
+    let broken = true;
+    game
+      .add({
+        id: "play",
+        update: () => {
+          if (broken) throw new TypeError("boom");
+        },
+      })
+      .go("play");
+    const seen: unknown[] = [];
+    game.hooks.error((err, ctx) => seen.push(ctx));
+    game.start();
+    expect(() => callbacks.shift()?.(performance.now() + 20)).toThrow("boom");
+    expect(game.isRunning).toBe(false);
+    expect(seen).toEqual([{ phase: "update", scene: "play", tick: 0 }]);
+    expect(game.lastError?.phase).toBe("update");
+    broken = false;
+    game.start();
+    expect(game.isRunning).toBe(true);
+    expect(game.lastError).toBeUndefined();
+    game.dispose();
+    vi.unstubAllGlobals();
+  });
+});

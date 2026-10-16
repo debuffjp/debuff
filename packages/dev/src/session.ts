@@ -1,4 +1,5 @@
-import type { Game, ParamValue } from "@debuff/core";
+import type { Game, GameErrorContext, ParamValue } from "@debuff/core";
+import { type ExplainedError, errorKey, explainError, mapLocation } from "./explain.js";
 
 /** One recorded frame. Times are milliseconds. */
 export interface FrameSample {
@@ -206,10 +207,16 @@ export class DevSession {
   readonly recorder: FrameRecorder;
   readonly activity: Activity[] = [];
   readonly notes: Note[] = [];
-  /** Uncaught errors and unhandled rejections since the session started (newest last, max 50). */
-  readonly errors: string[] = [];
-  private readonly onError = (e: ErrorEvent) => this.addError(String(e.error?.stack ?? e.message));
-  private readonly onRejection = (e: PromiseRejectionEvent) => this.addError(String(e.reason?.stack ?? e.reason));
+  /** Uncaught errors, unhandled rejections and loop errors, explained and de-duplicated (max 50). */
+  readonly errors: ExplainedError[] = [];
+  /** The error object the loop just reported, so its rethrow isn't counted twice. */
+  private lastLoopError: unknown;
+  private readonly onError = (e: ErrorEvent) => {
+    if (e.error !== undefined && e.error === this.lastLoopError) return;
+    this.addError(explainError(e.error ?? new Error(e.message)));
+  };
+  private readonly onRejection = (e: PromiseRejectionEvent) => this.addError(explainError(e.reason));
+  private readonly unsubscribeLoopError: () => void;
   /** Who paused the game, or undefined while running. */
   pausedBy: string | undefined;
   /** Pause automatically when a frame exceeds this many milliseconds (0 = off). */
@@ -228,6 +235,7 @@ export class DevSession {
         this.pause("spike", `${latest.intervalMs.toFixed(1)} ms frame at tick ${latest.tick}`);
       }
     };
+    this.unsubscribeLoopError = game.hooks.error((error, context) => this.onLoopError(error, context));
     addEventListener("error", this.onError);
     addEventListener("unhandledrejection", this.onRejection);
   }
@@ -247,6 +255,7 @@ export class DevSession {
     if (--this.refs > 0) return;
     this.recorder.dispose();
     removeEventListener("error", this.onError);
+    this.unsubscribeLoopError();
     removeEventListener("unhandledrejection", this.onRejection);
     sessions.delete(this.game);
   }
@@ -333,9 +342,34 @@ export class DevSession {
     return n;
   }
 
-  private addError(message: string): void {
-    this.errors.push(message);
+  /** The loop stopped on an error: record it with where it happened and show the game as paused by it. */
+  private onLoopError(error: unknown, context: GameErrorContext): void {
+    this.lastLoopError = error;
+    const explained = this.addError(explainError(error, context));
+    // The game already stopped itself; reflect that so "play" retries from here.
+    this.pausedBy = "error";
+    this.log("error", "stopped the game", `in ${context.phase}: ${explained.message}`);
+  }
+
+  private addError(e: ExplainedError): ExplainedError {
+    const key = errorKey(e);
+    const same = this.errors.find((x) => errorKey(x) === key);
+    if (same) {
+      same.count++;
+      this.changed();
+      return same;
+    }
+    this.errors.push(e);
     if (this.errors.length > 50) this.errors.shift();
+    this.changed();
+    // Point at the original source line, not the compiled module the browser ran.
+    void mapLocation(e).then((moved) => moved && this.changed());
+    return e;
+  }
+
+  /** Forget recorded errors (after fixing them). */
+  clearErrors(): void {
+    this.errors.length = 0;
     this.changed();
   }
 

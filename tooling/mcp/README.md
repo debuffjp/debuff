@@ -37,7 +37,7 @@ Run it from the game's folder, or pass `--root <dir>` (or set `DEBUFF_ROOT`).
 | `game_state` | Scene, tick, renderer, frame stats, your `inspect()` data |
 | `game_params` / `game_set_param` | Read and tune typed params (validated) |
 | `game_capture` | The current frame as a PNG image |
-| `game_errors` | Uncaught runtime errors |
+| `game_errors` | Runtime errors, explained: whose problem (your code, a rejected call, a debuff bug), the source line, a hint |
 | `game_stop` | Close the game |
 
 ## Live and headless

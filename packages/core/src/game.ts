@@ -1,6 +1,6 @@
 import { Camera } from "./camera.js";
 import { FixedClock, type FixedClockOptions } from "./clock.js";
-import { Hooks } from "./hooks.js";
+import { type GameErrorContext, Hooks } from "./hooks.js";
 import { InspectRegistry } from "./inspect.js";
 import { ParamRegistry } from "./params.js";
 import { type Plugin, PluginRegistry } from "./plugin.js";
@@ -108,6 +108,8 @@ export class Game {
   private readonly scenes = new Map<string, Scene>();
   private active: Scene | undefined;
   private frameHandle = 0;
+  /** What the frame is doing right now, so a loop error can say where it came from. */
+  private phase = "idle";
   private splashTotal = 0;
   private splashLeft = 0;
   private readonly onSplashSkip = () => this.skipSplash();
@@ -204,6 +206,9 @@ export class Game {
     if (typeof document !== "undefined") document.removeEventListener("visibilitychange", this.onVisibility);
   }
 
+  /** The error that stopped the loop, if any. Cleared by `start()`. */
+  lastError: (GameErrorContext & { error: unknown }) | undefined;
+
   get scene(): Scene | undefined {
     return this.active;
   }
@@ -229,6 +234,7 @@ export class Game {
   }
 
   start(): void {
+    this.lastError = undefined;
     this.wanted = true;
     if (typeof document === "undefined" || !document.hidden || !this.pauseWhenHidden) this.run();
   }
@@ -249,9 +255,12 @@ export class Game {
         return;
       }
       const scaled = dt * this.timeScale;
+      this.phase = "beforeUpdate";
       this.hooks.emit("beforeUpdate", scaled);
+      this.phase = "update";
       this.camera.update(scaled, this.random);
       this.active?.update?.(scaled, this);
+      this.phase = "afterUpdate";
       this.hooks.emit("afterUpdate", scaled);
     });
     this.lastAlpha = alpha;
@@ -334,7 +343,21 @@ export class Game {
           this.skipSplash(); // never let branding break a game
         }
         this.draw.end();
-      } else this.frame(elapsed);
+      } else {
+        try {
+          this.frame(elapsed);
+        } catch (error) {
+          // Stop cleanly instead of freezing with a dead loop that still claims to run, tell listeners
+          // (the dev overlay shows where it broke), then rethrow so the console reports it as usual.
+          this.stop();
+          const context = { phase: this.phase, scene: this.active?.id, tick: this.clock.tick };
+          this.lastError = { error, ...context };
+          this.phase = "idle";
+          this.draw.reset();
+          this.hooks.emit("error", error, context);
+          throw error;
+        }
+      }
       this.lastTime = now;
       this.frameHandle = requestAnimationFrame(loop);
     };
@@ -362,12 +385,16 @@ export class Game {
   private render(alpha: number): void {
     const { draw } = this;
     draw.begin(this.background, this.width, this.height, this.renderScale);
+    this.phase = "beforeRender";
     this.hooks.emit("beforeRender", draw, alpha);
+    this.phase = "render";
     this.active?.render?.(draw, alpha, this);
     // afterRender always starts from a clean transform, whatever the scene left behind.
     draw.reset();
+    this.phase = "afterRender";
     this.hooks.emit("afterRender", draw, alpha);
     draw.end();
+    this.phase = "idle";
   }
 }
 
