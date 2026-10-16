@@ -1,5 +1,11 @@
 # @debuffjp/audio
 
+## 0.1.1
+
+### Patch Changes
+
+- Republished: the 0.1.0 release was held in npm staging and can't be reused. No code changes from 0.1.0.
+
 ## 0.1.0
 
 ### Minor Changes

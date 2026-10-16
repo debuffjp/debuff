@@ -10,7 +10,7 @@
     "test": "debuff scenario"
   },
   "dependencies": {
-    "@debuffjp/audio": "0.1.0",
+    "@debuffjp/audio": "0.1.1",
     "@debuffjp/core": "0.1.0",
     "@debuffjp/input": "0.1.0",
     "@debuffjp/juice": "0.1.0"
