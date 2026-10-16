@@ -53,6 +53,11 @@ describe("live agent link", () => {
       expect(live?.mode).toBe("live");
       expect(await live?.call("step", 3)).toEqual({ method: "step", args: [3] });
       await expect(live?.call("boom")).rejects.toThrow("nope");
+      const status = async () => (await fetch(new URL(AGENT_PATHS.status, base))).json();
+      expect(await status()).toMatchObject({ pages: 1, agents: 1 });
+      await live?.stop();
+      await new Promise((r) => setTimeout(r, 50));
+      expect(await status()).toMatchObject({ agents: 0 });
       close();
     } finally {
       await server.close();

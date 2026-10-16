@@ -46,7 +46,10 @@ export async function startSession(
 /** The developer's own browser tab, reached through the dev server's agent link. */
 export class LiveSession implements GameSession {
   readonly mode = "live";
-  private constructor(readonly url: string) {}
+  private constructor(
+    readonly url: string,
+    private readonly attachment: AbortController,
+  ) {}
 
   static async find(root: string): Promise<LiveSession | undefined> {
     let info: DevServerInfo;
@@ -58,7 +61,13 @@ export class LiveSession implements GameSession {
     try {
       const res = await fetch(new URL(AGENT_PATHS.status, info.url), { signal: AbortSignal.timeout(1500) });
       const status = (await res.json()) as AgentStatus;
-      return status.pages > 0 ? new LiveSession(info.url) : undefined;
+      if (status.pages === 0) return undefined;
+      // Hold an attach connection while this session lives, so the overlay shows the agent until it stops
+      // (or the agent process exits), not just right after an action.
+      const attachment = new AbortController();
+      const held = await fetch(new URL(AGENT_PATHS.attach, info.url), { signal: attachment.signal });
+      void held.body?.pipeTo(new WritableStream()).catch(() => undefined);
+      return new LiveSession(info.url, attachment);
     } catch {
       return undefined; // stale file: the dev server is gone
     }
@@ -78,6 +87,7 @@ export class LiveSession implements GameSession {
   async stop(): Promise<void> {
     // The human's tab: leave it running, just let go of any pause the agent made.
     await this.call("resume").catch(() => undefined);
+    this.attachment.abort();
   }
 }
 
