@@ -1,4 +1,5 @@
 import { Audio } from "@debuff/audio";
+import { exposeDevHooks } from "@debuff/dev";
 import { Game, Storage, approach, type Scene } from "@debuff/core";
 import { Keyboard, Pointer, axis } from "@debuff/input";
 import { Particles, Tweens, squash } from "@debuff/juice";
@@ -43,6 +44,9 @@ const play: Scene = {
     tweens.update(dt);
     particles.update(dt);
   },
+  inspect() {
+    return { player: { x: Math.round(player.x), vx: Math.round(player.vx) }, taps: save.get("taps"), particles: particles.count };
+  },
   render(ctx) {
     game.camera.apply(ctx);
     ctx.save();
@@ -62,6 +66,7 @@ const play: Scene = {
 game.add(play).go("play");
 game.start();
 
+// Dev-only: exposes window.__DEBUFF_DEV__ for scenarios and agents. Stripped from production.
 if (import.meta.env.DEV) {
-  (window as unknown as Record<string, unknown>).__DEBUFF_DEV__ = { game, keys, pointer };
+  exposeDevHooks(game, { keys, pointer });
 }

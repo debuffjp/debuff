@@ -13,6 +13,7 @@ Commands:
   build             Production build + size report (fails on dev-code leaks)
   assets            Regenerate public/assets/manifest.json and list unused assets
   report            Print size report for an existing build
+  scenario [files]  Run scenarios/*.json in a headless browser (--update to accept captures)
   inspect           Print a JSON summary of the project for agents and tools
 
 Options:
@@ -42,6 +43,8 @@ async function main(): Promise<number> {
       return assets();
     case "report":
       return report();
+    case "scenario":
+      return scenario();
     case "inspect":
       return inspect();
     case undefined:
@@ -115,6 +118,17 @@ function assets(): number {
   for (const w of warnings) console.warn(`warning: ${w}`);
   if (unused.length) console.log(`Possibly unused (not referenced by id in src/): ${unused.join(", ")}`);
   return 0;
+}
+
+async function scenario(): Promise<number> {
+  const { runScenarios, formatScenario } = await import("./scenario.js");
+  const reports = await runScenarios({ root, files: positional.slice(1), update: flag("update") });
+  if (flag("json")) console.log(JSON.stringify(reports, null, 2));
+  else for (const r of reports) console.log(formatScenario(r));
+  const failed = reports.filter((r) => !r.ok).length;
+  if (!flag("json")) console.log(`
+${reports.length - failed}/${reports.length} scenarios passed`);
+  return failed ? 1 : 0;
 }
 
 function inspect(): number {

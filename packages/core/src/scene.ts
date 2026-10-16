@@ -8,4 +8,6 @@ export interface Scene {
   /** `alpha` is the fraction between the last and next simulation step, for interpolation. */
   render?(ctx: CanvasRenderingContext2D, alpha: number, game: Game): void;
   exit?(game: Game): void;
+  /** JSON-serialisable snapshot for dev tools and scenario assertions. Not called in production. */
+  inspect?(): unknown;
 }
