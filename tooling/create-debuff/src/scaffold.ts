@@ -1,14 +1,20 @@
 import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { OFFICIAL_TEMPLATES } from "./official.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
 /** Templates ship inside the published package (copied at build) and live at the repo
  *  root during development. */
 export function templatesDir(): string {
-  for (const dir of [join(here, "..", "templates"), join(here, "..", "..", "..", "templates")]) {
+  // Installed from npm: the bundled copy. In a repo checkout: the repo's templates/, so a stale
+  // bundled copy left by `npm pack` can never shadow the real templates during development.
+  const bundled = join(here, "..", "templates");
+  const repo = join(here, "..", "..", "..", "templates");
+  const installed = here.split(sep).includes("node_modules");
+  for (const dir of installed ? [bundled] : [repo, bundled]) {
     if (existsSync(dir)) return dir;
   }
   throw new Error("create-debuff: templates directory not found");
@@ -20,7 +26,8 @@ export interface TemplateInfo {
   description: string;
 }
 
-export function listTemplates(): TemplateInfo[] {
+/** Templates available locally (bundled in the package, or every template in a repo checkout). */
+function localTemplates(): TemplateInfo[] {
   const dir = templatesDir();
   return readdirSync(dir)
     .filter((id) => existsSync(join(dir, id, "package.json")))
@@ -29,6 +36,34 @@ export function listTemplates(): TemplateInfo[] {
       const info = existsSync(meta) ? (JSON.parse(readFileSync(meta, "utf8")) as Partial<TemplateInfo>) : {};
       return { id, title: info.title ?? id, description: info.description ?? "" };
     });
+}
+
+/** Every template: local ones plus official templates that download on demand. */
+export function listTemplates(): TemplateInfo[] {
+  const local = localTemplates();
+  const remote = OFFICIAL_TEMPLATES.filter((t) => !local.some((l) => l.id === t.id)).map(({ id, title, description }) => ({
+    id,
+    title,
+    description,
+  }));
+  return [...local, ...remote];
+}
+
+/**
+ * Where a template comes from: a local folder (bundled, or the repo checkout during development),
+ * an official template's git source, or a git source given directly.
+ */
+export function resolveTemplate(template: string): { kind: "local"; dir: string } | { kind: "remote"; source: string } {
+  if (isRemoteTemplate(template)) return { kind: "remote", source: template };
+  const dir = join(templatesDir(), template);
+  if (existsSync(join(dir, "package.json"))) return { kind: "local", dir };
+  const official = OFFICIAL_TEMPLATES.find((t) => t.id === template);
+  if (official) return { kind: "remote", source: official.source };
+  throw new Error(
+    `Unknown template "${template}". Available: ${listTemplates()
+      .map((t) => t.id)
+      .join(", ")}, or a git source like github:user/repo`,
+  );
 }
 
 export interface ScaffoldOptions {
@@ -72,20 +107,21 @@ export async function scaffoldRemote(options: ScaffoldOptions & { template: stri
   }
 }
 
+/** Scaffold from a local template. Use `create()` to also handle official and git-hosted templates. */
 export function scaffold(options: ScaffoldOptions): string {
   const dest = resolve(options.dir);
   if (!isEmptyDir(dest)) throw new Error(`${dest} is not empty`);
-  const template = options.template ?? "basic";
-  if (isRemoteTemplate(template)) throw new Error(`"${template}" is a remote template; use scaffoldRemote()`);
-  const src = join(templatesDir(), template);
-  if (!existsSync(src)) {
-    throw new Error(
-      `Unknown template "${template}". Available: ${listTemplates()
-        .map((t) => t.id)
-        .join(", ")}`,
-    );
-  }
-  return copyTemplate(src, dest, options.name);
+  const resolved = resolveTemplate(options.template ?? "basic");
+  if (resolved.kind === "remote")
+    throw new Error(`"${options.template}" downloads from ${resolved.source}; use create() or scaffoldRemote()`);
+  return copyTemplate(resolved.dir, dest, options.name);
+}
+
+/** Scaffold from any template: local, official (downloaded on demand) or a git source. */
+export async function create(options: ScaffoldOptions): Promise<string> {
+  const resolved = resolveTemplate(options.template ?? "basic");
+  if (resolved.kind === "local") return scaffold(options);
+  return scaffoldRemote({ ...options, template: resolved.source });
 }
 
 function copyTemplate(src: string, dest: string, name: string | undefined): string {

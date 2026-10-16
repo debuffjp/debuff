@@ -9,12 +9,12 @@
     "bench/*"
   ],
   "scripts": {
-    "build": "tsc -b && npm run build -w templates/basic",
+    "build": "tsc -b && npm run build -w templates/basic -w templates/platformer",
     "typecheck": "tsc -b",
     "test": "vitest run",
     "dev": "npm run dev -w sandbox",
     "check": "npm run lint && npm run typecheck && npm run test:coverage && npm run build && npm run lint:packages && npm run test:scenarios",
-    "test:scenarios": "npm test -w templates/basic",
+    "test:scenarios": "npm test -w templates/basic -w templates/platformer",
     "lint": "biome check .",
     "format": "biome check --write .",
     "changeset": "changeset",

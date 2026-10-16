@@ -1,0 +1,25 @@
+{
+  "name": "@debuff/template-platformer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "debuff dev",
+    "build": "tsc --noEmit && debuff build",
+    "assets": "debuff assets",
+    "test": "debuff scenario"
+  },
+  "dependencies": {
+    "@debuff/assets": "0.0.0",
+    "@debuff/audio": "0.0.0",
+    "@debuff/core": "0.0.0",
+    "@debuff/input": "0.0.0",
+    "@debuff/juice": "0.0.0",
+    "@debuff/tilemap": "0.0.0"
+  },
+  "devDependencies": {
+    "@debuff/cli": "0.0.0",
+    "typescript": "^7.0.2",
+    "@debuff/dev": "0.0.0"
+  }
+}

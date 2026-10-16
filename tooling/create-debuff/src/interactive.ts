@@ -2,7 +2,7 @@ import { relative } from "node:path";
 import * as p from "@clack/prompts";
 import pc from "picocolors";
 import { banner, lime, pink, sky } from "./brand.js";
-import { detectPackageManager, isEmptyDir, isRemoteTemplate, listTemplates, ownVersion, scaffold, scaffoldRemote } from "./scaffold.js";
+import { create, detectPackageManager, isEmptyDir, listTemplates, ownVersion, resolveTemplate } from "./scaffold.js";
 
 export interface CreateOptions {
   dir?: string | undefined;
@@ -51,9 +51,9 @@ export async function runCreate(options: CreateOptions): Promise<number> {
   }
 
   const s = p.spinner();
-  s.start(template && isRemoteTemplate(template) ? `Downloading ${template}` : "Scaffolding");
-  const dest =
-    template && isRemoteTemplate(template) ? await scaffoldRemote({ dir, template }) : scaffold({ dir, ...(template ? { template } : {}) });
+  const resolved = resolveTemplate(template ?? "basic");
+  s.start(resolved.kind === "remote" ? `Downloading ${resolved.source}` : "Scaffolding");
+  const dest = await create({ dir, ...(template ? { template } : {}) });
   s.stop(`Created ${lime(relative(process.cwd(), dest) || ".")}`);
 
   const pm = detectPackageManager();
