@@ -8,6 +8,10 @@ const TYPES: Record<string, AssetType> = {
   ".avif": "image",
   ".gif": "image",
   ".json": "json",
+  // Tiled maps/tilesets and LDtk projects are JSON (load with @debuff/tilemap).
+  ".tmj": "json",
+  ".tsj": "json",
+  ".ldtk": "json",
   ".ogg": "audio",
   ".opus": "audio",
   ".mp3": "audio",
