@@ -27,7 +27,7 @@ This is **mossfell**, a top-down action-adventure made with **debuff** (https://
 - Walking off a screen edge starts a scroll; enemies respawn whenever a screen is entered. Stairs fade between the fell and the hollow.
 - Feel values are in three param groups: `player`, `world` and `enemies`.
 - `inspect()` reports `state` (`play`/`won`/`lost`), `screen`, `player` (hp in half-hearts, keys, seeds), `enemies`, `kills`, `doorOpen`, `wardenDown`.
-- In dev only, `?start=hollow` begins at the bottom of the hollow (the key+door scenario uses it).
+- Dev command `warp` (`"hollow"` or `"fell"`) jumps to the bottom of the hollow or back to the spawn. Scenarios use it as `{ "command": "warp", "args": ["hollow"] }`; agents call `__DEBUFF_DEV__.command("warp", "hollow")`.
 
 ## Work loop
 
