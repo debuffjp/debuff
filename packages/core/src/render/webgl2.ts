@@ -92,8 +92,12 @@ export class WebGL2Backend implements Backend {
   private last: CachedTexture | undefined;
   private count = 0;
   private blend: BlendMode = "normal";
-  /** Draw calls submitted in the last frame (for stats). */
-  drawCalls = 0;
+  private submitted = 0;
+
+  /** Draw calls this frame, counting the batch still pending (read before `end()` flushes it). */
+  get drawCalls(): number {
+    return this.submitted + (this.count > 0 ? 1 : 0);
+  }
 
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
@@ -160,7 +164,7 @@ export class WebGL2Backend implements Backend {
     gl.uniform2f(this.viewLoc, width, height);
     gl.clearColor((clear >>> 24) / 255, ((clear >>> 16) & 0xff) / 255, ((clear >>> 8) & 0xff) / 255, (clear & 0xff) / 255);
     gl.clear(gl.COLOR_BUFFER_BIT);
-    this.drawCalls = 0;
+    this.submitted = 0;
   }
 
   quad(
@@ -276,7 +280,7 @@ export class WebGL2Backend implements Backend {
     gl.bindBuffer(gl.ARRAY_BUFFER, this.instanceBuffer);
     gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.f32, 0, this.count * (STRIDE / 4));
     gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, this.count);
-    this.drawCalls++;
+    this.submitted++;
     this.count = 0;
     this.unitCount = 0;
   }
