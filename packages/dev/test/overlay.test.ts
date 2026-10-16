@@ -4,9 +4,9 @@ import { devOverlay } from "../src/index.js";
 
 function makeGame() {
   const canvas = document.createElement("canvas");
-  vi.spyOn(canvas, "getContext").mockReturnValue(
-    new Proxy({}, { get: (_t, k) => (k === "canvas" ? canvas : () => undefined) }) as CanvasRenderingContext2D,
-  );
+  const ctx = new Proxy({}, { get: (_t, k) => (k === "canvas" ? canvas : () => undefined), set: () => true });
+  vi.spyOn(canvas, "getContext").mockImplementation(((type: string) =>
+    type === "2d" ? ctx : null) as unknown as typeof canvas.getContext);
   const game = new Game({ canvas, width: 100, height: 100, scale: "none" });
   game.params.define("player", {
     speed: { type: "number", default: 100, min: 0, max: 400, units: "px/s" },

@@ -45,11 +45,10 @@ export function debugGrid(options: DebugGridOptions = {}): Plugin {
         visible: { type: "boolean", default: true },
       });
       let lines = 0;
-      const offRender = game.hooks.afterRender((ctx) => {
+      const offRender = game.hooks.afterRender((draw) => {
         if (!params.values.visible) return;
-        ctx.strokeStyle = options.color ?? "rgba(255,255,255,0.1)";
         lines = 0;
-        for (let x = 0; x <= game.width; x += params.values.size, lines++) ctx.strokeRect(x, 0, 0, game.height);
+        for (let x = 0; x <= game.width; x += params.values.size, lines++) draw.line(x, 0, x, game.height, 1, options.color ?? "#ffffff1a");
       });
       const offInspect = game.inspect.register("debug-grid", () => ({ lines }));
       return () => {

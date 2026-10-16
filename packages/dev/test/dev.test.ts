@@ -5,9 +5,9 @@ import { exposeDevHooks } from "../src/index.js";
 function setup(search = "") {
   window.history.replaceState(null, "", `/${search}`);
   const canvas = document.createElement("canvas");
-  vi.spyOn(canvas, "getContext").mockReturnValue(
-    new Proxy({}, { get: (_t, k) => (k === "canvas" ? canvas : () => undefined) }) as CanvasRenderingContext2D,
-  );
+  const ctx = new Proxy({}, { get: (_t, k) => (k === "canvas" ? canvas : () => undefined), set: () => true });
+  vi.spyOn(canvas, "getContext").mockImplementation(((type: string) =>
+    type === "2d" ? ctx : null) as unknown as typeof canvas.getContext);
   const game = new Game({ canvas, width: 100, height: 100, scale: "none" });
   let x = 0;
   game.params.define("player", { speed: { type: "number", default: 1, min: 0, max: 10 } });

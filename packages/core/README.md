@@ -1,6 +1,6 @@
 # @debuff/core
 
-Game loop, fixed-step clock, scenes, camera, sprites and typed creative parameters. Renders with the standard Canvas 2D API and has no dependencies.
+Game loop, fixed-step clock, scenes, camera, sprites, typed creative parameters and a batched WebGL2 renderer with automatic Canvas 2D fallback. No dependencies.
 
 ```bash
 npm install @debuff/core
@@ -21,7 +21,7 @@ game
     update(dt) {
       /* simulation at a fixed step */
     },
-    render(ctx, alpha) {
+    render(draw, alpha) {
       /* draw in logical units */
     },
     inspect: () => ({

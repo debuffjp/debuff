@@ -1,3 +1,5 @@
+import type { DrawLike } from "./draw-like.js";
+
 /** Fading polyline behind a moving point (dashes, projectiles, swipes). */
 export class Trail {
   private readonly xs: number[] = [];
@@ -23,21 +25,15 @@ export class Trail {
     this.ys.length = 0;
   }
 
-  draw(ctx: CanvasRenderingContext2D): void {
+  draw(draw: DrawLike): void {
     const n = this.xs.length;
     if (n < 2) return;
-    const prevAlpha = ctx.globalAlpha;
-    ctx.strokeStyle = this.color;
-    ctx.lineCap = "round";
+    const baseAlpha = draw.alpha;
     for (let i = 1; i < n; i++) {
       const t = i / (n - 1);
-      ctx.globalAlpha = prevAlpha * t;
-      ctx.lineWidth = this.width * t;
-      ctx.beginPath();
-      ctx.moveTo(this.xs[i - 1] ?? 0, this.ys[i - 1] ?? 0);
-      ctx.lineTo(this.xs[i] ?? 0, this.ys[i] ?? 0);
-      ctx.stroke();
+      draw.alpha = baseAlpha * t;
+      draw.line(this.xs[i - 1] ?? 0, this.ys[i - 1] ?? 0, this.xs[i] ?? 0, this.ys[i] ?? 0, this.width * t, this.color);
     }
-    ctx.globalAlpha = prevAlpha;
+    draw.alpha = baseAlpha;
   }
 }

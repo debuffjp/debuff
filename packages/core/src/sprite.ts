@@ -1,14 +1,11 @@
-/** A rectangular region of an image. */
-export interface Frame {
-  image: CanvasImageSource;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
+import type { TextureSource } from "./render/backend.js";
+import type { Color } from "./render/color.js";
+import type { Draw, Frame } from "./render/draw.js";
+
+export type { Frame };
 
 /** Slice a uniform sprite sheet into frames, row-major. */
-export function sliceGrid(image: CanvasImageSource & { width: number; height: number }, frameWidth: number, frameHeight: number): Frame[] {
+export function sliceGrid(image: TextureSource & { width: number; height: number }, frameWidth: number, frameHeight: number): Frame[] {
   const cols = Math.floor(image.width / frameWidth);
   const rows = Math.floor(image.height / frameHeight);
   const frames: Frame[] = [];
@@ -48,6 +45,8 @@ export class Sprite {
   visible = true;
   /** 0..1 white overlay, for impact flashes. */
   flash = 0;
+  /** Colour multiplier (WebGL2; Canvas 2D applies alpha only). */
+  tint: Color | undefined;
   origin: Origin;
   frame = 0;
 
@@ -101,35 +100,21 @@ export class Sprite {
     this.frame = clip.frames[index] ?? 0;
   }
 
-  draw(ctx: CanvasRenderingContext2D): void {
+  draw(draw: Draw): void {
     if (!this.visible || this.alpha <= 0) return;
     const f = this.frames[this.frame];
     if (!f) return;
     const [ox, oy] = originOffset(this.origin, f.w, f.h);
-    ctx.save();
-    ctx.globalAlpha *= this.alpha;
-    ctx.translate(this.x, this.y);
-    if (this.rotation) ctx.rotate(this.rotation);
-    ctx.scale(this.flipX ? -this.scaleX : this.scaleX, this.scaleY);
-    ctx.drawImage(f.image, f.x, f.y, f.w, f.h, -ox, -oy, f.w, f.h);
-    if (this.flash > 0) {
-      // Flash only the sprite's own pixels by compositing a white rect onto a scratch canvas.
-      const scratch = flashCanvas(f.w, f.h);
-      const sctx = scratch.getContext("2d") as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
-      if (!sctx) {
-        ctx.restore();
-        return;
-      }
-      sctx.clearRect(0, 0, f.w, f.h);
-      sctx.globalCompositeOperation = "source-over";
-      sctx.drawImage(f.image, f.x, f.y, f.w, f.h, 0, 0, f.w, f.h);
-      sctx.globalCompositeOperation = "source-in";
-      sctx.fillStyle = "#fff";
-      sctx.fillRect(0, 0, f.w, f.h);
-      ctx.globalAlpha *= Math.min(1, this.flash);
-      ctx.drawImage(scratch, 0, 0, f.w, f.h, -ox, -oy, f.w, f.h);
-    }
-    ctx.restore();
+    draw.sprite(f, this.x, this.y, {
+      origin: [ox / f.w, oy / f.h],
+      scaleX: this.scaleX,
+      scaleY: this.scaleY,
+      rotation: this.rotation,
+      flipX: this.flipX,
+      alpha: this.alpha,
+      flash: this.flash,
+      ...(this.tint === undefined ? {} : { tint: this.tint }),
+    });
   }
 }
 
@@ -143,14 +128,4 @@ export function originOffset(origin: Origin, w: number, h: number): [number, num
     case "bottom-center":
       return [w / 2, h];
   }
-}
-
-let scratchCanvas: HTMLCanvasElement | OffscreenCanvas | undefined;
-function flashCanvas(w: number, h: number): HTMLCanvasElement | OffscreenCanvas {
-  if (!scratchCanvas) {
-    scratchCanvas = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(w, h) : document.createElement("canvas");
-  }
-  if (scratchCanvas.width < w) scratchCanvas.width = w;
-  if (scratchCanvas.height < h) scratchCanvas.height = h;
-  return scratchCanvas;
 }

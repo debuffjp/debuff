@@ -21,6 +21,15 @@ ADR 0001 chose Canvas 2D until a benchmark said otherwise. The goal is to be the
 
 Raw data: `bench/renderer/results/`.
 
+**Implemented** (same day), measured through the public API (`Game` + `draw.sprite`, renderer `debuff-webgl` in `bench/renderer`) after removing hot-path allocations:
+
+| Renderer | Max sprites at 60 fps | Frame at 10k | Frame at 50k |
+| --- | --- | --- | --- |
+| debuff `draw` on WebGL2 | **~200,000** | 1.1 ms | 3.9 ms |
+| debuff `draw` on the Canvas 2D fallback | ~5,000 | 20.8 ms | 141.6 ms |
+
+The public API costs about 2× the bare prototype (transforms, options, tint, flash, multi-texture batching). It's 4× PixiJS `Sprite` and level with PixiJS `ParticleContainer` at the 60 fps threshold, while staying a general-purpose sprite API.
+
 ## Caveats
 
 - One machine, one browser. Integrated GPUs and phones will be slower, and the ratios may differ. We'll publish results from more devices.

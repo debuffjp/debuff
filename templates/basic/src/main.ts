@@ -49,20 +49,18 @@ const play: Scene = {
     particles.update(dt);
   },
 
-  render(ctx) {
-    game.camera.apply(ctx);
-    ctx.save();
-    ctx.translate(player.x, player.y);
-    ctx.scale(player.scaleX, player.scaleY);
-    // deeb, the debuff mascot: a lime block with eyes.
-    ctx.fillStyle = "#a3e635";
-    ctx.fillRect(-8, -16, 16, 16);
-    ctx.fillStyle = "#11140d";
-    ctx.fillRect(-5, -12, 3, 4);
-    ctx.fillRect(2, -12, 3, 4);
-    ctx.restore();
-    particles.draw(ctx);
-    ctx.restore();
+  render(draw) {
+    draw.withCamera(game.camera, () => {
+      // deeb, the debuff mascot: a lime block with eyes, squashing from its feet.
+      draw.push();
+      draw.translate(player.x, player.y);
+      draw.scale(player.scaleX, player.scaleY);
+      draw.rect(-8, -16, 16, 16, "#a3e635");
+      draw.rect(-5, -12, 3, 4, "#11140d");
+      draw.rect(2, -12, 3, 4, "#11140d");
+      draw.pop();
+      particles.draw(draw);
+    });
   },
 
   // Snapshot for scenarios and agents (dev only).

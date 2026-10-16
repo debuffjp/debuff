@@ -1,3 +1,4 @@
+import type { Draw } from "./render/draw.js";
 import type { Scene } from "./scene.js";
 
 export type Unsubscribe = () => void;
@@ -6,8 +7,8 @@ export type Unsubscribe = () => void;
 export interface HookArgs {
   beforeUpdate: [dt: number];
   afterUpdate: [dt: number];
-  beforeRender: [ctx: CanvasRenderingContext2D, alpha: number];
-  afterRender: [ctx: CanvasRenderingContext2D, alpha: number];
+  beforeRender: [draw: Draw, alpha: number];
+  afterRender: [draw: Draw, alpha: number];
   sceneChange: [next: Scene, previous: Scene | undefined];
 }
 
@@ -18,7 +19,7 @@ export type HookName = keyof HookArgs;
  *
  * Order within a step: `beforeUpdate` → camera → `scene.update` → `afterUpdate`.
  * Order within a frame: clear → `beforeRender` → `scene.render` → `afterRender`.
- * `beforeRender`/`afterRender` draw in logical units, outside any camera transform.
+ * `beforeRender`/`afterRender` draw in logical units; `afterRender` starts from a clean transform.
  * Steps skipped by `freeze()` fire no update hooks.
  */
 export class Hooks {
@@ -38,11 +39,11 @@ export class Hooks {
     return this.on("afterUpdate", fn);
   }
 
-  beforeRender(fn: (ctx: CanvasRenderingContext2D, alpha: number) => void): Unsubscribe {
+  beforeRender(fn: (draw: Draw, alpha: number) => void): Unsubscribe {
     return this.on("beforeRender", fn);
   }
 
-  afterRender(fn: (ctx: CanvasRenderingContext2D, alpha: number) => void): Unsubscribe {
+  afterRender(fn: (draw: Draw, alpha: number) => void): Unsubscribe {
     return this.on("afterRender", fn);
   }
 

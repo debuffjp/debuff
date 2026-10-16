@@ -1,4 +1,5 @@
 import type { Game } from "./game.js";
+import type { Draw } from "./render/draw.js";
 
 /** A scene owns a slice of game state. Lifecycle: enter → (update/render)* → exit. */
 export interface Scene {
@@ -6,7 +7,7 @@ export interface Scene {
   enter?(game: Game): void;
   update?(dt: number, game: Game): void;
   /** `alpha` is the fraction between the last and next simulation step, for interpolation. */
-  render?(ctx: CanvasRenderingContext2D, alpha: number, game: Game): void;
+  render?(draw: Draw, alpha: number, game: Game): void;
   exit?(game: Game): void;
   /** JSON-serialisable snapshot for dev tools and scenario assertions. Not called in production. */
   inspect?(): unknown;

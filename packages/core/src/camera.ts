@@ -68,12 +68,11 @@ export class Camera {
     this.offsetY = power * random.range(-1, 1);
   }
 
-  /** Apply the camera transform. Pair with `ctx.restore()`. */
-  apply(ctx: CanvasRenderingContext2D): void {
-    ctx.save();
-    ctx.translate(this.width / 2, this.height / 2);
-    ctx.scale(this.zoom, this.zoom);
-    ctx.translate(-Math.round(this.x + this.offsetX), -Math.round(this.y + this.offsetY));
+  /** The camera as an affine matrix `[a, b, c, d, e, f]` from world to viewport units.
+   *  Use with `draw.withCamera(camera, () => { ... })`. Positions snap to whole pixels. */
+  view(): [number, number, number, number, number, number] {
+    const z = this.zoom;
+    return [z, 0, 0, z, this.width / 2 - z * Math.round(this.x + this.offsetX), this.height / 2 - z * Math.round(this.y + this.offsetY)];
   }
 
   /** Convert a viewport point (e.g. pointer) to world coordinates. */

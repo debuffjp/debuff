@@ -1,18 +1,73 @@
 {
   "$schema": "../node_modules/@debuff/cli/schema/scenario.schema.json",
   "steps": [
-    { "wait": 10 },
-    { "expect": { "scene": { "eq": "play" }, "state.player.x": { "eq": 160 } } },
-    { "press": "ArrowRight" },
-    { "wait": 30 },
-    { "release": "ArrowRight" },
-    { "expect": { "state.player.x": { "gt": 200 } } },
-    { "set": { "player.speed": 400 } },
-    { "press": "Space" },
-    { "wait": 1 },
-    { "release": "Space" },
-    { "expect": { "state.pops": { "eq": 1 }, "state.particles": { "gt": 0 } } },
-    { "wait": 60 },
-    { "capture": "settled" }
+    {
+      "wait": 10
+    },
+    {
+      "expect": {
+        "scene": {
+          "eq": "play"
+        },
+        "renderer": {
+          "eq": "webgl2"
+        },
+        "state.player.x": {
+          "eq": 160
+        }
+      }
+    },
+    {
+      "press": "ArrowRight"
+    },
+    {
+      "wait": 30
+    },
+    {
+      "release": "ArrowRight"
+    },
+    {
+      "expect": {
+        "state.player.x": {
+          "gt": 200
+        }
+      }
+    },
+    {
+      "set": {
+        "player.speed": 400
+      }
+    },
+    {
+      "press": "Space"
+    },
+    {
+      "wait": 1
+    },
+    {
+      "release": "Space"
+    },
+    {
+      "wait": 4
+    },
+    {
+      "expect": {
+        "state.pops": {
+          "eq": 1
+        },
+        "state.particles": {
+          "gt": 0
+        }
+      }
+    },
+    {
+      "capture": "popped"
+    },
+    {
+      "wait": 60
+    },
+    {
+      "capture": "settled"
+    }
   ]
 }

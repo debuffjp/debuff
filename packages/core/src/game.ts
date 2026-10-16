@@ -5,6 +5,10 @@ import { InspectRegistry } from "./inspect.js";
 import { ParamRegistry } from "./params.js";
 import { type Plugin, PluginRegistry } from "./plugin.js";
 import { Random } from "./random.js";
+import type { Backend } from "./render/backend.js";
+import { Canvas2DBackend } from "./render/canvas2d.js";
+import { Draw } from "./render/draw.js";
+import { WebGL2Backend } from "./render/webgl2.js";
 import type { Scene } from "./scene.js";
 import { FrameStats } from "./stats.js";
 
@@ -25,8 +29,13 @@ export interface GameOptions {
   scale?: ScaleMode;
   /** Element whose size drives scaling. Default: the canvas's parent. */
   container?: HTMLElement;
-  /** Disable image smoothing for nearest-neighbour pixel art. Default false. */
+  /** Nearest-neighbour sampling for crisp pixel art. Default false. */
   pixelArt?: boolean;
+  /**
+   * Rendering backend. `auto` (default) uses WebGL2 and falls back to Canvas 2D when it is unavailable.
+   * Both implement the same `draw` API (ADR 0007).
+   */
+  renderer?: "auto" | "webgl2" | "2d";
   seed?: number;
   clock?: FixedClockOptions;
   /** Opaque background colour, cleared every frame. Default "#000". */
@@ -37,7 +46,8 @@ export interface GameOptions {
  *  standard Canvas 2D API; nothing here depends on a third-party renderer. */
 export class Game {
   readonly canvas: HTMLCanvasElement;
-  readonly ctx: CanvasRenderingContext2D;
+  /** Immediate-mode drawing API, passed to `Scene.render` and render hooks. */
+  readonly draw: Draw;
   readonly width: number;
   readonly height: number;
   readonly clock: FixedClock;
@@ -60,6 +70,7 @@ export class Game {
   renderScale = 1;
 
   private freezeTime = 0;
+  private lastAlpha = 0;
   private readonly pluginRegistry = new PluginRegistry();
   private readonly scenes = new Map<string, Scene>();
   private active: Scene | undefined;
@@ -86,9 +97,7 @@ export class Game {
     this.random = new Random(options.seed ?? 1);
     this.background = options.background ?? "#000";
     // alpha:false lets the compositor skip blending; desynchronized lowers input latency where supported.
-    const ctx = this.canvas.getContext("2d", { alpha: false, desynchronized: true });
-    if (!ctx) throw new Error("Canvas 2D context unavailable");
-    this.ctx = ctx;
+    this.draw = new Draw(createBackend(this.canvas, options.renderer ?? "auto"), !this.pixelArt);
     this.camera = new Camera({ width: this.width, height: this.height });
     this.camera.x = this.width / 2;
     this.camera.y = this.height / 2;
@@ -172,8 +181,14 @@ export class Game {
       this.active?.update?.(scaled, this);
       this.hooks.emit("afterUpdate", scaled);
     });
+    this.lastAlpha = alpha;
     this.render(alpha);
     this.stats.record(elapsed * 1000, performance.now() - t0);
+  }
+
+  /** Render the current state again without advancing time or touching frame stats (captures, editors). */
+  redraw(): void {
+    this.render(this.lastAlpha);
   }
 
   /** Hit-stop: pause simulation for `seconds` (rendering continues). */
@@ -215,8 +230,7 @@ export class Game {
     }
     this.renderScale = backingW / this.width;
     // Resizing resets context state, so reapply.
-    this.ctx.setTransform(this.renderScale, 0, 0, this.renderScale, 0, 0);
-    this.ctx.imageSmoothingEnabled = !this.pixelArt;
+    this.draw.resize(backingW, backingH);
     if (!this.running) this.render(0);
   }
 
@@ -261,13 +275,31 @@ export class Game {
   }
 
   private render(alpha: number): void {
-    const { ctx } = this;
-    ctx.fillStyle = this.background;
-    ctx.fillRect(0, 0, this.width, this.height);
-    this.hooks.emit("beforeRender", ctx, alpha);
-    this.active?.render?.(ctx, alpha, this);
-    // Guarantee afterRender draws in logical units even if the scene left a transform applied.
-    ctx.setTransform(this.renderScale, 0, 0, this.renderScale, 0, 0);
-    this.hooks.emit("afterRender", ctx, alpha);
+    const { draw } = this;
+    draw.begin(this.background, this.width, this.height, this.renderScale);
+    this.hooks.emit("beforeRender", draw, alpha);
+    this.active?.render?.(draw, alpha, this);
+    // afterRender always starts from a clean transform, whatever the scene left behind.
+    draw.reset();
+    this.hooks.emit("afterRender", draw, alpha);
+    draw.end();
   }
+}
+
+function createBackend(canvas: HTMLCanvasElement, choice: "auto" | "webgl2" | "2d"): Backend {
+  if (choice !== "2d") {
+    // preserveDrawingBuffer:false is fastest; captures render and read in the same task.
+    const gl = canvas.getContext("webgl2", {
+      alpha: false,
+      antialias: false,
+      premultipliedAlpha: true,
+      desynchronized: true,
+      powerPreference: "high-performance",
+    });
+    if (gl) return new WebGL2Backend(gl);
+    if (choice === "webgl2") throw new Error("WebGL2 is unavailable in this browser");
+  }
+  const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
+  if (!ctx) throw new Error("No WebGL2 or Canvas 2D context available");
+  return new Canvas2DBackend(ctx);
 }

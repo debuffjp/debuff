@@ -40,9 +40,8 @@ The runtime packages are plain ES modules with no dependencies, so any page can 
           update(dt) {
             x += input.axis("left", "right") * 120 * dt;
           },
-          render(ctx) {
-            ctx.fillStyle = "#06d6a0";
-            ctx.fillRect(x - 8, 120, 16, 16);
+          render(draw) {
+            draw.rect(x - 8, 120, 16, 16, "#a3e635");
           },
         })
         .go("play");
