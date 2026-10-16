@@ -19,7 +19,7 @@
   },
   "type": "module",
   "bin": {
-    "create-debuff": "./dist/cli.js"
+    "create-debuff": "./bin/create-debuff.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -30,6 +30,7 @@
     }
   },
   "files": [
+    "bin",
     "dist",
     "templates",
     "README.md"

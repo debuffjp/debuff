@@ -19,7 +19,7 @@
   },
   "type": "module",
   "bin": {
-    "debuff": "./dist/cli.js"
+    "debuff": "./bin/debuff.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -31,6 +31,7 @@
     "./schema/scenario.schema.json": "./schema/scenario.schema.json"
   },
   "files": [
+    "bin",
     "dist",
     "schema",
     "README.md"
