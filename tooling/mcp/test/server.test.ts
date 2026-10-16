@@ -35,6 +35,16 @@ describe("debuff MCP server", () => {
     expect(tools.every((t) => t.description && t.inputSchema)).toBe(true);
   });
 
+  it("offers workflow prompts that fill in their arguments", async () => {
+    const { prompts } = await client.listPrompts();
+    expect(prompts.map((p) => p.name)).toEqual(["playtest", "fix-errors", "tune-feel", "add-mechanic", "explain-stutter"]);
+    const got = await client.getPrompt({ name: "add-mechanic", arguments: { mechanic: "a double jump" } });
+    const text = got.messages[0]?.content.type === "text" ? got.messages[0].content.text : "";
+    expect(text).toContain("a double jump");
+    expect(text).toContain("run_scenarios");
+    expect(text).toMatch(/creative calls/);
+  });
+
   it("inspects the project", async () => {
     const info = await data("inspect_project");
     expect(info.name).toBe("@debuffjp/template-basic");
