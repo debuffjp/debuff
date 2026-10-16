@@ -10,7 +10,7 @@ const version = (JSON.parse(readFileSync(new URL("../package.json", import.meta.
 export async function inspectProject(root: string) {
   const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as Record<string, unknown>;
   const config = await loadConfig(root);
-  const { manifest, warnings } = await compileAssets(root, { plugins: config.plugins });
+  const { manifest, warnings } = await compileAssets(root, { plugins: config.plugins, atlas: config.atlas });
   const dist = join(root, "dist");
   return {
     name: pkg.name,

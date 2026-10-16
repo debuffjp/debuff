@@ -84,7 +84,7 @@ cli
   .action(async (o: Common) => {
     const root = rootOf(o);
     const config = await loadConfig(root);
-    const { manifest, warnings, importedBy, outputs } = await compileAssets(root, { plugins: config.plugins });
+    const { manifest, warnings, importedBy, outputs } = await compileAssets(root, { plugins: config.plugins, atlas: config.atlas });
     const unused = findUnused(root, manifest);
     const count = Object.keys(manifest.assets).length;
     if (o.json) {
@@ -93,7 +93,8 @@ cli
     }
     header("assets", "your source files, never touched");
     for (const [id, a] of Object.entries(manifest.assets)) {
-      p.log.message(`${pink(id)} ${violetType(a.type)}  ${pc.dim(`${(a.bytes / 1024).toFixed(1)} kB · ${importedBy[id]}`)}`);
+      const packed = a.rect ? ` · ${sky(`atlas ${a.src.slice(a.src.lastIndexOf("/") + 1)}`)}` : "";
+      p.log.message(`${pink(id)} ${violetType(a.type)}  ${pc.dim(`${(a.bytes / 1024).toFixed(1)} kB · ${importedBy[id]}`)}${packed}`);
     }
     p.log.success(`${count} assets${outputs.size ? `, ${outputs.size} generated` : ""}`);
     for (const w of warnings) p.log.warn(w);

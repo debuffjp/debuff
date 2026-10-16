@@ -1,5 +1,5 @@
 import type { TextureSource } from "@debuff/core";
-import { Collision, FLIP_H, FLIP_V, type MapObject, Tilemap, type Tileset } from "./tilemap.js";
+import { Collision, FLIP_H, FLIP_V, type ImageRegion, type MapObject, Tilemap, type Tileset } from "./tilemap.js";
 
 // Minimal shapes of LDtk's JSON format (https://ldtk.io/json/).
 interface LdtkTile {
@@ -70,7 +70,7 @@ export interface FromLdtkOptions {
   /** Level identifier (e.g. "Level_0"). Default: the first level. */
   level?: string;
   /** Resolve a tileset's relative image path to a loaded image. */
-  image: (relPath: string, tileset: LdtkTilesetDef) => TextureSource;
+  image: (relPath: string, tileset: LdtkTilesetDef) => TextureSource | ImageRegion;
   /**
    * Collision from IntGrid layers. By default every non-zero IntGrid value is solid, except values whose
    * identifier is "oneWay", "one_way" or "platform", which are one-way. Override per value here.

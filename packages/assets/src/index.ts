@@ -10,6 +10,8 @@ export interface AssetEntry {
   group?: string;
   /** Optional sprite-sheet grid for images. */
   grid?: { frameWidth: number; frameHeight: number };
+  /** Region of `src` holding this image when it was packed into an atlas. */
+  rect?: { x: number; y: number; w: number; h: number };
   bytes?: number;
 }
 
@@ -21,6 +23,15 @@ export interface AssetManifest {
 export interface LoadProgress {
   loaded: number;
   total: number;
+}
+
+/** An image region, structurally compatible with `@debuff/core`'s `Frame`. */
+export interface ImageFrame {
+  image: HTMLImageElement;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
 }
 
 export class AssetError extends Error {
@@ -38,6 +49,8 @@ type Loaded = HTMLImageElement | ArrayBuffer | string | unknown;
 export class Assets {
   private readonly cache = new Map<string, Loaded>();
   private readonly pending = new Map<string, Promise<Loaded>>();
+  /** Loads by URL, so assets packed into one atlas share a single request and image. */
+  private readonly byUrl = new Map<string, Promise<Loaded>>();
 
   constructor(
     readonly manifest: AssetManifest,
@@ -64,8 +77,42 @@ export class Assets {
     return this.cache.has(id);
   }
 
+  /**
+   * The whole image element. For images packed into an atlas this would be the atlas, so it throws;
+   * use `frame(id)` (works for both) with `draw.sprite`.
+   */
   image(id: string): HTMLImageElement {
+    if (this.entry(id).rect) {
+      throw new AssetError(
+        id,
+        `Asset "${id}" is packed into an atlas. Use assets.frame("${id}") (or frames() for sprite sheets) with draw.sprite.`,
+      );
+    }
     return this.get(id, "image") as HTMLImageElement;
+  }
+
+  /** The image region for an asset: `{ image, x, y, w, h }`, ready for `draw.sprite`. Works whether or not it was atlased. */
+  frame(id: string): ImageFrame {
+    const image = this.get(id, "image") as HTMLImageElement;
+    const rect = this.entry(id).rect;
+    return rect ? { image, ...rect } : { image, x: 0, y: 0, w: image.naturalWidth || image.width, h: image.naturalHeight || image.height };
+  }
+
+  /**
+   * Frames of a sprite sheet declared with the `name@WxH.png` convention, row-major, ready for
+   * `new Sprite({ frames })`. Works whether or not the sheet was atlased.
+   */
+  frames(id: string): ImageFrame[] {
+    const whole = this.frame(id);
+    const grid = this.entry(id).grid;
+    if (!grid) return [whole];
+    const out: ImageFrame[] = [];
+    for (let y = 0; y + grid.frameHeight <= whole.h; y += grid.frameHeight) {
+      for (let x = 0; x + grid.frameWidth <= whole.w; x += grid.frameWidth) {
+        out.push({ image: whole.image, x: whole.x + x, y: whole.y + y, w: grid.frameWidth, h: grid.frameHeight });
+      }
+    }
+    return out;
   }
 
   json<T = unknown>(id: string): T {
@@ -94,7 +141,13 @@ export class Assets {
     if (existing) return existing;
     const entry = this.entry(id);
     const url = this.base + entry.src;
-    const p = loadOne(entry.type, url)
+    let shared = this.byUrl.get(url);
+    if (!shared) {
+      shared = loadOne(entry.type, url);
+      this.byUrl.set(url, shared);
+      shared.catch(() => this.byUrl.delete(url));
+    }
+    const p = shared
       .then((value) => {
         this.cache.set(id, value);
         this.pending.delete(id);

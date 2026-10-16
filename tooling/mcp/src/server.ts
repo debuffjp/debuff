@@ -70,8 +70,8 @@ export function createServer(options: ServerOptions): McpServer {
     },
     safely(async ({ root: r }) => {
       const dir = rootOf(r);
-      const { plugins } = await loadConfig(dir);
-      const { manifest, importedBy, outputs, warnings } = await compileAssets(dir, { plugins });
+      const { plugins, atlas } = await loadConfig(dir);
+      const { manifest, importedBy, outputs, warnings } = await compileAssets(dir, { plugins, atlas });
       return json({ assets: manifest.assets, importedBy, generated: [...outputs.keys()], warnings, unused: findUnused(dir, manifest) });
     }),
   );

@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { extname, join, resolve, sep } from "node:path";
 import type { Plugin, PluginOption } from "vite";
+import type { AtlasOptions } from "./assets/atlas.js";
 import { type CompileResult, compileAssets } from "./assets/compile.js";
 import type { ToolingPlugin } from "./plugin.js";
 
@@ -25,6 +26,8 @@ const MIME: Record<string, string> = {
 
 export interface DebuffViteOptions {
   plugins?: ToolingPlugin[];
+  /** Atlas packing options; `false` disables. Default on. */
+  atlas?: AtlasOptions | false;
 }
 
 /**
@@ -36,7 +39,10 @@ export function debuff(options: DebuffViteOptions = {}): PluginOption[] {
   let root = process.cwd();
   let current: Promise<CompileResult> | undefined;
   const compile = () => {
-    current = compileAssets(root, { plugins: options.plugins ?? [] }).then((r) => {
+    current = compileAssets(root, {
+      plugins: options.plugins ?? [],
+      ...(options.atlas === undefined ? {} : { atlas: options.atlas }),
+    }).then((r) => {
       for (const w of r.warnings) console.warn(`[debuff] ${w}`);
       return r;
     });

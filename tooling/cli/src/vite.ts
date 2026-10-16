@@ -10,7 +10,12 @@ const VITE_CONFIG_FILES = ["vite.config.ts", "vite.config.mts", "vite.config.js"
 export async function viteConfig(root: string, extra: InlineConfig = {}, config?: ResolvedConfig): Promise<InlineConfig> {
   const resolved = config ?? (await loadConfig(root));
   const hasViteConfig = VITE_CONFIG_FILES.some((f) => existsSync(join(root, f)));
-  return { root, ...(hasViteConfig ? {} : { configFile: false }), plugins: debuff({ plugins: resolved.plugins }), ...extra };
+  return {
+    root,
+    ...(hasViteConfig ? {} : { configFile: false }),
+    plugins: debuff({ plugins: resolved.plugins, atlas: resolved.atlas }),
+    ...extra,
+  };
 }
 
 export async function createDevServer(

@@ -1,5 +1,5 @@
 import type { TextureSource } from "@debuff/core";
-import { type MapObject, Tilemap, type Tileset } from "./tilemap.js";
+import { type ImageRegion, type MapObject, Tilemap, type Tileset } from "./tilemap.js";
 
 // Minimal shapes of Tiled's JSON format (https://doc.mapeditor.org/en/stable/reference/json-map-format/).
 interface TiledProperty {
@@ -71,7 +71,7 @@ export interface TiledMap {
 
 export interface FromTiledOptions {
   /** Resolve a tileset image path (as written in the map or tileset) to a loaded image. */
-  image: (path: string, tileset: TiledTileset) => TextureSource;
+  image: (path: string, tileset: TiledTileset) => TextureSource | ImageRegion;
   /** External tilesets (`.tsj`) by the `source` path the map references. */
   tilesets?: Record<string, TiledTileset>;
   /**

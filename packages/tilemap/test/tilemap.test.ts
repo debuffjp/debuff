@@ -78,6 +78,22 @@ describe("Tilemap", () => {
   });
 });
 
+describe("atlased tilesets", () => {
+  it("offsets tile source rects by the region from assets.frame()", () => {
+    const map = new Tilemap({
+      width: 1,
+      height: 1,
+      tileWidth: 16,
+      tileHeight: 16,
+      tilesets: [{ ...tileset, image: { image, x: 100, y: 40 } }],
+    });
+    map.set("main", 0, 0, 6);
+    const { draw, sprites } = recordingDraw();
+    map.draw(draw);
+    expect(sprites[0]).toMatchObject({ sx: 116, sy: 56 });
+  });
+});
+
 describe("collision", () => {
   /** 10×10 map of 16px tiles with a floor on row 9, a wall at column 6, and a one-way ledge at row 5. */
   const level = () => {

@@ -6,6 +6,7 @@ export {
   FLIP_D,
   FLIP_H,
   FLIP_V,
+  type ImageRegion,
   type MapObject,
   type TileLayer,
   type TileLayerDrawOptions,
