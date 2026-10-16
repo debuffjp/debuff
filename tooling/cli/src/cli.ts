@@ -6,6 +6,7 @@ import cac from "cac";
 import pc from "picocolors";
 import { compileAssets, findUnused } from "./assets.js";
 import { buildReport, formatReport } from "./report.js";
+import { createDevServer, viteConfig } from "./vite.js";
 
 const cli = cac("debuff");
 const version = (JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string }).version;
@@ -16,12 +17,6 @@ interface Common {
 }
 const rootOf = (o: Common) => resolve(o.root ?? process.cwd());
 const banner = (title: string) => p.intro(`${pc.bgMagenta(pc.black(" debuff "))} ${pc.bold(title)}`);
-
-async function viteConfig(root: string) {
-  const { debuff } = await import("./vite-plugin.js");
-  const hasConfig = ["vite.config.ts", "vite.config.js", "vite.config.mjs"].some((f) => existsSync(join(root, f)));
-  return { root, ...(hasConfig ? {} : { configFile: false as const }), plugins: [debuff()] };
-}
 
 cli
   .command("create [dir]", "Scaffold a new game")
@@ -38,8 +33,7 @@ cli
   .option("--port <port>", "Port", { default: 5173 })
   .option("--host", "Expose on the local network (test on phones)")
   .action(async (o: Common & { port: number; host?: boolean }) => {
-    const { createServer } = await import("vite");
-    const server = await createServer({ ...(await viteConfig(rootOf(o))), server: { port: o.port, host: o.host ?? false } });
+    const server = await createDevServer(rootOf(o), { port: o.port, host: o.host ?? false });
     await server.listen();
     banner("dev server");
     server.printUrls();
@@ -59,7 +53,7 @@ cli
     if (!o.json) banner("build");
     const s = o.json ? undefined : p.spinner();
     s?.start("Bundling");
-    await build({ ...(await viteConfig(root)), logLevel: "error", build: { sourcemap: o.sourcemap ?? false } });
+    await build(viteConfig(root, { logLevel: "error", build: { sourcemap: o.sourcemap ?? false } }));
     s?.stop("Bundled");
     return report(root, o.json ?? false);
   });
@@ -94,14 +88,15 @@ cli
 cli
   .command("scenario [...files]", "Run scenarios/*.json in a headless browser")
   .option("--root <dir>", "Project root")
-  .option("--update", "Accept new captures as baselines")
+  .option("--update", "Overwrite baselines with new captures")
+  .option("--strict", "Fail when a baseline is missing (use in CI)")
   .option("--json", "Machine-readable output")
-  .action(async (files: string[], o: Common & { update?: boolean }) => {
-    const { runScenarios, formatScenario } = await import("./scenario.js");
+  .action(async (files: string[], o: Common & { update?: boolean; strict?: boolean }) => {
+    const { runScenarios, formatScenario } = await import("./scenario/index.js");
     const s = o.json ? undefined : p.spinner();
     if (!o.json) banner("scenarios");
     s?.start("Starting dev server and browser");
-    const reports = await runScenarios({ root: rootOf(o), files, update: o.update ?? false });
+    const reports = await runScenarios({ root: rootOf(o), files, update: o.update ?? false, strict: o.strict ?? false });
     const failed = reports.filter((r) => !r.ok).length;
     s?.stop(`Ran ${reports.length} scenario${reports.length === 1 ? "" : "s"}`);
     if (o.json) console.log(JSON.stringify(reports, null, 2));

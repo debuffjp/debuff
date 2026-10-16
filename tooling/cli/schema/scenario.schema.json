@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://debuff.dev/schema/scenario.schema.json",
+  "title": "Debuff scenario",
+  "description": "Deterministic gameplay scenario run by `debuff scenario`. Time only advances through `wait` steps.",
+  "type": "object",
+  "required": ["steps"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "name": { "type": "string", "description": "Defaults to the file name." },
+    "page": { "type": "string", "description": "Path to open on the dev server.", "default": "/" },
+    "steps": { "type": "array", "items": { "$ref": "#/$defs/step" } }
+  },
+  "$defs": {
+    "point": { "type": "array", "prefixItems": [{ "type": "number" }, { "type": "number" }], "minItems": 2, "maxItems": 2 },
+    "comparison": {
+      "type": "object",
+      "description": "All given conditions must hold.",
+      "additionalProperties": false,
+      "properties": {
+        "eq": { "description": "Deep equality." },
+        "gt": { "type": "number" },
+        "gte": { "type": "number" },
+        "lt": { "type": "number" },
+        "lte": { "type": "number" },
+        "approx": { "$ref": "#/$defs/point", "description": "[target, tolerance]" }
+      }
+    },
+    "step": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["wait"],
+          "additionalProperties": false,
+          "properties": { "wait": { "type": "integer", "minimum": 0, "description": "Advance N fixed simulation steps." } }
+        },
+        {
+          "type": "object",
+          "required": ["press"],
+          "additionalProperties": false,
+          "properties": { "press": { "type": "string", "description": "KeyboardEvent.code to hold, e.g. \"Space\"." } }
+        },
+        { "type": "object", "required": ["release"], "additionalProperties": false, "properties": { "release": { "type": "string" } } },
+        {
+          "type": "object",
+          "required": ["tap"],
+          "additionalProperties": false,
+          "properties": { "tap": { "$ref": "#/$defs/point", "description": "Logical [x, y]." } }
+        },
+        {
+          "type": "object",
+          "required": ["pointerDown"],
+          "additionalProperties": false,
+          "properties": { "pointerDown": { "$ref": "#/$defs/point" } }
+        },
+        {
+          "type": "object",
+          "required": ["pointerMove"],
+          "additionalProperties": false,
+          "properties": { "pointerMove": { "$ref": "#/$defs/point" } }
+        },
+        { "type": "object", "required": ["pointerUp"], "additionalProperties": false, "properties": { "pointerUp": { "const": true } } },
+        {
+          "type": "object",
+          "required": ["set"],
+          "additionalProperties": false,
+          "properties": {
+            "set": {
+              "type": "object",
+              "description": "Params to set, keyed \"group.key\".",
+              "propertyNames": { "pattern": "^[^.]+\\..+$" },
+              "additionalProperties": { "type": ["number", "boolean"] }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["expect"],
+          "additionalProperties": false,
+          "properties": {
+            "expect": {
+              "type": "object",
+              "description": "Dotted paths into dev state (scene, tick, time, frozen, stats.*, state.*).",
+              "additionalProperties": { "$ref": "#/$defs/comparison" }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["capture"],
+          "additionalProperties": false,
+          "properties": {
+            "capture": {
+              "type": "string",
+              "pattern": "^[\\w-]+$",
+              "description": "Screenshot name, compared to the per-platform baseline."
+            },
+            "tolerance": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "default": 0.002,
+              "description": "Max fraction of differing pixels."
+            }
+          }
+        }
+      ]
+    }
+  }
+}

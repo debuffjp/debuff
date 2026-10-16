@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compare } from "../src/scenario.js";
+import { compare } from "../src/scenario/index.js";
 
 describe("compare", () => {
   it("passes matching comparisons", () => {
