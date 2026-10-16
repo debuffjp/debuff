@@ -23,7 +23,7 @@ This is a 2D browser game made with **debuff** (https://debuff.jp). These notes 
 
 ## Work loop
 
-1. **Look before you change.** With the MCP server, call `game_start`. If the human has the game open under `npm run dev`, you attach to it live, so read `game_notes` first: they're moments the human flagged. Then use `game_state`, `game_capture` and `game_errors`.
+1. **Look before you change.** With the MCP server, call `game_start`. If the human has the game open under `npm run dev`, you attach to it live, so read `game_notes` first: they're moments the human flagged, and `game_replay` with a note's tick saves a scenario that reproduces it. Then use `game_state`, `game_capture` and `game_errors`.
 2. **Tune before you rewrite.** Feel values (speed, gravity, timings) live in `game.params.define(...)`. Change them with `game_set_param` and show the human before editing code. The human can undo your changes in the dev panel.
 3. **Make the smallest change that works.** Keep dev-only code inside `if (import.meta.env.DEV)`.
 4. **Verify.** Run `npm test` and `npm run build`, and check `game_errors` is empty. Before calling a feature done, run `npx debuff fuzz`: to fix a finding, replay its file with `npx debuff scenario <file>`, fix, and replay again until it passes. Errors come back explained: `kind` says whose bug it is (`your-code`, `debuff-usage`, `debuff-bug`, `outside`) and `where` gives the source line.

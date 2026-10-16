@@ -12,9 +12,15 @@ function setup(search = "") {
   let x = 0;
   game.params.define("player", { speed: { type: "number", default: 1, min: 0, max: 10 } });
   game.add({ id: "play", update: () => x++, inspect: () => ({ x }) }).go("play");
-  const keys = { press: vi.fn(), release: vi.fn() };
-  const pointer = { press: vi.fn(), move: vi.fn(), release: vi.fn() };
-  const hooks = exposeDevHooks(game, { input: { keys, pointer } });
+  const spies = { keyPress: vi.fn(), keyRelease: vi.fn(), pointerPress: vi.fn(), pointerMove: vi.fn(), pointerRelease: vi.fn() };
+  const input = {
+    keys: { press: spies.keyPress, release: spies.keyRelease },
+    pointer: { press: spies.pointerPress, move: spies.pointerMove, release: spies.pointerRelease },
+  };
+  const hooks = exposeDevHooks(game, { input });
+  // The dev tools wrap input methods to record replays, so assert on the original spies.
+  const keys = { press: spies.keyPress, release: spies.keyRelease };
+  const pointer = { press: spies.pointerPress, move: spies.pointerMove, release: spies.pointerRelease };
   return { game, hooks, keys, pointer };
 }
 

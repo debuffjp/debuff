@@ -35,8 +35,8 @@ A living document. Items move up only with evidence from real games, jams and fi
 
 Proposals, ordered by leverage. Each builds on something debuff already has (a fixed-step clock, seeded RNG, scenarios, explained errors, the MCP server) that PixiJS (a renderer, not a game loop) and raw canvas don't.
 
-- [ ] **Deterministic replays and time travel.** Inputs plus seed are a complete recording. Rewind and scrub in the dev panel, share a replay file that reproduces a bug exactly, and turn any replay into a scenario.
-- [ ] **Fuzz playtesting.** `debuff fuzz` drives random and biased inputs headlessly for N minutes, and reports explained errors and stuck states, each with a replay file. It works in CI, and agents can use it via MCP.
+- [~] **Deterministic replays and time travel.** Recording, save/copy in the dev panel and `game_replay` are done (next release); rewind and scrub are next. Inputs plus seed are a complete recording. Rewind and scrub in the dev panel, share a replay file that reproduces a bug exactly, and turn any replay into a scenario.
+- [x] **Fuzz playtesting.** `debuff fuzz` drives random and biased inputs headlessly for N minutes, and reports explained errors and stuck states, each with a replay file. It works in CI, and agents can use it via MCP.
 - [ ] **Accessibility checks in scenarios.** Flash safety (frame-to-frame luminance, following WCAG 2.3.1's limit of three flashes a second), contrast of key UI against the background, reduced-motion coverage. Most engines don't ship this, and it's cheap given the scenario runner.
 - [ ] **State-preserving hot reload.** Edit `update` or `render` and keep the running game's state, so tuning a boss fight doesn't mean replaying to it.
 - [ ] **Scenario recording from live play.** Play a sequence, save it as a scenario with captures.
