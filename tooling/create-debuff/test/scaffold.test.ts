@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { isEmptyDir, listTemplates, packageName, scaffold } from "../src/index.js";
+import { isEmptyDir, isRemoteTemplate, listTemplates, packageName, scaffold } from "../src/index.js";
 
 const tmp = () => mkdtempSync(join(tmpdir(), "create-debuff-"));
 
@@ -34,5 +34,14 @@ describe("scaffold", () => {
     expect(packageName("/a/Cool Game")).toBe("cool-game");
     expect(packageName("/a/..hidden")).toBe("hidden");
     expect(isEmptyDir(join(tmp(), "missing"))).toBe(true);
+  });
+});
+
+describe("remote templates", () => {
+  it("recognises git-hosted sources and keeps them out of the local path", () => {
+    expect(isRemoteTemplate("github:me/my-template")).toBe(true);
+    expect(isRemoteTemplate("gitlab:me/repo/sub#v1")).toBe(true);
+    expect(isRemoteTemplate("basic")).toBe(false);
+    expect(() => scaffold({ dir: join(tmp(), "x"), template: "github:me/t" })).toThrow(/use scaffoldRemote/);
   });
 });

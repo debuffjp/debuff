@@ -3,11 +3,13 @@ export { type CreateOptions, runCreate } from "./interactive.js";
 export {
   detectPackageManager,
   isEmptyDir,
+  isRemoteTemplate,
   listTemplates,
   ownVersion,
   packageName,
   type ScaffoldOptions,
   scaffold,
+  scaffoldRemote,
   type TemplateInfo,
   templatesDir,
 } from "./scaffold.js";

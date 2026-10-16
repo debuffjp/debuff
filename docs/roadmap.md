@@ -30,8 +30,8 @@ A living document. Items move up only with evidence from real games and jam feed
 - [x] Phase 1: runtime contract (`game.use`, `game.hooks`, `game.inspect`)
 - [x] Phase 2a: `debuff.config.ts`, asset importers (in-process and stdio), in-memory manifest
 - [ ] Phase 2b: `@debuff/plugin-aseprite`, sheet entries, contract schemas
-- [ ] Phase 3: plugin CLI commands (`debuff name:cmd`) and scenario steps
-- [ ] Phase 4: templates from git/npm
+- [x] Phase 3: plugin CLI commands (`debuff name:cmd`) and scenario steps
+- [x] Phase 4: templates from git (npm-hosted templates deferred)
 
 ## Next: agent workflow
 
