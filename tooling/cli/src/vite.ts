@@ -17,7 +17,8 @@ export async function viteConfig(
   const hasViteConfig = VITE_CONFIG_FILES.some((f) => existsSync(join(root, f)));
   return {
     root,
-    ...(hasViteConfig ? {} : { configFile: false }),
+    // Relative asset URLs, so a build works from any folder (itch.io, GitHub Pages, a /play/ subpath).
+    ...(hasViteConfig ? {} : { configFile: false, base: "./" }),
     plugins: debuff({ plugins: resolved.plugins, atlas: resolved.atlas, agentLink: link.agentLink ?? false }),
     ...extra,
   };

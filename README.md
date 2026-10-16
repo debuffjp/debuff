@@ -5,12 +5,13 @@
   </picture>
 </h1>
 
-**more room for play.** debuff is an open-source toolkit for small, polished 2D games that run in the browser. It takes care of the setup and plumbing, so you spend your time on mechanics, art and weird ideas, with or without a coding agent.
+**more room for play.** You have a game in your head: a world to wander, a fight that feels just right, a story only you would tell. debuff is an open-source toolkit for 2D browser games that handles the basics for you (the game loop, controls, sound, levels, testing, shipping) so you get to that game sooner and spend your time on what makes it yours.
 
-- **Small and fast.** About 200,000 sprites at 60 fps on batched WebGL2 (with a Canvas 2D fallback), and the starter game ships at about 13 kB brotli.
-- **Dev tools that explain things.** Errors say whose bug it is and link the exact source line. Dropped frames say whether your code caused them. Feel values become live sliders you can undo.
-- **Agents help, you decide.** An MCP server lets coding agents play the game you have open, read state, frames and errors, and verify changes with deterministic screenshot tests. Everything they do shows in your dev panel.
-- **Web standards only.** ES modules, a canvas, Pointer Events, Gamepad and Web Audio. No proprietary runtime, editor or project format.
+- **The groundwork, done.** Start from a running game in under a minute. Crisp pixels on every screen, keyboard, touch and gamepad, sound that plays, levels from Tiled or LDtk, and a build you can put anywhere on the web.
+- **Tune it until it feels right.** Speeds, timings and other feel values become live sliders in the dev panel, with undo.
+- **When something breaks, it tells you.** Errors say whose bug it is and point at the line. Replays and scenario tests bring a bug back exactly, so you can fix it and move on.
+- **Room to grow.** Small (the starter ships at about 13 kB) and fast (about 200,000 sprites at 60 fps), so the engine doesn't hold your idea back.
+- **Agents help if you want them, you decide.** Coding agents can play the game you have open, read what's happening and check their changes. Creative calls stay with you.
 
 > **Status: 0.1, early development.** APIs will change, and feedback from real games shapes them.
 
@@ -25,7 +26,7 @@ npm install
 npm run dev
 ```
 
-Open the URL it prints, then press <kbd>`</kbd> in the game for the dev panel. Edit `src/main.ts` and the game reloads. For a tilemap platformer instead of the minimal starter, add `-- --template platformer` to the first command. pnpm, Yarn and Bun work too (`pnpm create debuff`, and so on).
+Open the URL it prints, then press <kbd>`</kbd> in the game for the dev panel. Edit `src/main.ts` and the game reloads. For a tilemap platformer instead of the minimal starter, add `-- --template platformer` to the first command, or `-- --template mossfell` for a top-down adventure. pnpm, Yarn and Bun work too (`pnpm create debuff`, and so on).
 
 New projects include a `.mcp.json`, so a coding agent like Claude Code can play and inspect the game you have open. See the [agent guide](https://debuff.jp/docs/agents).
 
