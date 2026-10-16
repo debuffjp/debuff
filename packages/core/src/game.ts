@@ -1,3 +1,4 @@
+import { Camera } from "./camera.js";
 import { FixedClock, type FixedClockOptions } from "./clock.js";
 import { ParamRegistry } from "./params.js";
 import { Random } from "./random.js";
@@ -24,8 +25,20 @@ export class Game {
   readonly clock: FixedClock;
   readonly random: Random;
   readonly params = new ParamRegistry();
+  readonly camera: Camera;
   background: string;
+  /** Multiplier on simulation dt; 0.5 = slow motion. */
+  timeScale = 1;
+  /** Pause automatically when the tab is hidden. */
+  pauseWhenHidden = true;
 
+  private freezeTime = 0;
+  private readonly postUpdate = new Set<(dt: number) => void>();
+  private readonly onVisibility = () => {
+    if (!this.pauseWhenHidden) return;
+    if (document.hidden) this.stop();
+    else this.start();
+  };
   private readonly scenes = new Map<string, Scene>();
   private active: Scene | undefined;
   private frameHandle = 0;
@@ -42,7 +55,17 @@ export class Game {
     const ctx = this.canvas.getContext("2d");
     if (!ctx) throw new Error("Canvas 2D context unavailable");
     this.ctx = ctx;
+    this.camera = new Camera({ width: this.width, height: this.height });
+    this.camera.x = this.width / 2;
+    this.camera.y = this.height / 2;
     this.resize();
+    if (typeof document !== "undefined") document.addEventListener("visibilitychange", this.onVisibility);
+  }
+
+  /** Stop the loop and detach browser listeners. */
+  dispose(): void {
+    this.stop();
+    if (typeof document !== "undefined") document.removeEventListener("visibilitychange", this.onVisibility);
   }
 
   get scene(): Scene | undefined {
@@ -84,8 +107,32 @@ export class Game {
   /** Advance by real elapsed seconds and render once. Exposed so tests and scenarios
    *  can drive the game without requestAnimationFrame. */
   frame(elapsed: number): void {
-    const alpha = this.clock.advance(elapsed, (dt) => this.active?.update?.(dt, this));
+    const alpha = this.clock.advance(elapsed, (dt) => {
+      if (this.freezeTime > 0) {
+        this.freezeTime = Math.max(0, this.freezeTime - dt);
+        return;
+      }
+      const scaled = dt * this.timeScale;
+      this.camera.update(scaled, this.random);
+      this.active?.update?.(scaled, this);
+      for (const hook of this.postUpdate) hook(scaled);
+    });
     this.render(alpha);
+  }
+
+  /** Hit-stop: pause simulation for `seconds` of real time (rendering continues). */
+  freeze(seconds: number): void {
+    this.freezeTime = Math.max(this.freezeTime, seconds);
+  }
+
+  get frozen(): boolean {
+    return this.freezeTime > 0;
+  }
+
+  /** Run after every scene update, e.g. to clear input edges. Returns an unsubscribe. */
+  afterUpdate(hook: (dt: number) => void): () => void {
+    this.postUpdate.add(hook);
+    return () => this.postUpdate.delete(hook);
   }
 
   /** Advance exactly `steps` simulation steps (deterministic; for scenarios). */
