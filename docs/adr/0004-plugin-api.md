@@ -6,7 +6,7 @@
 
 ## Goal
 
-Let the community extend Debuff without forking it, in a way that is:
+Let the community extend debuff without forking it, in a way that is:
 
 - **Explicit.** Plugins are listed in code or config. No auto-discovery magic.
 - **Layer-safe.** Browser plugins never pull Node code into bundles, and vice versa.

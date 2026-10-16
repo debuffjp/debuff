@@ -1,4 +1,6 @@
-# Debuff
+<p align="center"><img src="./.github/deeb.svg" width="120" alt="deeb, the debuff mascot"></p>
+
+<h1 align="center">debuff</h1>
 
 **More room for play.** An open-source, agent-native toolkit for small, polished 2D web games, built for game jams and instant-play distribution.
 
@@ -17,7 +19,7 @@ npm install
 npm run dev
 ```
 
-No build step? See [using Debuff from a CDN](./docs/guides/no-build.md). Works with npm, pnpm, Yarn and Bun.
+No build step? See [using debuff from a CDN](./docs/guides/no-build.md). Works with npm, pnpm, Yarn and Bun.
 
 ## Packages
 

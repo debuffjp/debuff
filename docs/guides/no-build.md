@@ -1,4 +1,4 @@
-# Using Debuff without a build step
+# Using debuff without a build step
 
 The runtime packages are plain ES modules with no dependencies, so any page can load them straight from a CDN with an [import map](https://developer.mozilla.org/docs/Web/HTML/Element/script/type/importmap). This suits prototypes, CodePen-style sketches, teaching and very small jam entries.
 

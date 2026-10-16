@@ -6,7 +6,7 @@ import { debuff } from "./vite-plugin.js";
 
 const VITE_CONFIG_FILES = ["vite.config.ts", "vite.config.mts", "vite.config.js", "vite.config.mjs"];
 
-/** Vite config for a Debuff project: loads `debuff.config.ts` and respects a project's own vite.config. */
+/** Vite config for a debuff project: loads `debuff.config.ts` and respects a project's own vite.config. */
 export async function viteConfig(root: string, extra: InlineConfig = {}, config?: ResolvedConfig): Promise<InlineConfig> {
   const resolved = config ?? (await loadConfig(root));
   const hasViteConfig = VITE_CONFIG_FILES.some((f) => existsSync(join(root, f)));

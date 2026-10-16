@@ -1,7 +1,7 @@
 {
   "name": "@debuff/cli",
   "version": "0.0.0",
-  "description": "The Debuff CLI: dev server, builds with size reports, assets, scenarios",
+  "description": "The debuff CLI: dev server, builds with size reports, assets, scenarios",
   "keywords": [
     "game",
     "cli",

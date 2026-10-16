@@ -1,6 +1,6 @@
 # Code of Conduct
 
-Debuff exists to give people more room to play and create. We want every contributor, jam participant and user to feel welcome, whatever their experience, background or identity.
+debuff exists to give people more room to play and create. We want every contributor, jam participant and user to feel welcome, whatever their experience, background or identity.
 
 ## Expected
 
@@ -18,7 +18,7 @@ Debuff exists to give people more room to play and create. We want every contrib
 
 ## Scope
 
-This applies in every Debuff space: repositories, issues, chats, jams and events, and anywhere someone represents the project.
+This applies in every debuff space: repositories, issues, chats, jams and events, and anywhere someone represents the project.
 
 ## Enforcement
 

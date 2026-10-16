@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="deeb, the debuff mascot: a bouncy lime rectangle with eyes">
+  <style>
+    .body { transform-origin: 60px 104px; animation: hop 1.1s cubic-bezier(.4,0,.2,1) infinite; }
+    .eyes { transform-origin: 60px 48px; animation: blink 3.3s infinite; }
+    .shadow { transform-origin: 60px 108px; animation: shadow 1.1s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes hop {
+      0%, 100% { transform: translateY(0) scale(1.18, 0.82); }
+      15% { transform: translateY(-6px) scale(0.9, 1.12); }
+      50% { transform: translateY(-34px) scale(0.96, 1.04); }
+      80% { transform: translateY(-4px) scale(0.92, 1.1); }
+      90% { transform: translateY(0) scale(1.12, 0.88); }
+    }
+    @keyframes shadow {
+      0%, 100%, 90% { transform: scale(1.1); opacity: .35; }
+      50% { transform: scale(.6); opacity: .15; }
+    }
+    @keyframes blink {
+      0%, 46%, 50%, 100% { transform: scaleY(1); }
+      48% { transform: scaleY(.1); }
+    }
+    @media (prefers-reduced-motion: reduce) { .body, .eyes, .shadow { animation: none; } }
+  </style>
+  <ellipse class="shadow" cx="60" cy="108" rx="30" ry="5" fill="#0a0c08"/>
+  <g class="body">
+    <rect x="28" y="40" width="64" height="64" rx="12" fill="#a3e635"/>
+    <rect x="28" y="40" width="64" height="12" rx="6" fill="#bef264" opacity=".6"/>
+    <g class="eyes" fill="#11140d">
+      <rect x="44" y="58" width="9" height="12" rx="3"/>
+      <rect x="67" y="58" width="9" height="12" rx="3"/>
+    </g>
+    <rect x="47" y="60" width="3" height="3" rx="1" fill="#f7fee7"/>
+    <rect x="70" y="60" width="3" height="3" rx="1" fill="#f7fee7"/>
+  </g>
+</svg>

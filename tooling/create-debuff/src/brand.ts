@@ -1,6 +1,6 @@
 import pc from "picocolors";
 
-/** Brand lime. Single source for terminal accents across Debuff CLIs. */
+/** Brand lime. Single source for terminal accents across debuff CLIs. */
 export const LIME = { hex: "#a3e635", rgb: [163, 230, 53] as const };
 
 const truecolor =

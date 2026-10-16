@@ -40,7 +40,7 @@ Standard Canvas 2D (see ADR 0001). The canvas is sized to its container with `Re
 
 ## Tooling
 
-- **CLI** (`@debuff/cli`): wraps Vite for dev/build. The Debuff Vite plugin runs the asset pipeline over `assets/`, serves the manifest and referenced files in dev, and emits only those files in builds.
+- **CLI** (`@debuff/cli`): wraps Vite for dev/build. The debuff Vite plugin runs the asset pipeline over `assets/`, serves the manifest and referenced files in dev, and emits only those files in builds.
 - **Config** (`debuff.config.ts`): lists tooling plugins (ADR 0004).
 - **Asset compiler**: subfolders become preload groups, `name@WxH.png` declares a sprite grid, and content hashes are recorded. It never touches sources.
 - **Scenarios**: JSON steps (`wait`, `press`, `tap`, `set`, `expect`, `capture`). They run against the dev server in a system Chromium via `playwright-core`, with screenshots diffed against baselines in `scenarios/__baselines__/`.
