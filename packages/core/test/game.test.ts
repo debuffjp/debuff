@@ -2,6 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import { FrameStats, Game, type Scene } from "../src/index.js";
 import { fakeCanvas } from "./helpers.js";
 
+// The splash art needs real text rasterising; its timing is what these tests cover.
+vi.mock("../src/splash.js", () => ({ drawSplash: () => {} }));
+
 function makeGame(extra: Partial<ConstructorParameters<typeof Game>[0]> = {}) {
   const { canvas, ctx } = fakeCanvas();
   const container = document.createElement("div");
@@ -124,10 +127,67 @@ describe("reduced motion", () => {
     expect(game.reducedMotion).toBe(false);
     expect(game.camera.motionScale).toBe(1);
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 
   it("can be forced either way", () => {
     expect(makeGame({ reducedMotion: true }).game.camera.motionScale).toBe(0.25);
     expect(makeGame({ reducedMotion: false }).game.reducedMotion).toBe(false);
+  });
+});
+
+describe("Game splash", () => {
+  function withRaf() {
+    vi.stubEnv("DEV", false);
+    const callbacks: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => callbacks.push(cb));
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+    let now = performance.now();
+    return (ms: number) => {
+      now += ms;
+      const cb = callbacks.shift();
+      cb?.(now);
+    };
+  }
+
+  it("holds the first frame for its duration, then starts time", () => {
+    const tick = withRaf();
+    const { game } = makeGame({ splash: { duration: 0.5 } });
+    game.start();
+    for (let i = 0; i < 4; i++) tick(100);
+    expect(game.clock.tick).toBe(0);
+    for (let i = 0; i < 4; i++) tick(100);
+    expect(game.clock.tick).toBeGreaterThan(0);
+    game.dispose();
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("is skipped by any key and never affects step()", () => {
+    const tick = withRaf();
+    const { game } = makeGame({ splash: { duration: 5 } });
+    game.step(3);
+    expect(game.clock.tick).toBe(3);
+    game.start();
+    tick(16);
+    dispatchEvent(new KeyboardEvent("keydown", { code: "Space" }));
+    tick(16);
+    tick(16);
+    expect(game.clock.tick).toBeGreaterThan(3);
+    game.dispose();
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("can be turned off", () => {
+    const tick = withRaf();
+    const { game } = makeGame({ splash: false });
+    game.start();
+    tick(16);
+    tick(16);
+    expect(game.clock.tick).toBeGreaterThan(0);
+    game.dispose();
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 });

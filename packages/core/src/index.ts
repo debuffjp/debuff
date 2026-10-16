@@ -22,6 +22,7 @@ export type { BlendMode, ClipRect, Matrix, RawContext, TextureSource } from "./r
 export { type Color, toRGBA } from "./render/color.js";
 export { Draw, type Frame, type SpriteDrawOptions, type TextDrawOptions } from "./render/draw.js";
 export type { Scene } from "./scene.js";
+export type { SplashOptions } from "./splash.js";
 export { type AnimationClip, type Origin, originOffset, Sprite, type SpriteOptions, sliceGrid } from "./sprite.js";
 export { FrameStats } from "./stats.js";
 export { Storage } from "./storage.js";

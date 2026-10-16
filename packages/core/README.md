@@ -57,3 +57,13 @@ game.start();
 - `none`: logical size in CSS pixels.
 
 Game code always uses logical units. The backing store follows `devicePixelRatio`.
+
+## Start-up splash
+
+Production builds open with a short "made with debuff" card. It lasts 1.6 seconds and any key, click or tap skips it. It never shows in dev, or when time is driven by `step()` (scenarios and agents). To remove it:
+
+```ts
+new Game({ canvas, width, height, splash: false });
+```
+
+You can also set its length with `splash: { duration: 1 }`, or end it from code with `game.skipSplash()`.
