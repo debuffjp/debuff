@@ -1,6 +1,7 @@
 import { relative } from "node:path";
 import * as p from "@clack/prompts";
 import pc from "picocolors";
+import { badge, lime } from "./brand.js";
 import { detectPackageManager, isEmptyDir, listTemplates, ownVersion, scaffold } from "./scaffold.js";
 
 export interface CreateOptions {
@@ -14,7 +15,7 @@ export interface CreateOptions {
  *  and CI can call it non-interactively. */
 export async function runCreate(options: CreateOptions): Promise<number> {
   const interactive = process.stdin.isTTY && !options.yes;
-  p.intro(`${pc.bgMagenta(pc.black(" debuff "))} ${pc.dim(`v${ownVersion()}`)}  ${pc.italic("more room for play")}`);
+  p.intro(`${badge()} ${pc.dim(`v${ownVersion()}`)}  ${lime(pc.italic("more room for play"))}`);
 
   let dir = options.dir;
   if (!dir) {
@@ -50,7 +51,7 @@ export async function runCreate(options: CreateOptions): Promise<number> {
   const s = p.spinner();
   s.start("Scaffolding");
   const dest = scaffold({ dir, ...(template ? { template } : {}) });
-  s.stop(`Created ${pc.cyan(relative(process.cwd(), dest) || ".")}`);
+  s.stop(`Created ${lime(relative(process.cwd(), dest) || ".")}`);
 
   const pm = detectPackageManager();
   const run = pm === "npm" ? "npm run" : pm;

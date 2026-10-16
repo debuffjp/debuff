@@ -1,5 +1,7 @@
 name: CI
 
+# One fast Linux job on every push and pull request. The full OS × Node and
+# package-manager matrix lives in matrix.yml (weekly and on demand).
 on:
   push:
     branches: [main]
@@ -14,18 +16,12 @@ permissions:
 
 jobs:
   check:
-    name: ${{ matrix.os }} / node ${{ matrix.node }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        node: [22, 24]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
+          node-version: 24
           cache: npm
       - run: npm ci
       - run: npm run lint
@@ -33,45 +29,13 @@ jobs:
       - run: npm run test:coverage
       - run: npm run build
       - run: npm run lint:packages
-      # Scenarios drive the runner's preinstalled Chrome via playwright-core.
-      # Baselines are per platform; a missing one is recorded (not failed) and uploaded below.
       - run: npm run test:scenarios
-      - name: Upload scenario captures and reports
-        if: always()
+      - name: Upload scenario captures
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: scenarios-${{ matrix.os }}-node${{ matrix.node }}
+          name: scenarios
           path: |
             templates/*/.debuff/
             templates/*/scenarios/__baselines__/
           if-no-files-found: ignore
-
-  package-managers:
-    name: create + build with ${{ matrix.pm }} (${{ matrix.os }})
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest]
-        pm: [npm, pnpm, yarn, bun]
-        include:
-          - os: windows-latest
-            pm: pnpm
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-      - if: matrix.pm == 'pnpm'
-        uses: pnpm/action-setup@v4
-        with:
-          version: 11
-      - if: matrix.pm == 'yarn'
-        run: corepack enable && corepack prepare yarn@stable --activate
-      - if: matrix.pm == 'bun'
-        uses: oven-sh/setup-bun@v2
-      - run: npm ci
-      - run: npm run build
-      # Packs every package, scaffolds with create-debuff, installs from the tarballs, builds and runs scenarios.
-      - run: node scripts/smoke-package-manager.mjs ${{ matrix.pm }} --scenarios

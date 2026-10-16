@@ -3,6 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import * as p from "@clack/prompts";
 import cac from "cac";
+import { badge } from "create-debuff";
 import pc from "picocolors";
 import { compileAssets, findUnused } from "./assets/index.js";
 import { loadConfig } from "./config.js";
@@ -17,7 +18,7 @@ interface Common {
   json?: boolean;
 }
 const rootOf = (o: Common) => resolve(o.root ?? process.cwd());
-const banner = (title: string) => p.intro(`${pc.bgMagenta(pc.black(" debuff "))} ${pc.bold(title)}`);
+const banner = (title: string) => p.intro(`${badge()} ${pc.bold(title)}`);
 
 cli
   .command("create [dir]", "Scaffold a new game")

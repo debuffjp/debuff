@@ -7,7 +7,7 @@ import { Particles, squash, Tweens } from "@debuff/juice";
 const canvas = document.querySelector<HTMLCanvasElement>("#game");
 if (!canvas) throw new Error('Missing <canvas id="game">');
 
-const game = new Game({ canvas, width: 320, height: 180, background: "#14141f" });
+const game = new Game({ canvas, width: 320, height: 180, background: "#11140d" });
 const input = new Input(game, {
   bindings: {
     left: ["ArrowLeft", "KeyA", "PadLeft", "PadStickLeft"],
@@ -41,7 +41,7 @@ const play: Scene = {
     if (input.pressed("pop")) {
       save.set("pops", save.get("pops") + 1);
       squash(tweens, player, 0.35);
-      particles.emit({ x: player.x, y: player.y - 8, count: 16, colors: ["#ffd166", "#ef476f"], gravity: 200 });
+      particles.emit({ x: player.x, y: player.y - 8, count: 16, colors: ["#a3e635", "#ecfccb"], gravity: 200 });
       game.camera.shake(0.3);
       audio.synth({ freq: 660, freqEnd: 220, decay: 0.15 });
     }
@@ -54,7 +54,7 @@ const play: Scene = {
     ctx.save();
     ctx.translate(player.x, player.y);
     ctx.scale(player.scaleX, player.scaleY);
-    ctx.fillStyle = "#06d6a0";
+    ctx.fillStyle = "#a3e635";
     ctx.fillRect(-8, -16, 16, 16);
     ctx.restore();
     particles.draw(ctx);

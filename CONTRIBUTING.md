@@ -9,6 +9,8 @@ npm install
 npm run check   # lint, typecheck, unit tests, builds, browser scenarios
 ```
 
+`npm install` also installs git hooks ([lefthook](https://lefthook.dev)): staged files are formatted on commit, and typecheck plus unit tests run on push. That keeps CI lean: one Linux job per push, with the full OS, Node and package-manager matrix running weekly or on demand (Actions → Matrix → Run workflow).
+
 Scenarios need Chrome or Edge installed. Set `DEBUFF_BROWSER=/path/to/chromium` to use another browser.
 
 ## Everyday commands
