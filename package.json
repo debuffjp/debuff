@@ -19,7 +19,8 @@
     "changeset": "changeset",
     "release": "npm run check && changeset publish",
     "test:coverage": "vitest run --coverage",
-    "lint:packages": "node scripts/lint-packages.mjs"
+    "lint:packages": "node scripts/lint-packages.mjs",
+    "test:package-manager": "node scripts/smoke-package-manager.mjs"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",

@@ -28,13 +28,17 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./schema/scenario.schema.json": "./schema/scenario.schema.json"
+    "./schema/scenario.schema.json": "./schema/scenario.schema.json",
+    "./client": {
+      "types": "./client.d.ts"
+    }
   },
   "files": [
     "bin",
     "dist",
     "schema",
-    "README.md"
+    "README.md",
+    "client.d.ts"
   ],
   "scripts": {
     "build": "tsc -b"
