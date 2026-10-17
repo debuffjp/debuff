@@ -37,7 +37,7 @@ for (let tries = 0; !published(); tries++) {
     process.exit(1);
   }
   if (tries === 0) console.log(`waiting for npm to serve @debuffjp/mcp@${version}…`);
-  execSync(process.platform === "win32" ? "timeout /t 10 /nobreak >nul" : "sleep 10", { stdio: "ignore", shell: true });
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10_000); // sleep 10 s on any platform
 }
 pkg.dependencies["@debuffjp/mcp"] = version;
 write(`${plugin}/package.json`, pkg);
