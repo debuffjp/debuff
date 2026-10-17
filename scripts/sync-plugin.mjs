@@ -1,4 +1,4 @@
-// After a release, point the Claude plugin and the desktop extension at the published @debuffjp/mcp.
+// After a release, point the Claude and Codex plugins and the desktop extension at the published @debuffjp/mcp.
 // Runs after `changeset publish`, because the plugin's lockfile can only resolve versions that are on npm.
 import { execSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -25,6 +25,10 @@ write(`${plugin}/.mcp.json`, mcp);
 const manifest = read(`${plugin}/.claude-plugin/plugin.json`);
 if (newer(version, manifest.version)) manifest.version = version;
 write(`${plugin}/.claude-plugin/plugin.json`, manifest);
+
+const codex = read(`${plugin}/.codex-plugin/plugin.json`);
+codex.version = manifest.version;
+write(`${plugin}/.codex-plugin/plugin.json`, codex);
 
 const mcpb = read("tooling/mcp/mcpb/manifest.json");
 mcpb.version = version;
