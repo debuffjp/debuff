@@ -26,6 +26,6 @@ jobs:
       # Opens a "Version packages" PR from pending changesets; publishes when it merges.
       - uses: changesets/action@v2
         with:
-          publish: npm run release
+          publish-script: npm run release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
