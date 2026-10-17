@@ -184,6 +184,13 @@ describe("headless page", () => {
       expect(gl.getShaderParameter(shader, gl.COMPILE_STATUS)).toBe(true);
       expect(gl.checkFramebufferStatus(gl.FRAMEBUFFER)).toBe(gl.FRAMEBUFFER_COMPLETE);
       expect(gl.drawingBufferWidth).toBe(300);
+      const instanced = gl.getExtension("ANGLE_instanced_arrays") as unknown as Record<string, unknown> & {
+        vertexAttribDivisorANGLE(): void;
+      };
+      expect(instanced.VERTEX_ATTRIB_ARRAY_DIVISOR_ANGLE).toBe(0x88fe);
+      instanced.vertexAttribDivisorANGLE();
+      expect(gl.getExtension("NOT_a_real_extension")).toBeNull();
+      expect(gl.getSupportedExtensions()).toContain("OES_vertex_array_object");
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       expect((canvas.getContext("webgl") as WebGLRenderingContext).getParameter(0x1f02)).toMatch(/^WebGL 1.0/);
       expect(canvas.getBoundingClientRect()).toMatchObject({ left: 0, top: 0, width: 300, height: 150 });

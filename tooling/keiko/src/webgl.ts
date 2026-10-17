@@ -103,9 +103,8 @@ export function inertWebGL(canvas: { width: number; height: number }, version: 1
           return LIMITS[p] ?? (/BINDING|CURRENT_PROGRAM/.test(nameOf(p)) ? null : 0);
       }
     },
-    getExtension: (name: string) =>
-      name === "WEBGL_lose_context" ? { loseContext() {}, restoreContext() {} } : name === "WEBGL_debug_renderer_info" ? null : null,
-    getSupportedExtensions: () => [],
+    getExtension: (name: string) => (EXTENSIONS.includes(name) ? inertExtension(handle) : null),
+    getSupportedExtensions: () => [...EXTENSIONS],
     getContextAttributes: () => ({
       alpha: true,
       antialias: false,
@@ -184,6 +183,51 @@ export function inertWebGL(canvas: { width: number; height: number }, version: 1
       return true;
     },
   });
+}
+
+/** Extensions offered: the ones engines commonly require (Phaser needs ANGLE_instanced_arrays on WebGL 1). */
+const EXTENSIONS = [
+  "ANGLE_instanced_arrays",
+  "OES_vertex_array_object",
+  "OES_element_index_uint",
+  "OES_standard_derivatives",
+  "OES_texture_float",
+  "OES_texture_half_float",
+  "OES_texture_float_linear",
+  "OES_texture_half_float_linear",
+  "EXT_blend_minmax",
+  "EXT_color_buffer_float",
+  "EXT_color_buffer_half_float",
+  "EXT_float_blend",
+  "EXT_frag_depth",
+  "EXT_shader_texture_lod",
+  "EXT_sRGB",
+  "EXT_texture_filter_anisotropic",
+  "WEBGL_color_buffer_float",
+  "WEBGL_depth_texture",
+  "WEBGL_draw_buffers",
+  "WEBGL_lose_context",
+  "WEBGL_multi_draw",
+  "KHR_parallel_shader_compile",
+];
+
+/**
+ * An extension object: methods are no-ops (create* returns a handle, is* returns true), and constants
+ * resolve to their core WebGL 2 value (VERTEX_ARRAY_BINDING_OES is VERTEX_ARRAY_BINDING).
+ */
+function inertExtension(handle: (kind: string) => object): object {
+  return new Proxy(
+    {},
+    {
+      get(_t, key) {
+        if (typeof key !== "string") return undefined;
+        if (/^[A-Z0-9_]+$/.test(key)) return GL[key.replace(/_(ANGLE|OES|EXT|WEBGL|KHR)$/, "")] ?? 0;
+        if (key.startsWith("create")) return () => handle(key.slice(6));
+        if (key.startsWith("is")) return () => true;
+        return () => undefined;
+      },
+    },
+  );
 }
 
 const NAMES = new Map(Object.entries(GL).map(([k, v]) => [v, k]));
