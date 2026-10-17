@@ -1,0 +1,20 @@
+{
+  "name": "debuff",
+  "interface": {
+    "displayName": "debuff"
+  },
+  "plugins": [
+    {
+      "name": "debuff",
+      "source": {
+        "source": "local",
+        "path": "./plugins/debuff"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 ---
 name: debuff
-description: Use when the user wants to make a 2D game that runs in the browser (a platformer, top-down adventure, arcade game, pixel-art game, game jam entry or quick prototype), or is working on a project that depends on @debuffjp/core. Starts a playable game in about a minute with debuff, then lets Claude play it, see it, tune it and test it instead of guessing from code.
+description: Use when the user wants to make a 2D game that runs in the browser (a platformer, top-down adventure, arcade game, pixel-art game, game jam entry or quick prototype), or is working on a project that depends on @debuffjp/core. Starts a playable game in about a minute with debuff, then lets the agent play it, see it, tune it and test it instead of guessing from code.
 ---
 
 # Making 2D browser games with debuff

@@ -1,0 +1,41 @@
+{
+  "name": "debuff",
+  "version": "0.3.1",
+  "description": "Make 2D browser games with Claude: start a playable platformer or top-down adventure in a minute, then Claude plays it, sees it, tunes the feel and tests it while you make the creative calls.",
+  "author": {
+    "name": "debuff",
+    "url": "https://debuff.jp"
+  },
+  "homepage": "https://debuff.jp",
+  "repository": "https://github.com/debuffjp/debuff",
+  "license": "MIT",
+  "keywords": [
+    "2d-game",
+    "game-development",
+    "gamedev",
+    "browser-game",
+    "html5-game",
+    "game-engine",
+    "pixel-art",
+    "platformer",
+    "game-jam",
+    "typescript"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "debuff",
+    "shortDescription": "Make 2D browser games and let Codex play, tune and test them",
+    "longDescription": "Make 2D browser games with debuff, an open-source TypeScript toolkit. Codex starts a playable platformer or top-down adventure in a minute, then plays it headless or in the tab you have open, takes captures, reads live state, tunes feel params, runs scenario tests and reads runtime errors that say whose problem they are. You keep the creative calls.",
+    "developerName": "debuff",
+    "category": "Developer Tools",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "websiteURL": "https://debuff.jp",
+    "privacyPolicyURL": "https://debuff.jp/privacy",
+    "defaultPrompt": ["Make me a small pixel-art platformer I can play in the browser"],
+    "brandColor": "#CFFB2D",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./.claude-plugin/icon.png",
+    "screenshots": []
+  }
+}
