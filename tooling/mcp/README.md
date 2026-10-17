@@ -20,6 +20,15 @@ claude mcp add debuff -- npx -y @debuffjp/mcp        # Claude Code
 
 Run it from the game's folder, or pass `--root <dir>` (or set `DEBUFF_ROOT`).
 
+As a Claude Code plugin, which also adds a skill that teaches Claude the workflow:
+
+```bash
+/plugin marketplace add debuffjp/debuff
+/plugin install debuff@debuff
+```
+
+For Claude Desktop, `mcpb/manifest.json` describes a desktop extension that asks for the game folder. Pack it with `npx @anthropic-ai/mcpb pack tooling/mcp/mcpb`.
+
 ## Tools
 
 | Tool | What it does |

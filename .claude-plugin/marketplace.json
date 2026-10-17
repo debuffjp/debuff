@@ -1,0 +1,15 @@
+{
+  "name": "debuff",
+  "owner": { "name": "debuff", "url": "https://debuff.jp" },
+  "metadata": { "description": "Plugins for building 2D web games with debuff" },
+  "plugins": [
+    {
+      "name": "debuff",
+      "source": "./plugins/debuff",
+      "description": "Inspect, build, test and play a debuff game from Claude Code",
+      "category": "development",
+      "homepage": "https://debuff.jp",
+      "keywords": ["gamedev", "game-engine", "2d", "browser-game", "mcp"]
+    }
+  ]
+}
