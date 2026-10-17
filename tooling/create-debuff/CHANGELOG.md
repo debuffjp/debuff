@@ -2,6 +2,10 @@
 
 ## 0.3.0
 
+### Minor Changes
+
+- 91f7088: Templates include example logic tests in `tests/` and `keiko` as a dev dependency; `npm test` runs logic tests, then scenarios. `AGENTS.md` explains when to use which.
+
 ### Patch Changes
 
 - d716ede: Canvas 2D fallback: tinted textures now get their colour, not just their alpha, so text and bitmap fonts render in the requested colour as on WebGL2. Platformer template: a pause button in the HUD for touch players.

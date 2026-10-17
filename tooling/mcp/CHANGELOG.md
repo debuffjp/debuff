@@ -2,6 +2,10 @@
 
 ## 0.3.0
 
+### Minor Changes
+
+- 91f7088: New `run_tests` tool runs the project's keiko logic tests; failures carry the tick, scene and state where they broke. The `add-mechanic`, `fix-errors` and `tune-feel` prompts now ask for a logic test.
+
 ### Patch Changes
 
 - 97c44ec: Every tool now declares `readOnlyHint` or `destructiveHint`, so MCP clients and directories can tell which tools change things. None of them are destructive.

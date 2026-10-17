@@ -2,7 +2,9 @@
 
 ## 0.3.0
 
-No changes in this release.
+### Minor Changes
+
+- 91f7088: `__DEBUFF_DEV__.state()` reports `step`, the seconds per fixed simulation step.
 
 ## 0.2.0
 
