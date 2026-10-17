@@ -47,6 +47,8 @@ export interface PlaytestInit {
   window?: Window;
   /** Called with a JSON copy of the scene state after every step (determinism checks). */
   onStep?: (state: unknown, tick: number) => void;
+  /** Waits (real time) for the page's in-flight requests to finish. */
+  settle?: (timeout?: number) => Promise<boolean>;
   /** Resolves relative scenario paths. */
   root: string;
 }
@@ -74,6 +76,7 @@ export class Playtest<S = any> {
   readonly window: Window;
   private readonly onStep: ((state: unknown, tick: number) => void) | undefined;
   private readonly root: string;
+  private readonly settler: ((timeout?: number) => Promise<boolean>) | undefined;
 
   /** @internal Use {@link play}. */
   constructor(
@@ -85,6 +88,7 @@ export class Playtest<S = any> {
     this.window = init.window ?? (globalThis as unknown as Window);
     this.onStep = init.onStep;
     this.root = init.root;
+    this.settler = init.settle;
   }
 
   // ---- reading ---------------------------------------------------------------------------------
@@ -214,6 +218,26 @@ export class Playtest<S = any> {
       values.push(read(this.state));
     }
     return new Trace(values, start, label, this.stepSeconds);
+  }
+
+  /**
+   * Wait, in real time, for the game's network work to finish: fetches and image loads it started, and
+   * the promise callbacks that follow. Game time doesn't move. `play()` already does this once at boot;
+   * call it after something that loads lazily (a new level's assets, a sound on first use).
+   *
+   * ```ts
+   * game.command("load-level", 2);
+   * await game.settle();
+   * game.wait("1s");
+   * ```
+   *
+   * Throws if requests are still in flight after `timeout` ms (default 10 000).
+   */
+  async settle(timeout = 10_000): Promise<this> {
+    if (this.settler && !(await this.settler(timeout))) {
+      throw new Error(`settle(): the game still had requests in flight after ${timeout} ms`);
+    }
+    return this;
   }
 
   // ---- input -----------------------------------------------------------------------------------

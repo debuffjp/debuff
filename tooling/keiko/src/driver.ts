@@ -92,9 +92,13 @@ export interface DebuffDevHooks {
   command(name: string, ...args: unknown[]): unknown;
 }
 
-/** debuff games: its dev hooks already step, read and drive the game exactly, with explained errors. */
-export function debuffDriver(hooks: DebuffDevHooks): Driver {
+/**
+ * debuff games: its dev hooks already step, read and drive the game exactly, with explained errors.
+ * With a clock, game timers (`setTimeout`, `setInterval`) advance step by step alongside the simulation.
+ */
+export function debuffDriver(hooks: DebuffDevHooks, clock?: VirtualClock): Driver {
   const stepSeconds = hooks.state().step ?? 1 / 60;
+  const stepMs = stepSeconds * 1000;
   return {
     kind: "debuff",
     stepSeconds,
@@ -103,7 +107,20 @@ export function debuffDriver(hooks: DebuffDevHooks): Driver {
     scene: () => hooks.state().scene,
     state: () => hooks.state().state,
     snapshot: () => hooks.state(),
-    step: (n) => void hooks.step(n),
+    step(n) {
+      if (!clock) {
+        hooks.step(n);
+        return;
+      }
+      // Step in bulk up to the next timer, so it fires between the simulation steps it falls between.
+      let left = n;
+      while (left > 0) {
+        const bulk = Math.max(1, Math.min(left, Math.floor(clock.untilNextTimer / stepMs + 1e-9)));
+        hooks.step(bulk);
+        clock.advanceTime(bulk * stepMs);
+        left -= bulk;
+      }
+    },
     press: (c) => hooks.press(c),
     release: (c) => hooks.release(c),
     tap: (x, y) => hooks.tap(x, y),
@@ -146,8 +163,8 @@ export function genericDriver(window: Window & { __KEIKO__?: KeikoHooks }, clock
       if (own) {
         own.call(hooks(), n);
         ownTicks += n;
-        // Timers and promise callbacks in the game still see time move, even when it steps itself.
-        clock.advance(0);
+        // Timers in the game still see time move, even when it steps itself.
+        clock.advanceTime(n * stepSeconds() * 1000);
       } else {
         clock.advance(n);
       }
@@ -182,12 +199,18 @@ export function genericDriver(window: Window & { __KEIKO__?: KeikoHooks }, clock
 
 /**
  * Real DOM events, for games that read input from the browser: keys go to the focused element (or the
- * body) and bubble to `document` and `window`; pointer events go to the game's canvas.
+ * game's canvas) and bubble to `document` and `window`; pointer events go to the game's canvas.
  */
 function domInput(window: Window) {
   const held = new Set<string>();
   let last = { x: 0, y: 0 };
-  const target = () => (window.document.activeElement ?? window.document.body) as unknown as EventTarget;
+  // Keys go where a player's would: the focused element, or the game's canvas (players click the game first).
+  // They bubble up to document and window, so listeners anywhere hear them.
+  const target = () => {
+    const doc = window.document;
+    const active = doc.activeElement;
+    return (active && active !== doc.body ? active : (doc.querySelector("canvas") ?? doc.body)) as unknown as EventTarget;
+  };
   const canvas = () => (window.document.querySelector("canvas") ?? window.document.body) as unknown as EventTarget;
   const W = window as unknown as {
     KeyboardEvent: typeof KeyboardEvent;
@@ -213,9 +236,16 @@ function domInput(window: Window) {
       const init = { clientX: x, clientY: y, button: 0, buttons: kind === "up" ? 0 : 1, bubbles: true, cancelable: true, composed: true };
       const el = canvas();
       const PointerCtor = W.PointerEvent ?? W.MouseEvent;
-      el.dispatchEvent(new PointerCtor(`pointer${kind}`, { ...init, pointerId: 1, pointerType: "mouse", isPrimary: true }));
-      el.dispatchEvent(new W.MouseEvent(`mouse${kind}`, init));
-      if (kind === "up") el.dispatchEvent(new W.MouseEvent("click", init));
+      // The page doesn't scroll and the canvas sits at the origin, so every position field is the same point.
+      // DOM implementations often leave pageX/offsetX at 0, and engines read different ones (Phaser: pageX).
+      const positioned = <E extends Event>(event: E): E => {
+        for (const field of ["pageX", "offsetX", "screenX", "layerX", "x"]) Object.defineProperty(event, field, { value: x });
+        for (const field of ["pageY", "offsetY", "screenY", "layerY", "y"]) Object.defineProperty(event, field, { value: y });
+        return event;
+      };
+      el.dispatchEvent(positioned(new PointerCtor(`pointer${kind}`, { ...init, pointerId: 1, pointerType: "mouse", isPrimary: true })));
+      el.dispatchEvent(positioned(new W.MouseEvent(`mouse${kind}`, init)));
+      if (kind === "up") el.dispatchEvent(positioned(new W.MouseEvent("click", init)));
     },
   };
 }
