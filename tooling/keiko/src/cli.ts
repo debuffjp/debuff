@@ -18,7 +18,7 @@ Options:
       --no-debuff       Drive the game through window.__KEIKO__ and the virtual clock
   -h, --help            Show this help
 
-Guide: https://debuff.jp/docs/testing`;
+Docs: https://github.com/debuffjp/debuff/tree/main/tooling/keiko#readme`;
 
 /** `npx keiko`: run a project's tests and exit with 1 if any failed. */
 export async function main(argv: string[]): Promise<number> {

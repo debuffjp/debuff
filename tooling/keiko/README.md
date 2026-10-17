@@ -21,7 +21,7 @@ npx keiko
 
 It's built for any game that runs in a browser and loads through an `index.html`, whatever the engine: it drives games through the web platform (frames, the clock, DOM events) rather than an engine API. It's tested against debuff games, Phaser 4 and hand-written canvas loops; if your engine trips over the headless page, please [open an issue](https://github.com/debuffjp/debuff/issues). [debuff](https://debuff.jp) games get the deepest integration: `npx debuff test`, the debuff MCP server's `run_tests` tool, and their dev tools as the driver.
 
-Full guide: [debuff.jp/docs/testing](https://debuff.jp/docs/testing).
+This README is the complete reference. Using debuff? Its guide, [debuff.jp/docs/testing](https://debuff.jp/docs/testing), walks through keiko with debuff projects.
 
 ## What makes it different
 
