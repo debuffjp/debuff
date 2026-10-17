@@ -67,3 +67,12 @@ describe("Canvas2DBackend clip", () => {
     expect(calls.find((c) => c.name === "rect")?.args).toEqual([1, 2, 3, 4]);
   });
 });
+
+describe("Draw.measure", () => {
+  // Non-empty text needs a real 2D canvas; the platformer's pause scenario measures it in a browser.
+  it("is empty for empty text", () => {
+    const { ctx } = recordingContext();
+    const draw = new Draw(new Canvas2DBackend(ctx), false);
+    expect(draw.measure("")).toEqual({ w: 0, h: 0 });
+  });
+});

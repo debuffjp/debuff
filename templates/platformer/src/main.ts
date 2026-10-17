@@ -5,7 +5,7 @@ import { devOverlay, devTools } from "@debuffjp/dev";
 import { Input } from "@debuffjp/input";
 import { Particles, squash, Tweens } from "@debuffjp/juice";
 import { fromTiled, type MapObject } from "@debuffjp/tilemap";
-import { Menu, panel, Transition } from "@debuffjp/ui";
+import { Menu, type MenuPanelStyle, Transition } from "@debuffjp/ui";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game");
 if (!canvas) throw new Error('Missing <canvas id="game">');
@@ -25,7 +25,8 @@ const input = new Input(game, {
 const audio = new Audio();
 const tweens = new Tweens();
 const particles = new Particles(() => game.random.next());
-const save = new Storage("debuff-platformer", { best: 0 });
+const save = new Storage("debuff-platformer", { best: 0, volume: 10 });
+audio.volume("master", save.get("volume") / 10);
 
 // Movement feel lives in params: tune live with the dev overlay (press `) or from agents and scenarios.
 const tuning = game.params.define("player", {
@@ -71,15 +72,45 @@ const player = { x: 0, y: 0, w: 12, h: 13, vx: 0, vy: 0, onGround: false, coyote
 let coins: (MapObject & { taken: boolean })[] = [];
 let score = 0;
 let won = false;
-let paused = false;
+let paused: "pause" | "settings" | false = false;
 const fade = new Transition({ duration: 0.25, color: "#11140d" });
+const menuActions = { up: "up", down: "down", confirm: "jump", back: "pause", left: "left", right: "right" } as const;
 const pauseMenu = new Menu(
   [
     { label: "resume", onSelect: () => (paused = false) },
+    { label: "settings", onSelect: () => openSettings() },
     { label: "restart", onSelect: () => fade.run(reset) },
   ],
-  { actions: { up: "up", down: "down", confirm: "jump", back: "pause" }, onBack: () => (paused = false) },
+  { actions: menuActions, onBack: () => (paused = false) },
 );
+const setVolume = (v: number) => {
+  save.set("volume", Math.max(0, Math.min(10, v)));
+  audio.volume("master", save.get("volume") / 10);
+};
+const settingsMenu = new Menu(
+  [
+    {
+      label: "volume",
+      value: () => `${save.get("volume")}`,
+      change: (d) => setVolume(save.get("volume") + d),
+      onSelect: () => setVolume(save.get("volume") === 0 ? 10 : 0),
+    },
+    { label: "back", onSelect: () => (paused = "pause") },
+  ],
+  { actions: menuActions, onBack: () => (paused = "pause") },
+);
+function openSettings(): void {
+  paused = "settings";
+  settingsMenu.focus = 0;
+}
+const menuStyle: MenuPanelStyle = {
+  font: "8px monospace",
+  color: "#7a8a5a",
+  focusColor: "#cffb2d",
+  titleColor: "#e7fd96",
+  borders: ["#cffb2d", "#11140d"],
+  fill: "#1c2116",
+};
 // Where the player was at the previous step: drawing between the two keeps motion smooth on displays faster than 60 Hz.
 const prev = { x: 0, y: 0 };
 const center = () => ({ x: player.x + player.w / 2, y: player.y + player.h / 2 });
@@ -113,11 +144,11 @@ const play: Scene = {
     fade.update(dt);
     if (fade.blocking) return;
     if (paused) {
-      pauseMenu.update(input);
+      (paused === "settings" ? settingsMenu : pauseMenu).update(input);
       return;
     }
     if (input.pressed("pause") && !won) {
-      paused = true;
+      paused = "pause";
       pauseMenu.focus = 0;
       return;
     }
@@ -220,9 +251,8 @@ const play: Scene = {
     if (won) draw.text("you made it! jump to play again", 160, 80, { font: "8px monospace", color: "#cffb2d", align: "center" });
     if (paused) {
       draw.rect(0, 0, game.width, game.height, "rgba(17,20,13,0.6)");
-      panel(draw, 120, 62, 80, 46, ["#cffb2d", "#11140d"], "#1c2116");
-      draw.text("paused", 160, 70, { font: "8px monospace", color: "#e7fd96", align: "center", baseline: "top" });
-      pauseMenu.draw(draw, 136, 84, { font: "8px monospace", color: "#7a8a5a", focusColor: "#cffb2d" });
+      const menu = paused === "settings" ? settingsMenu : pauseMenu;
+      menu.drawPanel(draw, game.width / 2, game.height / 2, { ...menuStyle, title: paused === "settings" ? "settings" : "paused" });
     }
     fade.draw(draw, 0, 0, game.width, game.height);
   },
@@ -233,7 +263,8 @@ const play: Scene = {
     coins: coins.length,
     won,
     paused,
-    menu: paused ? pauseMenu.inspect().focused : undefined,
+    menu: paused === "settings" ? settingsMenu.inspect().focused : paused ? pauseMenu.inspect().focused : undefined,
+    volume: save.get("volume"),
   }),
 };
 
