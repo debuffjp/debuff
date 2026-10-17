@@ -19,6 +19,7 @@ The boundary is enforced: `debuff build` scans output for dev-only tokens and fa
 @debuffjp/audio    Audio (no deps)
 @debuffjp/tilemap  Tilemap, move (collision), fromTiled, fromLdtk (peer: core)
 @debuffjp/juice    Tweens, Particles, Trail, squash (no deps)
+@debuffjp/ui       Transition, Menu, panel (no deps)
 @debuffjp/dev      devTools plugin, exposeDevHooks (depends on core; dev builds only)
 ```
 

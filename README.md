@@ -62,6 +62,7 @@ More in [Why debuff](https://debuff.jp/docs/why). Agents can start from [llms.tx
 | [`@debuffjp/assets`](./packages/assets) | Manifest-driven loader with preload groups and actionable errors |
 | [`@debuffjp/audio`](./packages/audio) | Web Audio buses, autoplay unlock, parametric synth |
 | [`@debuffjp/tilemap`](./packages/tilemap) | Tilemaps: culled batched rendering, tile collision, Tiled and LDtk import |
+| [`@debuffjp/ui`](./packages/ui) | Screen transitions, menus and framed panels |
 | [`@debuffjp/juice`](./packages/juice) | Tweens, easing, pooled particles, trails, squash-and-stretch |
 | [`@debuffjp/dev`](./packages/dev) | Dev panel (perf, tune, state, explained errors, replays) and `window.__DEBUFF_DEV__`, stripped from production |
 | [`@debuffjp/cli`](./tooling/cli) | `debuff dev · build · assets · scenario · fuzz · inspect · report` |

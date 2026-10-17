@@ -14,6 +14,9 @@
       "path": "packages/juice"
     },
     {
+      "path": "packages/ui"
+    },
+    {
       "path": "packages/audio"
     },
     {
