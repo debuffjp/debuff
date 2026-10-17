@@ -1,4 +1,5 @@
 import type { Backend, BlendMode, ClipRect, Matrix, RawContext, TextureSource } from "./backend.js";
+import { BitmapFont } from "./bitmap-font.js";
 import { type Color, toRGBA } from "./color.js";
 
 /** A rectangular region of an image, in source pixels. */
@@ -30,8 +31,8 @@ export interface SpriteDrawOptions {
 }
 
 export interface TextDrawOptions {
-  /** CSS font, e.g. "16px monospace". Default "8px monospace". */
-  font?: string;
+  /** CSS font, e.g. "16px monospace", or a `BitmapFont`. Default "8px monospace". */
+  font?: string | BitmapFont;
   color?: Color;
   align?: "left" | "center" | "right";
   baseline?: "top" | "middle" | "bottom";
@@ -266,6 +267,10 @@ export class Draw {
   /** Text, rasterised once and cached as a texture (crisp at the current render scale). */
   text(text: string, x: number, y: number, o: TextDrawOptions = {}): void {
     if (!text) return;
+    if (o.font instanceof BitmapFont) {
+      this.bitmapText(text, x, y, o.font, o);
+      return;
+    }
     const entry = this.textCache.get(text, o.font ?? "8px monospace", this.renderScale, (src) => this.backend.invalidate(src));
     const ax = o.align === "center" ? 0.5 : o.align === "right" ? 1 : 0;
     const ay = o.baseline === "middle" ? 0.5 : o.baseline === "bottom" ? 1 : 0;
@@ -279,10 +284,33 @@ export class Draw {
    * The logical box `text()` fills for this string and font, so layouts can align and centre without
    * guessing. Same cache as `text()`, so measuring then drawing rasterises once.
    */
-  measure(text: string, font = "8px monospace"): { w: number; h: number } {
+  measure(text: string, font: string | BitmapFont = "8px monospace"): { w: number; h: number } {
     if (!text) return { w: 0, h: 0 };
+    if (font instanceof BitmapFont) return font.measure(text);
     const entry = this.textCache.get(text, font, this.renderScale, (src) => this.backend.invalidate(src));
     return { w: entry.w, h: entry.h };
+  }
+
+  private bitmapText(text: string, x: number, y: number, font: BitmapFont, o: TextDrawOptions): void {
+    const size = font.measure(text);
+    const ay = o.baseline === "middle" ? 0.5 : o.baseline === "bottom" ? 1 : 0;
+    const color = this.withAlpha(toRGBA(o.color ?? "#ffffff"), o.alpha ?? 1);
+    // Whole-pixel origin: a glyph straddling a pixel boundary would blur or drop a column.
+    let ly = Math.round(y - ay * size.h);
+    for (const line of text.split("\n")) {
+      const w = font.lineWidth(line);
+      let lx = Math.round(x - (o.align === "center" ? Math.floor(w / 2) : o.align === "right" ? w : 0));
+      for (const ch of line) {
+        const g = font.glyph(ch);
+        if (!g) continue;
+        const f = g.frame;
+        this.local(lx, ly, f.w, f.h);
+        this.quads++;
+        this.backend.quad(this.tmp, f.image, f.x, f.y, f.w, f.h, color, 0, false);
+        lx += g.advance + font.spacing;
+      }
+      ly += font.lineHeight;
+    }
   }
 
   /** Re-upload a source whose pixels changed (e.g. a canvas you draw into). */
