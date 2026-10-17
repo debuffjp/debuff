@@ -9,6 +9,7 @@ const newer = (a, b) => a.localeCompare(b, undefined, { numeric: true }) > 0;
 
 const { version } = read("tooling/mcp/package.json");
 const plugin = "plugins/debuff";
+const openaiPlugin = "plugins/openai/debuff";
 
 const pkg = read(`${plugin}/package.json`);
 if (pkg.dependencies["@debuffjp/mcp"] === version) {
@@ -30,11 +31,15 @@ const codex = read(`${plugin}/.codex-plugin/plugin.json`);
 codex.version = manifest.version;
 write(`${plugin}/.codex-plugin/plugin.json`, codex);
 
+const openai = read(`${openaiPlugin}/plugin.json`);
+openai.version = manifest.version;
+write(`${openaiPlugin}/plugin.json`, openai);
+
 const mcpb = read("tooling/mcp/mcpb/manifest.json");
 mcpb.version = version;
 write("tooling/mcp/mcpb/manifest.json", mcpb);
 
 execSync("npm install --package-lock-only --ignore-scripts --no-audit --no-fund", { cwd: plugin, stdio: "inherit" });
-execSync(`git add ${plugin} tooling/mcp/mcpb/manifest.json`, { stdio: "inherit" });
+execSync(`git add plugins tooling/mcp/mcpb/manifest.json`, { stdio: "inherit" });
 execSync(`git commit -m "chore(plugin): use @debuffjp/mcp@${version}"`, { stdio: "inherit" });
 console.log(`plugin now uses @debuffjp/mcp@${version}`);
