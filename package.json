@@ -18,7 +18,7 @@
     "lint": "biome check .",
     "format": "biome check --write .",
     "changeset": "changeset",
-    "release": "npm run check && changeset publish && git push origin --tags",
+    "release": "npm run check && changeset publish && node scripts/sync-plugin.mjs && git push origin main --tags",
     "test:coverage": "vitest run --coverage",
     "lint:packages": "node scripts/lint-packages.mjs",
     "test:package-manager": "node scripts/smoke-package-manager.mjs",
