@@ -18,8 +18,8 @@
     "debuff"
   ],
   "license": "MIT",
-  "homepage": "https://debuff.jp/docs/testing",
-  "bugs": "https://github.com/debuffjp/debuff/issues",
+  "homepage": "https://github.com/debuffjp/debuff/tree/main/tooling/keiko#readme",
+  "bugs": "https://github.com/debuffjp/debuff/issues?q=label%3Akeiko",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/debuffjp/debuff.git",
