@@ -34,6 +34,9 @@
     { "wait": 2 },
     { "release": "Space" },
     { "wait": 40 },
-    { "expect": { "state.paused": { "eq": false }, "state.player.x": { "lt": 60 } } }
+    { "expect": { "state.paused": { "eq": false }, "state.player.x": { "lt": 60 } } },
+    { "tap": [160, 8] },
+    { "wait": 2 },
+    { "expect": { "state.paused": { "eq": "pause" }, "state.player.onGround": { "eq": true } } }
   ]
 }

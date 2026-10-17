@@ -32,6 +32,16 @@ async function fakePage(base: string, answer: (method: string, args: unknown[]) 
   return () => controller.abort();
 }
 
+/** Poll until `get` returns something `ok`, instead of sleeping a fixed time that's too short under load. */
+async function until<T>(get: () => Promise<T>, ok: (v: T) => boolean, ms = 10_000): Promise<T> {
+  const end = Date.now() + ms;
+  for (;;) {
+    const v = await get();
+    if (ok(v) || Date.now() > end) return v;
+    await new Promise((r) => setTimeout(r, 25));
+  }
+}
+
 describe("live agent link", () => {
   it("relays calls from the MCP side to an open page and cleans up", async () => {
     const root = mkdtempSync(join(tmpdir(), "debuff-live-"));
@@ -48,20 +58,22 @@ describe("live agent link", () => {
 
       const base = server.resolvedUrls?.local[0] ?? "";
       const close = await fakePage(base, (method, args) => ({ method, args }));
-      await new Promise((r) => setTimeout(r, 50));
-      const live = await LiveSession.find(root);
+      const live = await until(
+        () => LiveSession.find(root),
+        (s) => s !== undefined,
+      );
       expect(live?.mode).toBe("live");
       expect(await live?.call("step", 3)).toEqual({ method: "step", args: [3] });
       await expect(live?.call("boom")).rejects.toThrow("nope");
       const status = async () => (await fetch(new URL(AGENT_PATHS.status, base))).json();
       expect(await status()).toMatchObject({ pages: 1, agents: 1 });
       await live?.stop();
-      await new Promise((r) => setTimeout(r, 50));
-      expect(await status()).toMatchObject({ agents: 0 });
+      expect(await until(status, (s) => s.agents === 0)).toMatchObject({ agents: 0 });
       close();
     } finally {
       await server.close();
     }
     expect(existsSync(join(root, DEV_SERVER_FILE))).toBe(false);
-  });
+    // Starts a real Vite dev server, which can take several seconds when the whole suite runs in parallel.
+  }, 30_000);
 });
