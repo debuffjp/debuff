@@ -1,3 +1,4 @@
+export { type AsepriteOptions, aseprite, asepriteImporter, findAseprite } from "./aseprite.js";
 export { type AtlasOptions, buildAtlases, decodePng, packRects } from "./atlas.js";
 export { BUILTIN_EXTENSIONS, builtinImporter } from "./builtin.js";
 export { runCommandImporter } from "./command.js";

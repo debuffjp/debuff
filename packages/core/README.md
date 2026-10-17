@@ -61,7 +61,7 @@ const font = new BitmapFont({ frames: assets.frames("font"), chars: BitmapFont.A
 draw.text("coins 3", 4, 4, { font, color: "#fbbf24" });
 ```
 
-A blank sheet with the grid set up: `aseprite -b --script-param w=6 --script-param h=9 --script-param out=assets/font.aseprite --script node_modules/@debuffjp/cli/aseprite/new-font.lua`, then export it with `aseprite -b assets/font.aseprite --save-as assets/font@6x9.png`.
+With the `aseprite()` CLI plugin you can keep the source as `assets/font@6x9.aseprite` and skip exporting; `@debuffjp/cli`'s `aseprite/new-font.lua` creates a blank sheet with the grid set up. See the [CLI README](../../tooling/cli/README.md#aseprite).
 
 ### Scale modes
 

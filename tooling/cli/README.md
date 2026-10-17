@@ -63,3 +63,25 @@ export default defineConfig({
   ],
 });
 ```
+
+### Aseprite
+
+The first-party `aseprite()` plugin runs Aseprite for you, so `.aseprite` and `.ase` files in `assets/` load like PNGs with no export step:
+
+```ts
+import { aseprite, defineConfig } from "@debuffjp/cli";
+
+export default defineConfig({ plugins: [aseprite()] });
+```
+
+- `hero.aseprite` with several frames becomes a sprite sheet: `assets.frames("hero")` returns the frames in order.
+- `font@6x9.aseprite` flattens to one image with a 6×9 grid, ready for `BitmapFont`.
+- Hidden layers are left out, so guide layers stay in the source.
+
+It looks for Aseprite in `$ASEPRITE`, then on `PATH`, then in the usual install folders (including Steam). You can also pass `aseprite({ binary })`. If it can't find Aseprite, the build warns and skips those files. Results are cached by file contents, so Aseprite only runs when a file changes.
+
+`aseprite/new-font.lua` creates a blank font sheet with the grid set up:
+
+```bash
+aseprite -b --script-param w=6 --script-param h=9 --script-param out=assets/font@6x9.aseprite --script node_modules/@debuffjp/cli/aseprite/new-font.lua
+```

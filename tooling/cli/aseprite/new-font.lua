@@ -1,11 +1,12 @@
 -- Creates a blank bitmap-font sheet for debuff: one cell per printable ASCII character
 -- (space to "~", 16 per row), with Aseprite's grid set to the cell size.
 --
---   aseprite -b --script-param w=6 --script-param h=9 --script-param out=assets/font.aseprite --script new-font.lua
+--   aseprite -b --script-param w=6 --script-param h=9 --script-param out=assets/font@6x9.aseprite --script new-font.lua
 --
 -- Draw each glyph from the cell's left edge; debuff measures widths from the rightmost
--- opaque column. Export with:  aseprite -b assets/font.aseprite --save-as assets/font@6x9.png
--- then: new BitmapFont({ frames: assets.frames("font"), chars: BitmapFont.ASCII })
+-- opaque column. With the aseprite() plugin in debuff.config.ts the file loads as-is; without
+-- it, export with:  aseprite -b assets/font@6x9.aseprite --save-as assets/font@6x9.png
+-- Then: new BitmapFont({ frames: assets.frames("font"), chars: BitmapFont.ASCII })
 
 local w = tonumber(app.params["w"] or "6")
 local h = tonumber(app.params["h"] or "9")
