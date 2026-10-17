@@ -1,0 +1,67 @@
+{
+  "name": "keiko",
+  "version": "0.1.0",
+  "description": "Fast, deterministic tests for web games: play your real game in Node with no browser, with time, input and randomness under the test's control",
+  "keywords": [
+    "game",
+    "gamedev",
+    "web-game",
+    "browser-game",
+    "html5-game",
+    "testing",
+    "test-runner",
+    "game-testing",
+    "deterministic",
+    "headless",
+    "phaser",
+    "pixijs",
+    "debuff"
+  ],
+  "license": "MIT",
+  "homepage": "https://debuff.jp/docs/testing",
+  "bugs": "https://github.com/debuffjp/debuff/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/debuffjp/debuff.git",
+    "directory": "tooling/keiko"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./runner": {
+      "types": "./dist/runner.d.ts",
+      "default": "./dist/runner.js"
+    }
+  },
+  "files": [
+    "bin",
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "happy-dom": "^21.0.3",
+    "picocolors": "^1.1.1",
+    "vite": "^8.3.4"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "bin": {
+    "keiko": "bin/keiko.js"
+  }
+}

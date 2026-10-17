@@ -7,7 +7,7 @@
     "dev": "debuff dev",
     "build": "tsc --noEmit && debuff build",
     "assets": "debuff assets",
-    "test": "debuff scenario"
+    "test": "debuff test && debuff scenario"
   },
   "dependencies": {
     "@debuffjp/assets": "0.3.0",
@@ -21,6 +21,7 @@
   "devDependencies": {
     "@debuffjp/cli": "0.3.0",
     "typescript": "^7.0.2",
-    "@debuffjp/dev": "0.3.0"
+    "@debuffjp/dev": "0.3.0",
+    "keiko": "0.1.0"
   }
 }

@@ -1,0 +1,349 @@
+/**
+ * The test runner behind `npx keiko` and `debuff test`. Most people use a CLI; tools (MCP servers,
+ * CI scripts, other engines' tooling) can call {@link runTests} directly.
+ *
+ * @module
+ */
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import type { InlineConfig, ViteDevServer } from "vite";
+import { realNow, VirtualClock } from "./clock.js";
+import { type DebuffDevHooks, debuffDriver, genericDriver, type KeikoHooks } from "./driver.js";
+import { type HeadlessPage, openPage } from "./environment.js";
+import { Playtest } from "./playtest.js";
+import { type Booter, type PlayOptions, registry, type TestCase } from "./registry.js";
+import { show } from "./values.js";
+
+export { formatResult, formatSummary } from "./format.js";
+
+export interface RunTestsOptions {
+  /** Project root (the folder with `index.html`). */
+  root: string;
+  /** Test files relative to the root. Default: every `*.test.ts` (or `.js`, `.mts`, `.mjs`) under `tests/` and `src/`. */
+  files?: string[];
+  /** Only run tests whose full name (`describe › test`) contains this text. */
+  filter?: string;
+  /** Vite config for the project (plugins, aliases). Default: the project's own vite.config, if any. `debuff test` passes debuff's. */
+  vite?: InlineConfig;
+  /**
+   * Drive the game through debuff's dev hooks. Default: on when the project depends on `@debuffjp/*`.
+   * Other games are driven through `window.__KEIKO__` and keiko's virtual clock.
+   */
+  debuff?: boolean;
+  /** Called as each test finishes, for live output. */
+  onResult?: (result: TestResult) => void;
+}
+
+export interface TestResult {
+  /** Test file, relative to the root, with forward slashes. */
+  file: string;
+  /** Enclosing `describe` names, outermost first. */
+  suites: string[];
+  name: string;
+  /** `suites › name`. */
+  fullName: string;
+  status: "pass" | "fail" | "skip" | "todo";
+  durationMs: number;
+  error?: TestFailure;
+  /** Console output from the test and the game. Kept for failures only. */
+  logs: string[];
+}
+
+export interface TestFailure {
+  /** `ExpectationError`, `GameError`, `TimeoutError`, `InvariantError` or the error's own name. */
+  kind: string;
+  message: string;
+  /** The first stack frame in your code, `file:line:column` relative to the root. */
+  where?: string;
+  stack?: string;
+  /** The game when the test failed, if one was running. */
+  game?: { tick: number; time: number; scene: string | undefined; state: unknown };
+}
+
+export interface TestReport {
+  ok: boolean;
+  passed: number;
+  failed: number;
+  skipped: number;
+  todo: number;
+  durationMs: number;
+  results: TestResult[];
+}
+
+const TEST_FILE = /\.test\.(ts|mts|js|mjs)$/;
+const SKIP_DIRS = new Set(["node_modules", "dist", ".debuff", ".git", "coverage"]);
+
+/** Test files under `tests/` and `src/`, sorted, as paths relative to the root. */
+export function findTests(root: string, files: string[] = []): string[] {
+  if (files.length) return files.map((f) => relative(root, resolve(root, f)).split("\\").join("/"));
+  const out: string[] = [];
+  const walk = (dir: string) => {
+    if (!existsSync(dir)) return;
+    for (const name of readdirSync(dir)) {
+      if (SKIP_DIRS.has(name)) continue;
+      const path = join(dir, name);
+      if (statSync(path).isDirectory()) walk(path);
+      else if (TEST_FILE.test(name)) out.push(relative(root, path).split("\\").join("/"));
+    }
+  };
+  walk(join(root, "tests"));
+  walk(join(root, "src"));
+  return out.sort();
+}
+
+/** True when the project's package.json depends on a debuff package. */
+export function usesDebuff(root: string): boolean {
+  try {
+    const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as Record<string, Record<string, string> | undefined>;
+    return [pkg.dependencies, pkg.devDependencies].some((deps) => Object.keys(deps ?? {}).some((d) => d.startsWith("@debuffjp/")));
+  } catch {
+    return false;
+  }
+}
+
+/** The module scripts a page loads, in order: `<script type="module" src="/src/main.ts">`. */
+export function pageScripts(html: string): string[] {
+  const scripts: string[] = [];
+  for (const tag of html.matchAll(/<script\b[^>]*>/gi)) {
+    const attrs = tag[0];
+    if (!/\btype\s*=\s*["']?module/i.test(attrs)) continue;
+    const src = /\bsrc\s*=\s*["']([^"']+)["']/i.exec(attrs)?.[1];
+    if (src) scripts.push(src);
+  }
+  return scripts;
+}
+
+/**
+ * Run logic tests: start the project's Vite server once, load each test file, and run its tests one at a
+ * time, each with a fresh headless game. Never throws for a failing test; check `report.ok`.
+ */
+export async function runTests(options: RunTestsOptions): Promise<TestReport> {
+  const started = realNow();
+  const root = resolve(options.root);
+  const files = findTests(root, options.files);
+  const report: TestReport = { ok: true, passed: 0, failed: 0, skipped: 0, todo: 0, durationMs: 0, results: [] };
+  if (!files.length) return report;
+
+  const { createServer, createServerModuleRunner } = await import("vite");
+  const server: ViteDevServer = await createServer({
+    root,
+    ...options.vite,
+    logLevel: "error",
+    clearScreen: false,
+    server: { ...options.vite?.server, port: 0, strictPort: false, hmr: false, watch: null },
+  });
+  await server.listen();
+  const origin = server.resolvedUrls?.local[0];
+  if (!origin) throw new Error("The Vite dev server didn't report a URL");
+  const modules = createServerModuleRunner(server.environments.ssr, { hmr: false });
+
+  const debuff = options.debuff ?? usesDebuff(root);
+  const reg = registry();
+  let page: HeadlessPage | undefined;
+  const closePage = async () => {
+    reg.current = undefined;
+    const p = page;
+    page = undefined;
+    await p?.dispose();
+  };
+
+  const booter: Booter = {
+    async boot(play: PlayOptions, hooks) {
+      await closePage();
+      const pagePath = play.page ?? "index.html";
+      const htmlFile = join(root, pagePath);
+      if (!existsSync(htmlFile)) throw new Error(`play(): no page at ${pagePath}. Pass { page: "…html" } relative to the project root.`);
+      const html = readFileSync(htmlFile, "utf8");
+      const scripts = pageScripts(html);
+      if (!scripts.length) throw new Error(`play(): ${pagePath} has no <script type="module" src="…">, so there's no game to boot.`);
+      const clock = new VirtualClock({ ...(play.seed === undefined ? {} : { seed: play.seed }), ...(play.fps ? { fps: play.fps } : {}) });
+      page = openPage({
+        origin,
+        path: `/${pagePath.replace(/(^|\/)index\.html$/, "$1")}`,
+        html,
+        clock,
+        // debuff games stop their loop and wait for steps when opened this way.
+        search: debuff ? { "debuff-scenario": "1" } : {},
+      });
+      // Fresh module instances for every game: the game's top-level code runs again in the new page.
+      modules.clearCache();
+      for (const src of scripts) {
+        try {
+          await modules.import(new URL(src, `${origin}${pagePath}`).pathname);
+        } catch (err) {
+          throw new Error(`play(): the game threw while loading ${src}: ${err instanceof Error ? err.message : String(err)}`, {
+            cause: err,
+          });
+        }
+      }
+      const w = page.window as unknown as Window & { __DEBUFF_DEV__?: DebuffDevHooks; __KEIKO__?: KeikoHooks };
+      const init = { root, window: w as unknown as Window, ...(hooks.onStep ? { onStep: hooks.onStep } : {}) };
+      const limit = realNow() + (play.timeout ?? 10_000);
+      let game: Playtest | undefined;
+      for (;;) {
+        // debuff games are driven through their dev hooks once installed; anything else through __KEIKO__ and the clock.
+        const dev = w.__DEBUFF_DEV__;
+        if (dev?.controlled) game ??= new Playtest(debuffDriver(dev), init);
+        else if (!debuff) game ??= new Playtest(genericDriver(w, clock), init);
+        const ready = game && (play.ready ? play.ready(game) : game.driver.kind !== "debuff" || game.scene !== undefined);
+        if (game && ready) break;
+        if (realNow() > limit) {
+          throw new Error(
+            debuff && !dev
+              ? "play(): the game never installed its dev hooks. Add `game.use(devTools({ input }))` from @debuffjp/dev inside `if (import.meta.env.DEV)`."
+              : play.ready
+                ? "play(): the game loaded, but your `ready` check never passed."
+                : "play(): the game loaded, but no scene became active. Call `game.go(…)`, or pass a `ready` check to play().",
+          );
+        }
+        // Let asset loads and promise callbacks settle. Games on the virtual clock may also need frames to boot
+        // (engines often start their scenes a frame or two in), so play one while waiting.
+        await new Promise((r) => setTimeout(r, 2));
+        if (game && game.driver.kind !== "debuff") game.driver.step(1);
+      }
+      if (play.params) game.set(play.params);
+      reg.current = game;
+      return game;
+    },
+  };
+  reg.booter = booter;
+
+  try {
+    // Collect every test first, so `.only` anywhere narrows the whole run.
+    const all: TestCase[] = [];
+    for (const file of files) {
+      reg.file = file;
+      reg.tests = [];
+      reg.suites = [];
+      try {
+        await modules.import(`/${file}`);
+      } catch (err) {
+        all.push({ file, suites: [], name: "(loading the file)", fn: () => Promise.reject(err), mode: "run", timeout: 0 });
+        continue;
+      }
+      all.push(...reg.tests);
+    }
+    const focused = all.some((t) => t.mode === "only");
+    const filter = options.filter?.toLowerCase();
+
+    for (const t of all) {
+      const fullName = [...t.suites, t.name].join(" › ");
+      const base = { file: t.file, suites: t.suites, name: t.name, fullName, logs: [] as string[] };
+      // A filter leaves other tests out of the report entirely; `.skip` and `.only` keep them, marked skipped.
+      if (filter && !fullName.toLowerCase().includes(filter)) continue;
+      let result: TestResult;
+      if (t.mode === "todo") result = { ...base, status: "todo", durationMs: 0 };
+      else if (t.mode === "skip" || (focused && t.mode !== "only")) result = { ...base, status: "skip", durationMs: 0 };
+      else result = await runOne(t, base, root, closePage);
+      report.results.push(result);
+      if (result.status === "pass") report.passed++;
+      else if (result.status === "fail") report.failed++;
+      else if (result.status === "skip") report.skipped++;
+      else report.todo++;
+      options.onResult?.(result);
+    }
+  } finally {
+    await closePage();
+    reg.booter = undefined;
+    await modules.close();
+    await server.close();
+  }
+  report.ok = report.failed === 0;
+  report.durationMs = Math.round(realNow() - started);
+  return report;
+}
+
+async function runOne(
+  t: TestCase,
+  base: Omit<TestResult, "status" | "durationMs">,
+  root: string,
+  closePage: () => Promise<void>,
+): Promise<TestResult> {
+  const reg = registry();
+  const logs: string[] = [];
+  const restoreConsole = captureConsole(logs);
+  const stray: unknown[] = [];
+  const onStray = (err: unknown) => stray.push(err);
+  process.on("unhandledRejection", onStray);
+  process.on("uncaughtException", onStray);
+  const t0 = realNow();
+  let error: unknown;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const timeout =
+      t.timeout > 0
+        ? new Promise<never>((_, reject) => {
+            timer = setTimeout(() => reject(new Error(`the test took longer than ${t.timeout} ms of real time`)), t.timeout);
+          })
+        : undefined;
+    const body = Promise.resolve().then(() => t.fn());
+    await (timeout ? Promise.race([body, timeout]) : body);
+    // Let pending asset loads and promise callbacks settle, so their errors belong to this test.
+    await new Promise((r) => setTimeout(r, 0));
+    if (stray.length) error = stray[0];
+  } catch (err) {
+    error = err;
+  } finally {
+    clearTimeout(timer);
+    process.off("unhandledRejection", onStray);
+    process.off("uncaughtException", onStray);
+    restoreConsole();
+  }
+  const durationMs = Math.round((realNow() - t0) * 10) / 10;
+  const failure = error === undefined ? undefined : describeFailure(error, root, reg.current);
+  await closePage();
+  return failure ? { ...base, status: "fail", durationMs, error: failure, logs } : { ...base, status: "pass", durationMs };
+}
+
+function describeFailure(error: unknown, root: string, game: Playtest | undefined): TestFailure {
+  const err = error instanceof Error ? error : new Error(show(error));
+  const failure: TestFailure = { kind: err.name, message: err.message };
+  if (err.stack) failure.stack = err.stack;
+  const where = firstOwnFrame(err.stack ?? "", root);
+  if (where) failure.where = where;
+  if (game) {
+    try {
+      const d = game.driver;
+      failure.game = { tick: d.tick(), time: Math.round(d.time() * 1000) / 1000, scene: d.scene(), state: d.state() };
+    } catch {
+      // The game is too broken to describe; the error says enough.
+    }
+  }
+  return failure;
+}
+
+/** This package's own code (src or dist), whose frames never point at the problem. */
+const SELF = `${dirname(fileURLToPath(import.meta.url))
+  .split("\\")
+  .join("/")}/`;
+
+/** The first stack frame in the project (not node_modules, not this package), as `file:line:col`. */
+export function firstOwnFrame(stack: string, root: string): string | undefined {
+  const norm = (p: string) => p.split("\\").join("/");
+  const base = `${norm(root)}/`;
+  for (const line of stack.split("\n").slice(1)) {
+    const m = /\(?((?:file:\/\/\/?)?[A-Za-z]?:?[^():]*?):(\d+):(\d+)\)?\s*$/.exec(line.trim());
+    if (!m?.[1]) continue;
+    const file = norm(decodeURIComponent(m[1].replace(/^file:\/\/\/?/, "")));
+    if (file.includes("/node_modules/") || file.toLowerCase().startsWith(SELF.toLowerCase())) continue;
+    if (!file.toLowerCase().startsWith(base.toLowerCase())) continue;
+    return `${file.slice(base.length)}:${m[2]}:${m[3]}`;
+  }
+  return undefined;
+}
+
+function captureConsole(logs: string[]): () => void {
+  const methods = ["log", "info", "warn", "error", "debug"] as const;
+  const original = methods.map((m) => console[m]);
+  for (const m of methods) {
+    console[m] = (...args: unknown[]) => {
+      logs.push(`${m === "log" ? "" : `${m}: `}${args.map((a) => (typeof a === "string" ? a : show(a, 400))).join(" ")}`);
+    };
+  }
+  return () => {
+    methods.forEach((m, i) => {
+      console[m] = original[i] as (typeof console)[typeof m];
+    });
+  };
+}

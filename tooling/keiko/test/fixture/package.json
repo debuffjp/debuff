@@ -1,0 +1,10 @@
+{
+  "name": "keiko-fixture-debuff",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@debuffjp/core": "*",
+    "@debuffjp/dev": "*",
+    "@debuffjp/input": "*"
+  }
+}

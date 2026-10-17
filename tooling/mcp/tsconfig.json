@@ -2,5 +2,5 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": { "rootDir": "src", "outDir": "dist", "lib": ["ES2023", "DOM"], "types": ["node"] },
   "include": ["src"],
-  "references": [{ "path": "../cli" }]
+  "references": [{ "path": "../cli" }, { "path": "../keiko" }]
 }

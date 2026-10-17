@@ -65,7 +65,8 @@ More in [Why debuff](https://debuff.jp/docs/why). Agents can start from [llms.tx
 | [`@debuffjp/ui`](./packages/ui) | Screen transitions, menus and framed panels |
 | [`@debuffjp/juice`](./packages/juice) | Tweens, easing, pooled particles, trails, squash-and-stretch |
 | [`@debuffjp/dev`](./packages/dev) | Dev panel (perf, tune, state, explained errors, replays) and `window.__DEBUFF_DEV__`, stripped from production |
-| [`@debuffjp/cli`](./tooling/cli) | `debuff dev · build · assets · scenario · fuzz · inspect · report` |
+| [`@debuffjp/cli`](./tooling/cli) | `debuff dev · build · assets · test · scenario · fuzz · inspect · report` |
+| [`keiko`](./tooling/keiko) | Fast, deterministic logic tests for any web game: the real game in Node, no browser. Standalone; debuff integrates it |
 | [`create-debuff`](./tooling/create-debuff) | `npm create debuff` scaffolder |
 | [`@debuffjp/mcp`](./tooling/mcp) | MCP server: agents inspect, build, test and play your game |
 
@@ -76,6 +77,7 @@ debuff create [dir]     scaffold from a template
 debuff dev              dev server, hot reload, asset manifest watching
 debuff build            production build + size report (fails on dev leaks)
 debuff assets           regenerate manifest, list unused assets
+debuff test             logic tests (keiko): the real game in Node, no browser, in milliseconds
 debuff scenario         run scenarios/*.json headless, compare captures
 debuff fuzz             (next release) random playtesting; crashes come back as replay files
 debuff inspect          JSON project summary for agents

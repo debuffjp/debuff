@@ -30,7 +30,7 @@ export function createServer(options: ServerOptions): McpServer {
         "If the human has the game open under `debuff dev`, game_start attaches to it (mode live): they see your actions in their overlay, and their " +
         "flagged moments are in game_notes, so read those first. Otherwise you get a private paused copy (mode headless) where time only advances through game_step. " +
         "Use game_pause before inspecting a live game, and game_frames to explain stutter. Prompts (playtest, fix-errors, tune-feel, add-mechanic, explain-stutter) give step-by-step workflows. Prefer tuning params (game_params, game_set_param) over code changes, " +
-        "and verify changes with run_scenarios. Creative direction belongs to the human: propose alternatives rather than deciding art or feel.",
+        "and verify changes with run_tests (fast logic tests in tests/, no browser) and run_scenarios (screenshots). Creative direction belongs to the human: propose alternatives rather than deciding art or feel.",
     },
   );
   const rootOf = (root?: string) => resolve(options.root, root ?? ".");
@@ -96,6 +96,32 @@ export function createServer(options: ServerOptions): McpServer {
       const { build } = await import("vite");
       await build(await viteConfig(dir, { logLevel: "silent" }));
       return json(buildReport(resolve(dir, "dist")));
+    }),
+  );
+
+  server.registerTool(
+    "run_tests",
+    {
+      title: "Run logic tests",
+      annotations: { readOnlyHint: false, destructiveHint: false },
+      description:
+        "Run the logic tests in tests/**/*.test.ts (keiko): the real game in Node, no browser, in milliseconds. Each failure has its message, " +
+        "the source line, and the game's tick, scene and state when it failed. Use after every change; write a test for each mechanic you add.",
+      inputSchema: {
+        ...root,
+        files: z.array(z.string()).optional().describe("Test files relative to the root. Default: all."),
+        filter: z.string().optional().describe("Only run tests whose name contains this text."),
+      },
+    },
+    safely(async ({ root: r, files, filter }) => {
+      const dir = rootOf(r);
+      const { runTests } = await import("keiko/runner");
+      const report = await runTests({ root: dir, files: files ?? [], vite: await viteConfig(dir), ...(filter ? { filter } : {}) });
+      // Passing tests don't need their (empty) logs or details; keep the result small for the agent.
+      return json({
+        ...report,
+        results: report.results.map((x) => (x.status === "fail" ? x : { fullName: x.fullName, file: x.file, status: x.status })),
+      });
     }),
   );
 

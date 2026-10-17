@@ -13,6 +13,8 @@ export interface DevState {
   scene: string | undefined;
   tick: number;
   time: number;
+  /** Seconds per fixed simulation step (the game's `clock.step`, 1/60 by default). */
+  step: number;
   frozen: boolean;
   /** Who paused the game ("you", "agent", "spike"…), or null while running. */
   pausedBy: string | null;
@@ -146,6 +148,7 @@ function createHooks(game: Game, session: DevSession, options: DevHooksOptions, 
     scene: game.scene?.id,
     tick: game.clock.tick,
     time: game.clock.time,
+    step: game.clock.step,
     frozen: game.frozen,
     pausedBy: session.pausedBy ?? null,
     timeScale: game.timeScale,
