@@ -7,7 +7,12 @@ const TIMEOUT_MS = 60_000;
 export function runCommandImporter(importer: CommandImporter, file: SourceFile, cwd: string): Promise<ImportResult> {
   const [cmd, ...args] = importer.command;
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { cwd, stdio: ["pipe", "pipe", "pipe"], shell: process.platform === "win32" });
+    // Windows needs a shell to run .cmd shims (npx, node_modules/.bin). Node deprecates passing args alongside
+    // shell: true (DEP0190), so on Windows the command line is quoted and passed as one string.
+    const child =
+      process.platform === "win32"
+        ? spawn([cmd, ...args].map(quoteWindows).join(" "), { cwd, stdio: ["pipe", "pipe", "pipe"], shell: true })
+        : spawn(cmd, args, { cwd, stdio: ["pipe", "pipe", "pipe"] });
     const out: Buffer[] = [];
     const err: Buffer[] = [];
     const timer = setTimeout(() => {
@@ -32,4 +37,9 @@ export function runCommandImporter(importer: CommandImporter, file: SourceFile, 
     });
     child.stdin.end(JSON.stringify(file));
   });
+}
+
+/** Quote one argument for cmd.exe: plain words stay as they are, anything else is wrapped in double quotes. */
+export function quoteWindows(arg: string): string {
+  return /^[\w./:=@+,-]+$/.test(arg) ? arg : `"${arg.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\+)$/, "$1$1")}"`;
 }

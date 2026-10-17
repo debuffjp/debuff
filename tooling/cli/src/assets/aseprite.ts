@@ -17,24 +17,24 @@ const GRID = /@(\d+)x(\d+)$/;
 function candidates(): string[] {
   const env = process.env;
   if (process.platform === "win32") {
-    const roots = [env["ProgramFiles"], env["ProgramFiles(x86)"]].filter((r): r is string => !!r);
+    const roots = [env.ProgramFiles, env["ProgramFiles(x86)"]].filter((r): r is string => !!r);
     return roots.flatMap((r) => [join(r, "Aseprite", "Aseprite.exe"), join(r, "Steam", "steamapps", "common", "Aseprite", "Aseprite.exe")]);
   }
   if (process.platform === "darwin")
     return [
       "/Applications/Aseprite.app/Contents/MacOS/aseprite",
-      join(env["HOME"] ?? "", "Library/Application Support/Steam/steamapps/common/Aseprite/Aseprite.app/Contents/MacOS/aseprite"),
+      join(env.HOME ?? "", "Library/Application Support/Steam/steamapps/common/Aseprite/Aseprite.app/Contents/MacOS/aseprite"),
     ];
-  return ["/usr/bin/aseprite", "/usr/local/bin/aseprite", join(env["HOME"] ?? "", ".steam/steam/steamapps/common/Aseprite/aseprite")];
+  return ["/usr/bin/aseprite", "/usr/local/bin/aseprite", join(env.HOME ?? "", ".steam/steam/steamapps/common/Aseprite/aseprite")];
 }
 
 /** Find the Aseprite executable, or undefined. */
 export function findAseprite(explicit?: string): string | undefined {
   if (explicit) return existsSync(explicit) ? explicit : undefined;
-  const fromEnv = process.env["ASEPRITE"];
+  const fromEnv = process.env.ASEPRITE;
   if (fromEnv && existsSync(fromEnv)) return fromEnv;
   const names = process.platform === "win32" ? ["aseprite.exe", "Aseprite.exe"] : ["aseprite"];
-  for (const dir of (process.env["PATH"] ?? "").split(delimiter).filter(Boolean))
+  for (const dir of (process.env.PATH ?? "").split(delimiter).filter(Boolean))
     for (const name of names) if (existsSync(join(dir, name))) return join(dir, name);
   return candidates().find((p) => existsSync(p));
 }

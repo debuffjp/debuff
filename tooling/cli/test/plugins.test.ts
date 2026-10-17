@@ -35,3 +35,17 @@ describe("scenarioSchema", () => {
     expect(added?.properties?.["demo:expect-pops"]).toEqual({ description: "Assert pops", type: "integer" });
   });
 });
+
+describe("quoteWindows", () => {
+  it("leaves plain words alone and quotes anything cmd.exe would split or interpret", async () => {
+    const { quoteWindows } = await import("../src/assets/command.js");
+    expect(quoteWindows("node")).toBe("node");
+    expect(quoteWindows("C:/tools/import.js")).toBe("C:/tools/import.js");
+    expect(quoteWindows(String.raw`C:\Program Files\x.exe`)).toBe(String.raw`"C:\Program Files\x.exe"`);
+    expect(quoteWindows('say "hi"')).toBe(String.raw`"say \"hi\""`);
+    // A trailing backslash is doubled so it doesn't escape the closing quote.
+    expect(quoteWindows(String.raw`dir with space\ `)).toBe(String.raw`"dir with space\ "`);
+    expect(quoteWindows(String.raw`dir\with space\\`)).toBe(String.raw`"dir\with space\\\\"`);
+    expect(quoteWindows("")).toBe('""');
+  });
+});

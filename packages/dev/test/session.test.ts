@@ -1,5 +1,5 @@
 import { Game } from "@debuffjp/core";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DevSession, diagnose, exposeDevHooks, type FrameSample, summarize } from "../src/index.js";
 
 function makeGame() {
@@ -121,6 +121,14 @@ describe("summarize", () => {
 });
 
 describe("DevSession errors", () => {
+  // Explaining an error fetches its source map; there's no dev server here, so keep that offline and quiet.
+  beforeEach(() => {
+    vi.stubGlobal("fetch", () => Promise.reject(new Error("offline")));
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("counts repeats of the same error even after its location is source-mapped", () => {
     const game = makeGame();
     const s = DevSession.acquire(game);

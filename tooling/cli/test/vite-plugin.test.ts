@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Plugin } from "vite";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 import { debuff, inspectProject, viteConfig } from "../src/index.js";
 
 function project(files: Record<string, string>): string {
@@ -22,6 +22,13 @@ const corePlugin = (root: string) => {
 };
 
 describe("debuff Vite plugin", () => {
+  // The fixtures include unsupported and broken files on purpose: assert on the warnings instead of printing them.
+  let warn: MockInstance<typeof console.warn>;
+  beforeEach(() => {
+    warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  });
+  afterEach(() => warn.mockRestore());
+
   it("emits only the manifest and the files it references", async () => {
     const root = project({ "assets/hero.png": "png", "assets/notes.psd": "x", "assets/data.json": "{}" });
     const plugin = corePlugin(root);
