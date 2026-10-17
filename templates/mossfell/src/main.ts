@@ -5,6 +5,7 @@ import { devOverlay, devTools } from "@debuffjp/dev";
 import { Input } from "@debuffjp/input";
 import { Particles } from "@debuffjp/juice";
 import { fromTiled, type MapObject, type Tilemap } from "@debuffjp/tilemap";
+import { panel, Transition } from "@debuffjp/ui";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game");
 if (!canvas) throw new Error('Missing <canvas id="game">');
@@ -141,7 +142,7 @@ const player = { x: 0, y: 0, w: 10, h: 10, facing: "down" as Dir, hp: 6, keys: 0
 const screen = { col: 0, row: 0 };
 const cam = { x: 0, y: 0 };
 let scroll: { fromX: number; fromY: number; t: number; dx: number; dy: number } | undefined;
-let fade: { t: number; to: MapObject; swapped: boolean } | undefined;
+const fade = new Transition({ color: C.ink });
 let foesOnScreen: Foe[] = [];
 let shots: Shot[] = [];
 let drops: Pickup[] = [];
@@ -203,7 +204,8 @@ function reset(): void {
   drops = [];
   state = "play";
   titleTime = Infinity; // the title card stays until the first input, then fades
-  scroll = fade = undefined;
+  scroll = undefined;
+  fade.stop();
   placePlayer(spawnAt);
   game.camera.lerp = 0;
   game.camera.follow(cam, true);
@@ -460,16 +462,9 @@ const play: Scene = {
       }
       return;
     }
-    if (fade) {
-      fade.t += dt / world.values.fadeTime;
-      if (fade.t >= 1 && !fade.swapped) {
-        fade.swapped = true;
-        placePlayer(fade.to);
-        stairsLock = true;
-        player.facing = "down";
-        player.y += 6;
-      }
-      if (fade.t >= 2) fade = undefined;
+    if (fade.active) {
+      fade.duration = world.values.fadeTime;
+      fade.update(dt);
       return;
     }
 
@@ -517,7 +512,13 @@ const play: Scene = {
     const onStairs = map.get("ground", Math.floor(c.x / T), Math.floor(c.y / T)) === TILE.stairs;
     if (!onStairs && ix === 0 && iy === 0) stairsLock = false;
     if (onStairs && !stairsLock && (ix !== 0 || iy !== 0)) {
-      fade = { t: 0, to: inDungeon() ? returnAt : arriveAt, swapped: false };
+      const to = inDungeon() ? returnAt : arriveAt;
+      fade.run(() => {
+        placePlayer(to);
+        stairsLock = true;
+        player.facing = "down";
+        player.y += 6;
+      });
       sfx.stairs();
       return;
     }
@@ -590,16 +591,13 @@ const play: Scene = {
     draw.text(`${player.keys}`, 182, 4, { color: C.cream });
     draw.text(inDungeon() ? "hollow" : "fell", 250, 4, { color: C.sage, align: "right" });
 
-    if (fade) draw.rect(0, HUD, game.width, game.height - HUD, `rgba(26,16,32,${Math.min(1, fade.t < 1 ? fade.t : 2 - fade.t)})`);
+    fade.draw(draw, 0, HUD, game.width, game.height - HUD);
     const mid = HUD + 88;
     if (titleTime > 0) {
       // A framed card over the fell, faded out once the player starts.
       const a = Math.min(1, titleTime * 2);
       draw.alpha = a;
-      draw.rect(48, mid - 44, 160, 64, C.lilac);
-      draw.rect(49, mid - 43, 158, 62, C.ink);
-      draw.rect(51, mid - 41, 154, 58, C.plum);
-      draw.rect(52, mid - 40, 152, 56, C.ink);
+      panel(draw, 48, mid - 44, 160, 64, [C.lilac, C.ink, C.ink, C.plum], C.ink);
       draw.text("mossfell", 128, mid - 34, { font: "bold 16px monospace", color: C.pale, align: "center", baseline: "top" });
       draw.rect(92, mid - 13, 72, 1, C.plum);
       draw.text("find the mossheart", 128, mid - 8, { color: C.lilac, align: "center", baseline: "top" });
