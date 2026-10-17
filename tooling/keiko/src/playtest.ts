@@ -47,7 +47,8 @@ export interface PlaytestInit {
   /** The game's page. */
   window?: Window;
   /** Called with a JSON copy of the scene state after every step (determinism checks). */
-  onStep?: (state: unknown, tick: number) => void;
+  /** Called after each step; `loading` says whether the game had requests or module loads in flight since the last step. */
+  onStep?: (state: unknown, tick: number, loading: boolean) => void;
   /** Waits (real time) for the page's in-flight requests to finish. */
   settle?: (timeout?: number) => Promise<boolean>;
   /** Whether the page has requests or module loads in flight. */
@@ -77,7 +78,8 @@ export class Playtest<S = any> {
   readonly stepSeconds: number;
   /** The game's page, for reading anything the game keeps in globals or the DOM. */
   readonly window: Window;
-  private readonly onStep: ((state: unknown, tick: number) => void) | undefined;
+  private readonly onStep: ((state: unknown, tick: number, loading: boolean) => void) | undefined;
+  private loadedSinceStep = false;
   private readonly root: string;
   private readonly settler: ((timeout?: number) => Promise<boolean>) | undefined;
   private readonly loading: () => boolean;
@@ -303,6 +305,7 @@ export class Playtest<S = any> {
    * frame sees the same world whatever the network or machine speed.
    */
   private async quiet(timeout?: number): Promise<void> {
+    if (this.loading()) this.loadedSinceStep = true;
     if (this.settler) await this.settle(timeout);
     else await yieldTurn();
   }
@@ -484,7 +487,9 @@ export class Playtest<S = any> {
 
   private notify(): void {
     if (!this.onStep) return;
-    this.onStep(JSON.parse(JSON.stringify(this.driver.state() ?? null)), this.driver.tick());
+    const loading = this.loadedSinceStep || this.loading();
+    this.loadedSinceStep = false;
+    this.onStep(JSON.parse(JSON.stringify(this.driver.state() ?? null)), this.driver.tick(), loading);
   }
 
   /** Run something that may step the game, turning a game crash into a {@link GameError}. */
