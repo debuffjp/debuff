@@ -1,5 +1,5 @@
 import type { Backend, BlendMode, ClipRect, Matrix, RawContext, TextureSource } from "./backend.js";
-import { BitmapFont } from "./bitmap-font.js";
+import type { BitmapFont } from "./bitmap-font.js";
 import { type Color, toRGBA } from "./color.js";
 
 /** A rectangular region of an image, in source pixels. */
@@ -267,7 +267,7 @@ export class Draw {
   /** Text, rasterised once and cached as a texture (crisp at the current render scale). */
   text(text: string, x: number, y: number, o: TextDrawOptions = {}): void {
     if (!text) return;
-    if (o.font instanceof BitmapFont) {
+    if (typeof o.font === "object") {
       this.bitmapText(text, x, y, o.font, o);
       return;
     }
@@ -286,7 +286,7 @@ export class Draw {
    */
   measure(text: string, font: string | BitmapFont = "8px monospace"): { w: number; h: number } {
     if (!text) return { w: 0, h: 0 };
-    if (font instanceof BitmapFont) return font.measure(text);
+    if (typeof font === "object") return font.measure(text);
     const entry = this.textCache.get(text, font, this.renderScale, (src) => this.backend.invalidate(src));
     return { w: entry.w, h: entry.h };
   }
