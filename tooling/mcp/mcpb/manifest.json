@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "debuff",
   "display_name": "debuff",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Inspect, build, test and play a debuff game",
   "long_description": "Connects Claude to a 2D web game built with debuff. Claude can read the project, start the game headless or attach to the tab you have open under `debuff dev`, send input, step time, take captures, tune params, run scenarios and read explained runtime errors.",
   "author": { "name": "debuff", "url": "https://debuff.jp" },
