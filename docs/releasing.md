@@ -17,6 +17,7 @@ CI prepares releases and a maintainer publishes them from their own machine. [`r
 
    `npm run release` runs `npm run check`, then `changeset publish`, which publishes every package whose version isn't on npm yet and tags the release. npm asks for your second factor while publishing.
 4. Push the tags: `git push --follow-tags`.
+5. If `@debuffjp/mcp` changed version, update the pinned version in `plugins/debuff/.mcp.json`, `plugins/debuff/.claude-plugin/plugin.json` and `tooling/mcp/mcpb/manifest.json`, then push. The Claude directory rescans `main`.
 
 If a publish stops partway, run `npm run release` again. It skips packages that are already on npm.
 

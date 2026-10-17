@@ -1,7 +1,11 @@
 {
   "name": "debuff",
+  "version": "0.3.0",
   "description": "Inspect, build, test and play a debuff game: live game state, input, captures, params, scenarios and explained errors",
-  "author": { "name": "debuff", "url": "https://debuff.jp" },
+  "author": {
+    "name": "debuff",
+    "url": "https://debuff.jp"
+  },
   "homepage": "https://debuff.jp",
   "repository": "https://github.com/debuffjp/debuff",
   "license": "MIT",
