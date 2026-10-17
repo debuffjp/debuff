@@ -4,11 +4,16 @@
   "description": "Screen transitions, menus and panels for debuff",
   "keywords": [
     "game",
+    "gamedev",
+    "game-engine",
+    "2d",
+    "html5-game",
+    "browser-game",
+    "debuff",
     "ui",
     "menu",
-    "transition",
     "hud",
-    "debuff"
+    "transition"
   ],
   "license": "MIT",
   "homepage": "https://debuff.jp",

@@ -4,11 +4,17 @@
   "description": "Action-based keyboard, pointer and gamepad input for debuff",
   "keywords": [
     "game",
+    "gamedev",
+    "game-engine",
+    "2d",
+    "html5-game",
+    "browser-game",
+    "debuff",
     "input",
     "keyboard",
     "gamepad",
-    "pointer-events",
-    "debuff"
+    "touch",
+    "pointer-events"
   ],
   "license": "MIT",
   "homepage": "https://debuff.jp",

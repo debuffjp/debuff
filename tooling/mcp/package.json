@@ -4,10 +4,18 @@
   "description": "MCP server for debuff: lets AI agents inspect, build, test and play a debuff game",
   "keywords": [
     "game",
+    "gamedev",
+    "game-engine",
+    "2d",
+    "html5-game",
+    "browser-game",
+    "debuff",
     "mcp",
-    "agents",
+    "mcp-server",
     "model-context-protocol",
-    "debuff"
+    "ai-agents",
+    "claude-code",
+    "agents"
   ],
   "license": "MIT",
   "homepage": "https://debuff.jp",

@@ -5,10 +5,17 @@
   "keywords": [
     "game",
     "gamedev",
+    "game-engine",
     "2d",
+    "html5-game",
+    "browser-game",
+    "debuff",
+    "webgl2",
     "canvas",
     "game-loop",
-    "debuff"
+    "sprites",
+    "game-jam",
+    "pixel-art"
   ],
   "license": "MIT",
   "homepage": "https://debuff.jp",

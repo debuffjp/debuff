@@ -5,11 +5,16 @@
   "keywords": [
     "game",
     "gamedev",
+    "game-engine",
+    "2d",
+    "html5-game",
+    "browser-game",
+    "debuff",
     "tilemap",
     "tiled",
     "ldtk",
     "collision",
-    "debuff"
+    "platformer"
   ],
   "license": "MIT",
   "homepage": "https://debuff.jp",

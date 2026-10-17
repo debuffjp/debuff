@@ -4,10 +4,18 @@
   "description": "Dev-only inspection hooks for debuff games, for tools and AI agents",
   "keywords": [
     "game",
+    "gamedev",
+    "game-engine",
+    "2d",
+    "html5-game",
+    "browser-game",
+    "debuff",
     "devtools",
+    "debugging",
     "testing",
-    "agents",
-    "debuff"
+    "replay",
+    "ai-agents",
+    "agents"
   ],
   "license": "MIT",
   "homepage": "https://debuff.jp",

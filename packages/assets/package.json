@@ -4,10 +4,16 @@
   "description": "Manifest-driven asset loader with preload groups for debuff",
   "keywords": [
     "game",
+    "gamedev",
+    "game-engine",
+    "2d",
+    "html5-game",
+    "browser-game",
+    "debuff",
     "assets",
     "loader",
     "preload",
-    "debuff"
+    "sprite-sheet"
   ],
   "license": "MIT",
   "homepage": "https://debuff.jp",

@@ -4,10 +4,16 @@
   "description": "Web Audio facade with buses, autoplay unlock and a tiny synth for debuff",
   "keywords": [
     "game",
+    "gamedev",
+    "game-engine",
+    "2d",
+    "html5-game",
+    "browser-game",
+    "debuff",
     "audio",
     "web-audio",
     "sfx",
-    "debuff"
+    "sound-effects"
   ],
   "license": "MIT",
   "homepage": "https://debuff.jp",
