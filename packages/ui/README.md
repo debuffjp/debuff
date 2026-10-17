@@ -38,7 +38,7 @@ Text is measured with `draw.measure`, so nothing is positioned by guesswork:
 ## API
 
 - `Transition`: `run(swap?)` → covers the screen, calls `swap` once fully covered, then uncovers. `update(dt)`, `draw(draw, x, y, w, h)`, `stop()`, `active`, `blocking`, `cover`, `inspect()`
-- `Menu`: `new Menu(items, { actions, onBack, wrap })`, `update(input)`, `move(delta)`, `select()`, `measure(draw, style)`, `draw(draw, x, y, style)`, `drawPanel(draw, cx, cy, style)`, `focused`, `inspect()`
+- `Menu`: `new Menu(items, { actions, onBack, wrap })`, `update(input)` (with `input.pointer`, a tap selects the row under it; on a value row the left half lowers and the right half raises), `tap(x, y)`, `move(delta)`, `select()`, `measure(draw, style)`, `draw(draw, x, y, style)`, `drawPanel(draw, cx, cy, style)`, `focused`, `inspect()`
   - items: `{ label, onSelect?, disabled?, value?, change? }`
   - style: `font`, `color`, `focusColor`, `disabledColor`, `gap` (3), `align` (`left`/`center`), `cursor` (`>`), `cursorGap` (4), `valueGap` (12); panel adds `title`, `titleFont`, `titleColor`, `titleGap` (6), `borders`, `fill`, `padding` (6)
 - `panel(draw, x, y, w, h, borders, fill?)`: 1px rings, outermost first, then the fill
