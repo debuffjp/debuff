@@ -94,6 +94,8 @@ export class Menu<A extends string = string> {
   wrap: boolean;
   onBack: (() => void) | undefined;
   private actions: MenuActions<A>;
+  /** Row boxes from the last draw, for pointer hits. */
+  private rows: { x: number; y: number; w: number; h: number }[] = [];
 
   constructor(items: MenuItem[], options: MenuOptions<A> = {}) {
     this.items = items;
@@ -131,6 +133,8 @@ export class Menu<A extends string = string> {
 
   /** Read input for this step. Returns true if anything happened. */
   update(input: InputLike<A>): boolean {
+    // A tap is handled by the rows alone, so a pointer bound to "confirm" doesn't also select the focused row.
+    if (input.pointer?.pressed) return this.tap(input.pointer.x, input.pointer.y);
     const a = this.actions;
     if (input.pressed(a.up)) this.move(-1);
     else if (input.pressed(a.down)) this.move(1);
@@ -143,6 +147,21 @@ export class Menu<A extends string = string> {
   }
 
   /** `mirror` reserves the cursor column on the right too, so the labels sit on the box's centre. */
+  /**
+   * Tap at logical (x, y), using the rows from the last draw. Selects the row; on a row with a value,
+   * the left half lowers it and the right half raises it.
+   */
+  tap(x: number, y: number): boolean {
+    const i = this.rows.findIndex((r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
+    const item = this.items[i];
+    if (!item || item.disabled) return false;
+    this.focus = i;
+    const row = this.rows[i] as { x: number; w: number };
+    if (item.change) item.change(x < row.x + row.w / 2 ? -1 : 1);
+    else this.select();
+    return true;
+  }
+
   private layout(draw: DrawLike, style: MenuStyle, mirror = style.align === "center"): Layout {
     const font = style.font ?? FONT;
     const cursor = draw.measure(style.cursor ?? ">", font);
@@ -189,6 +208,7 @@ export class Menu<A extends string = string> {
 
   private drawLayout(draw: DrawLike, x: number, y: number, style: MenuStyle, l: Layout): void {
     const mirror = l.mirror;
+    this.rows = [];
     const x0 = Math.round(x);
     const y0 = Math.round(y);
     for (let i = 0; i < this.items.length; i++) {
@@ -198,6 +218,8 @@ export class Menu<A extends string = string> {
       const offset = style.align === "center" ? Math.floor((l.labelW - (l.widths[i] ?? 0)) / 2) : 0;
       const lx = x0 + l.gutter + offset;
       const ry = y0 + i * (l.rowH + l.gap);
+      // Hit box: the full row width, extended into half the gap above and below so taps between rows land.
+      this.rows.push({ x: x0, y: ry - Math.floor(l.gap / 2), w: l.w, h: l.rowH + l.gap });
       draw.text(item.label, lx, ry, { font: l.font, color });
       if (focused) draw.text(style.cursor ?? ">", lx - l.gutter, ry, { font: l.font, color });
       const value = l.values[i];

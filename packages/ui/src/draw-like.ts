@@ -17,4 +17,6 @@ export interface DrawLike {
 /** The part of `@debuffjp/input`'s `Input` that `Menu` reads. */
 export interface InputLike<A extends string = string> {
   pressed(action: A): boolean;
+  /** When present, tapping or clicking a row selects it. */
+  pointer?: { x: number; y: number; pressed: boolean };
 }

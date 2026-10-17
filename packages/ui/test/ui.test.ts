@@ -149,6 +149,32 @@ describe("Menu", () => {
     expect(calls.find((c) => c.args[0] === "6")?.args[1]).toBe(51);
   });
 
+  it("selects a tapped row and ignores confirm on that step", () => {
+    const { draw } = recorder();
+    const play = vi.fn();
+    const quit = vi.fn();
+    let vol = 5;
+    const menu = new Menu([
+      { label: "play", onSelect: play },
+      { label: "quit", onSelect: quit },
+      { label: "vol", value: () => `${vol}`, change: (d) => (vol += d) },
+      { label: "off", disabled: true },
+    ]);
+    expect(menu.tap(0, 0)).toBe(false); // nothing drawn yet
+    menu.draw(draw, 0, 0); // rows 10px + 3px gap; w = 9 + 15 + 12 + 5 = 41
+    const tap = (x: number, y: number) => menu.update({ pressed: () => true, pointer: { x, y, pressed: true } });
+    expect(tap(20, 15)).toBe(true);
+    expect(quit).toHaveBeenCalledTimes(1);
+    expect(play).not.toHaveBeenCalled();
+    expect(menu.focused?.label).toBe("quit");
+    tap(35, 28);
+    tap(5, 28);
+    tap(5, 28);
+    expect(vol).toBe(4);
+    expect(tap(5, 41)).toBe(false);
+    expect(tap(200, 0)).toBe(false);
+  });
+
   it("draws a titled panel centred on a point", () => {
     const { draw, calls } = recorder();
     const menu = new Menu([{ label: "resume" }]);
