@@ -1,5 +1,6 @@
 {
   "name": "debuff",
+  "displayName": "debuff",
   "version": "0.3.0",
   "description": "Inspect, build, test and play a debuff game: live game state, input, captures, params, scenarios and explained errors",
   "author": {
@@ -9,5 +10,7 @@
   "homepage": "https://debuff.jp",
   "repository": "https://github.com/debuffjp/debuff",
   "license": "MIT",
-  "keywords": ["gamedev", "game-engine", "2d", "browser-game", "mcp"]
+  "keywords": ["gamedev", "game-engine", "2d", "browser-game", "mcp"],
+  "docs": "https://debuff.jp",
+  "support": "https://discord.gg/jshbDHSpCY"
 }
