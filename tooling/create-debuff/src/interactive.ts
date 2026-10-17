@@ -1,4 +1,5 @@
-import { relative } from "node:path";
+import { readFileSync } from "node:fs";
+import { join, relative } from "node:path";
 import * as p from "@clack/prompts";
 import pc from "picocolors";
 import { banner, lime, pink, sky } from "./brand.js";
@@ -58,7 +59,9 @@ export async function runCreate(options: CreateOptions): Promise<number> {
 
   const pm = detectPackageManager();
   const run = pm === "npm" ? "npm run" : pm;
-  p.note([`cd ${relative(process.cwd(), dest) || "."}`, `${pm} install`, `${run} dev`].map((c) => sky(c)).join("\n"), "Next steps");
+  const steps = [`cd ${relative(process.cwd(), dest) || "."}`, `${pm} install`, `${run} dev`].map((c) => sky(c));
+  if (hasTestScript(dest)) steps.push(`${sky(`${pm} test`)}  ${pc.dim("logic tests, no browser")}`);
+  p.note(steps.join("\n"), "Next steps");
   console.log(
     `\n${banner("happy", [lime(pc.bold("happy jamming!")), `${pc.dim("buff is waiting in")} ${pink("src/main.ts")}`, `${pc.dim("say hi on")} ${sky("discord.gg/jshbDHSpCY")}`, ""])}\n`,
   );
@@ -68,4 +71,12 @@ export async function runCreate(options: CreateOptions): Promise<number> {
 function cancelled(): number {
   p.cancel("Cancelled");
   return 1;
+}
+
+function hasTestScript(dir: string): boolean {
+  try {
+    return Boolean(JSON.parse(readFileSync(join(dir, "package.json"), "utf8")).scripts?.test);
+  } catch {
+    return false;
+  }
 }
