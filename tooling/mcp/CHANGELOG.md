@@ -1,5 +1,14 @@
 # @debuffjp/mcp
 
+## 0.3.0
+
+### Patch Changes
+
+- 97c44ec: Every tool now declares `readOnlyHint` or `destructiveHint`, so MCP clients and directories can tell which tools change things. None of them are destructive.
+- Updated dependencies [01c7c17]
+- Updated dependencies [1f5fb28]
+  - @debuffjp/cli@0.3.0
+
 ## 0.2.0
 
 ### Minor Changes

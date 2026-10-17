@@ -1,5 +1,18 @@
 # @debuffjp/cli
 
+## 0.3.0
+
+### Minor Changes
+
+- 01c7c17: `aseprite()` tooling plugin: `.aseprite`/`.ase` files in `assets/` are exported by Aseprite automatically. Multi-frame files become sprite sheets (`assets.frames(id)`), `name@WxH.aseprite` flattens to a grid (for `BitmapFont`), hidden layers are skipped, and results are cached. Aseprite is found via `$ASEPRITE`, `PATH` or the usual install folders, including Steam; if it's missing, the build warns instead of failing.
+- 1f5fb28: `BitmapFont`: pixel fonts from a sprite-sheet grid, with widths measured from the glyph pixels. Pass one as `font` to `draw.text`, `draw.measure` and `@debuffjp/ui` menus. The CLI ships `aseprite/new-font.lua`, which creates a blank font sheet with the grid set up.
+
+### Patch Changes
+
+- Updated dependencies [d716ede]
+- Updated dependencies [134c84a]
+  - create-debuff@0.3.0
+
 ## 0.2.0
 
 ### Minor Changes
