@@ -1,0 +1,24 @@
+{
+  "$schema": "../node_modules/@debuffjp/cli/schema/scenario.schema.json",
+  "steps": [
+    { "wait": 30 },
+    { "press": "ArrowRight" },
+    { "wait": 20 },
+    { "release": "ArrowRight" },
+    { "wait": 20 },
+    { "press": "Escape" },
+    { "wait": 2 },
+    { "release": "Escape" },
+    { "expect": { "state.paused": { "eq": true }, "state.menu": { "eq": "resume" } } },
+    { "capture": "paused" },
+    { "press": "ArrowDown" },
+    { "wait": 2 },
+    { "release": "ArrowDown" },
+    { "expect": { "state.menu": { "eq": "restart" } } },
+    { "press": "Space" },
+    { "wait": 2 },
+    { "release": "Space" },
+    { "wait": 40 },
+    { "expect": { "state.paused": { "eq": false }, "state.player.x": { "lt": 60 } } }
+  ]
+}

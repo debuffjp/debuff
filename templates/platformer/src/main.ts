@@ -5,6 +5,7 @@ import { devOverlay, devTools } from "@debuffjp/dev";
 import { Input } from "@debuffjp/input";
 import { Particles, squash, Tweens } from "@debuffjp/juice";
 import { fromTiled, type MapObject } from "@debuffjp/tilemap";
+import { Menu, panel, Transition } from "@debuffjp/ui";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game");
 if (!canvas) throw new Error('Missing <canvas id="game">');
@@ -16,6 +17,9 @@ const input = new Input(game, {
     right: ["ArrowRight", "KeyD", "PadRight", "PadStickRight"],
     jump: ["Space", "ArrowUp", "KeyW", "KeyZ", "PadA", "Pointer"],
     down: ["ArrowDown", "KeyS", "PadDown", "PadStickDown"],
+    // ArrowUp also jumps, so menus get their own "up".
+    up: ["ArrowUp", "KeyW", "PadUp", "PadStickUp"],
+    pause: ["Escape", "KeyP", "PadStart"],
   },
 });
 const audio = new Audio();
@@ -67,6 +71,15 @@ const player = { x: 0, y: 0, w: 12, h: 13, vx: 0, vy: 0, onGround: false, coyote
 let coins: (MapObject & { taken: boolean })[] = [];
 let score = 0;
 let won = false;
+let paused = false;
+const fade = new Transition({ duration: 0.25, color: "#11140d" });
+const pauseMenu = new Menu(
+  [
+    { label: "resume", onSelect: () => (paused = false) },
+    { label: "restart", onSelect: () => fade.run(reset) },
+  ],
+  { actions: { up: "up", down: "down", confirm: "jump", back: "pause" }, onBack: () => (paused = false) },
+);
 // Where the player was at the previous step: drawing between the two keeps motion smooth on displays faster than 60 Hz.
 const prev = { x: 0, y: 0 };
 const center = () => ({ x: player.x + player.w / 2, y: player.y + player.h / 2 });
@@ -81,6 +94,7 @@ function reset(): void {
   coins = objects.filter((o) => o.type === "Coin").map((o) => ({ ...o, taken: false }));
   score = 0;
   won = false;
+  paused = false;
   camTarget.x = center().x;
   camTarget.y = center().y;
   game.camera.follow(camTarget, true);
@@ -96,6 +110,17 @@ const play: Scene = {
   },
 
   update(dt) {
+    fade.update(dt);
+    if (fade.blocking) return;
+    if (paused) {
+      pauseMenu.update(input);
+      return;
+    }
+    if (input.pressed("pause") && !won) {
+      paused = true;
+      pauseMenu.focus = 0;
+      return;
+    }
     prev.x = player.x;
     prev.y = player.y;
     const t = tuning.values;
@@ -193,6 +218,13 @@ const play: Scene = {
     draw.text(`coins ${score}/${coins.length}`, 6, 5, { font: "8px monospace", color: "#fbbf24" });
     draw.text(`best ${save.get("best")}`, 314, 5, { font: "8px monospace", color: "#e7fd96", align: "right" });
     if (won) draw.text("you made it! jump to play again", 160, 80, { font: "8px monospace", color: "#cffb2d", align: "center" });
+    if (paused) {
+      draw.rect(0, 0, game.width, game.height, "rgba(17,20,13,0.6)");
+      panel(draw, 120, 62, 80, 46, ["#cffb2d", "#11140d"], "#1c2116");
+      draw.text("paused", 160, 70, { font: "8px monospace", color: "#e7fd96", align: "center", baseline: "top" });
+      pauseMenu.draw(draw, 136, 84, { font: "8px monospace", color: "#7a8a5a", focusColor: "#cffb2d" });
+    }
+    fade.draw(draw, 0, 0, game.width, game.height);
   },
 
   inspect: () => ({
@@ -200,6 +232,8 @@ const play: Scene = {
     score,
     coins: coins.length,
     won,
+    paused,
+    menu: paused ? pauseMenu.inspect().focused : undefined,
   }),
 };
 
