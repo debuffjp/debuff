@@ -36,6 +36,7 @@ For Claude Desktop, `mcpb/manifest.json` describes a desktop extension that asks
 | `inspect_project` | Dependencies, plugins and their contributions, assets, last build size |
 | `list_assets` | Every asset with its type, size and importer, plus warnings and possibly unused ids |
 | `build` | Production build plus size report; `leaks` must be empty |
+| `run_tests` | Run the logic tests in `tests/` ([keiko](https://github.com/debuffjp/debuff/tree/main/tooling/keiko)): the real game in Node, no browser; failures carry the tick, scene and state |
 | `run_scenarios` | Run `scenarios/*.json` headless; per-step results, errors, captures |
 | `fuzz` | Play with random input; each crash, stuck state or back-and-forth loop comes with an explained error and a scenario that replays it |
 | `game_start` | Attach to the live game, or open a private headless copy, paused (see below) |

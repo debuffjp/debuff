@@ -43,8 +43,8 @@ ${RULES}`),
    kind "debuff-usage": debuff rejected a call. The message says what it expected, so fix the call site.
    kind "debuff-bug": don't patch around it. Tell the human and share reportUrl.
    kind "outside": usually a browser extension. Mention it and move on.
-3. Reload (game_start again), reproduce the steps that caused the error with game_input and game_step, and confirm game_errors stays empty.
-4. Run \`npm test\` and \`npm run build\`, then report what you changed and how you verified it.
+3. Write a logic test in tests/ that reproduces it (play(), then the inputs and steps that caused it; game.replay(file) if you have a replay or fuzz finding), and run_tests to watch it fail.
+4. Fix, run_tests until it passes, and keep the test. Then run \`npm test\` and \`npm run build\`, and report what you changed and how you verified it.
 
 ${RULES}`),
   );
@@ -62,7 +62,7 @@ ${RULES}`),
 1. Call game_start, then game_params to see every tunable value with its range and units. In live mode, read game_notes too.
 2. Propose two or three variants, each a small set of param changes with a one-line reason. Prefer params over code changes.
 3. With the human's go-ahead, apply one variant with game_set_param, play a few seconds (game_input and game_step) and capture it. The human can undo every change in the dev panel.
-4. Once the human picks a variant, update the defaults in game.params.define(...) in the code, and add or adjust a scenario if the change affects behaviour.
+4. Once the human picks a variant, update the defaults in game.params.define(...) in the code, and add or adjust a logic test in tests/ if the change affects behaviour (test.sweep checks a range of values), then run_tests.
 
 Feel is a creative call: present the options and let the human choose. ${RULES}`),
   );
@@ -71,7 +71,7 @@ Feel is a creative call: present the options and let the human choose. ${RULES}`
     "add-mechanic",
     {
       title: "Add a mechanic",
-      description: "Implement a gameplay mechanic in small steps, with a scenario that proves it works.",
+      description: "Implement a gameplay mechanic in small steps, with a logic test that proves it works.",
       argsSchema: { mechanic: z.string().describe("The mechanic, e.g. 'a double jump' or 'coins that respawn'.") },
     },
     ({ mechanic }) =>
@@ -79,8 +79,8 @@ Feel is a creative call: present the options and let the human choose. ${RULES}`
 
 1. Call inspect_project and read src/main.ts to see how scenes, input and params are set up. Confirm the plan with the human in two or three lines before building, and ask about anything creative (look, sound, numbers).
 2. Implement the smallest version that works. Put tunable numbers in game.params.define(...), use debuff's draw, input and juice APIs, and keep dev-only code inside if (import.meta.env.DEV).
-3. Add a scenario in scenarios/ that drives the inputs and checks the outcome with expect on state from the scene's inspect().
-4. Verify: run_scenarios, then build (its leaks list must be empty), then game_start and game_capture to show it working. Check game_errors is empty.
+3. Add a logic test in tests/ (keiko) that plays the inputs and checks the outcome on the scene's inspect() state; use until() and trace() for timing and motion. If the change is visual, add a scenario with a capture too.
+4. Verify: run_tests, then run_scenarios, then build (its leaks list must be empty), then game_start and game_capture to show it working. Check game_errors is empty.
 5. Report what you built, the params added, and the evidence.
 
 ${RULES}`),

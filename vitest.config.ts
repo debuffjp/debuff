@@ -4,7 +4,14 @@ export default defineConfig({
   test: {
     projects: [
       { test: { name: "runtime", include: ["packages/*/test/**/*.test.ts"], environment: "happy-dom" } },
-      { test: { name: "tooling", include: ["tooling/*/test/**/*.test.ts"], environment: "node" } },
+      {
+        test: {
+          name: "tooling",
+          include: ["tooling/*/test/**/*.test.ts"],
+          exclude: ["**/node_modules/**", "**/fixture/**", "**/fixture-*/**"],
+          environment: "node",
+        },
+      },
     ],
     coverage: {
       provider: "v8",

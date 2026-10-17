@@ -14,6 +14,7 @@ npx debuff --help
 | `debuff build [--sourcemap]` | Production build, then a raw/gzip/brotli report. Fails if dev-only code leaks |
 | `debuff report` | Size report for an existing `dist/` |
 | `debuff assets` | Run the asset pipeline: list every asset, its importer and size, plus unused and generated files |
+| `debuff test [files] [-t text] [--json]` | Run logic tests (`tests/**/*.test.ts`) with [keiko](https://github.com/debuffjp/debuff/tree/main/tooling/keiko): the real game in Node, no browser, in milliseconds |
 | `debuff scenario [files] [--update] [--strict]` | Run `scenarios/*.json` in headless Chrome/Edge |
 | `debuff fuzz [--seconds] [--runs] [--seed] [--keys]` | (next release) Play headless with random but plausible input. Reports explained errors and stuck states, each saved as a scenario in `.debuff/fuzz/` that reproduces it. Exits 1 on errors |
 | `debuff inspect` | JSON summary of the project |

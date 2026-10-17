@@ -148,6 +148,42 @@ cli
   });
 
 cli
+  .command("test [...files]", "Run logic tests (tests/**/*.test.ts) against the real game in Node, no browser")
+  .option("--root <dir>", "Project root")
+  .option("-t, --filter <text>", "Only run tests whose name contains this text")
+  .option("--json", "Machine-readable output")
+  .action(async (files: string[], o: Common & { filter?: string }) => {
+    const { runTests, formatResult, formatSummary, findTests } = await import("keiko/runner");
+    const root = rootOf(o);
+    if (!findTests(root, files).length) {
+      if (o.json) console.log(JSON.stringify({ ok: true, passed: 0, failed: 0, skipped: 0, todo: 0, durationMs: 0, results: [] }, null, 2));
+      else p.log.info(`No tests yet. Add one in tests/, e.g. tests/movement.test.ts. Guide: ${sky("https://debuff.jp/docs/testing")}`);
+      return 0;
+    }
+    if (!o.json) header("tests", "fast hands, no browser");
+    const report = await runTests({
+      root,
+      files,
+      vite: await viteConfig(root),
+      debuff: true,
+      ...(o.filter ? { filter: String(o.filter) } : {}),
+      ...(o.json
+        ? {}
+        : {
+            onResult: (r) => {
+              const text = formatResult(r);
+              if (r.status === "fail") p.log.error(text);
+              else if (r.status === "pass") p.log.success(text);
+              else p.log.info(text);
+            },
+          }),
+    });
+    if (o.json) console.log(JSON.stringify(report, null, 2));
+    else finish(report.ok, report.ok ? "all good" : "some tests failed", formatSummary(report));
+    return report.ok ? 0 : 1;
+  });
+
+cli
   .command("fuzz", "Play the game with random input to find crashes, stuck states and loops")
   .option("--root <dir>", "Project root")
   .option("--seconds <n>", "Simulated seconds of play per run", { default: 60 })
