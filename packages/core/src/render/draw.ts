@@ -275,6 +275,16 @@ export class Draw {
     this.backend.quad(this.tmp, entry.canvas, 0, 0, entry.canvas.width, entry.canvas.height, color, 0, true);
   }
 
+  /**
+   * The logical box `text()` fills for this string and font, so layouts can align and centre without
+   * guessing. Same cache as `text()`, so measuring then drawing rasterises once.
+   */
+  measure(text: string, font = "8px monospace"): { w: number; h: number } {
+    if (!text) return { w: 0, h: 0 };
+    const entry = this.textCache.get(text, font, this.renderScale, (src) => this.backend.invalidate(src));
+    return { w: entry.w, h: entry.h };
+  }
+
   /** Re-upload a source whose pixels changed (e.g. a canvas you draw into). */
   invalidate(src: TextureSource): void {
     this.backend.invalidate(src);
