@@ -3,15 +3,21 @@
   "name": "debuff",
   "display_name": "debuff",
   "version": "0.3.0",
-  "description": "Inspect, build, test and play a debuff game",
-  "long_description": "Connects Claude to a 2D web game built with debuff. Claude can read the project, start the game headless or attach to the tab you have open under `debuff dev`, send input, step time, take captures, tune params, run scenarios and read explained runtime errors.",
-  "author": { "name": "debuff", "url": "https://debuff.jp" },
+  "description": "Make 2D browser games with Claude",
+  "long_description": "Make 2D browser games with Claude using debuff, an open-source TypeScript toolkit. Point it at your game folder and Claude can play the game headless or attach to the tab you have open under `debuff dev`, send input, step time, take captures, tune feel params live, run scenario tests and read runtime errors that say whose problem they are. You keep the creative calls.",
+  "author": {
+    "name": "debuff",
+    "url": "https://debuff.jp"
+  },
   "homepage": "https://debuff.jp",
   "documentation": "https://debuff.jp",
   "support": "https://github.com/debuffjp/debuff/issues",
-  "repository": { "type": "git", "url": "https://github.com/debuffjp/debuff" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/debuffjp/debuff"
+  },
   "license": "MIT",
-  "keywords": ["gamedev", "game-engine", "2d", "browser-game"],
+  "keywords": ["2d-game", "game-development", "gamedev", "browser-game", "pixel-art", "platformer", "game-jam"],
   "server": {
     "type": "node",
     "entry_point": "server/index.js",
@@ -30,7 +36,9 @@
   },
   "compatibility": {
     "platforms": ["darwin", "win32", "linux"],
-    "runtimes": { "node": ">=22" }
+    "runtimes": {
+      "node": ">=22"
+    }
   },
   "tools_generated": true,
   "prompts_generated": true

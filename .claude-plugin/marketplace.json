@@ -1,15 +1,31 @@
 {
   "name": "debuff",
-  "owner": { "name": "debuff", "url": "https://debuff.jp" },
-  "metadata": { "description": "Plugins for building 2D web games with debuff" },
+  "owner": {
+    "name": "debuff",
+    "url": "https://debuff.jp"
+  },
+  "metadata": {
+    "description": "debuff: an open-source toolkit for making 2D browser games with AI agents"
+  },
   "plugins": [
     {
       "name": "debuff",
       "source": "./plugins/debuff",
-      "description": "Inspect, build, test and play a debuff game from Claude Code",
+      "description": "Make 2D browser games with Claude: start a playable platformer or top-down adventure in a minute, then Claude plays it, sees it, tunes the feel and tests it while you make the creative calls.",
       "category": "development",
       "homepage": "https://debuff.jp",
-      "keywords": ["gamedev", "game-engine", "2d", "browser-game", "mcp"]
+      "keywords": [
+        "2d-game",
+        "game-development",
+        "gamedev",
+        "browser-game",
+        "html5-game",
+        "game-engine",
+        "pixel-art",
+        "platformer",
+        "game-jam",
+        "typescript"
+      ]
     }
   ]
 }
