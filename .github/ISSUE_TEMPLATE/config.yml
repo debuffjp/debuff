@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Discord
+    url: https://discord.gg/jshbDHSpCY
+    about: The debuff community's home. Chat, get help and share games.
   - name: Questions and show-and-tell
     url: https://github.com/debuffjp/debuff/discussions
     about: Ask for help, share games and discuss ideas.

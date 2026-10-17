@@ -1,6 +1,6 @@
 # Contributing to debuff
 
-Thanks for helping. Small, focused changes backed by a real need (a game, a jam entry, a measured problem) land fastest.
+Thanks for helping. Small, focused changes backed by a real need (a game, a jam entry, a measured problem) land fastest. Questions and ideas are welcome on [Discord](https://discord.gg/jshbDHSpCY) before you open a PR.
 
 ## Setup
 
