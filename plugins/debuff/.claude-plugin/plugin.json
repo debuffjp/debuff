@@ -12,5 +12,6 @@
   "license": "MIT",
   "keywords": ["gamedev", "game-engine", "2d", "browser-game", "mcp"],
   "docs": "https://debuff.jp",
-  "support": "https://discord.gg/jshbDHSpCY"
+  "support": "https://discord.gg/jshbDHSpCY",
+  "privacyPolicy": "https://debuff.jp/privacy"
 }
