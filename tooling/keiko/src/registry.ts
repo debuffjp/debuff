@@ -20,6 +20,8 @@ export interface PlayOptions {
   fps?: number;
   /** Offer WebGL. Set false to make engines fall back to Canvas 2D, as without a GPU. Default true (debuff games: false). */
   webgl?: boolean;
+  /** The browser window's inner size, for layouts that depend on it (a portrait phone: `{ width: 390, height: 844 }`). Default 960×540. */
+  viewport?: { width: number; height: number };
 }
 
 /** Options for one test. */

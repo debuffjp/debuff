@@ -201,6 +201,45 @@ describe("Playtest", () => {
     expect(() => game({ throwAt: 1 }).replay({ steps: [{ wait: 1 }] })).toThrow(GameError);
   });
 
+  it("runs like a browser: async game code continues between frames, and loads are waited out", async () => {
+    let loading = false;
+    let settled = 0;
+    const hooks = fakeHooks();
+    const g = new Playtest<FakeState>(debuffDriver(hooks), {
+      root: ".",
+      loading: () => loading,
+      settle: async () => {
+        settled++;
+        loading = false;
+        return true;
+      },
+    });
+    // A click handler that awaits before acting, like a UI flow waiting on a tween.
+    let unlocked = false;
+    void Promise.resolve().then(() => {
+      unlocked = true;
+    });
+    g.wait(1);
+    await g.run(2);
+    expect(unlocked).toBe(true);
+    expect(settled).toBe(2); // run() waits for quiet after every frame
+    g.press("ArrowRight");
+    expect(await g.eventually((s) => s.x >= 6, { within: 10 })).toBe(3);
+    expect(settled).toBe(6);
+    await expect(g.eventually(() => false, { within: 2, message: "never" })).rejects.toThrow(/never didn't hold within 2 steps/);
+    expect(await g.settle()).toBe(g);
+  });
+
+  it("hints at eventually() when until() times out while the game is loading", () => {
+    const g = new Playtest<FakeState>(debuffDriver(fakeHooks()), { root: ".", loading: () => true });
+    expect(() => g.until(() => false, { within: 1 })).toThrow(/use `await game.eventually/);
+  });
+
+  it("explains a settle that times out", async () => {
+    const g = new Playtest<FakeState>(debuffDriver(fakeHooks()), { root: ".", settle: async () => false });
+    await expect(g.settle(5)).rejects.toThrow(/still had requests in flight after 5 ms/);
+  });
+
   it("reports every step to onStep when recording", () => {
     const seen: number[] = [];
     const g = game({}, (_s, tick) => seen.push(tick));

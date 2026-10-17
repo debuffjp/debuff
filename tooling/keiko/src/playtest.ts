@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { yieldTurn } from "./clock.js";
 import { type Driver, MissingHookError, type ParamValue } from "./driver.js";
 import { type Duration, describeSteps, toSteps } from "./duration.js";
 import { Trace } from "./trace.js";
@@ -49,6 +50,8 @@ export interface PlaytestInit {
   onStep?: (state: unknown, tick: number) => void;
   /** Waits (real time) for the page's in-flight requests to finish. */
   settle?: (timeout?: number) => Promise<boolean>;
+  /** Whether the page has requests or module loads in flight. */
+  loading?: () => boolean;
   /** Resolves relative scenario paths. */
   root: string;
 }
@@ -77,6 +80,7 @@ export class Playtest<S = any> {
   private readonly onStep: ((state: unknown, tick: number) => void) | undefined;
   private readonly root: string;
   private readonly settler: ((timeout?: number) => Promise<boolean>) | undefined;
+  private readonly loading: () => boolean;
 
   /** @internal Use {@link play}. */
   constructor(
@@ -89,6 +93,7 @@ export class Playtest<S = any> {
     this.onStep = init.onStep;
     this.root = init.root;
     this.settler = init.settle;
+    this.loading = init.loading ?? (() => false);
   }
 
   // ---- reading ---------------------------------------------------------------------------------
@@ -161,6 +166,59 @@ export class Playtest<S = any> {
   until(condition: Condition<S>, options: { within?: Duration; message?: string } = {}): number {
     const limit = toSteps(options.within ?? "10s", this.stepSeconds);
     for (let steps = 0; ; steps++) {
+      if (condition(this.state, this)) return steps;
+      if (steps >= limit) {
+        const what = options.message ?? (condition.toString().length < 120 ? condition.toString() : "the condition");
+        const hint = this.loading()
+          ? " The game was still loading something; if it loads as you play, use `await game.eventually(…)`, which waits for loads between steps."
+          : "";
+        throw new TimeoutError(
+          `${what} didn't hold within ${describeSteps(limit, this.stepSeconds)}.${hint} Last state: ${show(this.state, 400)}`,
+        );
+      }
+      this.advance(1);
+    }
+  }
+
+  /**
+   * Play for a while like a browser does: after every frame, give the game a turn of the event loop, so
+   * `await`s in its code continue (a UI flow that waits on a timer, then a tween, then enables a button),
+   * and wait out any loading it starts. Use this instead of {@link wait} when the game's logic is async.
+   * Game time only moves in steps, so results are the same however fast the machine or network is.
+   *
+   * ```ts
+   * await game.run("1s");            // the home screen finishes animating in
+   * game.tap(play.x, play.y);
+   * await game.run("0.5s");
+   * ```
+   */
+  async run(duration: Duration = 1, options: { timeout?: number } = {}): Promise<this> {
+    const steps = toSteps(duration, this.stepSeconds);
+    for (let i = 0; i < steps; i++) {
+      this.advance(1);
+      await this.quiet(options.timeout);
+    }
+    return this;
+  }
+
+  /**
+   * Like {@link until}, for games with async logic or that load as they play. Before each step it gives the
+   * game a turn of the event loop, as a browser does between frames (so `await` inside the game's handlers
+   * progresses), and waits for any requests or module loads in flight (a screen's assets after you press
+   * Play). Game time only moves in steps, so results are the same however fast the network is. Resolves to
+   * the steps taken.
+   *
+   * ```ts
+   * game.tap(play.x, play.y);
+   * await game.eventually((s) => s.screen === "game", { within: "5s" });
+   * ```
+   */
+  async eventually(condition: Condition<S>, options: { within?: Duration; message?: string; timeout?: number } = {}): Promise<number> {
+    const limit = toSteps(options.within ?? "10s", this.stepSeconds);
+    for (let steps = 0; ; steps++) {
+      // A browser lets promise callbacks and pending work run between frames; give the game that turn,
+      // and wait out any loading it starts, so async game code (await inside a click handler) progresses.
+      await this.quiet(options.timeout);
       if (condition(this.state, this)) return steps;
       if (steps >= limit) {
         const what = options.message ?? (condition.toString().length < 120 ? condition.toString() : "the condition");
@@ -238,6 +296,15 @@ export class Playtest<S = any> {
       throw new Error(`settle(): the game still had requests in flight after ${timeout} ms`);
     }
     return this;
+  }
+
+  /**
+   * Between frames: let the game's promise callbacks run and wait until nothing is loading, so the next
+   * frame sees the same world whatever the network or machine speed.
+   */
+  private async quiet(timeout?: number): Promise<void> {
+    if (this.settler) await this.settle(timeout);
+    else await yieldTurn();
   }
 
   // ---- input -----------------------------------------------------------------------------------

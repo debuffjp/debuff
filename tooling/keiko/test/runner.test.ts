@@ -279,6 +279,106 @@ describe("headless page", () => {
     expect(imageSize(new Uint8Array(4))).toEqual({ width: 0, height: 0 });
   });
 
+  it("runs Web Workers inline, from blob URLs, with fetch and createImageBitmap", async () => {
+    const page = openPage({ origin: "http://localhost:1/", path: "/", clock: new VirtualClock() });
+    try {
+      const code = `self.onmessage = async (e) => {
+        const res = await fetch(e.data);
+        const bitmap = await createImageBitmap(await res.blob());
+        self.postMessage([bitmap.width, bitmap.height]);
+      };`;
+      const workerUrl = URL.createObjectURL(new Blob([code], { type: "application/javascript" }));
+      const worker = new Worker(workerUrl);
+      const png = new Uint8Array(24);
+      const v = new DataView(png.buffer);
+      v.setUint32(0, 0x89504e47);
+      v.setUint32(16, 7);
+      v.setUint32(20, 3);
+      const imageUrl = URL.createObjectURL(new Blob([png]));
+      const reply = new Promise((resolve) => {
+        worker.onmessage = (e) => resolve(e.data);
+      });
+      worker.postMessage(imageUrl);
+      expect(await reply).toEqual([7, 3]);
+      worker.terminate();
+      const broken = new Worker("data:text/javascript,(");
+      const failed = new Promise((resolve) => broken.addEventListener("error", resolve));
+      await failed;
+      URL.revokeObjectURL(imageUrl);
+      await expect(fetch(imageUrl)).rejects.toThrow();
+    } finally {
+      await page.dispose();
+    }
+  });
+
+  it("sizes the window, gives canvases their CSS box, counts XHR as loading and plays common audio", async () => {
+    const page = openPage({
+      origin: "http://localhost:1/",
+      path: "/",
+      html: "<canvas width='800' height='600'></canvas>",
+      clock: new VirtualClock(),
+      viewport: { width: 390, height: 844 },
+    });
+    try {
+      expect([innerWidth, innerHeight]).toEqual([390, 844]);
+      const canvas = document.querySelector("canvas") as HTMLCanvasElement;
+      expect(canvas.getBoundingClientRect()).toMatchObject({ width: 800, height: 600 });
+      canvas.style.width = "400px";
+      canvas.style.height = "300px";
+      expect(canvas.getBoundingClientRect()).toMatchObject({ width: 400, height: 300 });
+      expect([canvas.clientWidth, canvas.offsetHeight]).toEqual([400, 300]);
+      expect(document.createElement("audio").canPlayType("audio/ogg; codecs=vorbis")).toBe("probably");
+      expect(document.createElement("audio").canPlayType("audio/x-unknown")).toBe("");
+      expect(page.inflight).toBe(0);
+      const xhr = new XMLHttpRequest();
+      xhr.open("GET", "http://localhost:1/nothing-here");
+      xhr.onerror = () => {};
+      xhr.send();
+      expect(page.inflight).toBe(1);
+      expect(await page.settle(3000)).toBe(true);
+      expect(page.inflight).toBe(0);
+      const decoded = await new AudioContext().decodeAudioData(new ArrayBuffer(8));
+      expect(decoded).toBeInstanceOf(AudioBuffer);
+      expect((decoded as AudioBuffer).getChannelData(0)).toHaveLength(2);
+    } finally {
+      await page.dispose();
+    }
+  });
+
+  it("reflects a program's attributes and uniforms from its GLSL", async () => {
+    const page = openPage({ origin: "http://localhost:1/", path: "/", html: "<canvas></canvas>", clock: new VirtualClock() });
+    try {
+      const gl = (document.querySelector("canvas") as HTMLCanvasElement).getContext("webgl2") as WebGL2RenderingContext;
+      const vs = gl.createShader(gl.VERTEX_SHADER) as WebGLShader;
+      gl.shaderSource(
+        vs,
+        "#version 300 es\nin vec2 aPosition; in vec4 aColor;\nuniform mat3 uProjection;\n// uniform float ignored;\nvoid main() {}",
+      );
+      const fs = gl.createShader(gl.FRAGMENT_SHADER) as WebGLShader;
+      gl.shaderSource(
+        fs,
+        "#version 300 es\nprecision mediump float;\nin vec4 vColor;\nuniform sampler2D uTextures[4];\nuniform mat3 uProjection;\nvoid main() {}",
+      );
+      const program = gl.createProgram() as WebGLProgram;
+      gl.attachShader(program, vs);
+      gl.attachShader(program, fs);
+      gl.linkProgram(program);
+      expect(gl.getProgramParameter(program, gl.ACTIVE_ATTRIBUTES)).toBe(2);
+      expect(gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS)).toBe(2);
+      expect(gl.getActiveAttrib(program, 1)).toEqual({ name: "aColor", type: gl.FLOAT_VEC4, size: 1 });
+      expect(gl.getActiveUniform(program, 1)).toEqual({ name: "uTextures[0]", type: gl.SAMPLER_2D, size: 4 });
+      expect(gl.getAttribLocation(program, "aPosition")).toBe(0);
+      expect(gl.getAttribLocation(program, "nope")).toBe(-1);
+      expect(gl.getUniformLocation(program, "uProjection")).toBeTruthy();
+      expect(gl.getUniformLocation(program, "uTextures")).toBeTruthy();
+      expect(gl.getUniformLocation(program, "ignored")).toBeNull();
+      expect(gl.getShaderSource(fs)).toContain("sampler2D");
+      expect(gl.getShaderParameter(fs, gl.SHADER_TYPE)).toBe(gl.FRAGMENT_SHADER);
+    } finally {
+      await page.dispose();
+    }
+  });
+
   it("makes stand-ins that absorb any use", () => {
     const thing = inert() as Record<string, (...a: unknown[]) => unknown> & { value: number };
     expect(thing.value).toBe(0);
