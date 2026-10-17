@@ -1,0 +1,37 @@
+{
+  "manifest_version": "0.3",
+  "name": "debuff",
+  "display_name": "debuff",
+  "version": "0.2.0",
+  "description": "Inspect, build, test and play a debuff game",
+  "long_description": "Connects Claude to a 2D web game built with debuff. Claude can read the project, start the game headless or attach to the tab you have open under `debuff dev`, send input, step time, take captures, tune params, run scenarios and read explained runtime errors.",
+  "author": { "name": "debuff", "url": "https://debuff.jp" },
+  "homepage": "https://debuff.jp",
+  "documentation": "https://debuff.jp",
+  "support": "https://github.com/debuffjp/debuff/issues",
+  "repository": { "type": "git", "url": "https://github.com/debuffjp/debuff" },
+  "license": "MIT",
+  "keywords": ["gamedev", "game-engine", "2d", "browser-game"],
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": {
+      "command": "npx",
+      "args": ["-y", "@debuffjp/mcp", "--root", "${user_config.project}"]
+    }
+  },
+  "user_config": {
+    "project": {
+      "type": "directory",
+      "title": "Game project",
+      "description": "The folder of your debuff game (the one with package.json)",
+      "required": true
+    }
+  },
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": { "node": ">=22" }
+  },
+  "tools_generated": true,
+  "prompts_generated": true
+}

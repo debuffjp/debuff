@@ -86,6 +86,7 @@ export function createServer(options: ServerOptions): McpServer {
     "build",
     {
       title: "Production build",
+      annotations: { readOnlyHint: false, destructiveHint: false },
       description:
         "Build for production and return the size report (raw, gzip, brotli per file). `leaks` lists dev-only code found in the output; it must be empty.",
       inputSchema: root,
@@ -102,6 +103,7 @@ export function createServer(options: ServerOptions): McpServer {
     "run_scenarios",
     {
       title: "Run scenarios",
+      annotations: { readOnlyHint: false, destructiveHint: false },
       description:
         "Run scenarios/*.json (or the given files) in a headless browser. Returns per-step results, runtime errors, captures and final state.",
       inputSchema: {
@@ -122,6 +124,7 @@ export function createServer(options: ServerOptions): McpServer {
     "fuzz",
     {
       title: "Fuzz playtest",
+      annotations: { readOnlyHint: false, destructiveHint: false },
       description:
         "Play the game headlessly with random but plausible input (movement keys held, action keys tapped) to find runtime errors, stuck states and back-and-forth loops. " +
         "Each finding includes the explained error (kind, source-mapped file:line, hint) and `repro`: a scenario file that replays it exactly. " +
@@ -153,6 +156,7 @@ export function createServer(options: ServerOptions): McpServer {
     "game_start",
     {
       title: "Start game",
+      annotations: { readOnlyHint: false, destructiveHint: false },
       description:
         "Connect to the game. auto (default): attach to the human's live game if `debuff dev` has it open in a browser, else start a private " +
         "headless copy, paused. Returns the mode, state and how many notes the human has flagged. Replaces any running session.",
@@ -185,6 +189,7 @@ export function createServer(options: ServerOptions): McpServer {
     "game_step",
     {
       title: "Advance time",
+      annotations: { readOnlyHint: false, destructiveHint: false },
       description: "Advance the simulation by fixed steps (60 per second by default) and return the new state.",
       inputSchema: { steps: z.number().int().min(1).max(36_000).describe("Fixed simulation steps to run.") },
     },
@@ -195,6 +200,7 @@ export function createServer(options: ServerOptions): McpServer {
     "game_input",
     {
       title: "Send input",
+      annotations: { readOnlyHint: false, destructiveHint: false },
       description:
         "Keyboard or pointer input. press/release take a KeyboardEvent.code (e.g. Space, ArrowLeft, KeyZ). tap/pointer_down/pointer_move take logical x, y. " +
         "Input takes effect on the next game_step.",
@@ -235,6 +241,7 @@ export function createServer(options: ServerOptions): McpServer {
     "game_set_param",
     {
       title: "Set param",
+      annotations: { readOnlyHint: false, destructiveHint: false },
       description:
         "Set a tunable param live. Values are validated against the param's type and range. Changes last until game_start or a reload.",
       inputSchema: { group: z.string(), key: z.string(), value: z.union([z.number(), z.boolean()]) },
@@ -263,6 +270,7 @@ export function createServer(options: ServerOptions): McpServer {
     "game_pause",
     {
       title: "Pause or resume",
+      annotations: { readOnlyHint: false, destructiveHint: false },
       description: "Pause or resume a live game (headless games are always paused). game_step also pauses first.",
       inputSchema: { paused: z.boolean() },
     },
@@ -298,6 +306,7 @@ export function createServer(options: ServerOptions): McpServer {
     "game_replay",
     {
       title: "Save a replay",
+      annotations: { readOnlyHint: false, destructiveHint: false },
       description:
         "Everything played since the game loaded (keys, pointer, param changes) up to `toTick` (default: now), saved as a scenario " +
         "in .debuff/replays/ that replays it exactly. Use a note's `tick` to reproduce what the human saw when they flagged it, then " +
@@ -340,6 +349,7 @@ export function createServer(options: ServerOptions): McpServer {
     "game_stop",
     {
       title: "Stop game",
+      annotations: { readOnlyHint: false, destructiveHint: false },
       description: "Headless: close the browser and dev server. Live: resume the human's game and disconnect.",
       inputSchema: {},
     },
