@@ -32,7 +32,7 @@ export interface TestOptions {
 
 /** @internal How the runner boots a game for `play()`. */
 export interface Booter {
-  boot(options: PlayOptions, hooks: { onStep?: (state: unknown, tick: number) => void }): Promise<Playtest>;
+  boot(options: PlayOptions, hooks: { onStep?: (state: unknown, tick: number, loading: boolean) => void }): Promise<Playtest>;
 }
 
 /** @internal A registered test. */

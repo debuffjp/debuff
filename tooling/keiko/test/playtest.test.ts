@@ -371,6 +371,27 @@ describe("test registration", () => {
     await expect(Promise.resolve().then(() => idle?.fn())).rejects.toThrow(/didn't play any steps/);
   });
 
+  it("blames a load, not game logic, when the runs diverge while the game was loading", async () => {
+    let calls = 0;
+    reg.booter = {
+      boot: async (_o, hooks) => {
+        const run = calls++;
+        const options = run === 1 ? { random: () => 0.5 } : {};
+        return new Playtest(debuffDriver(fakeHooks(options)), {
+          root: ".",
+          loading: () => true,
+          settle: async () => true,
+          ...(hooks.onStep ? { onStep: hooks.onStep } : {}),
+        });
+      },
+    };
+    test.deterministic("loads", async (g) => {
+      g.press("ArrowRight");
+      await g.run(3);
+    });
+    await expect(Promise.resolve().then(() => reg.tests[0]?.fn())).rejects.toThrow(/likely a load finishing on a different frame/);
+  });
+
   it("explains play() outside the runner", async () => {
     await expect(play()).rejects.toThrow(/only works inside tests run by `npx keiko`/);
   });

@@ -137,6 +137,9 @@ function add(name: string, fn: TestFn, mode: TestCase["mode"], options: TestOpti
 }
 
 /** Register a test. See {@link TestApi}. */
+/** Steps before a divergence in which a load counts as its likely cause. */
+const LOAD_WINDOW = 10;
+
 export const test: TestApi = Object.assign((name: string, fn: TestFn, options?: TestOptions) => add(name, fn, "run", options), {
   only: (name: string, fn: TestFn, options?: TestOptions) => add(name, fn, "only", options),
   skip: (name: string, fn?: TestFn, options?: TestOptions) => add(name, fn ?? (() => {}), "skip", options),
@@ -162,8 +165,11 @@ export const test: TestApi = Object.assign((name: string, fn: TestFn, options?: 
       name,
       async () => {
         const record = async (seed: number) => {
-          const states: { tick: number; state: unknown }[] = [];
-          const game = await bootGame({ ...options.play, seed }, { onStep: (state, tick) => states.push({ tick, state }) });
+          const states: { tick: number; state: unknown; loading: boolean }[] = [];
+          const game = await bootGame(
+            { ...options.play, seed },
+            { onStep: (state, tick, loading) => states.push({ tick, state, loading }) },
+          );
           await script(game);
           return states;
         };
@@ -177,9 +183,16 @@ export const test: TestApi = Object.assign((name: string, fn: TestFn, options?: 
           const at = path ? `state.${path}` : "the state";
           const read = (s: unknown) =>
             path ? path.split(".").reduce<unknown>((o, k) => (o as Record<string, unknown> | undefined)?.[k], s) : s;
+          // Loads in flight shortly before the split point to a load racing the frames, not to game logic.
+          const recent = (run: typeof a) => run.slice(Math.max(0, i - LOAD_WINDOW), i + 1).some((s) => s.loading);
+          const cause =
+            recent(a) || recent(b)
+              ? "The game was loading (requests or modules) in the steps before, so this is likely a load finishing on a different frame in each run, not your logic. " +
+                "Assert on the outcome with `await game.eventually(…)` instead of exact ticks, or wait for loads with `await game.settle()` before the part you compare."
+              : "Look for Math.random(), Date.now() or real-time timers in game logic: use a seeded generator and the time step your loop passes in. " +
+                "If the step follows an async flow (a promise chain, a worker's reply), it may land on a different frame each run: assert the outcome with `await game.eventually(…)`.";
           throw new Error(
-            `the two runs diverged at tick ${a[i]?.tick}: ${at} was ${show(read(a[i]?.state))} in the first run and ${show(read(b[i]?.state))} in the second. ` +
-              "Look for Math.random(), Date.now() or real-time timers in game logic: use a seeded generator and the time step your loop passes in.",
+            `the two runs diverged at tick ${a[i]?.tick}: ${at} was ${show(read(a[i]?.state))} in the first run and ${show(read(b[i]?.state))} in the second. ${cause}`,
           );
         }
         if (a.length !== b.length) throw new Error(`the script played ${a.length} steps the first time and ${b.length} the second`);
@@ -225,10 +238,10 @@ function scopeHooks(): import("./registry.js").Hooks {
  *
  * ```ts
  * let game: Playtest<State>;
- * beforeEach(async () => {
+ * beforeEach(async () =>
  *   game = await play<State>();
  *   game.command("warp", "hollow");
- * });
+ * );
  * ```
  */
 export function beforeEach(fn: () => unknown): void {
@@ -261,7 +274,10 @@ export function play<S = any>(options: PlayOptions = {}): Promise<Playtest<S>> {
   return bootGame(options, {}) as Promise<Playtest<S>>;
 }
 
-async function bootGame(options: PlayOptions, hooks: { onStep?: (state: unknown, tick: number) => void }): Promise<Playtest> {
+async function bootGame(
+  options: PlayOptions,
+  hooks: { onStep?: (state: unknown, tick: number, loading: boolean) => void },
+): Promise<Playtest> {
   const r = registry();
   if (!r.booter) throw new Error("play() only works inside tests run by `npx keiko` (or `npx debuff test`).");
   const game = await r.booter.boot(options, hooks);

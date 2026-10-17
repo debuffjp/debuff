@@ -98,6 +98,8 @@ if (import.meta.env.DEV) {
 const game = await play({ ready: (g) => g.scene === "level" && g.state !== undefined });
 ```
 
+Adding keiko to a game you didn't write, where the scenes and buttons already exist? The [hooking-up guide](https://debuff.jp/keiko/engines#hooking-up-an-existing-game) has copy-paste hooks for Phaser scenes and PixiJS screen managers, including how to expose button positions for `tap()`.
+
 Every hook is optional:
 
 | Hook | Used by | |
