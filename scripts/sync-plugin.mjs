@@ -63,6 +63,8 @@ mcpb.version = version;
 write("tooling/mcp/mcpb/manifest.json", mcpb);
 
 execSync("npm install --package-lock-only --ignore-scripts --no-audit --no-fund", { cwd: plugin, stdio: "inherit" });
+// Match the repo's formatting (Biome collapses short arrays that JSON.stringify spreads over lines).
+execSync("npx biome format --write plugins tooling/mcp/mcpb/manifest.json", { stdio: "inherit" });
 execSync(`git add plugins tooling/mcp/mcpb/manifest.json`, { stdio: "inherit" });
 execSync(`git commit -m "chore(plugin): use @debuffjp/mcp@${version}"`, { stdio: "inherit" });
 console.log(`plugin now uses @debuffjp/mcp@${version}`);
