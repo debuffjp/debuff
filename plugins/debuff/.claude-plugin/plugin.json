@@ -1,8 +1,8 @@
 {
   "name": "debuff",
   "displayName": "debuff",
-  "version": "0.3.0",
-  "description": "Inspect, build, test and play a debuff game: live game state, input, captures, params, scenarios and explained errors",
+  "version": "0.3.1",
+  "description": "Make 2D browser games with Claude: start a playable platformer or top-down adventure in a minute, then Claude plays it, sees it, tunes the feel and tests it while you make the creative calls.",
   "author": {
     "name": "debuff",
     "url": "https://debuff.jp"
@@ -10,7 +10,18 @@
   "homepage": "https://debuff.jp",
   "repository": "https://github.com/debuffjp/debuff",
   "license": "MIT",
-  "keywords": ["gamedev", "game-engine", "2d", "browser-game", "mcp"],
+  "keywords": [
+    "2d-game",
+    "game-development",
+    "gamedev",
+    "browser-game",
+    "html5-game",
+    "game-engine",
+    "pixel-art",
+    "platformer",
+    "game-jam",
+    "typescript"
+  ],
   "docs": "https://debuff.jp",
   "support": "https://discord.gg/jshbDHSpCY",
   "privacyPolicy": "https://debuff.jp/privacy"
