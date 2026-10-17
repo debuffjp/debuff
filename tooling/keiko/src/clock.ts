@@ -222,5 +222,8 @@ function fromNode(): boolean {
   return caller.includes("node:");
 }
 
+/** Give pending promise callbacks and I/O a turn of the event loop, without waiting on a timer. */
+export const yieldTurn = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
+
 /** Wait real milliseconds, even while a game's clock is installed. */
 export const sleep = (ms: number): Promise<void> => new Promise((resolve) => realSetTimeout(resolve, ms));

@@ -71,6 +71,10 @@ const LIMITS: Record<number, number> = {
 export function inertWebGL(canvas: { width: number; height: number }, version: 1 | 2, proto: object): unknown {
   let ids = 0;
   const handle = (kind: string) => ({ __keiko: kind, id: ++ids });
+  // Shaders and programs remember their GLSL, so programs report the attributes and uniforms they declare:
+  // engines enumerate those to bind buffers and build uniform setters.
+  type Shader = { __keiko: string; id: number; type: number; source: string };
+  type Program = { __keiko: string; id: number; shaders: Shader[]; attributes: Variable[]; uniforms: Variable[] };
   const size = () => [canvas.width || 300, canvas.height || 150] as const;
   const methods: Record<string, (...args: never[]) => unknown> = {
     getParameter(p: number) {
@@ -122,8 +126,20 @@ export function inertWebGL(canvas: { width: number; height: number }, version: 1
     createTexture: () => handle("texture"),
     createFramebuffer: () => handle("framebuffer"),
     createRenderbuffer: () => handle("renderbuffer"),
-    createProgram: () => handle("program"),
-    createShader: () => handle("shader"),
+    createProgram: () => ({ ...handle("program"), shaders: [], attributes: [], uniforms: [] }),
+    createShader: (type: number) => ({ ...handle("shader"), type, source: "" }),
+    shaderSource: (shader: Shader, source: string) => {
+      shader.source = String(source);
+    },
+    getShaderSource: (shader: Shader) => shader.source,
+    attachShader: (program: Program, shader: Shader) => {
+      program.shaders.push(shader);
+    },
+    linkProgram: (program: Program) => {
+      const declared = reflect(program.shaders);
+      program.attributes = declared.attributes;
+      program.uniforms = declared.uniforms;
+    },
     createVertexArray: () => handle("vertexArray"),
     createQuery: () => handle("query"),
     createSampler: () => handle("sampler"),
@@ -131,19 +147,24 @@ export function inertWebGL(canvas: { width: number; height: number }, version: 1
     fenceSync: () => handle("sync"),
     clientWaitSync: () => GL.ALREADY_SIGNALED,
     getSyncParameter: () => GL.SIGNALED,
-    getShaderParameter: (_s: unknown, p: number) => (p === GL.SHADER_TYPE ? GL.VERTEX_SHADER : p !== GL.DELETE_STATUS),
-    getProgramParameter: (_p: unknown, p: number) =>
-      p === GL.ACTIVE_UNIFORMS || p === GL.ACTIVE_ATTRIBUTES || p === GL.ATTACHED_SHADERS || p === GL.ACTIVE_UNIFORM_BLOCKS
-        ? 0
-        : p !== GL.DELETE_STATUS,
+    getShaderParameter: (s: Shader, p: number) => (p === GL.SHADER_TYPE ? (s?.type ?? GL.VERTEX_SHADER) : p !== GL.DELETE_STATUS),
+    getProgramParameter: (program: Program, p: number) => {
+      if (p === GL.ACTIVE_ATTRIBUTES) return program?.attributes?.length ?? 0;
+      if (p === GL.ACTIVE_UNIFORMS) return program?.uniforms?.length ?? 0;
+      if (p === GL.ATTACHED_SHADERS) return program?.shaders?.length ?? 0;
+      if (p === GL.ACTIVE_UNIFORM_BLOCKS) return 0;
+      return p !== GL.DELETE_STATUS;
+    },
     getShaderInfoLog: () => "",
     getProgramInfoLog: () => "",
-    getShaderSource: () => "",
     getShaderPrecisionFormat: () => ({ rangeMin: 127, rangeMax: 127, precision: 23 }),
-    getUniformLocation: () => handle("uniformLocation"),
-    getAttribLocation: () => 0,
-    getActiveUniform: () => null,
-    getActiveAttrib: () => null,
+    getUniformLocation: (program: Program, name: string) => {
+      const base = String(name).replace(/\[0\]$/, "");
+      return program?.uniforms?.some((u) => u.name.replace(/\[0\]$/, "") === base) ? handle("uniformLocation") : null;
+    },
+    getAttribLocation: (program: Program, name: string) => program?.attributes?.findIndex((a) => a.name === name) ?? -1,
+    getActiveUniform: (program: Program, i: number) => program?.uniforms?.[i] ?? null,
+    getActiveAttrib: (program: Program, i: number) => program?.attributes?.[i] ?? null,
     getUniformBlockIndex: () => 0,
     getAttachedShaders: () => [],
     checkFramebufferStatus: () => GL.FRAMEBUFFER_COMPLETE,
@@ -228,6 +249,75 @@ function inertExtension(handle: (kind: string) => object): object {
       },
     },
   );
+}
+
+/** An active attribute or uniform, as `getActiveAttrib` / `getActiveUniform` report it. */
+interface Variable {
+  name: string;
+  type: number;
+  size: number;
+}
+
+const GLSL_TYPES: Record<string, string> = {
+  float: "FLOAT",
+  vec2: "FLOAT_VEC2",
+  vec3: "FLOAT_VEC3",
+  vec4: "FLOAT_VEC4",
+  int: "INT",
+  ivec2: "INT_VEC2",
+  ivec3: "INT_VEC3",
+  ivec4: "INT_VEC4",
+  uint: "UNSIGNED_INT",
+  uvec2: "UNSIGNED_INT_VEC2",
+  uvec3: "UNSIGNED_INT_VEC3",
+  uvec4: "UNSIGNED_INT_VEC4",
+  bool: "BOOL",
+  bvec2: "BOOL_VEC2",
+  bvec3: "BOOL_VEC3",
+  bvec4: "BOOL_VEC4",
+  mat2: "FLOAT_MAT2",
+  mat3: "FLOAT_MAT3",
+  mat4: "FLOAT_MAT4",
+  sampler2D: "SAMPLER_2D",
+  samplerCube: "SAMPLER_CUBE",
+  sampler3D: "SAMPLER_3D",
+  sampler2DArray: "SAMPLER_2D_ARRAY",
+  sampler2DShadow: "SAMPLER_2D_SHADOW",
+  isampler2D: "INT_SAMPLER_2D",
+  usampler2D: "UNSIGNED_INT_SAMPLER_2D",
+};
+
+/**
+ * The attributes (vertex shader `attribute` / `in`) and uniforms a program's GLSL declares. Structs and
+ * uniform blocks aren't expanded; that's enough for engines to bind what they use.
+ */
+function reflect(shaders: { type: number; source: string }[]): { attributes: Variable[]; uniforms: Variable[] } {
+  const attributes: Variable[] = [];
+  const uniforms: Variable[] = [];
+  const seen = new Set<string>();
+  for (const shader of shaders) {
+    const source = shader.source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+    const vertex = shader.type === GL.VERTEX_SHADER;
+    const decl = /(?<=^|;|\})\s*(?:layout\s*\([^)]*\)\s*)?(attribute|in|uniform)\s+(?:(?:lowp|mediump|highp)\s+)?(\w+)\s+([^;{]+);/gm;
+    for (const m of source.matchAll(decl)) {
+      const [, qualifier = "", type = "", names = ""] = m;
+      const glType = GL[GLSL_TYPES[type] ?? ""];
+      if (glType === undefined) continue; // structs, blocks
+      if ((qualifier === "attribute" || qualifier === "in") && !vertex) continue; // fragment inputs aren't attributes
+      for (const part of names.split(",")) {
+        const nm = /(\w+)\s*(?:\[\s*(\d+)\s*\])?/.exec(part.trim());
+        if (!nm?.[1]) continue;
+        const size = nm[2] ? Number(nm[2]) : 1;
+        const name = nm[2] ? `${nm[1]}[0]` : nm[1];
+        if (qualifier === "uniform") {
+          if (seen.has(name)) continue;
+          seen.add(name);
+          uniforms.push({ name, type: glType, size });
+        } else attributes.push({ name, type: glType, size });
+      }
+    }
+  }
+  return { attributes, uniforms };
 }
 
 const NAMES = new Map(Object.entries(GL).map(([k, v]) => [v, k]));

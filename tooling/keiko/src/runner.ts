@@ -8,6 +8,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { InlineConfig, ViteDevServer } from "vite";
+import type { ModuleRunner } from "vite/module-runner";
 import { realClearTimeout, realNow, realSetTimeout, sleep, VirtualClock } from "./clock.js";
 import { type DebuffDevHooks, debuffDriver, genericDriver, type KeikoHooks } from "./driver.js";
 import { type HeadlessPage, openPage } from "./environment.js";
@@ -139,18 +140,48 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
   const report: TestReport = { ok: true, passed: 0, failed: 0, skipped: 0, todo: 0, durationMs: 0, results: [], outside: [] };
   if (!files.length) return report;
 
-  const { createServer, createServerModuleRunner } = await import("vite");
+  const { createServer, createRunnableDevEnvironment } = await import("vite");
   const server: ViteDevServer = await createServer({
     root,
     ...options.vite,
     logLevel: "error",
     clearScreen: false,
     server: { ...options.vite?.server, port: 0, strictPort: false, hmr: false, watch: null },
+    environments: {
+      ...options.vite?.environments,
+      // The game's modules resolve and bundle as they would for a browser (browser builds of packages,
+      // CommonJS pre-bundled to ESM), but run here. Dependencies are evaluated fresh with every game, so
+      // nothing an engine keeps in module scope leaks between tests. keiko itself stays a Node module.
+      [ENVIRONMENT]: {
+        consumer: "server",
+        resolve: {
+          noExternal: true,
+          external: ["keiko"],
+          conditions: ["browser", "module", "import", "development|production"],
+          externalConditions: ["node", "import"],
+          mainFields: ["browser", "module", "jsnext:main", "jsnext"],
+        },
+        optimizeDeps: { noDiscovery: false, entries: [...new Set(["index.html", ...files])] },
+        dev: { createEnvironment: (name, config) => createRunnableDevEnvironment(name, config, { runnerOptions: { hmr: false } }) },
+      },
+    },
   });
   await server.listen();
   const origin = server.resolvedUrls?.local[0];
   if (!origin) throw new Error("The Vite dev server didn't report a URL");
-  const modules = createServerModuleRunner(server.environments.ssr, { hmr: false });
+  const modules = (server.environments[ENVIRONMENT] as unknown as { runner: ModuleRunner }).runner;
+  // Count module loads in flight, including a game's dynamic import()s, so loading waits for them too.
+  let moduleLoads = 0;
+  const runner = modules as unknown as Record<"cachedModule" | "cachedRequest", (...args: unknown[]) => Promise<unknown>>;
+  for (const method of ["cachedModule", "cachedRequest"] as const) {
+    const original = runner[method].bind(modules);
+    runner[method] = (...args) => {
+      moduleLoads++;
+      return original(...args).finally(() => {
+        moduleLoads--;
+      });
+    };
+  }
 
   const debuff = options.debuff ?? usesDebuff(root);
   const reg = registry();
@@ -159,6 +190,9 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
     reg.current = undefined;
     const p = page;
     page = undefined;
+    // Let the game's pending loads (decoding audio, fetching assets) finish while its page still exists,
+    // so they don't fail against a closed page and get reported as errors.
+    await p?.settle(2000);
     await p?.dispose();
   };
 
@@ -177,6 +211,8 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
         path: `/${pagePath.replace(/(^|\/)index\.html$/, "$1")}`,
         html,
         clock,
+        busy: () => moduleLoads > 0,
+        ...(play.viewport ? { viewport: play.viewport } : {}),
         // debuff renders the same on either backend; its Canvas 2D path is the cheaper one to run headless.
         webgl: play.webgl ?? !debuff,
         // debuff games stop their loop and wait for steps when opened this way.
@@ -184,9 +220,26 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
       });
       // Fresh module instances for every game: the game's top-level code runs again in the new page.
       modules.clearCache();
+      const bootLimit = realNow() + (play.timeout ?? 10_000);
       for (const src of scripts) {
         try {
-          await modules.import(new URL(src, `${origin}${pagePath}`).pathname);
+          // A browser keeps running frames and timers while a module awaits at the top level (an engine's
+          // `await game.start()` waiting on its loader). Do the same, or the game would wait forever.
+          let done = false;
+          const imported = modules.import(new URL(src, `${origin}${pagePath}`).pathname).finally(() => {
+            done = true;
+          });
+          imported.catch(() => {});
+          while (!done) {
+            // Before each frame, wait until the page is quiet, so how many frames boot takes doesn't depend
+            // on network or machine speed.
+            await Promise.race([imported, page.settle(Math.max(0, bootLimit - realNow()))]);
+            if (done) break;
+            if (realNow() > bootLimit) throw new Error(`it was still loading after ${play.timeout ?? 10_000} ms`);
+            if (debuff) clock.advanceTime(clock.stepMs);
+            else clock.advance(1);
+          }
+          await imported;
         } catch (err) {
           throw new Error(`play(): the game threw while loading ${src}: ${err instanceof Error ? err.message : String(err)}`, {
             cause: err,
@@ -199,6 +252,7 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
         root,
         window: w as unknown as Window,
         settle: (timeout?: number) => current.settle(timeout),
+        loading: () => current.inflight > 0,
         ...(hooks.onStep ? { onStep: hooks.onStep } : {}),
       };
       const limit = realNow() + (play.timeout ?? 10_000);
@@ -223,8 +277,10 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
         }
         // Let asset loads and promise callbacks settle. Games on the virtual clock may also need frames to boot
         // (engines often start their scenes a frame or two in), so play one while waiting.
-        await sleep(2);
+        // Frames advance only once the page is quiet, so boot is deterministic whatever the network does.
+        await current.settle(Math.max(0, limit - realNow()));
         if (game && game.driver.kind !== "debuff") game.driver.step(1);
+        else await sleep(2);
       }
       await current.settle(Math.max(0, limit - realNow()));
       if (play.params) game.set(play.params);
@@ -282,6 +338,8 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
     }
   } finally {
     await closePage();
+    // Let imports a game started finish before the server goes away (they'd fail with a closed transport).
+    for (let waited = 0; moduleLoads > 0 && waited < 2000; waited += 10) await sleep(10);
     await sleep(0);
     process.off("unhandledRejection", onStray);
     process.off("uncaughtException", onStray);
@@ -293,6 +351,9 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
   report.durationMs = Math.round(realNow() - started);
   return report;
 }
+
+/** The Vite environment games run in. */
+const ENVIRONMENT = "keiko";
 
 /** Where the runner's error listener sends a game's stray errors: the running test's list, if any. */
 const strays: { current: unknown[] | undefined } = { current: undefined };

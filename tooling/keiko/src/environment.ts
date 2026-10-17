@@ -1,6 +1,7 @@
 import { Window } from "happy-dom";
-import { sleep, type VirtualClock } from "./clock.js";
+import { sleep, type VirtualClock, yieldTurn } from "./clock.js";
 import { inertWebGL, webglClasses } from "./webgl.js";
+import { inlineWorkerClass } from "./worker.js";
 
 /**
  * A headless page for one game: a happy-dom window installed as Node's globals while the game runs,
@@ -88,13 +89,31 @@ export interface PageOptions {
   search?: Record<string, string>;
   /** Offer WebGL contexts. When false, `getContext("webgl2")` returns null and engines fall back to Canvas 2D. Default true. */
   webgl?: boolean;
+  /** Other work that counts as loading, such as the game's dynamic imports. */
+  busy?: () => boolean;
+  /** The window's inner size. Default 960×540. */
+  viewport?: { width: number; height: number };
   clock: VirtualClock;
 }
 
-export function openPage({ origin, path, html = "", search = {}, clock, webgl = true }: PageOptions): HeadlessPage {
+export function openPage({
+  origin,
+  path,
+  html = "",
+  search = {},
+  clock,
+  webgl = true,
+  busy = () => false,
+  viewport = { width: 960, height: 540 },
+}: PageOptions): HeadlessPage {
   const url = new URL(path, origin);
   for (const [k, v] of Object.entries(search)) url.searchParams.set(k, v);
-  const window = new Window({ url: url.toString(), width: 960, height: 540, settings: { disableJavaScriptEvaluation: true } });
+  const window = new Window({
+    url: url.toString(),
+    width: viewport.width,
+    height: viewport.height,
+    settings: { disableJavaScriptEvaluation: true },
+  });
   const w = window as unknown as Record<string, unknown> & typeof globalThis;
   // The page's markup (canvas, containers, UI), without running its scripts: the runner imports those itself.
   if (html) window.document.write(html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ""));
@@ -128,36 +147,29 @@ export function openPage({ origin, path, html = "", search = {}, clock, webgl = 
   canvasProto.getContext = function (this: object, kind: string) {
     return getContext(this, kind);
   };
-  // A canvas reports its own size as its box, so pointer mapping (clientX - rect.left) * width / rect.width works.
+  // A canvas's box on the page is its CSS size (style.width/height when set, as engines do for high-DPI
+  // canvases), else its pixel size, at the origin. Pointer coordinates are in that box, like clientX.
+  const cssSize = (canvas: { width: number; height: number; style?: { width?: string; height?: string } }) => {
+    const px = (v: string | undefined) => (v && /^[\d.]+px$/.test(v) ? Number.parseFloat(v) : undefined);
+    return { width: px(canvas.style?.width) ?? (canvas.width || 300), height: px(canvas.style?.height) ?? (canvas.height || 150) };
+  };
   canvasProto.getBoundingClientRect = function (this: { width: number; height: number }) {
-    const width = this.width || 300;
-    const height = this.height || 150;
+    const { width, height } = cssSize(this);
     return { x: 0, y: 0, left: 0, top: 0, right: width, bottom: height, width, height, toJSON: () => ({}) };
   };
-  Object.defineProperty(canvasProto, "clientWidth", {
-    configurable: true,
-    get(this: { width: number }) {
-      return this.width || 300;
-    },
-  });
-  Object.defineProperty(canvasProto, "clientHeight", {
-    configurable: true,
-    get(this: { height: number }) {
-      return this.height || 150;
-    },
-  });
-  Object.defineProperty(canvasProto, "offsetWidth", {
-    configurable: true,
-    get(this: { width: number }) {
-      return this.width || 300;
-    },
-  });
-  Object.defineProperty(canvasProto, "offsetHeight", {
-    configurable: true,
-    get(this: { height: number }) {
-      return this.height || 150;
-    },
-  });
+  for (const [prop, axis] of [
+    ["clientWidth", "width"],
+    ["clientHeight", "height"],
+    ["offsetWidth", "width"],
+    ["offsetHeight", "height"],
+  ] as const) {
+    Object.defineProperty(canvasProto, prop, {
+      configurable: true,
+      get(this: { width: number; height: number }) {
+        return cssSize(this)[axis];
+      },
+    });
+  }
   InertOffscreenCanvas.contexts = getContext;
   canvasProto.toDataURL = () => "data:image/png;base64,";
   // Every request the game makes is counted, so the runner can wait for loading to finish.
@@ -168,13 +180,58 @@ export function openPage({ origin, path, html = "", search = {}, clock, webgl = 
       inflight--;
     });
   };
-  const pageFetch = (input: string | URL | Request, init?: RequestInit) =>
-    track(nodeFetch(typeof input === "string" || input instanceof URL ? new URL(input, url) : input, init));
+  // Object URLs (`blob:`) for any Blob-like value (Node's or happy-dom's), readable by fetch, <img> and workers.
+  const objectURLs = new Map<string, { arrayBuffer(): Promise<ArrayBuffer>; type?: string }>();
+  let objectURLCount = 0;
+  class PageURL extends URL {
+    static override createObjectURL(blob: Blob | MediaSource): string {
+      const id = `blob:${url.origin}/keiko-${++objectURLCount}`;
+      objectURLs.set(id, blob as unknown as { arrayBuffer(): Promise<ArrayBuffer>; type?: string });
+      return id;
+    }
+    static override revokeObjectURL(id: string): void {
+      objectURLs.delete(id);
+    }
+  }
+  const pageFetch = (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    const target = typeof input === "string" || input instanceof URL ? String(input) : input.url;
+    const blob = objectURLs.get(target);
+    if (blob) {
+      return track(blob.arrayBuffer().then((bytes) => new Response(bytes, { headers: blob.type ? { "content-type": blob.type } : {} })));
+    }
+    return track(nodeFetch(typeof input === "string" || input instanceof URL ? new URL(input, url) : input, init));
+  };
+  // XMLHttpRequest (Phaser's loader uses it) counts as loading too.
+  const xhrProto = (w.XMLHttpRequest as unknown as { prototype: Record<string, unknown> } | undefined)?.prototype;
+  if (xhrProto) {
+    const send = xhrProto.send as (this: EventTarget, body?: unknown) => void;
+    xhrProto.send = function (this: EventTarget, body?: unknown) {
+      inflight++;
+      this.addEventListener("loadend", () => inflight--, { once: true });
+      return send.call(this, body);
+    };
+  }
+  // ImageBitmaps report the size of what they were made from: an image, canvas or ImageData, or a Blob's header.
+  const createImageBitmap = async (source: unknown): Promise<unknown> => {
+    let size = { width: 0, height: 0 };
+    if (source instanceof Blob) size = imageSize(new Uint8Array(await source.arrayBuffer()));
+    else if (source && typeof source === "object") {
+      const s = source as { width?: number; height?: number; naturalWidth?: number; naturalHeight?: number };
+      size = { width: s.naturalWidth || s.width || 0, height: s.naturalHeight || s.height || 0 };
+    }
+    return { ...size, close() {} };
+  };
   const overrides: Record<string, unknown> = {
     fetch: pageFetch,
+    URL: PageURL,
     Image: headlessImage(window as unknown as Window, pageFetch),
     ...(webgl ? gl : {}),
     AudioContext: InertAudioContext,
+    AudioBuffer: InertAudioBuffer,
+    AudioNode: InertAudioNode,
+    AudioParam: InertAudioNode,
+    GainNode: InertAudioNode,
+    AudioBufferSourceNode: InertAudioNode,
     webkitAudioContext: InertAudioContext,
     OfflineAudioContext: InertAudioContext,
     OffscreenCanvas: InertOffscreenCanvas,
@@ -191,8 +248,8 @@ export function openPage({ origin, path, html = "", search = {}, clock, webgl = 
         this.data = new Uint8ClampedArray(Math.max(0, width * height * 4));
       }
     },
-    createImageBitmap: (src: { width?: number; height?: number }) =>
-      Promise.resolve({ width: src.width ?? 0, height: src.height ?? 0, close() {} }),
+    createImageBitmap,
+    Worker: inlineWorkerClass({ fetch: pageFetch as typeof fetch, createImageBitmap }, url.toString()),
     // Frames and timers only run when the test steps the clock.
     requestAnimationFrame: clock.requestAnimationFrame,
     cancelAnimationFrame: clock.cancelAnimationFrame,
@@ -229,6 +286,15 @@ export function openPage({ origin, path, html = "", search = {}, clock, webgl = 
   }
   // Fonts "load" instantly and every family is available: text metrics come from the inert 2D context anyway.
   if (!("fonts" in w.document)) Object.defineProperty(w.document, "fonts", { configurable: true, value: inertFontSet() });
+  // Media elements play the formats browsers do (audio libraries check before loading .ogg, .mp3…).
+  const media = (w.HTMLMediaElement as unknown as { prototype: Record<string, unknown> } | undefined)?.prototype;
+  if (media) {
+    media.canPlayType = (type: string) =>
+      /^(audio|video)\/(ogg|mpeg|mp3|mp4|wav|x-wav|webm|aac|x-m4a|flac)\b/.test(type) ? "probably" : "";
+    media.play = () => Promise.resolve();
+    media.pause = () => {};
+    media.load = () => {};
+  }
   // No gamepads are connected, as in a browser with none plugged in.
   if (typeof (w.navigator as { getGamepads?: unknown }).getGamepads !== "function") {
     Object.defineProperty(w.navigator, "getGamepads", { configurable: true, value: () => [null, null, null, null] });
@@ -241,15 +307,18 @@ export function openPage({ origin, path, html = "", search = {}, clock, webgl = 
   return {
     window,
     get inflight() {
-      return inflight;
+      return inflight + (busy() ? 1 : 0);
     },
     async settle(timeout = 10_000) {
       const deadline = Date.now() + timeout;
-      // Quiet means no requests for two turns in a row: a finished load often starts the next one.
+      // Quiet means no requests for three turns in a row: a finished load often starts the next one.
       let quietTurns = 0;
-      while (quietTurns < 2) {
-        await sleep(inflight ? 2 : 0);
-        quietTurns = inflight ? 0 : quietTurns + 1;
+      while (quietTurns < 3) {
+        const loading = inflight > 0 || busy();
+        // While loading, poll gently; otherwise just give promise callbacks a turn (cheap: no timer).
+        if (loading) await sleep(2);
+        else await yieldTurn();
+        quietTurns = loading ? 0 : quietTurns + 1;
         if (Date.now() > deadline) return false;
       }
       return true;
@@ -398,6 +467,31 @@ function inertFontSet() {
   };
 }
 
+/** An `AudioBuffer` of silence, with real channel data. */
+class InertAudioBuffer {
+  readonly numberOfChannels: number;
+  readonly length: number;
+  readonly sampleRate: number;
+  private readonly channels: Float32Array[];
+  constructor(options: { numberOfChannels?: number; length: number; sampleRate: number }) {
+    this.numberOfChannels = options.numberOfChannels ?? 1;
+    this.length = options.length;
+    this.sampleRate = options.sampleRate;
+    this.channels = Array.from({ length: this.numberOfChannels }, () => new Float32Array(options.length));
+  }
+  get duration(): number {
+    return this.length / this.sampleRate;
+  }
+  getChannelData(channel: number): Float32Array {
+    return this.channels[channel] ?? new Float32Array(this.length);
+  }
+  copyToChannel(): void {}
+  copyFromChannel(): void {}
+}
+
+/** Audio node classes exist for `instanceof` checks; real nodes come from the context and accept every call. */
+class InertAudioNode {}
+
 /** A Web Audio context that plays nothing. Nodes and params accept every call. */
 class InertAudioContext {
   readonly state = "running";
@@ -424,15 +518,7 @@ class InertAudioContext {
     return Promise.resolve(buffer);
   }
   createBuffer(channels: number, length: number, sampleRate: number): unknown {
-    return {
-      numberOfChannels: channels,
-      length,
-      sampleRate,
-      duration: length / sampleRate,
-      getChannelData: () => new Float32Array(length),
-      copyToChannel() {},
-      copyFromChannel() {},
-    };
+    return new InertAudioBuffer({ numberOfChannels: channels, length, sampleRate });
   }
 }
 

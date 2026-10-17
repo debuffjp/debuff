@@ -28,12 +28,23 @@ Each was checked with a small game: boot, hold a key and move, click, and a dete
 | Engine | Version | Keyboard | Pointer | Deterministic | Notes |
 | --- | --- | --- | --- | --- | --- |
 | debuff | 0.3 | ✔ | ✔ | ✔ | Driven through its dev hooks |
-| Phaser | 4.2 | ✔ | ✔ (exact position) | ✔ | Canvas and WebGL renderers |
+| Phaser | 4.2, 3.x | ✔ | ✔ (exact position) | ✔ | Canvas and WebGL renderers |
 | PixiJS | 8.22 | ✔ | ✔ | ✔ | |
 | KAPLAY | 3001.0 | ✔ | ✔ | ✔ | |
 | Excalibur | 0.32 | ✔ | ✔ | ✔ | |
 | three.js | r186 | ✔ | ✔ | ✔ | |
 | Hand-written canvas loop | | ✔ | ✔ | ✔ | |
+
+### Real games
+
+keiko was also run against open-source games it had never seen. Each needed only a `window.__KEIKO__` hook added.
+
+| Game | Engine | Tests | Deterministic |
+| --- | --- | --- | --- |
+| [Runner](https://github.com/phaserjs/phaser-by-example) | Phaser 3 | score, jump, game over | ✔ |
+| [Starshake](https://github.com/phaserjs/phaser-by-example) | Phaser 3 | start, move, shoot | ✔ |
+| [Puzzling Potions](https://github.com/pixijs/open-games) | PixiJS 8 | Play opens a full board | ✔ |
+| [Bubbo Bubbo](https://github.com/pixijs/open-games) | PixiJS 8 | Play reaches the game | ✘ (see [limits](#known-limits)) |
 
 If your engine trips over the headless page, please [open an issue](https://github.com/debuffjp/debuff/issues) with a minimal game.
 
@@ -120,6 +131,7 @@ Boots a fresh game and returns a [`Playtest`](#playtest). Calling it again repla
 | `seed` | `1` | Seed for `Math.random()` |
 | `fps` | `60` | Frames per second of the virtual clock |
 | `webgl` | `true` (debuff: `false`) | Offer WebGL. `false` makes engines fall back to Canvas 2D |
+| `viewport` | `{ width: 960, height: 540 }` | The window's size, e.g. `{ width: 390, height: 844 }` for a portrait game |
 
 `play()` resolves once the game's scripts have run, its first requests (assets, data) have finished, and `ready` passes. For games on the virtual clock it then plays one frame, as a browser paints before a player can act, so `game.tick` starts at 1. debuff games start at tick 0.
 
@@ -159,6 +171,8 @@ Asking:
 
 | | Returns | |
 | --- | --- | --- |
+| `await run(duration)` | the playtest | Like `wait`, but lets the game's async code (promise chains, tweens awaited in UI flows, loads) continue between frames, like a browser does |
+| `await eventually(condition, { within })` | steps taken | Like `until`, letting async code and loads finish between frames. Use it after an action that loads a screen |
 | `until(condition, { within })` | steps taken | Plays until `condition(state)` holds. Fails with the last state if it doesn't within `within` (default `"10s"`) |
 | `during(duration, check, message?)` | the playtest | Plays and checks an invariant after every step; fails at the step where it broke. `check` can return `false` or throw |
 | `trace(pathOrFn, duration)` | a `Trace` | Plays and records a value every step |
@@ -259,10 +273,21 @@ The game runs in a [happy-dom](https://github.com/capricorn86/happy-dom) page wi
 - **Rendering:** Canvas 2D and WebGL 1/2 contexts accept every call and draw nothing. Shaders compile, framebuffers are complete and pixel reads return zeros, so engines boot whichever renderer they prefer.
 - **Sound:** Web Audio plays nothing; decoding succeeds instantly.
 - **Assets:** images and other files load from the Vite server. Images are real `<img>` elements that report their size (PNG, GIF, JPEG) without decoding pixels. Fonts count as loaded.
-- **Layout:** the canvas reports its own size as its position on the page, so engines that map pointer positions through the canvas's box get the coordinates you passed.
+- **Layout:** the canvas's box is its CSS size (`style.width`/`height`, else its pixel size) at the page's origin, so engines that map pointer positions through it get the coordinates you passed.
+- **Workers:** Web Workers run inline on the page's thread, including from `blob:` URLs, with `fetch` and `createImageBitmap`.
+- **Shaders:** programs report the attributes and uniforms their GLSL declares, so engines that enumerate them bind without warnings.
 - **Time:** everything above runs on the virtual clock. Node's own timers (inside `fetch`, for example) keep real time. To wait in real time inside a test, use `await sleep(ms)` from keiko, not `setTimeout`, which is the game's virtual one while a game runs.
 
 So keiko covers simulation, input, timing, params, scenes and anything your state snapshot exposes. It doesn't cover what's drawn or heard: for that, use screenshot tests in a real browser (debuff's [scenarios](https://debuff.jp/docs/scenarios)). One game runs at a time.
+
+### Known limits
+
+keiko assumes the common case and stays fast rather than modelling every browser timing. Some things it doesn't do:
+
+- **Timing races between real loads and frames.** keiko waits for loads between frames when you use `run()` or `eventually()`, but work that finishes on its own schedule (a worker reply, a chain of loads that starts more loads) can land on a different frame from one run to the next. A game whose logic depends on that ordering, like Bubbo Bubbo switching screens when its assets arrive, won't be frame-for-frame deterministic. Assert on outcomes (`eventually(s => s.screen === "game")`) rather than exact ticks for those flows.
+- **Pixels and sound.** Nothing is drawn or heard; use a real browser for that.
+- **Native layout.** There's no CSS layout engine, so DOM-based UI positions are only what the game sets explicitly.
+- **WebGPU, WebAssembly threads, SharedArrayBuffer workers** aren't provided.
 
 The design is recorded in [ADR 0009](https://github.com/debuffjp/debuff/blob/main/docs/adr/0009-logic-tests.md).
 
