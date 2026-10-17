@@ -1,5 +1,14 @@
 # @debuffjp/core
 
+## 0.2.0
+
+### Patch Changes
+
+- ab5dcf1: Pixel-art games (`pixelArt: true`) now draw unrotated sprites on whole pixels. Nearest sampling at fractional positions made sprite edges gain and lose a pixel from frame to frame, which read as flicker on bobbing pickups, particles and eased movement.
+- 78f0a71: The camera now interpolates between simulation steps (`camera.renderAlpha`, set by `Game` before each render), so camera motion is smooth on displays faster than 60 Hz instead of jumping every few frames. The templates also interpolate their moving sprites using the `alpha` passed to `render`.
+- 2eccd11: Splash redesign: buff is drawn from the same pixel art as the CLI, the icon and text form one centred stack, the wordmark uses Outfit when the player has it installed, and `debuff.jp` is shown at the bottom.
+- 035dfd9: The splash link now opens `https://debuff.jp/?ref=made-with`. The tag lets the debuff site count visits that come from games built with debuff. It carries no player data.
+
 ## 0.1.0
 
 ### Minor Changes
