@@ -27,7 +27,7 @@ As a Claude Code plugin, which also adds a skill that teaches Claude the workflo
 /plugin install debuff@debuff
 ```
 
-For Claude Desktop, `mcpb/manifest.json` describes a desktop extension that asks for the game folder. Pack it with `npx @anthropic-ai/mcpb pack tooling/mcp/mcpb`.
+For Claude Desktop, `mcpb/manifest.json` describes a desktop extension that asks for the game folder. Pack it from that folder with `npx @anthropic-ai/mcpb pack`.
 
 ## Tools
 
