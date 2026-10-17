@@ -97,6 +97,7 @@ docs/        architecture, roadmap, decisions (docs/adr)
 
 ## Community
 
+- **[Discord](https://discord.gg/jshbDHSpCY)**: the debuff community's home. Ask questions, share games, find jams.
 - [debuff.jp](https://debuff.jp) · [Issues](https://github.com/debuffjp/debuff/issues)
 - [Contributing](./CONTRIBUTING.md) · [Agent guide](./AGENTS.md) · [Governance](./GOVERNANCE.md)
 - [Code of conduct](./CODE_OF_CONDUCT.md) · [Security](./SECURITY.md) · [Versioning and stability](./docs/stability.md)

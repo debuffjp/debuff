@@ -9,7 +9,7 @@ Paste into claude.ai/directory/manage. Route: **plugin bundle**.
 - **Long description:** Gives Claude the evidence a human playtester has. It can read the project, start the game headless or attach to the tab you have open under `debuff dev`, send input, step time, take captures, tune params live, run scenarios and read runtime errors that say whose problem they are. A skill teaches the workflow, and five prompts cover common jobs: playtest, fix-errors, tune-feel, add-mechanic and explain-stutter. Claude proposes options and leaves the creative calls to you.
 - **Requirements:** Node 22+. Runs locally with `npx @debuffjp/mcp` in the game's folder. Needs no account and no network access beyond npm.
 - **Privacy:** Everything runs on the user's machine. Nothing is sent anywhere.
-- **Support:** https://github.com/debuffjp/debuff/issues
+- **Support:** https://github.com/debuffjp/debuff/issues · community: https://discord.gg/jshbDHSpCY
 
 ## Test instructions for reviewers
 

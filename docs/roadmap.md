@@ -53,6 +53,7 @@ Proposals, ordered by leverage. Each builds on something debuff already has (a f
 ## Community
 
 - [x] Project site and docs: [debuff.jp](https://debuff.jp)
+- [x] Community home: [Discord](https://discord.gg/jshbDHSpCY)
 - [ ] Forums (forums.debuff.jp): in progress
 - [ ] Jam kit: template, itch page, "made with debuff" badge
 - [ ] More templates (top-down, arcade), kept tiny
