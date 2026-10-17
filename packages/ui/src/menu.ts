@@ -1,4 +1,4 @@
-import type { DrawLike, InputLike } from "./draw-like.js";
+import type { DrawLike, FontLike, InputLike } from "./draw-like.js";
 import { type FrameStyle, panelAround } from "./panel.js";
 
 export interface MenuItem {
@@ -32,8 +32,8 @@ export interface MenuOptions<A extends string = string> {
 }
 
 export interface MenuStyle {
-  /** Default "8px monospace". */
-  font?: string;
+  /** CSS font or `BitmapFont`. Default "8px monospace". */
+  font?: FontLike;
   color?: string | number;
   focusColor?: string | number;
   disabledColor?: string | number;
@@ -51,7 +51,7 @@ export interface MenuStyle {
 
 export interface MenuPanelStyle extends MenuStyle, FrameStyle {
   title?: string;
-  titleFont?: string;
+  titleFont?: FontLike;
   titleColor?: string | number;
   /** Pixels between the title and the first row. Default 6. */
   titleGap?: number;
@@ -61,7 +61,7 @@ const FONT = "8px monospace";
 
 interface Layout {
   mirror: boolean;
-  font: string;
+  font: FontLike;
   gutter: number;
   cursorW: number;
   rowH: number;

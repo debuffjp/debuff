@@ -43,12 +43,25 @@ game.start();
 | `Scene` | `{ id, enter?, update?, render?, exit?, inspect? }` |
 | `Camera` | Smoothed follow, deadzone, bounds, trauma shake, culling, `toWorld()` |
 | `Sprite`, `sliceGrid` | Frames, named animations, origin, flip, impact flash |
+| `draw.text`, `draw.measure` | Text with a CSS font or a `BitmapFont`; `measure` returns the box `text` fills |
+| `BitmapFont` | Pixel font from a sprite-sheet grid. Widths are measured from the glyph pixels; crisp at any integer scale |
 | `ParamRegistry`, `ParamGroup` | Typed, ranged, unit-annotated values; `describe()` is JSON |
 | `Random` | Seeded PRNG: `next`, `range`, `int`, `pick` |
 | `FixedClock` | Fixed-step accumulator with render interpolation |
 | `Storage` | `localStorage` wrapper that never throws |
 | `FrameStats` | Allocation-free frame interval / work timings |
 | `clamp`, `lerp`, `damp`, `approach`, `overlaps`, `circlesOverlap` | Math helpers |
+
+### Pixel fonts
+
+Draw glyphs on a grid in Aseprite (or any editor), one cell per character in `BitmapFont.ASCII` order (space to `~`, left to right), and save the sheet as `assets/font@6x9.png` with your cell size. Draw each glyph from its cell's left edge; the advance is measured from the rightmost opaque column.
+
+```ts
+const font = new BitmapFont({ frames: assets.frames("font"), chars: BitmapFont.ASCII });
+draw.text("coins 3", 4, 4, { font, color: "#fbbf24" });
+```
+
+A blank sheet with the grid set up: `aseprite -b --script-param w=6 --script-param h=9 --script-param out=assets/font.aseprite --script node_modules/@debuffjp/cli/aseprite/new-font.lua`, then export it with `aseprite -b assets/font.aseprite --save-as assets/font@6x9.png`.
 
 ### Scale modes
 

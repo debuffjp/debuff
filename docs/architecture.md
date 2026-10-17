@@ -13,7 +13,7 @@ The boundary is enforced: `debuff build` scans output for dev-only tokens and fa
 ## Runtime packages
 
 ```text
-@debuffjp/core     Game, FixedClock, Random, Scene, Camera, Sprite, ParamRegistry, Storage, FrameStats, math
+@debuffjp/core     Game, FixedClock, Random, Scene, Camera, Sprite, BitmapFont, ParamRegistry, Storage, FrameStats, math
 @debuffjp/input    Input (actions over keyboard, pointer, gamepad), Keyboard, Pointer, Gamepads (no deps)
 @debuffjp/assets   Assets loader (no deps)
 @debuffjp/audio    Audio (no deps)

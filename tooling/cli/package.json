@@ -35,6 +35,7 @@
   },
   "files": [
     "bin",
+    "aseprite",
     "dist",
     "schema",
     "README.md",
