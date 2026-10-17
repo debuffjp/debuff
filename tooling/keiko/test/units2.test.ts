@@ -19,6 +19,65 @@ describe("VirtualClock", () => {
     expect([clock.tick, clock.ms]).toEqual([3, 60]);
   });
 
+  it("fires timers in due order, each at its own time, interleaved with frames", () => {
+    const clock = new VirtualClock({ fps: 10 });
+    const log: string[] = [];
+    clock.install();
+    try {
+      setTimeout(() => log.push(`b@${performance.now()}`), 150);
+      setTimeout(() => log.push(`a@${performance.now()}`), 50);
+      const id = setInterval(() => log.push(`i@${performance.now()}`), 120);
+      clock.requestAnimationFrame((t) => log.push(`frame@${t}`));
+      clock.advance(1);
+      expect(log).toEqual(["a@50", "frame@100"]);
+      clock.advance(2);
+      expect(log).toEqual(["a@50", "frame@100", "i@120", "b@150", "i@240"]);
+      clearInterval(id);
+      clock.advanceTime(1000);
+      expect(log).toHaveLength(5);
+      expect(clock.pending).toEqual({ timers: 0, frames: 0 });
+      setTimeout(() => log.push("zero"));
+      clock.advanceTime(0);
+      expect(log.at(-1)).toBe("zero");
+    } finally {
+      clock.uninstall();
+    }
+    expect(typeof setTimeout(() => {}, 0)).not.toBe("number");
+  });
+
+  it("clamps self-rescheduling zero-delay timers like a browser, and refuses string handlers", () => {
+    const clock = new VirtualClock();
+    let runs = 0;
+    const again = () => {
+      runs++;
+      clock.setTimeout(again, 0);
+    };
+    clock.setTimeout(again, 0);
+    clock.advance(1);
+    expect(runs).toBe(5); // at 0, 4, 8, 12 and 16 ms of a 16.7 ms frame
+    clock.uninstall();
+    clock.setTimeout("alert(1)" as unknown as () => void, 0);
+    expect(() => clock.advance(1)).toThrow(/don't evaluate strings/);
+  });
+
+  it("runs idle callbacks once per frame", () => {
+    const clock = new VirtualClock();
+    let runs = 0;
+    const collect = () => {
+      runs++;
+      clock.requestIdleCallback(collect);
+    };
+    clock.requestIdleCallback(collect);
+    const cancelled = clock.requestIdleCallback(() => {
+      runs += 100;
+    });
+    clock.cancelIdleCallback(cancelled);
+    clock.advance(3);
+    expect(runs).toBe(3);
+    clock.advanceTime(16);
+    expect(runs).toBe(4);
+  });
+
   it("seeds randomness reproducibly", () => {
     const a = mulberry32(42);
     const b = mulberry32(42);

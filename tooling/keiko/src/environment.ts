@@ -1,16 +1,26 @@
 import { Window } from "happy-dom";
-import type { VirtualClock } from "./clock.js";
+import { sleep, type VirtualClock } from "./clock.js";
+import { inertWebGL, webglClasses } from "./webgl.js";
 
 /**
  * A headless page for one game: a happy-dom window installed as Node's globals while the game runs,
  * with time and randomness on a {@link VirtualClock}.
  *
- * Nothing is drawn and nothing is heard. WebGL is reported unavailable so engines fall back to
- * Canvas 2D, whose context accepts and ignores every call. Images and other assets load from the
- * project's Vite server, so loaders resolve as they do in a browser.
+ * Nothing is drawn and nothing is heard. Canvas 2D and WebGL contexts accept and ignore every call
+ * (shaders compile, framebuffers are complete, reads return zeros), so engines boot whichever renderer
+ * they prefer. Images and other assets load from the project's Vite server, so loaders resolve as they
+ * do in a browser. The page has a real size, so engines that map pointer positions through the canvas's
+ * bounding box get sensible coordinates.
  */
 export interface HeadlessPage {
   readonly window: Window;
+  /** Requests (fetches and images) the page has started and not yet finished. */
+  readonly inflight: number;
+  /**
+   * Wait (in real time) until no request is in flight and promise callbacks have run, or `timeout` ms pass.
+   * Resolves to true when the page went quiet.
+   */
+  settle(timeout?: number): Promise<boolean>;
   /** Restore Node's globals and close the window. */
   dispose(): Promise<void>;
 }
@@ -76,10 +86,12 @@ export interface PageOptions {
   html?: string;
   /** Extra query parameters, e.g. `debuff-scenario=1` so a debuff game waits for steps. */
   search?: Record<string, string>;
+  /** Offer WebGL contexts. When false, `getContext("webgl2")` returns null and engines fall back to Canvas 2D. Default true. */
+  webgl?: boolean;
   clock: VirtualClock;
 }
 
-export function openPage({ origin, path, html = "", search = {}, clock }: PageOptions): HeadlessPage {
+export function openPage({ origin, path, html = "", search = {}, clock, webgl = true }: PageOptions): HeadlessPage {
   const url = new URL(path, origin);
   for (const [k, v] of Object.entries(search)) url.searchParams.set(k, v);
   const window = new Window({ url: url.toString(), width: 960, height: 540, settings: { disableJavaScriptEvaluation: true } });
@@ -89,15 +101,79 @@ export function openPage({ origin, path, html = "", search = {}, clock }: PageOp
 
   // Inert rendering and audio, and assets fetched from the dev server.
   const canvasProto = (w.HTMLCanvasElement as unknown as { prototype: Record<string, unknown> }).prototype;
-  canvasProto.getContext = function (this: unknown, kind: string) {
-    return kind === "2d" ? inertContext2D(this) : null;
+  const gl = webglClasses();
+  const contexts = new WeakMap<object, Map<string, unknown>>();
+  // One context per canvas and kind, as in browsers: engines call getContext repeatedly.
+  const getContext = (canvas: object, kind: string): unknown => {
+    let byKind = contexts.get(canvas);
+    if (!byKind) {
+      byKind = new Map();
+      contexts.set(canvas, byKind);
+    }
+    if (!byKind.has(kind)) {
+      const sized = canvas as { width: number; height: number };
+      byKind.set(
+        kind,
+        kind === "2d"
+          ? inertContext2D(canvas)
+          : webgl && kind === "webgl2"
+            ? inertWebGL(sized, 2, (gl.WebGL2RenderingContext as { prototype: object }).prototype)
+            : webgl && (kind === "webgl" || kind === "experimental-webgl")
+              ? inertWebGL(sized, 1, (gl.WebGLRenderingContext as { prototype: object }).prototype)
+              : null,
+      );
+    }
+    return byKind.get(kind);
   };
+  canvasProto.getContext = function (this: object, kind: string) {
+    return getContext(this, kind);
+  };
+  // A canvas reports its own size as its box, so pointer mapping (clientX - rect.left) * width / rect.width works.
+  canvasProto.getBoundingClientRect = function (this: { width: number; height: number }) {
+    const width = this.width || 300;
+    const height = this.height || 150;
+    return { x: 0, y: 0, left: 0, top: 0, right: width, bottom: height, width, height, toJSON: () => ({}) };
+  };
+  Object.defineProperty(canvasProto, "clientWidth", {
+    configurable: true,
+    get(this: { width: number }) {
+      return this.width || 300;
+    },
+  });
+  Object.defineProperty(canvasProto, "clientHeight", {
+    configurable: true,
+    get(this: { height: number }) {
+      return this.height || 150;
+    },
+  });
+  Object.defineProperty(canvasProto, "offsetWidth", {
+    configurable: true,
+    get(this: { width: number }) {
+      return this.width || 300;
+    },
+  });
+  Object.defineProperty(canvasProto, "offsetHeight", {
+    configurable: true,
+    get(this: { height: number }) {
+      return this.height || 150;
+    },
+  });
+  InertOffscreenCanvas.contexts = getContext;
   canvasProto.toDataURL = () => "data:image/png;base64,";
+  // Every request the game makes is counted, so the runner can wait for loading to finish.
+  let inflight = 0;
+  const track = <T>(p: Promise<T>): Promise<T> => {
+    inflight++;
+    return p.finally(() => {
+      inflight--;
+    });
+  };
   const pageFetch = (input: string | URL | Request, init?: RequestInit) =>
-    nodeFetch(typeof input === "string" || input instanceof URL ? new URL(input, url) : input, init);
+    track(nodeFetch(typeof input === "string" || input instanceof URL ? new URL(input, url) : input, init));
   const overrides: Record<string, unknown> = {
     fetch: pageFetch,
-    Image: headlessImage(pageFetch),
+    Image: headlessImage(window as unknown as Window, pageFetch),
+    ...(webgl ? gl : {}),
     AudioContext: InertAudioContext,
     webkitAudioContext: InertAudioContext,
     OfflineAudioContext: InertAudioContext,
@@ -117,9 +193,16 @@ export function openPage({ origin, path, html = "", search = {}, clock }: PageOp
     },
     createImageBitmap: (src: { width?: number; height?: number }) =>
       Promise.resolve({ width: src.width ?? 0, height: src.height ?? 0, close() {} }),
-    // Frames only run when the test steps the clock.
+    // Frames and timers only run when the test steps the clock.
     requestAnimationFrame: clock.requestAnimationFrame,
     cancelAnimationFrame: clock.cancelAnimationFrame,
+    setTimeout: clock.setTimeout,
+    setInterval: clock.setInterval,
+    clearTimeout: clock.clearTimeout,
+    clearInterval: clock.clearInterval,
+    FontFace: InertFontFace,
+    requestIdleCallback: clock.requestIdleCallback,
+    cancelIdleCallback: clock.cancelIdleCallback,
     open: () => null,
   };
 
@@ -144,6 +227,12 @@ export function openPage({ origin, path, html = "", search = {}, clock }: PageOp
     install(key, value);
     w[key] = value;
   }
+  // Fonts "load" instantly and every family is available: text metrics come from the inert 2D context anyway.
+  if (!("fonts" in w.document)) Object.defineProperty(w.document, "fonts", { configurable: true, value: inertFontSet() });
+  // No gamepads are connected, as in a browser with none plugged in.
+  if (typeof (w.navigator as { getGamepads?: unknown }).getGamepads !== "function") {
+    Object.defineProperty(w.navigator, "getGamepads", { configurable: true, value: () => [null, null, null, null] });
+  }
   install("window", w);
   install("self", w);
   install("document", w.document);
@@ -151,6 +240,20 @@ export function openPage({ origin, path, html = "", search = {}, clock }: PageOp
 
   return {
     window,
+    get inflight() {
+      return inflight;
+    },
+    async settle(timeout = 10_000) {
+      const deadline = Date.now() + timeout;
+      // Quiet means no requests for two turns in a row: a finished load often starts the next one.
+      let quietTurns = 0;
+      while (quietTurns < 2) {
+        await sleep(inflight ? 2 : 0);
+        quietTurns = inflight ? 0 : quietTurns + 1;
+        if (Date.now() > deadline) return false;
+      }
+      return true;
+    },
     async dispose() {
       clock.uninstall();
       for (const [key, descriptor] of saved) {
@@ -240,12 +343,14 @@ function inertContext2D(canvas: unknown): unknown {
 }
 
 class InertOffscreenCanvas {
+  /** Set by the page, so offscreen canvases get the same contexts as on-screen ones. */
+  static contexts: (canvas: object, kind: string) => unknown = (canvas, kind) => (kind === "2d" ? inertContext2D(canvas) : null);
   constructor(
     public width: number,
     public height: number,
   ) {}
   getContext(kind: string): unknown {
-    return kind === "2d" ? inertContext2D(this) : null;
+    return InertOffscreenCanvas.contexts(this, kind);
   }
   convertToBlob(): Promise<Blob> {
     return Promise.resolve(new Blob([]));
@@ -253,6 +358,44 @@ class InertOffscreenCanvas {
   transferToImageBitmap(): unknown {
     return { width: this.width, height: this.height, close() {} };
   }
+}
+
+/** A `FontFace` that loads instantly. */
+class InertFontFace {
+  status = "loaded";
+  readonly loaded: Promise<this> = Promise.resolve(this);
+  constructor(
+    readonly family: string,
+    readonly source?: unknown,
+  ) {}
+  load(): Promise<this> {
+    return this.loaded;
+  }
+}
+
+/** `document.fonts`: every check passes and every load is already done. */
+function inertFontSet() {
+  const faces = new Set<unknown>();
+  return {
+    status: "loaded",
+    ready: Promise.resolve(),
+    check: () => true,
+    load: () => Promise.resolve([]),
+    add(face: unknown) {
+      faces.add(face);
+      return this;
+    },
+    delete: (face: unknown) => faces.delete(face),
+    has: (face: unknown) => faces.has(face),
+    clear: () => faces.clear(),
+    forEach: (fn: (face: unknown) => void) => faces.forEach(fn),
+    get size() {
+      return faces.size;
+    },
+    [Symbol.iterator]: () => faces[Symbol.iterator](),
+    addEventListener() {},
+    removeEventListener() {},
+  };
 }
 
 /** A Web Audio context that plays nothing. Nodes and params accept every call. */
@@ -274,8 +417,11 @@ class InertAudioContext {
   close(): Promise<void> {
     return Promise.resolve();
   }
-  decodeAudioData(data: ArrayBuffer): Promise<unknown> {
-    return Promise.resolve(this.createBuffer(1, Math.max(1, Math.floor(data.byteLength / 4)), this.sampleRate));
+  /** Both forms work: the promise, and the older success/error callbacks some engines still use. */
+  decodeAudioData(data: ArrayBuffer, onSuccess?: (buffer: unknown) => void): Promise<unknown> {
+    const buffer = this.createBuffer(1, Math.max(1, Math.floor((data?.byteLength ?? 4) / 4)), this.sampleRate);
+    onSuccess?.(buffer);
+    return Promise.resolve(buffer);
   }
   createBuffer(channels: number, length: number, sampleRate: number): unknown {
     return {
@@ -292,64 +438,77 @@ class InertAudioContext {
 
 type PageFetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
-/** An `Image` that loads its bytes from the dev server and reports its size (PNG, GIF, JPEG) without decoding pixels. */
-function headlessImage(pageFetch: PageFetch) {
-  return class HeadlessImage {
-    width = 0;
-    height = 0;
-    naturalWidth = 0;
-    naturalHeight = 0;
-    complete = false;
-    crossOrigin: string | null = null;
-    decoding = "auto";
-    onload: ((e: unknown) => void) | null = null;
-    onerror: ((e: unknown) => void) | null = null;
-    private source = "";
-    private readonly listeners = new Map<string, Set<(e: unknown) => void>>();
-
-    constructor(width?: number, height?: number) {
-      if (width !== undefined) this.width = width;
-      if (height !== undefined) this.height = height;
-    }
-
-    get src(): string {
-      return this.source;
-    }
-
-    set src(value: string) {
-      this.source = value;
-      this.complete = false;
+/**
+ * `new Image()` as a real `<img>` element (so `setAttribute`, `style` and `instanceof HTMLImageElement` work)
+ * whose `src` loads its bytes from the dev server and reports the image's size (PNG, GIF, JPEG) without
+ * decoding pixels. `load` and `error` fire as DOM events, which also calls `onload` and `onerror`.
+ */
+function headlessImage(window: Window, pageFetch: PageFetch) {
+  const HTMLImage = (window as unknown as { HTMLImageElement: { prototype: object } }).HTMLImageElement;
+  function wire(img: HTMLImageElement): HTMLImageElement {
+    let source = "";
+    let size = { width: 0, height: 0 };
+    let explicit: { width?: number; height?: number } = {};
+    let complete = false;
+    const fire = (type: "load" | "error") => img.dispatchEvent(new (window as unknown as { Event: typeof Event }).Event(type));
+    const load = (value: string) => {
+      source = value;
+      complete = false;
+      // The body is read inside the tracked fetch, so settle() also waits for the image to "decode".
       pageFetch(value)
         .then(async (res) => {
           if (!res.ok) throw new Error(`HTTP ${res.status} for ${value}`);
-          const size = imageSize(new Uint8Array(await res.arrayBuffer()));
-          this.width = this.naturalWidth = size.width;
-          this.height = this.naturalHeight = size.height;
-          this.complete = true;
-          this.emit("load");
+          size = imageSize(new Uint8Array(await res.arrayBuffer()));
+          complete = true;
+          fire("load");
         })
-        .catch((err: unknown) => this.emit("error", err));
-    }
-
-    decode(): Promise<void> {
-      return Promise.resolve();
-    }
-
-    addEventListener(type: string, fn: (e: unknown) => void): void {
-      if (!this.listeners.has(type)) this.listeners.set(type, new Set());
-      this.listeners.get(type)?.add(fn);
-    }
-
-    removeEventListener(type: string, fn: (e: unknown) => void): void {
-      this.listeners.get(type)?.delete(fn);
-    }
-
-    private emit(type: "load" | "error", detail?: unknown): void {
-      const event = { type, target: this, error: detail };
-      (type === "load" ? this.onload : this.onerror)?.(event);
-      for (const fn of this.listeners.get(type) ?? []) fn(event);
-    }
+        .catch(() => fire("error"));
+    };
+    const prop = (name: string, get: () => unknown, set?: (v: never) => void) =>
+      Object.defineProperty(img, name, { configurable: true, enumerable: true, get, ...(set ? { set } : {}) });
+    prop("src", () => source, load);
+    prop("currentSrc", () => source);
+    prop("complete", () => complete);
+    prop("naturalWidth", () => size.width);
+    prop("naturalHeight", () => size.height);
+    prop(
+      "width",
+      () => explicit.width ?? size.width,
+      (v: number) => {
+        explicit = { ...explicit, width: Number(v) };
+      },
+    );
+    prop(
+      "height",
+      () => explicit.height ?? size.height,
+      (v: number) => {
+        explicit = { ...explicit, height: Number(v) };
+      },
+    );
+    // happy-dom fires its own load event when the src attribute changes, so keiko keeps src to itself.
+    const setAttribute = img.setAttribute.bind(img);
+    const getAttribute = img.getAttribute.bind(img);
+    img.setAttribute = (name: string, value: string) => (name.toLowerCase() === "src" ? load(String(value)) : setAttribute(name, value));
+    img.getAttribute = (name: string) => (name.toLowerCase() === "src" ? source || null : getAttribute(name));
+    img.decode = () => Promise.resolve();
+    return img;
+  }
+  function HeadlessImage(width?: number, height?: number): HTMLImageElement {
+    const img = wire(window.document.createElement("img") as unknown as HTMLImageElement);
+    if (width !== undefined) img.width = width;
+    if (height !== undefined) img.height = height;
+    return img;
+  }
+  HeadlessImage.prototype = HTMLImage.prototype;
+  // Images made with document.createElement("img") load the same way.
+  const createElement = window.document.createElement.bind(window.document);
+  (window.document as unknown as { createElement: (tag: string, o?: unknown) => unknown }).createElement = (tag: string, o?: unknown) => {
+    const el = createElement(tag, o as ElementCreationOptions);
+    return tag.toLowerCase() === "img" && !("__keiko" in el)
+      ? Object.assign(wire(el as unknown as HTMLImageElement), { __keiko: true })
+      : el;
   };
+  return HeadlessImage;
 }
 
 /** Width and height from an image header. Unknown formats report 0×0. */

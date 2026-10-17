@@ -10,6 +10,15 @@ addEventListener("keyup", (e) => keys.delete(e.key));
 const params = { player: { speed: 120 } };
 let x = 0;
 let jumps = 0;
+let wave = 0;
+// Gameplay on timers: a wave every half second, starting after one second.
+setTimeout(() => {
+  wave = 1;
+  const id = setInterval(() => {
+    wave++;
+    if (wave === 4) clearInterval(id);
+  }, 500);
+}, 1000);
 let clicks = 0;
 let last;
 const sparkle = Math.random(); // unseeded randomness, on purpose
@@ -27,7 +36,7 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 window.__KEIKO__ = {
-  state: () => ({ x: Math.round(x), jumps, clicks, sparkle }),
+  state: () => ({ x: Math.round(x), jumps, clicks, sparkle, wave }),
   scene: () => "level",
   params: () => structuredClone(params),
   setParam: (group, key, value) => {

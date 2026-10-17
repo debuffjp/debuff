@@ -25,7 +25,7 @@ import type { ParamValue, Playtest } from "./playtest.js";
 import { type PlayOptions, registry, type TestCase, type TestOptions } from "./registry.js";
 import { firstDifference, show } from "./values.js";
 
-export { mulberry32, VirtualClock } from "./clock.js";
+export { mulberry32, sleep, VirtualClock } from "./clock.js";
 export { type Driver, type KeikoHooks, MissingHookError } from "./driver.js";
 export type { Duration } from "./duration.js";
 export { ExpectationError, expect, type Matchers } from "./expect.js";
@@ -105,11 +105,32 @@ function add(name: string, fn: TestFn, mode: TestCase["mode"], options: TestOpti
     "run",
   );
   const effective = mode === "run" ? inherited : mode === "only" && inherited === "skip" ? "skip" : mode;
+  // Hooks are looked up when the test runs, so beforeEach/afterEach declared after a test in the same scope still apply.
+  const chain = [r.fileHooks, ...r.suites.map((s) => s.hooks)];
+  const run = async () => {
+    for (const hooks of chain) for (const before of hooks.before) await before();
+    let failure: unknown;
+    try {
+      await fn();
+    } catch (err) {
+      failure = err;
+    }
+    for (const hooks of [...chain].reverse()) {
+      for (const after of hooks.after) {
+        try {
+          await after();
+        } catch (err) {
+          failure ??= err;
+        }
+      }
+    }
+    if (failure !== undefined) throw failure;
+  };
   r.tests.push({
     file: r.file,
     suites: r.suites.map((s) => s.name),
     name,
-    fn,
+    fn: run,
     mode: effective,
     timeout: options.timeout ?? DEFAULT_TIMEOUT,
   });
@@ -183,13 +204,43 @@ export const describe: ((name: string, fn: () => void) => void) & {
 
 function group(name: string, fn: () => void, mode: TestCase["mode"]): void {
   const r = registry();
-  r.suites.push({ name, mode });
+  r.suites.push({ name, mode, hooks: { before: [], after: [] } });
   try {
     const result = fn() as unknown;
     if (result instanceof Promise) throw new TypeError(`describe("${name}") must be synchronous; put async work inside test()`);
   } finally {
     r.suites.pop();
   }
+}
+
+/** The hooks of the innermost `describe`, or the file's when called at the top level. */
+function scopeHooks(): import("./registry.js").Hooks {
+  const r = registry();
+  return r.suites.at(-1)?.hooks ?? r.fileHooks;
+}
+
+/**
+ * Run `fn` before each test in this file, or in the enclosing `describe` (including nested ones).
+ * Outer hooks run first. Useful for shared setup that needs real work, like a fixture file:
+ *
+ * ```ts
+ * let game: Playtest<State>;
+ * beforeEach(async () => {
+ *   game = await play<State>();
+ *   game.command("warp", "hollow");
+ * });
+ * ```
+ */
+export function beforeEach(fn: () => unknown): void {
+  scopeHooks().before.push(fn);
+}
+
+/**
+ * Run `fn` after each test in this file or `describe`, even when the test failed. Inner hooks run first.
+ * If the test passed and an `afterEach` throws, the test fails with that error.
+ */
+export function afterEach(fn: () => unknown): void {
+  scopeHooks().after.push(fn);
 }
 
 /**

@@ -95,11 +95,12 @@ describe("any web game", { timeout: 60_000 }, () => {
       'Space arrives as the key " "': "pass",
       "pointer taps reach the canvas": "pass",
       "params through __KEIKO__": "pass",
+      "setTimeout and setInterval run on the virtual clock": "pass",
       "Math.random is seeded": "pass",
       "same seed: deterministic": "pass",
     });
     const error = (name: string) => report.results.find((r) => r.name === name)?.error;
-    expect(error("different seeds expose the unseeded sparkle")?.message).toMatch(/diverged at tick 1: state\.sparkle was/);
+    expect(error("different seeds expose the unseeded sparkle")?.message).toMatch(/diverged at tick 2: state\.sparkle was/);
     expect(error("hookless games are read through the page, and their crashes are caught")).toMatchObject({
       kind: "GameError",
       message: "the game threw at tick 3: frame 3 is cursed",
@@ -132,6 +133,7 @@ describe("discovery", () => {
       }
       expect(findTests(root)).toEqual(["src/c.test.js", "tests/a.test.ts", "tests/deep/b.test.mjs"]);
       expect(findTests(root, ["./other/d.test.ts"])).toEqual(["other/d.test.ts"]);
+      expect(findTests(root, ["tests", "src/c.test.js"])).toEqual(["tests/a.test.ts", "tests/deep/b.test.mjs", "src/c.test.js"]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -157,7 +159,7 @@ describe("discovery", () => {
 });
 
 describe("headless page", () => {
-  it("has a DOM, no WebGL, an inert 2D context and silent audio, and restores Node's globals", async () => {
+  it("has a DOM, inert 2D and WebGL contexts and silent audio, and restores Node's globals", async () => {
     const before = globalThis.addEventListener;
     const clock = new VirtualClock({ seed: 3 });
     const page = openPage({
@@ -171,7 +173,20 @@ describe("headless page", () => {
       const canvas = document.querySelector("canvas") as HTMLCanvasElement;
       expect(canvas).toBeTruthy();
       expect(location.search).toBe("?debuff-scenario=1");
-      expect(canvas.getContext("webgl2")).toBeNull();
+      const gl = canvas.getContext("webgl2") as WebGL2RenderingContext;
+      expect(gl).toBe(canvas.getContext("webgl2"));
+      expect(gl).toBeInstanceOf(WebGL2RenderingContext);
+      expect(gl.getParameter(gl.VERSION)).toMatch(/^WebGL 2.0/);
+      expect(gl.getParameter(gl.MAX_TEXTURE_SIZE)).toBe(8192);
+      expect(gl.getParameter(gl.VIEWPORT)).toEqual(new Int32Array([0, 0, 300, 150]));
+      expect(gl.getParameter(gl.ARRAY_BUFFER_BINDING)).toBeNull();
+      const shader = gl.createShader(gl.VERTEX_SHADER) as WebGLShader;
+      expect(gl.getShaderParameter(shader, gl.COMPILE_STATUS)).toBe(true);
+      expect(gl.checkFramebufferStatus(gl.FRAMEBUFFER)).toBe(gl.FRAMEBUFFER_COMPLETE);
+      expect(gl.drawingBufferWidth).toBe(300);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      expect((canvas.getContext("webgl") as WebGLRenderingContext).getParameter(0x1f02)).toMatch(/^WebGL 1.0/);
+      expect(canvas.getBoundingClientRect()).toMatchObject({ left: 0, top: 0, width: 300, height: 150 });
       const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
       ctx.fillRect(0, 0, 1, 1);
       ctx.font = "20px monospace";
@@ -201,6 +216,46 @@ describe("headless page", () => {
     expect("document" in globalThis).toBe(false);
     expect(Math.random).not.toBe(clock.requestAnimationFrame);
     expect(Date.now()).toBeGreaterThan(Date.UTC(2026, 0, 2));
+  });
+
+  it("can leave WebGL out, so engines fall back to Canvas 2D", async () => {
+    const page = openPage({ origin: "http://localhost:1/", path: "/", html: "<canvas></canvas>", clock: new VirtualClock(), webgl: false });
+    try {
+      const canvas = document.querySelector("canvas") as HTMLCanvasElement;
+      expect(canvas.getContext("webgl2")).toBeNull();
+      expect(canvas.getContext("2d")).toBeTruthy();
+      expect("WebGL2RenderingContext" in globalThis).toBe(false);
+    } finally {
+      await page.dispose();
+    }
+  });
+
+  it("makes images real <img> elements that load from the server", async () => {
+    const png = new Uint8Array(24);
+    const v = new DataView(png.buffer);
+    v.setUint32(0, 0x89504e47);
+    v.setUint32(16, 32);
+    v.setUint32(20, 16);
+    const url = `data:image/png;base64,${Buffer.from(png).toString("base64")}`;
+    const page = openPage({ origin: "http://localhost:1/", path: "/", clock: new VirtualClock() });
+    try {
+      const img = new Image();
+      expect(img).toBeInstanceOf(HTMLImageElement);
+      const loaded = new Promise((resolve) => img.addEventListener("load", resolve));
+      img.setAttribute("src", url);
+      await loaded;
+      expect([img.complete, img.naturalWidth, img.naturalHeight, img.width]).toEqual([true, 32, 16, 32]);
+      const viaDom = document.createElement("img");
+      const failed = new Promise((resolve) => {
+        viaDom.onerror = resolve;
+      });
+      viaDom.src = "data:,broken";
+      viaDom.src = "http://localhost:1/missing.png";
+      await failed;
+      expect(new Image(4, 5).width).toBe(4);
+    } finally {
+      await page.dispose();
+    }
   });
 
   it("reads image sizes from PNG, GIF and JPEG headers", () => {

@@ -40,7 +40,8 @@ export async function main(argv: string[]): Promise<number> {
   }
   const root = resolve(values.root ?? process.cwd());
   if (!findTests(root, positionals).length) {
-    if (values.json) console.log(JSON.stringify({ ok: true, passed: 0, failed: 0, skipped: 0, todo: 0, durationMs: 0, results: [] }));
+    if (values.json)
+      console.log(JSON.stringify({ ok: true, passed: 0, failed: 0, skipped: 0, todo: 0, durationMs: 0, results: [], outside: [] }));
     else console.log(`No tests yet. Add one in tests/, e.g. tests/game.test.ts.\nGuide: ${pc.cyan("https://debuff.jp/docs/testing")}`);
     return 0;
   }

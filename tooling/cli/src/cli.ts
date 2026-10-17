@@ -156,7 +156,10 @@ cli
     const { runTests, formatResult, formatSummary, findTests } = await import("keiko/runner");
     const root = rootOf(o);
     if (!findTests(root, files).length) {
-      if (o.json) console.log(JSON.stringify({ ok: true, passed: 0, failed: 0, skipped: 0, todo: 0, durationMs: 0, results: [] }, null, 2));
+      if (o.json)
+        console.log(
+          JSON.stringify({ ok: true, passed: 0, failed: 0, skipped: 0, todo: 0, durationMs: 0, results: [], outside: [] }, null, 2),
+        );
       else p.log.info(`No tests yet. Add one in tests/, e.g. tests/movement.test.ts. Guide: ${sky("https://debuff.jp/docs/testing")}`);
       return 0;
     }

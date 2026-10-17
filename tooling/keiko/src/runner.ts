@@ -8,7 +8,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { InlineConfig, ViteDevServer } from "vite";
-import { realNow, VirtualClock } from "./clock.js";
+import { realClearTimeout, realNow, realSetTimeout, sleep, VirtualClock } from "./clock.js";
 import { type DebuffDevHooks, debuffDriver, genericDriver, type KeikoHooks } from "./driver.js";
 import { type HeadlessPage, openPage } from "./environment.js";
 import { Playtest } from "./playtest.js";
@@ -20,7 +20,7 @@ export { formatResult, formatSummary } from "./format.js";
 export interface RunTestsOptions {
   /** Project root (the folder with `index.html`). */
   root: string;
-  /** Test files relative to the root. Default: every `*.test.ts` (or `.js`, `.mts`, `.mjs`) under `tests/` and `src/`. */
+  /** Test files or folders, relative to the root. Default: every `*.test.ts` (or `.js`, `.mts`, `.mjs`) under `tests/` and `src/`. */
   files?: string[];
   /** Only run tests whose full name (`describe › test`) contains this text. */
   filter?: string;
@@ -69,6 +69,8 @@ export interface TestReport {
   todo: number;
   durationMs: number;
   results: TestResult[];
+  /** Errors a game raised while no test was running (between tests, or after its test ended). They fail the run. */
+  outside: TestFailure[];
 }
 
 const TEST_FILE = /\.test\.(ts|mts|js|mjs)$/;
@@ -76,7 +78,6 @@ const SKIP_DIRS = new Set(["node_modules", "dist", ".debuff", ".git", "coverage"
 
 /** Test files under `tests/` and `src/`, sorted, as paths relative to the root. */
 export function findTests(root: string, files: string[] = []): string[] {
-  if (files.length) return files.map((f) => relative(root, resolve(root, f)).split("\\").join("/"));
   const out: string[] = [];
   const walk = (dir: string) => {
     if (!existsSync(dir)) return;
@@ -87,6 +88,19 @@ export function findTests(root: string, files: string[] = []): string[] {
       else if (TEST_FILE.test(name)) out.push(relative(root, path).split("\\").join("/"));
     }
   };
+  if (files.length) {
+    // Files run as given (in order); folders contribute the test files inside them.
+    const given: string[] = [];
+    for (const f of files) {
+      const full = resolve(root, f);
+      if (existsSync(full) && statSync(full).isDirectory()) {
+        const before = out.length;
+        walk(full);
+        given.push(...out.splice(before).sort());
+      } else given.push(relative(root, full).split("\\").join("/"));
+    }
+    return given;
+  }
   walk(join(root, "tests"));
   walk(join(root, "src"));
   return out.sort();
@@ -122,7 +136,7 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
   const started = realNow();
   const root = resolve(options.root);
   const files = findTests(root, options.files);
-  const report: TestReport = { ok: true, passed: 0, failed: 0, skipped: 0, todo: 0, durationMs: 0, results: [] };
+  const report: TestReport = { ok: true, passed: 0, failed: 0, skipped: 0, todo: 0, durationMs: 0, results: [], outside: [] };
   if (!files.length) return report;
 
   const { createServer, createServerModuleRunner } = await import("vite");
@@ -163,6 +177,8 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
         path: `/${pagePath.replace(/(^|\/)index\.html$/, "$1")}`,
         html,
         clock,
+        // debuff renders the same on either backend; its Canvas 2D path is the cheaper one to run headless.
+        webgl: play.webgl ?? !debuff,
         // debuff games stop their loop and wait for steps when opened this way.
         search: debuff ? { "debuff-scenario": "1" } : {},
       });
@@ -178,15 +194,23 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
         }
       }
       const w = page.window as unknown as Window & { __DEBUFF_DEV__?: DebuffDevHooks; __KEIKO__?: KeikoHooks };
-      const init = { root, window: w as unknown as Window, ...(hooks.onStep ? { onStep: hooks.onStep } : {}) };
+      const current = page;
+      const init = {
+        root,
+        window: w as unknown as Window,
+        settle: (timeout?: number) => current.settle(timeout),
+        ...(hooks.onStep ? { onStep: hooks.onStep } : {}),
+      };
       const limit = realNow() + (play.timeout ?? 10_000);
       let game: Playtest | undefined;
       for (;;) {
         // debuff games are driven through their dev hooks once installed; anything else through __KEIKO__ and the clock.
         const dev = w.__DEBUFF_DEV__;
-        if (dev?.controlled) game ??= new Playtest(debuffDriver(dev), init);
+        if (dev?.controlled) game ??= new Playtest(debuffDriver(dev, clock), init);
         else if (!debuff) game ??= new Playtest(genericDriver(w, clock), init);
-        const ready = game && (play.ready ? play.ready(game) : game.driver.kind !== "debuff" || game.scene !== undefined);
+        // Ready once the game's first loads have finished and it says so (debuff: a scene is active).
+        const loading = current.inflight > 0;
+        const ready = game && !loading && (play.ready ? play.ready(game) : game.driver.kind !== "debuff" || game.scene !== undefined);
         if (game && ready) break;
         if (realNow() > limit) {
           throw new Error(
@@ -199,16 +223,28 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
         }
         // Let asset loads and promise callbacks settle. Games on the virtual clock may also need frames to boot
         // (engines often start their scenes a frame or two in), so play one while waiting.
-        await new Promise((r) => setTimeout(r, 2));
+        await sleep(2);
         if (game && game.driver.kind !== "debuff") game.driver.step(1);
       }
+      await current.settle(Math.max(0, limit - realNow()));
       if (play.params) game.set(play.params);
+      // A browser paints a game's first frame before a player can act, and engines often need it (to build
+      // scenes, or to hit-test pointers against what they drew). debuff games wait for steps from tick 0.
+      if (game.driver.kind !== "debuff") game.driver.step(1);
       reg.current = game;
       return game;
     },
   };
   reg.booter = booter;
 
+  // A game's async work (asset loads, promise chains) can fail at any moment, including between tests.
+  // Errors during a test fail that test; anything else is reported once at the end, never a crash.
+  const onStray = (err: unknown) => {
+    if (strays.current) strays.current.push(err);
+    else report.outside.push(describeFailure(err, root, undefined));
+  };
+  process.on("unhandledRejection", onStray);
+  process.on("uncaughtException", onStray);
   try {
     // Collect every test first, so `.only` anywhere narrows the whole run.
     const all: TestCase[] = [];
@@ -216,6 +252,7 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
       reg.file = file;
       reg.tests = [];
       reg.suites = [];
+      reg.fileHooks = { before: [], after: [] };
       try {
         await modules.import(`/${file}`);
       } catch (err) {
@@ -245,14 +282,20 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
     }
   } finally {
     await closePage();
+    await sleep(0);
+    process.off("unhandledRejection", onStray);
+    process.off("uncaughtException", onStray);
     reg.booter = undefined;
     await modules.close();
     await server.close();
   }
-  report.ok = report.failed === 0;
+  report.ok = report.failed === 0 && report.outside.length === 0;
   report.durationMs = Math.round(realNow() - started);
   return report;
 }
+
+/** Where the runner's error listener sends a game's stray errors: the running test's list, if any. */
+const strays: { current: unknown[] | undefined } = { current: undefined };
 
 async function runOne(
   t: TestCase,
@@ -264,9 +307,7 @@ async function runOne(
   const logs: string[] = [];
   const restoreConsole = captureConsole(logs);
   const stray: unknown[] = [];
-  const onStray = (err: unknown) => stray.push(err);
-  process.on("unhandledRejection", onStray);
-  process.on("uncaughtException", onStray);
+  strays.current = stray;
   const t0 = realNow();
   let error: unknown;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -274,20 +315,19 @@ async function runOne(
     const timeout =
       t.timeout > 0
         ? new Promise<never>((_, reject) => {
-            timer = setTimeout(() => reject(new Error(`the test took longer than ${t.timeout} ms of real time`)), t.timeout);
+            timer = realSetTimeout(() => reject(new Error(`the test took longer than ${t.timeout} ms of real time`)), t.timeout);
           })
         : undefined;
     const body = Promise.resolve().then(() => t.fn());
     await (timeout ? Promise.race([body, timeout]) : body);
     // Let pending asset loads and promise callbacks settle, so their errors belong to this test.
-    await new Promise((r) => setTimeout(r, 0));
+    await sleep(0);
     if (stray.length) error = stray[0];
   } catch (err) {
     error = err;
   } finally {
-    clearTimeout(timer);
-    process.off("unhandledRejection", onStray);
-    process.off("uncaughtException", onStray);
+    realClearTimeout(timer);
+    strays.current = undefined;
     restoreConsole();
   }
   const durationMs = Math.round((realNow() - t0) * 10) / 10;

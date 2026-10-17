@@ -18,6 +18,8 @@ export interface PlayOptions {
   seed?: number;
   /** Frames per second of the virtual clock, for games that run on `requestAnimationFrame`. Default 60. */
   fps?: number;
+  /** Offer WebGL. Set false to make engines fall back to Canvas 2D, as without a GPU. Default true (debuff games: false). */
+  webgl?: boolean;
 }
 
 /** Options for one test. */
@@ -42,11 +44,19 @@ export interface TestCase {
   timeout: number;
 }
 
+/** @internal `beforeEach` / `afterEach` functions registered in a file or `describe`. */
+export interface Hooks {
+  before: (() => unknown)[];
+  after: (() => unknown)[];
+}
+
 /** @internal Shared between the runner and test files, even if they load separate copies of this package. */
 export interface Registry {
   tests: TestCase[];
   file: string;
-  suites: { name: string; mode: TestCase["mode"] }[];
+  /** Hooks declared at the top level of the current file. */
+  fileHooks: Hooks;
+  suites: { name: string; mode: TestCase["mode"]; hooks: Hooks }[];
   booter: Booter | undefined;
   /** The game the running test is playing, for failure context. */
   current: Playtest | undefined;
@@ -57,6 +67,6 @@ const KEY = Symbol.for("keiko.registry");
 /** @internal */
 export function registry(): Registry {
   const g = globalThis as { [KEY]?: Registry };
-  g[KEY] ??= { tests: [], file: "", suites: [], booter: undefined, current: undefined };
+  g[KEY] ??= { tests: [], file: "", fileHooks: { before: [], after: [] }, suites: [], booter: undefined, current: undefined };
   return g[KEY];
 }

@@ -4,7 +4,6 @@ test("walks on DOM key events and frame timestamps", async () => {
   const game = await play();
   expect(game.driver.kind).toBe("keiko");
   expect(game.scene).toBe("level");
-  game.wait(1); // the loop's first frame only records its start time
   game.hold("ArrowRight", "1s");
   expect(game.state.x).toBe(120);
 });
@@ -23,9 +22,21 @@ test("pointer taps reach the canvas", async () => {
 
 test("params through __KEIKO__", async () => {
   const game = await play({ params: { "player.speed": 60 } });
-  game.wait(1).hold("ArrowRight", "1s");
+  game.hold("ArrowRight", "1s");
   expect(game.state.x).toBe(60);
   expect(game.param("player.speed")).toBe(60);
+});
+
+test("setTimeout and setInterval run on the virtual clock", async () => {
+  const game = await play();
+  expect(game.state.wave).toBe(0);
+  // play() already ran the first frame, so one second in is 59 steps away.
+  const first = game.until((s) => s.wave === 1, { within: "2s" });
+  expect(first).toBe(59);
+  game.wait("1.5s");
+  expect(game.state.wave).toBe(4);
+  game.wait("2s");
+  expect(game.state.wave).toBe(4);
 });
 
 test("Math.random is seeded", async () => {
@@ -50,7 +61,9 @@ test("hookless games are read through the page, and their crashes are caught", a
   const game = await play({ page: "bare.html" });
   expect(game.driver.kind).toBe("clock");
   expect(game.window.started).toBe(Date.UTC(2026, 0, 1));
-  game.wait(2);
+  expect(game.tick).toBe(1);
+  expect(game.window.frameCount).toBe(1); // play() ran the first frame
+  game.wait(1);
   expect(game.window.frameCount).toBe(2);
   game.wait(1);
 });

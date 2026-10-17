@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { type DebuffDevHooks, debuffDriver } from "../src/driver.js";
-import { describe as group, play, test } from "../src/index.js";
+import { afterEach as after, beforeEach as before, describe as group, play, test } from "../src/index.js";
 import { GameError, InvariantError, Playtest, TimeoutError } from "../src/playtest.js";
 import { registry } from "../src/registry.js";
 
@@ -214,6 +214,7 @@ describe("test registration", () => {
   afterEach(() => {
     reg.tests = [];
     reg.suites = [];
+    reg.fileHooks = { before: [], after: [] };
     reg.booter = undefined;
     reg.current = undefined;
   });
@@ -244,6 +245,42 @@ describe("test registration", () => {
     ]);
     expect(reg.tests.at(-1)?.timeout).toBe(5);
     expect(reg.tests[0]?.file).toBe("tests/a.test.ts");
+  });
+
+  it("runs beforeEach outer-first and afterEach inner-first, even when the test fails", async () => {
+    reg.fileHooks = { before: [], after: [] };
+    const log: string[] = [];
+    before(() => log.push("file before"));
+    after(() => log.push("file after"));
+    group("outer", () => {
+      before(async () => log.push("outer before"));
+      test("passes", () => log.push("test"));
+      test("fails", () => {
+        log.push("test");
+        throw new Error("boom");
+      });
+      after(() => log.push("outer after")); // declared after the tests, still applies
+    });
+    const [passes, fails] = reg.tests;
+    await passes?.fn();
+    expect(log).toEqual(["file before", "outer before", "test", "outer after", "file after"]);
+    log.length = 0;
+    await expect(Promise.resolve().then(() => fails?.fn())).rejects.toThrow("boom");
+    expect(log).toEqual(["file before", "outer before", "test", "outer after", "file after"]);
+  });
+
+  it("fails a passing test whose afterEach throws, but keeps the test's own error first", async () => {
+    reg.fileHooks = { before: [], after: [] };
+    after(() => {
+      throw new Error("cleanup broke");
+    });
+    test("passes", () => {});
+    test("fails", () => {
+      throw new Error("test broke");
+    });
+    const [passes, fails] = reg.tests;
+    await expect(Promise.resolve().then(() => passes?.fn())).rejects.toThrow("cleanup broke");
+    await expect(Promise.resolve().then(() => fails?.fn())).rejects.toThrow("test broke");
   });
 
   it("rejects malformed tests and async describes", () => {

@@ -19,14 +19,30 @@ test("the player reaches top speed within a quarter second", async () => {
 npx keiko
 ```
 
-It's built for any game that runs in a browser and loads through an `index.html`, whatever the engine: it drives games through the web platform (frames, the clock, DOM events) rather than an engine API. It's tested against debuff games, Phaser 4 and hand-written canvas loops; if your engine trips over the headless page, please [open an issue](https://github.com/debuffjp/debuff/issues). [debuff](https://debuff.jp) games get the deepest integration: `npx debuff test`, the debuff MCP server's `run_tests` tool, and their dev tools as the driver.
+It works with any game that runs in a browser and loads through an `index.html`, whatever the engine: it drives games through the web platform (frames, timers, the clock, DOM events) rather than an engine API. [debuff](https://debuff.jp) games get the deepest integration: `npx debuff test`, the debuff MCP server's `run_tests` tool, and their dev tools as the driver.
+
+### Engines it's tested with
+
+Each was checked with a small game: boot, hold a key and move, click, and a determinism check.
+
+| Engine | Version | Keyboard | Pointer | Deterministic | Notes |
+| --- | --- | --- | --- | --- | --- |
+| debuff | 0.3 | ✔ | ✔ | ✔ | Driven through its dev hooks |
+| Phaser | 4.2 | ✔ | ✔ (exact position) | ✔ | Canvas and WebGL renderers |
+| PixiJS | 8.22 | ✔ | ✔ | ✔ | |
+| KAPLAY | 3001.0 | ✔ | ✔ | ✔ | |
+| Excalibur | 0.32 | ✔ | ✔ | ✔ | |
+| three.js | r186 | ✔ | ✔ | ✔ | |
+| Hand-written canvas loop | | ✔ | ✔ | ✔ | |
+
+If your engine trips over the headless page, please [open an issue](https://github.com/debuffjp/debuff/issues) with a minimal game.
 
 This README is the complete reference. Using debuff? Its guide, [debuff.jp/docs/testing](https://debuff.jp/docs/testing), walks through keiko with debuff projects.
 
 ## What makes it different
 
 - **It plays your actual game.** `play()` boots the scripts your `index.html` loads, through your Vite config, in a fresh headless page. No mocks of your game and no special build.
-- **Time is the test's.** `requestAnimationFrame`, `performance.now()` and `Date.now()` run on a virtual clock that only moves when the test steps it, so engines with their own loop play frame by frame, the same way every run. `Math.random()` is seeded.
+- **Time is the test's.** `requestAnimationFrame`, `setTimeout`, `setInterval`, `requestIdleCallback`, `performance.now()` and `Date.now()` run on a virtual clock that only moves when the test steps it, so engines with their own loop, and gameplay built on timers, play frame by frame the same way every run. `Math.random()` is seeded.
 - **It asks game questions.** How long until the player reaches top speed (`until`)? Does the player ever leave the screen (`during`)? How high is the jump (`trace`)? Does it still work at every gravity you might ship (`test.sweep`)? Is the game deterministic (`test.deterministic`)?
 - **Failures show the game.** Every failure reports the frame, time, scene and state when it broke, the line in your test, and the console output.
 - **Bugs become tests.** `game.replay(file)` plays a recorded scenario, so a bug found by hand or by a fuzzer becomes a millisecond regression test.
@@ -99,10 +115,13 @@ Boots a fresh game and returns a [`Playtest`](#playtest). Calling it again repla
 | --- | --- | --- |
 | `page` | `"index.html"` | Page to boot, relative to the project root |
 | `params` | | Params to set before the first step: `{ "player.speed": 200 }` |
-| `ready` | as soon as the scripts load (debuff: once a scene is active) | When the game counts as ready, e.g. `(g) => g.scene === "level-1"`. keiko plays frames while it waits |
+| `ready` | once the scripts and their first loads finish (debuff: once a scene is active) | When the game counts as ready, e.g. `(g) => g.scene === "level-1"`. keiko plays frames while it waits |
 | `timeout` | `10000` | Milliseconds of real time to wait for `ready` |
 | `seed` | `1` | Seed for `Math.random()` |
 | `fps` | `60` | Frames per second of the virtual clock |
+| `webgl` | `true` (debuff: `false`) | Offer WebGL. `false` makes engines fall back to Canvas 2D |
+
+`play()` resolves once the game's scripts have run, its first requests (assets, data) have finished, and `ready` passes. For games on the virtual clock it then plays one frame, as a browser paints before a player can act, so `game.tick` starts at 1. debuff games start at tick 0.
 
 Type the state for autocompletion: `play<{ player: { x: number } }>()`.
 
@@ -132,6 +151,7 @@ Playing (each returns the playtest, so calls chain):
 | `set("group.key", value)` / `set({ … })` | Set params |
 | `command(name, ...args)` | Run a game command |
 | `replay(fileOrScenario)` | Play a scenario's steps (see below) |
+| `await settle()` | Wait, in real time, for requests the game started (lazy-loaded assets) to finish. Game time doesn't move |
 
 A **duration** is a number of steps (`30`) or time (`"0.5s"`, `"250ms"`), rounded to whole steps.
 
@@ -160,6 +180,24 @@ test.only(name, fn);            // run only focused tests
 test.skip(name, fn?);           // registered, not run
 test.todo(name);                // a reminder in the report
 describe(name, () => { … });    // groups nest; describe.only / describe.skip apply inside
+beforeEach(fn);                 // before each test in this file or describe (outer hooks first)
+afterEach(fn);                  // after each test, even failing ones (inner hooks first)
+```
+
+Shared setup:
+
+```ts
+describe("the hollow", () => {
+  let game: Playtest<State>;
+  beforeEach(async () => {
+    game = await play<State>();
+    game.command("warp", "hollow");
+  });
+
+  test("the door starts shut", () => {
+    expect(game.state.doorOpen).toBe(false);
+  });
+});
 ```
 
 **Sweeps** run the same test across params, one test per combination:
@@ -196,6 +234,8 @@ Pass `{ sameSeed: true }` if your engine seeds its own generator from `Math.rand
 | `InvariantError` | `during` caught a broken invariant |
 | `MissingHookError` | A test used a hook the game doesn't expose |
 
+Errors a game raises outside any test (say, an asset that fails to load after its test ended) are listed at the end of the run and fail it.
+
 ### Replaying scenarios
 
 `game.replay()` takes a JSON file (or object) of steps: `wait`, `press`, `release`, `tap`, `pointerDown`, `pointerMove`, `pointerUp`, `set`, `command` and `expect`. It's the [debuff scenario format](https://debuff.jp/docs/scenarios), so debuff's overlay replays and fuzz findings play directly; any tool can write it. `capture` steps are skipped, since nothing is drawn.
@@ -205,6 +245,7 @@ Pass `{ sameSeed: true }` if your engine seeds its own generator from `Math.rand
 ```bash
 npx keiko                     # every test
 npx keiko tests/jump.test.ts  # some files
+npx keiko tests/levels        # every test in a folder
 npx keiko -t "pause"          # tests whose name contains "pause"
 npx keiko --json              # a report for tools and agents
 ```
@@ -213,9 +254,15 @@ Exits with 1 when a test fails. For tools, the same runner is `runTests()` from 
 
 ## What runs, and what doesn't
 
-The game runs in a [happy-dom](https://github.com/capricorn86/happy-dom) page with your project's Vite config. WebGL is reported unavailable, so engines fall back to Canvas 2D, whose context draws nothing. Web Audio plays nothing. Images and other files load from the Vite server; images report their size (PNG, GIF, JPEG) without decoding pixels.
+The game runs in a [happy-dom](https://github.com/capricorn86/happy-dom) page with your project's Vite config.
 
-So keiko covers simulation, input, timing, params, scenes and anything your state snapshot exposes. It doesn't cover what's drawn or heard: for that, use screenshot tests in a real browser (debuff's [scenarios](https://debuff.jp/docs/scenarios)). `setTimeout` and `setInterval` keep real time, so gameplay that depends on them isn't stepped. One game runs at a time.
+- **Rendering:** Canvas 2D and WebGL 1/2 contexts accept every call and draw nothing. Shaders compile, framebuffers are complete and pixel reads return zeros, so engines boot whichever renderer they prefer.
+- **Sound:** Web Audio plays nothing; decoding succeeds instantly.
+- **Assets:** images and other files load from the Vite server. Images are real `<img>` elements that report their size (PNG, GIF, JPEG) without decoding pixels. Fonts count as loaded.
+- **Layout:** the canvas reports its own size as its position on the page, so engines that map pointer positions through the canvas's box get the coordinates you passed.
+- **Time:** everything above runs on the virtual clock. Node's own timers (inside `fetch`, for example) keep real time. To wait in real time inside a test, use `await sleep(ms)` from keiko, not `setTimeout`, which is the game's virtual one while a game runs.
+
+So keiko covers simulation, input, timing, params, scenes and anything your state snapshot exposes. It doesn't cover what's drawn or heard: for that, use screenshot tests in a real browser (debuff's [scenarios](https://debuff.jp/docs/scenarios)). One game runs at a time.
 
 The design is recorded in [ADR 0009](https://github.com/debuffjp/debuff/blob/main/docs/adr/0009-logic-tests.md).
 
