@@ -17,7 +17,7 @@ function setup(search = "") {
     keys: { press: spies.keyPress, release: spies.keyRelease },
     pointer: { press: spies.pointerPress, move: spies.pointerMove, release: spies.pointerRelease },
   };
-  const hooks = exposeDevHooks(game, { input });
+  const hooks = exposeDevHooks(game, { input, agentLink: false });
   // The dev tools wrap input methods to record replays, so assert on the original spies.
   const keys = { press: spies.keyPress, release: spies.keyRelease };
   const pointer = { press: spies.pointerPress, move: spies.pointerMove, release: spies.pointerRelease };
@@ -35,7 +35,7 @@ describe("exposeDevHooks", () => {
     game.add({ id: "play" }).go("play");
     const warp = vi.fn((to: string) => `went ${to}`);
     const input = { keys: { press: vi.fn(), release: vi.fn() }, pointer: { press: vi.fn(), move: vi.fn(), release: vi.fn() } };
-    const hooks = exposeDevHooks(game, { input, commands: { warp } });
+    const hooks = exposeDevHooks(game, { input, commands: { warp }, agentLink: false });
     expect(hooks.commands()).toEqual(["warp"]);
     expect(hooks.command("warp", "hollow")).toBe("went hollow");
     expect(warp).toHaveBeenCalledWith("hollow");

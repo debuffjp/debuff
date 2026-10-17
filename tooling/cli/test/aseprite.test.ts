@@ -82,13 +82,13 @@ describe("aseprite importer", () => {
     const bin = join(root, "bin/aseprite");
     expect(findAseprite(bin)).toBe(bin);
     expect(findAseprite(join(root, "missing"))).toBeUndefined();
-    const before = process.env["ASEPRITE"];
-    process.env["ASEPRITE"] = bin;
+    const before = process.env.ASEPRITE;
+    process.env.ASEPRITE = bin;
     try {
       expect(findAseprite()).toBe(bin);
     } finally {
-      if (before === undefined) delete process.env["ASEPRITE"];
-      else process.env["ASEPRITE"] = before;
+      if (before === undefined) delete process.env.ASEPRITE;
+      else process.env.ASEPRITE = before;
     }
   });
 

@@ -1,6 +1,6 @@
 // Validate every publishable package the way npm consumers will see it:
 // publint (package.json/exports correctness) and attw (type resolution).
-import { execFileSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -16,7 +16,10 @@ for (const dir of dirs) {
     ["attw", ["--pack", dir, "--profile", "esm-only", "--format", "table-flipped"]],
   ]) {
     try {
-      execFileSync(bin(tool), args, { stdio: "pipe", shell: process.platform === "win32" });
+      // Windows runs the .cmd shims through a shell; one command string avoids Node's DEP0190 warning.
+      if (process.platform === "win32")
+        execSync([bin(tool), ...args].map((a) => (/\s/.test(a) ? `"${a}"` : a)).join(" "), { stdio: "pipe" });
+      else execFileSync(bin(tool), args, { stdio: "pipe" });
     } catch (err) {
       failed = true;
       console.error(`✖ ${pkg.name}: ${tool}\n${err.stdout ?? ""}${err.stderr ?? ""}`);
