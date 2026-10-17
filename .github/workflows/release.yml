@@ -7,25 +7,20 @@ on:
 concurrency: release-${{ github.ref }}
 
 jobs:
-  release:
+  version:
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
-      # npm trusted publishing (OIDC): no NPM_TOKEN, provenance is automatic.
-      id-token: write
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
-      # Trusted publishing needs npm >= 11.5.1; Node 22 ships npm 10.
-      - run: npm install -g npm@^11.5.1
       - run: npm ci
-      # Opens a "Version packages" PR from pending changesets; publishes when it merges.
+      # Opens or updates a "Version packages" PR from pending changesets.
+      # Publishing happens locally with `npm run release` (see docs/releasing.md).
       - uses: changesets/action@v2
-        with:
-          publish-script: npm run release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
