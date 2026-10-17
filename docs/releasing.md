@@ -15,8 +15,7 @@ CI prepares releases and a maintainer publishes them from their own machine. [`r
    npm run release
    ```
 
-   `npm run release` runs `npm run check`, then `changeset publish`, which publishes every package whose version isn't on npm yet and tags the release, then pushes the tags. npm asks for your second factor while publishing. The tags matter: `create-debuff` downloads templates from its own tag, so a missing tag breaks `npm create debuff`.
-4. If `@debuffjp/mcp` changed version, update the pinned version in `plugins/debuff/.mcp.json`, `plugins/debuff/.claude-plugin/plugin.json` and `tooling/mcp/mcpb/manifest.json`, then push. The Claude directory rescans `main`.
+   `npm run release` runs `npm run check`, then `changeset publish`, which publishes every package whose version isn't on npm yet and tags the release, then points the Claude plugin and desktop extension at the new `@debuffjp/mcp` (committing that change) and pushes `main` and the tags. npm asks for your second factor while publishing. The tags matter: `create-debuff` downloads templates from its own tag, so a missing tag breaks `npm create debuff`.
 
 If a publish stops partway, run `npm run release` again. It skips packages that are already on npm.
 
