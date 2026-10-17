@@ -58,8 +58,7 @@
     "@types/node": "^26.6.5"
   },
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   },
   "bin": {
     "keiko": "bin/keiko.js"
