@@ -76,3 +76,17 @@ describe("Draw.measure", () => {
     expect(draw.measure("")).toEqual({ w: 0, h: 0 });
   });
 });
+
+describe("Canvas2DBackend tint", () => {
+  it("draws untinted textures directly and tinted ones through a scratch copy", () => {
+    const { ctx, calls } = recordingContext();
+    const backend = new Canvas2DBackend(ctx);
+    const src = { width: 4, height: 4 } as unknown as HTMLCanvasElement;
+    const m = [1, 0, 0, 1, 0, 0] as unknown as Parameters<Canvas2DBackend["quad"]>[0];
+    backend.quad(m, src, 0, 0, 4, 4, 0xffffffff, 0, false);
+    backend.quad(m, src, 0, 0, 4, 4, 0xcffb2dff, 0, false);
+    const draws = calls.filter((c) => c.name === "drawImage");
+    expect(draws[0]?.args[0]).toBe(src);
+    expect(draws[1]?.args[0]).not.toBe(src);
+  });
+});

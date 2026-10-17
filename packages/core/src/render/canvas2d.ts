@@ -2,8 +2,9 @@ import type { Backend, BlendMode, ClipRect, Matrix, RawContext, TextureSource } 
 import { rgbaToCss } from "./color.js";
 
 /**
- * Canvas 2D fallback for the `draw` API. Same output for solid shapes, sprites, text and alpha;
- * colour tints on textures are approximated (alpha only) because Canvas 2D has no per-draw tint.
+ * Canvas 2D fallback for the `draw` API. Same output for solid shapes, sprites, text and alpha.
+ * Canvas 2D has no per-draw tint, so tinted textures (text, bitmap fonts, `tint`) go through a scratch
+ * canvas: slower than WebGL2, but only when a tint other than white is asked for.
  */
 export class Canvas2DBackend implements Backend {
   readonly kind = "2d" as const;
@@ -55,7 +56,8 @@ export class Canvas2DBackend implements Backend {
       this.smoothing = smooth;
     }
     ctx.globalAlpha = (color & 0xff) / 255;
-    ctx.drawImage(src, sx, sy, sw, sh, 0, 0, 1, 1);
+    if (color >>> 8 === 0xffffff) ctx.drawImage(src, sx, sy, sw, sh, 0, 0, 1, 1);
+    else ctx.drawImage(this.tinted(src, sx, sy, sw, sh, color), 0, 0, sw, sh, 0, 0, 1, 1);
     if (flash > 0) {
       ctx.globalAlpha *= Math.min(1, flash);
       ctx.drawImage(this.whiteSilhouette(src, sx, sy, sw, sh), 0, 0, sw, sh, 0, 0, 1, 1);
@@ -101,11 +103,33 @@ export class Canvas2DBackend implements Backend {
 
   dispose(): void {}
 
-  private whiteSilhouette(src: TextureSource, x: number, y: number, w: number, h: number): HTMLCanvasElement | OffscreenCanvas {
+  /** The source region multiplied by `color`'s RGB, keeping the source's alpha. */
+  private tinted(src: TextureSource, x: number, y: number, w: number, h: number, color: number): HTMLCanvasElement | OffscreenCanvas {
+    const scratch = this.scratchCanvas(w, h);
+    const sctx = scratch.getContext("2d") as CanvasRenderingContext2D | null;
+    if (!sctx) return scratch;
+    sctx.clearRect(0, 0, w, h);
+    sctx.globalCompositeOperation = "source-over";
+    sctx.drawImage(src, x, y, w, h, 0, 0, w, h);
+    sctx.globalCompositeOperation = "multiply";
+    sctx.fillStyle = rgbaToCss(color | 0xff);
+    sctx.fillRect(0, 0, w, h);
+    // multiply filled the transparent pixels too; cut back to the source's shape.
+    sctx.globalCompositeOperation = "destination-in";
+    sctx.drawImage(src, x, y, w, h, 0, 0, w, h);
+    sctx.globalCompositeOperation = "source-over";
+    return scratch;
+  }
+
+  private scratchCanvas(w: number, h: number): HTMLCanvasElement | OffscreenCanvas {
     if (!this.scratch) this.scratch = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(w, h) : document.createElement("canvas");
-    const scratch = this.scratch;
-    if (scratch.width < w) scratch.width = w;
-    if (scratch.height < h) scratch.height = h;
+    if (this.scratch.width < w) this.scratch.width = w;
+    if (this.scratch.height < h) this.scratch.height = h;
+    return this.scratch;
+  }
+
+  private whiteSilhouette(src: TextureSource, x: number, y: number, w: number, h: number): HTMLCanvasElement | OffscreenCanvas {
+    const scratch = this.scratchCanvas(w, h);
     const sctx = scratch.getContext("2d") as CanvasRenderingContext2D | null;
     if (!sctx) return scratch;
     sctx.clearRect(0, 0, w, h);

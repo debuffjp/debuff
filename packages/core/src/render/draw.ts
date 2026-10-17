@@ -22,7 +22,7 @@ export interface SpriteDrawOptions {
   flipY?: boolean;
   /** Multiplied with the global alpha. */
   alpha?: number;
-  /** Colour multiplier (WebGL2). Canvas 2D applies only its alpha. Default white. */
+  /** Colour multiplier. Default white. */
   tint?: Color;
   /** 0..1 mix toward white, e.g. hit flashes. */
   flash?: number;

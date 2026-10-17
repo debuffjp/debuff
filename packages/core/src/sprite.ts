@@ -45,7 +45,7 @@ export class Sprite {
   visible = true;
   /** 0..1 white overlay, for impact flashes. */
   flash = 0;
-  /** Colour multiplier (WebGL2; Canvas 2D applies alpha only). */
+  /** Colour multiplier. */
   tint: Color | undefined;
   origin: Origin;
   frame = 0;

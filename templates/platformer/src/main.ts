@@ -103,6 +103,10 @@ function openSettings(): void {
   paused = "settings";
   settingsMenu.focus = 0;
 }
+// Touch players have no Esc key: a pause button in the HUD. The tap area is bigger than the icon.
+const pauseButton = { x: 152, y: 0, w: 16, h: 16 };
+const tappedPause = () => input.pointer.pressed && overlaps({ x: input.pointer.x, y: input.pointer.y, w: 1, h: 1 }, pauseButton);
+
 const menuStyle: MenuPanelStyle = {
   font: "8px monospace",
   color: "#7a8a5a",
@@ -147,7 +151,7 @@ const play: Scene = {
       (paused === "settings" ? settingsMenu : pauseMenu).update(input);
       return;
     }
-    if (input.pressed("pause") && !won) {
+    if ((input.pressed("pause") || tappedPause()) && !won) {
       paused = "pause";
       pauseMenu.focus = 0;
       return;
@@ -248,6 +252,10 @@ const play: Scene = {
     });
     draw.text(`coins ${score}/${coins.length}`, 6, 5, { font: "8px monospace", color: "#fbbf24" });
     draw.text(`best ${save.get("best")}`, 314, 5, { font: "8px monospace", color: "#e7fd96", align: "right" });
+    if (!paused && !won) {
+      draw.rect(157, 5, 2, 7, "#e7fd96");
+      draw.rect(161, 5, 2, 7, "#e7fd96");
+    }
     if (won) draw.text("you made it! jump to play again", 160, 80, { font: "8px monospace", color: "#cffb2d", align: "center" });
     if (paused) {
       draw.rect(0, 0, game.width, game.height, "rgba(17,20,13,0.6)");
