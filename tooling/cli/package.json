@@ -4,10 +4,17 @@
   "description": "The debuff CLI: dev server, builds with size reports, assets, scenarios",
   "keywords": [
     "game",
+    "gamedev",
+    "game-engine",
+    "2d",
+    "html5-game",
+    "browser-game",
+    "debuff",
     "cli",
     "vite",
-    "gamedev",
-    "debuff"
+    "build",
+    "testing",
+    "fuzzing"
   ],
   "license": "MIT",
   "homepage": "https://debuff.jp",

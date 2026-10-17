@@ -4,10 +4,17 @@
   "description": "Scaffold a new debuff game: npm create debuff",
   "keywords": [
     "game",
+    "gamedev",
+    "game-engine",
+    "2d",
+    "html5-game",
+    "browser-game",
+    "debuff",
     "create",
     "scaffold",
     "template",
-    "debuff"
+    "starter",
+    "game-jam"
   ],
   "license": "MIT",
   "homepage": "https://debuff.jp",

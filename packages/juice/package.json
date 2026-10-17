@@ -4,11 +4,17 @@
   "description": "Tweens, easing, particles and game-feel effects for debuff",
   "keywords": [
     "game",
+    "gamedev",
+    "game-engine",
+    "2d",
+    "html5-game",
+    "browser-game",
+    "debuff",
     "tween",
     "easing",
     "particles",
-    "juice",
-    "debuff"
+    "game-feel",
+    "juice"
   ],
   "license": "MIT",
   "homepage": "https://debuff.jp",
