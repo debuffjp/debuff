@@ -1,5 +1,13 @@
 # @debuffjp/cli
 
+## 0.3.1
+
+### Patch Changes
+
+- Updated dependencies [d359aa1]
+  - keiko@0.1.1
+  - create-debuff@0.3.1
+
 ## 0.3.0
 
 ### Minor Changes
