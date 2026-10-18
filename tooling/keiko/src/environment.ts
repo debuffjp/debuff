@@ -199,7 +199,9 @@ export function openPage({
     if (blob) {
       return track(blob.arrayBuffer().then((bytes) => new Response(bytes, { headers: blob.type ? { "content-type": blob.type } : {} })));
     }
-    return track(nodeFetch(typeof input === "string" || input instanceof URL ? new URL(input, url) : input, init));
+    return track(
+      nodeFetch(typeof input === "string" || input instanceof URL ? new URL(input, url) : input, init).then(explainHtmlFallback),
+    );
   };
   // XMLHttpRequest (Phaser's loader uses it) counts as loading too.
   const xhrProto = (w.XMLHttpRequest as unknown as { prototype: Record<string, unknown> } | undefined)?.prototype;
@@ -619,4 +621,26 @@ export function imageSize(bytes: Uint8Array): { width: number; height: number } 
     }
   }
   return { width: 0, height: 0 };
+}
+
+/**
+ * Vite answers a missing file with the page's index.html, so a game that fetches JSON gets HTML back and
+ * fails with a bare `Unexpected token '<'`. Make `json()` on such a response say what happened instead.
+ */
+export function explainHtmlFallback(res: Response): Response {
+  const path = res.url ? new URL(res.url).pathname : "";
+  if (!(res.headers.get("content-type") ?? "").includes("text/html") || /\.html?$|\/$/.test(path)) return res;
+  const json = res.json.bind(res);
+  res.json = async () => {
+    try {
+      return await json();
+    } catch (err) {
+      throw new Error(
+        `fetch("${path}") got HTML, not JSON: the server has no such file and answered with index.html. ` +
+          `Check the path, or that the plugin that serves it is loaded (debuff projects: run \`npx debuff test\`).`,
+        { cause: err },
+      );
+    }
+  };
+  return res;
 }

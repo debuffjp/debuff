@@ -5,8 +5,9 @@
  * @module
  */
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, join, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import type { InlineConfig, ViteDevServer } from "vite";
 import type { ModuleRunner } from "vite/module-runner";
 import { realClearTimeout, realNow, realSetTimeout, sleep, VirtualClock } from "./clock.js";
@@ -117,6 +118,24 @@ export function usesDebuff(root: string): boolean {
   }
 }
 
+/**
+ * debuff's Vite config (its plugin serves the asset manifest), loaded from the project's `@debuffjp/cli`
+ * so `npx keiko` runs a debuff game the way `npx debuff test` does.
+ */
+export async function debuffViteConfig(root: string): Promise<InlineConfig> {
+  let cli: { viteConfig?: (root: string) => Promise<InlineConfig> };
+  try {
+    cli = await import(pathToFileURL(createRequire(join(root, "package.json")).resolve("@debuffjp/cli")).href);
+  } catch {
+    throw new Error(
+      "This is a debuff project, but keiko can't load @debuffjp/cli from it, so debuff's Vite plugin (the asset manifest) " +
+        "would be missing. Install it (npm i -D @debuffjp/cli) and run `npx debuff test`, or pass --no-debuff.",
+    );
+  }
+  if (typeof cli.viteConfig !== "function") throw new Error("@debuffjp/cli is too old for keiko: update it, or run `npx debuff test`.");
+  return cli.viteConfig(root);
+}
+
 /** The module scripts a page loads, in order: `<script type="module" src="/src/main.ts">`. */
 export function pageScripts(html: string): string[] {
   const scripts: string[] = [];
@@ -140,6 +159,8 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
   const report: TestReport = { ok: true, passed: 0, failed: 0, skipped: 0, todo: 0, durationMs: 0, results: [], outside: [] };
   if (!files.length) return report;
 
+  const debuff = options.debuff ?? usesDebuff(root);
+  if (debuff && !options.vite) options = { ...options, vite: await debuffViteConfig(root) };
   const { createServer, createRunnableDevEnvironment } = await import("vite");
   const server: ViteDevServer = await createServer({
     root,
@@ -183,7 +204,6 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
     };
   }
 
-  const debuff = options.debuff ?? usesDebuff(root);
   const reg = registry();
   let page: HeadlessPage | undefined;
   const closePage = async () => {
