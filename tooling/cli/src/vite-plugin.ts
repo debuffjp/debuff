@@ -9,6 +9,22 @@ import type { ToolingPlugin } from "./plugin.js";
 export const ASSETS_DIR = "assets";
 const URL_PREFIX = `/${ASSETS_DIR}/`;
 
+/**
+ * Dev-only client script: just before Vite reloads the page for a code change, ask the dev tools to save
+ * the session so the new code can replay it to the same tick (state-preserving reload, `@debuffjp/dev`).
+ */
+const RELOAD_CLIENT = "/@debuff/reload.js";
+const RELOAD_CLIENT_CODE = `if (import.meta.hot) {
+  import.meta.hot.on("vite:beforeFullReload", () => {
+    try {
+      window.__DEBUFF_DEV__?.keepForReload?.();
+    } catch (err) {
+      console.warn("[debuff] couldn't keep your place across the reload", err);
+    }
+  });
+}
+`;
+
 const MIME: Record<string, string> = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
@@ -64,10 +80,18 @@ export function debuff(options: DebuffViteOptions = {}): PluginOption[] {
     return referenced && inside && existsSync(file) ? readFileSync(file) : undefined;
   };
 
+  let serving = false;
   const core: Plugin = {
     name: "debuff",
     configResolved(config) {
       root = config.root;
+      serving = config.command === "serve";
+    },
+    resolveId(id) {
+      return serving && id === RELOAD_CLIENT ? id : undefined;
+    },
+    load(id) {
+      return serving && id === RELOAD_CLIENT ? RELOAD_CLIENT_CODE : undefined;
     },
     buildStart() {
       compile();
@@ -105,6 +129,7 @@ export function debuff(options: DebuffViteOptions = {}): PluginOption[] {
       const images = new Set<string>();
       for (const a of Object.values(r.manifest.assets)) if (a.type === "image" && !a.group) images.add(a.src);
       return [
+        ...(serving ? [{ tag: "script", attrs: { type: "module", src: RELOAD_CLIENT }, injectTo: "head" as const }] : []),
         {
           tag: "link",
           attrs: { rel: "preload", href: `${ASSETS_DIR}/manifest.json`, as: "fetch", crossorigin: "anonymous" },

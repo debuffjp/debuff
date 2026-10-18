@@ -369,12 +369,30 @@ export class DevSession {
     setTimeout(() => location.reload(), 100);
   }
 
-  /** Finish a rewind after the reload (see `rewind`). */
+  /**
+   * Called just before the dev server reloads the page for a code change: save the session so the new
+   * code can replay it to this same tick (state-preserving reload). Running games keep running.
+   */
+  keepForReload(): void {
+    const recording = this.recording;
+    if (!recording) return;
+    const timeline = recording.toReplay();
+    storeRewind({ v: 1, page: pagePath(), timeline, tick: timeline.ticks, reason: "reload", resume: !this.paused });
+  }
+
+  /** Finish a rewind or a code reload after the page loads again (see `rewind` and `keepForReload`). */
   restore(request: RewindRequest, target: ReplayTarget): void {
     const recording = this.recording;
     if (!recording) return;
     for (const w of request.timeline.warnings) recording.warn(w);
+    const t0 = performance.now();
     fastForward(target, request.timeline.steps, request.tick);
+    if (request.reason === "reload") {
+      const ms = Math.round(performance.now() - t0);
+      this.log("you", "kept your place", `replayed ${request.tick} ticks with the new code in ${ms} ms`);
+      if (!request.resume) this.pause("you", `reloaded at tick ${request.tick}`);
+      return;
+    }
     this.timeline = { replay: request.timeline, tick: this.game.clock.tick, events: recording.count };
     this.pause("you", `rewound to tick ${request.tick}`);
     this.log("you", "rewound", `to tick ${request.tick} of ${request.timeline.ticks}`);

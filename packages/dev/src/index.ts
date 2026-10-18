@@ -74,6 +74,11 @@ export interface DevHooks {
    * Within the known session you can go forward again, until new play branches off.
    */
   rewind(tick: number): void;
+  /**
+   * Save the session for a state-preserving reload (the `debuff dev` client calls this just before a
+   * code change reloads the page). After the reload the new code replays it to the same tick.
+   */
+  keepForReload(): void;
   /** Moments the human flagged in the overlay, with the game state at that tick. */
   notes(): Note[];
   /**
@@ -107,6 +112,11 @@ export interface DevHooksOptions {
    * e.g. jumping to a checkpoint or granting an item. Keeps test shortcuts out of the game's own code paths.
    */
   commands?: Record<string, (...args: never[]) => unknown>;
+  /**
+   * Keep your place when a code change reloads the page under `debuff dev`: the session's inputs are
+   * replayed with the new code to the tick you were on. Default true.
+   */
+  keepState?: boolean;
 }
 
 /** Dev-server endpoints for the agent link (see `@debuffjp/cli`). */
@@ -207,6 +217,9 @@ function createHooks(game: Game, session: DevSession, options: DevHooksOptions, 
     setParam: (group, key, value) => session.setParam(group, key, value, who()),
     frames: (n = 60) => session.recorder.recent(n),
     profile: () => session.profiler.report(),
+    keepForReload: () => {
+      if (!controlled && options.keepState !== false) session.keepForReload();
+    },
     rewind: (tick) => {
       if (controlled) throw new Error("Rewind works on a live game; in a scenario or headless copy, replay its steps instead");
       session.rewind(tick);

@@ -1,7 +1,7 @@
 import { Game } from "@debuffjp/core";
 import { describe, expect, it, vi } from "vitest";
 import { DevSession, type DrivableInput, InputRecording, type Replay } from "../src/index.js";
-import { fastForward, storeRewind, takeRewind } from "../src/replay.js";
+import { fastForward, type RewindRequest, storeRewind, takeRewind } from "../src/replay.js";
 
 function makeGame() {
   const canvas = document.createElement("canvas");
@@ -150,6 +150,33 @@ describe("rewind", () => {
     expect(b.known()?.ticks).toBe(40); // can scrub forward again
     second.game.step(1);
     expect(b.known()?.ticks).toBe(11); // played on: the old future is gone
+    b.release();
+  });
+});
+
+describe("state-preserving reload", () => {
+  it("saves the session, then the new page replays it to the same tick and keeps running", () => {
+    const first = makeSim();
+    const a = DevSession.acquire(first.game);
+    a.attachInput(first.input);
+    first.input.keys.press("ArrowRight"); // still held when the code changes
+    first.game.step(30);
+    a.keepForReload();
+    a.release();
+
+    const request = takeRewind();
+    expect(request).toMatchObject({ reason: "reload", tick: 30, resume: true });
+
+    const second = makeSim();
+    const b = DevSession.acquire(second.game);
+    b.attachInput(second.input);
+    b.restore(request as RewindRequest, { game: second.game, input: second.input, command: () => undefined });
+    expect(second.game.clock.tick).toBe(30);
+    expect(second.sim).toEqual(first.sim);
+    expect(b.paused).toBe(false);
+    second.game.step(5);
+    expect(second.sim.x).toBe(30); // the replay let go of ArrowRight: nobody is holding it now
+    expect(b.activity.at(-1)?.action).toBe("kept your place");
     b.release();
   });
 });

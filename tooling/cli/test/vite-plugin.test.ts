@@ -50,6 +50,20 @@ describe("debuff Vite plugin", () => {
     ]);
   });
 
+  it("adds the state-preserving reload client in dev only", async () => {
+    const root = project({});
+    const build = corePlugin(root);
+    expect(((await build.transformIndexHtml()) as { tag: string }[]).some((t) => t.tag === "script")).toBe(false);
+    expect(build.load("/@debuff/reload.js")).toBeUndefined();
+
+    const dev = (debuff() as Plugin[])[0] as Plugin & Record<string, (...args: unknown[]) => unknown>;
+    dev.configResolved({ root, command: "serve" });
+    const tags = (await dev.transformIndexHtml()) as { tag: string; attrs: Record<string, string> }[];
+    expect(tags[0]).toMatchObject({ tag: "script", attrs: { type: "module", src: "/@debuff/reload.js" } });
+    expect(dev.resolveId("/@debuff/reload.js")).toBe("/@debuff/reload.js");
+    expect(String(dev.load("/@debuff/reload.js"))).toContain("vite:beforeFullReload");
+  });
+
   it("serves the manifest and referenced files in dev, and 404s everything else", async () => {
     const root = project({ "assets/hero.png": "png", "assets/secret.psd": "x" });
     const plugin = corePlugin(root);
