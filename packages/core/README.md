@@ -43,7 +43,8 @@ game.start();
 | `Scene` | `{ id, enter?, update?, render?, exit?, inspect? }` |
 | `Camera` | Smoothed follow, deadzone, bounds, trauma shake, culling, `toWorld()` |
 | `Sprite`, `sliceGrid` | Frames, named animations, origin, flip, impact flash |
-| `draw.text`, `draw.measure` | Text with a CSS font or a `BitmapFont`; `measure` returns the box `text` fills |
+| `draw.text`, `draw.measure` | Text in debuff sans (the built-in pixel font), a `BitmapFont` or a CSS font; `measure` returns the box `text` fills |
+| `debuffSans()` | The built-in pixel font: printable ASCII, 5×7 capitals with descenders, proportional, white so `color` tints it |
 | `BitmapFont` | Pixel font from a sprite-sheet grid. Widths are measured from the glyph pixels; crisp at any integer scale |
 | `ParamRegistry`, `ParamGroup` | Typed, ranged, unit-annotated values; `describe()` is JSON |
 | `Random` | Seeded PRNG: `next`, `range`, `int`, `pick` |
@@ -53,6 +54,8 @@ game.start();
 | `clamp`, `lerp`, `damp`, `approach`, `overlaps`, `circlesOverlap` | Math helpers |
 
 ### Pixel fonts
+
+`draw.text` uses **debuff sans** unless you pass a `font`, so text is crisp pixel art out of the box. Its source and a PNG sheet for other engines are in [fonts/debuff-sans](https://github.com/debuffjp/debuff/tree/main/fonts/debuff-sans). To use your own:
 
 Draw glyphs on a grid in Aseprite (or any editor), one cell per character in `BitmapFont.ASCII` order (space to `~`, left to right), and save the sheet as `assets/font@6x9.png` with your cell size. Draw each glyph from its cell's left edge; the advance is measured from the rightmost opaque column.
 

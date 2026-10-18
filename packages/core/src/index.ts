@@ -21,6 +21,7 @@ export { Random } from "./random.js";
 export type { BlendMode, ClipRect, Matrix, RawContext, TextureSource } from "./render/backend.js";
 export { BitmapFont, type BitmapFontOptions, type Glyph } from "./render/bitmap-font.js";
 export { type Color, toRGBA } from "./render/color.js";
+export { debuffSans } from "./render/debuff-sans.js";
 export { Draw, type Frame, type SpriteDrawOptions, type TextDrawOptions } from "./render/draw.js";
 export type { Scene } from "./scene.js";
 export type { SplashOptions } from "./splash.js";

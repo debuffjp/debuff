@@ -32,7 +32,7 @@ export interface MenuOptions<A extends string = string> {
 }
 
 export interface MenuStyle {
-  /** CSS font or `BitmapFont`. Default "8px monospace". */
+  /** CSS font or `BitmapFont`. Default: `draw.text`'s, debuff sans. */
   font?: FontLike;
   color?: string | number;
   focusColor?: string | number;
@@ -57,11 +57,9 @@ export interface MenuPanelStyle extends MenuStyle, FrameStyle {
   titleGap?: number;
 }
 
-const FONT = "8px monospace";
-
 interface Layout {
   mirror: boolean;
-  font: FontLike;
+  font: FontLike | undefined;
   gutter: number;
   cursorW: number;
   rowH: number;
@@ -163,7 +161,7 @@ export class Menu<A extends string = string> {
   }
 
   private layout(draw: DrawLike, style: MenuStyle, mirror = style.align === "center"): Layout {
-    const font = style.font ?? FONT;
+    const font = style.font;
     const cursor = draw.measure(style.cursor ?? ">", font);
     const gutter = cursor.w + (style.cursorGap ?? 4);
     let rowH = cursor.h;

@@ -21,7 +21,7 @@
     "release": "npm run check && changeset publish && node scripts/sync-plugin.mjs && git push origin main --tags",
     "test:coverage": "vitest run --coverage",
     "pack:openai-plugin": "git archive --format=zip -o dist/debuff-openai-plugin.zip HEAD:plugins/openai/debuff",
-    "lint:packages": "node scripts/lint-packages.mjs",
+    "lint:packages": "node scripts/lint-packages.mjs && node fonts/debuff-sans/build.mjs --check",
     "test:package-manager": "node scripts/smoke-package-manager.mjs",
     "prepare": "lefthook install",
     "bench:renderer": "npm run bench -w @debuffjp/bench-renderer"

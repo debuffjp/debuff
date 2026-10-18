@@ -108,7 +108,6 @@ const pauseButton = { x: 152, y: 0, w: 16, h: 16 };
 const tappedPause = () => input.pointer.pressed && overlaps({ x: input.pointer.x, y: input.pointer.y, w: 1, h: 1 }, pauseButton);
 
 const menuStyle: MenuPanelStyle = {
-  font: "8px monospace",
   color: "#7a8a5a",
   focusColor: "#cffb2d",
   titleColor: "#e7fd96",
@@ -253,13 +252,13 @@ const play: Scene = {
       buff.draw(draw);
       particles.draw(draw);
     });
-    draw.text(`coins ${score}/${coins.length}`, 6, 5, { font: "8px monospace", color: "#fbbf24" });
-    draw.text(`best ${save.get("best")}`, 314, 5, { font: "8px monospace", color: "#e7fd96", align: "right" });
+    draw.text(`coins ${score}/${coins.length}`, 6, 5, { color: "#fbbf24" });
+    draw.text(`best ${save.get("best")}`, 314, 5, { color: "#e7fd96", align: "right" });
     if (!paused && !won) {
       draw.rect(157, 5, 2, 7, "#e7fd96");
       draw.rect(161, 5, 2, 7, "#e7fd96");
     }
-    if (won) draw.text("you made it! jump to play again", 160, 80, { font: "8px monospace", color: "#cffb2d", align: "center" });
+    if (won) draw.text("you made it! jump to play again", 160, 80, { color: "#cffb2d", align: "center" });
     if (paused) {
       draw.rect(0, 0, game.width, game.height, "rgba(17,20,13,0.6)");
       const menu = paused === "settings" ? settingsMenu : pauseMenu;

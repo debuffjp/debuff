@@ -1,6 +1,7 @@
 import type { Backend, BlendMode, ClipRect, Matrix, RawContext, TextureSource } from "./backend.js";
 import type { BitmapFont } from "./bitmap-font.js";
 import { type Color, toRGBA } from "./color.js";
+import { debuffSans } from "./debuff-sans.js";
 
 /** A rectangular region of an image, in source pixels. */
 export interface Frame {
@@ -31,8 +32,8 @@ export interface SpriteDrawOptions {
 }
 
 export interface TextDrawOptions {
-  /** CSS font, e.g. "16px monospace", or a `BitmapFont`. Default "8px monospace". */
-  font?: string | BitmapFont;
+  /** A `BitmapFont`, or a CSS font such as "16px monospace". Default: debuff sans, the built-in pixel font. */
+  font?: string | BitmapFont | undefined;
   color?: Color;
   align?: "left" | "center" | "right";
   baseline?: "top" | "middle" | "bottom";
@@ -270,11 +271,11 @@ export class Draw {
   /** Text, rasterised once and cached as a texture (crisp at the current render scale). */
   text(text: string, x: number, y: number, o: TextDrawOptions = {}): void {
     if (!text) return;
-    if (typeof o.font === "object") {
-      this.bitmapText(text, x, y, o.font, o);
+    if (typeof o.font !== "string") {
+      this.bitmapText(text, x, y, o.font ?? debuffSans(), o);
       return;
     }
-    const entry = this.textCache.get(text, o.font ?? "8px monospace", this.renderScale, (src) => this.backend.invalidate(src));
+    const entry = this.textCache.get(text, o.font, this.renderScale, (src) => this.backend.invalidate(src));
     const ax = o.align === "center" ? 0.5 : o.align === "right" ? 1 : 0;
     const ay = o.baseline === "middle" ? 0.5 : o.baseline === "bottom" ? 1 : 0;
     this.local(x - ax * entry.w, y - ay * entry.h, entry.w, entry.h);
@@ -287,9 +288,9 @@ export class Draw {
    * The logical box `text()` fills for this string and font, so layouts can align and centre without
    * guessing. Same cache as `text()`, so measuring then drawing rasterises once.
    */
-  measure(text: string, font: string | BitmapFont = "8px monospace"): { w: number; h: number } {
+  measure(text: string, font: string | BitmapFont = debuffSans()): { w: number; h: number } {
     if (!text) return { w: 0, h: 0 };
-    if (typeof font === "object") return font.measure(text);
+    if (typeof font !== "string") return font.measure(text);
     const entry = this.textCache.get(text, font, this.renderScale, (src) => this.backend.invalidate(src));
     return { w: entry.w, h: entry.h };
   }
