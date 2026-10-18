@@ -12,6 +12,8 @@ export interface DevOverlayOptions {
 }
 
 const LIME = "#cffb2d";
+/** Dev-server endpoint that writes a scenario into the project (see `@debuffjp/cli`). */
+const SCENARIO_ENDPOINT = "/__debuff/scenario";
 const SKY = "#38bdf8";
 const VIOLET = "#a78bfa";
 const AMBER = "#fbbf24";
@@ -60,6 +62,9 @@ class Overlay {
   private readonly paramsBox: HTMLElement;
   private readonly statePre: HTMLElement;
   private readonly errorsBox: HTMLElement;
+  private readonly scrub: HTMLInputElement;
+  private readonly scrubLabel: HTMLElement;
+  private scrubbing = false;
   private readonly activityBox: HTMLElement;
   private readonly tabButtons = new Map<Tab, HTMLButtonElement>();
   private readonly panes = new Map<Tab, HTMLElement>();
@@ -229,8 +234,32 @@ class Overlay {
     save.title = "Download this session as a scenario (drop it in scenarios/ or run it with debuff scenario)";
     const copyReplay = button("copy replay", () => this.saveReplay(true));
     copyReplay.title = "Copy this session as scenario JSON, e.g. to paste to an agent";
-    replayRow.append(save, copyReplay, hint("replays the session exactly"));
-    this.addPane("log", this.errorsBox, this.activityBox, noteRow, replayRow);
+    const asScenario = button("save as scenario", () => void this.saveScenario());
+    asScenario.title = "Write the session so far to scenarios/ with a capture at the end, as a regression test";
+    replayRow.append(save, copyReplay, asScenario);
+    // Timeline: drag to any tick of this session; the page reloads and replays to it, then pauses.
+    const timelineRow = row();
+    timelineRow.style.marginTop = "6px";
+    this.scrub = el("input", { type: "range", min: "0", max: "0", step: "1" }) as HTMLInputElement;
+    Object.assign(this.scrub.style, { flex: "1", minWidth: "0", accentColor: LIME });
+    this.scrub.title = "Rewind: replays this session's inputs to the chosen tick, then pauses";
+    this.scrub.setAttribute("aria-label", "Rewind to tick");
+    this.scrubLabel = hint("");
+    this.scrubLabel.style.minWidth = "9em";
+    this.scrub.addEventListener("input", () => {
+      this.scrubbing = true;
+      this.scrubLabel.textContent = `→ tick ${this.scrub.value}`;
+    });
+    this.scrub.addEventListener("change", () => {
+      this.scrubbing = false;
+      const tick = Number(this.scrub.value);
+      if (tick === this.game.clock.tick) return;
+      this.scrubLabel.textContent = `rewinding to ${tick}…`;
+      this.session.rewind(tick);
+    });
+    for (const type of ["keydown", "keyup"] as const) this.scrub.addEventListener(type, (e) => e.stopPropagation());
+    timelineRow.append(this.scrub, this.scrubLabel);
+    this.addPane("log", this.errorsBox, this.activityBox, noteRow, replayRow, timelineRow);
 
     this.body = el("div");
     this.body.append(toolbar, tabBar, ...this.panes.values());
@@ -283,6 +312,7 @@ class Overlay {
     }
     store(TAB_KEY, tab);
     if (tab === "state") this.refreshState();
+    if (tab === "log") this.refreshTimeline();
     if (tab === "perf") this.drawGraph();
   }
 
@@ -323,6 +353,8 @@ class Overlay {
       if (this.selected === undefined) this.showFrame(undefined);
     } else if (this.tab === "state" && slowTick && !this.session.paused) {
       this.refreshState();
+    } else if (this.tab === "log" && slowTick) {
+      this.refreshTimeline();
     }
   }
 
@@ -446,6 +478,8 @@ class Overlay {
 
   private refreshSession(): void {
     const { session } = this;
+    // A paused game draws no frames, so keep the timeline current on session changes too.
+    if (this.tab === "log") this.refreshTimeline();
     this.pauseButton.textContent = session.paused ? "play" : "pause";
     this.pauseButton.title = session.paused ? `Paused by ${session.pausedBy}` : "Pause the game loop";
     if (!session.paused) this.selected = undefined;
@@ -610,6 +644,59 @@ class Overlay {
     if (input.type === "checkbox") input.checked = value as boolean;
     else input.value = String(value);
     this.markChanged(id, value);
+  }
+
+  private refreshTimeline(): void {
+    if (this.scrubbing) return;
+    const known = this.session.known();
+    this.scrub.disabled = !known;
+    if (!known) {
+      this.scrubLabel.textContent = "needs devTools({ input })";
+      return;
+    }
+    const tick = this.game.clock.tick;
+    this.scrub.max = String(Math.max(known.ticks, tick));
+    this.scrub.value = String(tick);
+    this.scrubLabel.textContent = known.ticks > tick ? `tick ${tick} of ${known.ticks}` : `tick ${tick}`;
+  }
+
+  /** Write the session so far to the project's scenarios/ through the dev server, or download it. */
+  private async saveScenario(): Promise<void> {
+    const recording = this.session.recording;
+    if (!recording) {
+      this.session.log("you", "can't save a scenario", "pass { input } to devTools() to record");
+      return;
+    }
+    const replay = recording.toReplay();
+    const name = prompt("Scenario name (saved to scenarios/<name>.json)", `replay-tick-${replay.ticks}`)?.trim();
+    if (!name) return;
+    const scenario = {
+      $schema: "../node_modules/@debuffjp/cli/schema/scenario.schema.json",
+      name,
+      steps: [...replay.steps, { capture: name }],
+    };
+    let detail: string;
+    try {
+      const res = await fetch(SCENARIO_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, scenario }),
+      });
+      const body = (await res.json()) as { file?: string; error?: string };
+      if (!res.ok || !body.file) throw new Error(body.error ?? res.statusText);
+      detail = `${body.file}: run debuff scenario to record its baseline`;
+    } catch (err) {
+      // No dev server (or an old CLI): fall back to a download.
+      const a = el("a", {
+        href: URL.createObjectURL(new Blob([`${JSON.stringify(scenario, null, 2)}\n`], { type: "application/json" })),
+        download: `${name}.json`,
+      });
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.getAttribute("href") ?? ""), 1000);
+      detail = `downloaded ${name}.json (${err instanceof Error ? err.message : String(err)}); move it to scenarios/`;
+    }
+    const note = replay.warnings.length ? ` (approximate: ${replay.warnings.join(" ")})` : "";
+    this.session.log("you", "saved a scenario", `${detail}${note}`);
   }
 
   private saveReplay(copy: boolean): void {

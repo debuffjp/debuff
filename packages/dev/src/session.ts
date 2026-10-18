@@ -2,7 +2,7 @@ import type { Game, GameErrorContext, ParamValue } from "@debuffjp/core";
 import { myaku, type Profiler } from "myaku";
 import { type ExplainedError, errorKey, explainError, mapLocation } from "./explain.js";
 import type { DrivableInput } from "./index.js";
-import { InputRecording } from "./replay.js";
+import { fastForward, InputRecording, pagePath, type Replay, type ReplayTarget, type RewindRequest, storeRewind } from "./replay.js";
 
 /** One recorded frame. Times are milliseconds. */
 export interface FrameSample {
@@ -212,6 +212,8 @@ export class DevSession {
   readonly notes: Note[] = [];
   /** Input recorded since page load, for replays (present once `attachInput` is called). */
   recording: InputRecording | undefined;
+  /** The session as it was before the last rewind, so you can scrub forward again until play branches off. */
+  private timeline: { replay: Replay; tick: number; events: number } | undefined;
   /** Uncaught errors, unhandled rejections and loop errors, explained and de-duplicated (max 50). */
   readonly errors: ExplainedError[] = [];
   /** The error object the loop just reported, so its rethrow isn't counted twice. */
@@ -340,6 +342,42 @@ export class DevSession {
   /** Start recording this input for replays. Idempotent. */
   attachInput(input: DrivableInput): void {
     this.recording ??= new InputRecording(this.game, input);
+  }
+
+  /**
+   * Everything known about this session: the pre-rewind timeline while you're still parked where a rewind
+   * left you, otherwise what was actually played (any new tick or input branches off the old timeline).
+   */
+  known(): Replay | undefined {
+    const recording = this.recording;
+    if (!recording) return undefined;
+    const t = this.timeline;
+    if (t && this.game.clock.tick === t.tick && recording.count === t.events) return t.replay;
+    this.timeline = undefined;
+    return recording.toReplay();
+  }
+
+  /**
+   * Go back (or forward, within the known session) to `tick`: the page reloads and replays its inputs to
+   * that tick, so the game's state is exactly what it was, then stays paused there.
+   */
+  rewind(tick: number): void {
+    const timeline = this.known();
+    if (!timeline) throw new Error("Rewind needs input: use devTools({ input })");
+    storeRewind({ v: 1, page: pagePath(), timeline, tick: Math.max(0, Math.min(Math.round(tick), timeline.ticks)) });
+    // Reload a moment later, so an agent's call can still report back before the page goes away.
+    setTimeout(() => location.reload(), 100);
+  }
+
+  /** Finish a rewind after the reload (see `rewind`). */
+  restore(request: RewindRequest, target: ReplayTarget): void {
+    const recording = this.recording;
+    if (!recording) return;
+    for (const w of request.timeline.warnings) recording.warn(w);
+    fastForward(target, request.timeline.steps, request.tick);
+    this.timeline = { replay: request.timeline, tick: this.game.clock.tick, events: recording.count };
+    this.pause("you", `rewound to tick ${request.tick}`);
+    this.log("you", "rewound", `to tick ${request.tick} of ${request.timeline.ticks}`);
   }
 
   setSpeed(scale: number, who = "you"): void {
