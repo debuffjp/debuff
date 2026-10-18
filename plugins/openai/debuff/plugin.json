@@ -41,7 +41,7 @@
           "Add a double jump to my debuff game and prove it works with a test",
           "Fuzz my game and fix any crashes it finds"
         ],
-        "brandColor": "#CFFB2D",
+        "brandColor": "#0A0A0A",
         "composerIcon": "./assets/icon.svg",
         "logo": "./assets/logo.png",
         "screenshots": []

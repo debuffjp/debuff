@@ -34,7 +34,7 @@
     "privacyPolicyURL": "https://debuff.jp/privacy",
     "termsOfServiceURL": "https://debuff.jp/terms",
     "defaultPrompt": ["Make me a small pixel-art platformer I can play in the browser"],
-    "brandColor": "#CFFB2D",
+    "brandColor": "#0A0A0A",
     "composerIcon": "./assets/icon.svg",
     "logo": "./.claude-plugin/icon.png",
     "screenshots": []

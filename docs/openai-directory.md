@@ -37,7 +37,7 @@ Sources: [Upload and submit your plugin](https://developers.openai.com/plugins/d
 
 `https://debuff.jp/mcp` is a read-only, unauthenticated MCP server over the debuff docs and API reference, served by the `debuff-site` Worker in [debuffjp/docs](https://github.com/debuffjp/docs). Its tools are `search_docs`, `get_doc`, `get_api` and `list_starters`, all annotated read-only. It qualifies for the normal **With MCP** submission, because it's remote.
 
-Still needed before submitting it: a brand colour with at least 2:1 contrast on white, the domain verification token from the portal (serve it from the site's `public/.well-known/`), and a demo video of the cases below.
+Still needed before submitting it: the domain verification token from the portal (serve it from the site's `public/.well-known/`), and a demo video of the cases below.
 
 ### Review test cases
 
