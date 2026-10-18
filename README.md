@@ -12,7 +12,7 @@ debuff is an open-source toolkit for 2D browser games that handles the basics fo
 - **Room to grow.** Small (the starter ships at about 13 kB) and fast (about 200,000 sprites at 60 fps), so the engine doesn't hold your idea back.
 - **Agents help if you want them, you decide.** Coding agents can play the game you have open, read what's happening and check their changes. Creative calls stay with you.
 
-> **Status: 0.1, early development.** APIs will change, and feedback from real games shapes them.
+> **Status: 0.5, early development.** APIs will change, and feedback from real games shapes them.
 
 ## Try it
 
@@ -63,8 +63,9 @@ More in [Why debuff](https://debuff.jp/docs/why). Agents can start from [llms.tx
 | [`@debuffjp/tilemap`](./packages/tilemap) | Tilemaps: culled batched rendering, tile collision, Tiled and LDtk import |
 | [`@debuffjp/ui`](./packages/ui) | Screen transitions, menus and framed panels |
 | [`@debuffjp/juice`](./packages/juice) | Tweens, easing, pooled particles, trails, squash-and-stretch |
-| [`@debuffjp/dev`](./packages/dev) | Dev panel (perf, tune, state, explained errors, replays) and `window.__DEBUFF_DEV__`, stripped from production |
+| [`@debuffjp/dev`](./packages/dev) | Dev panel (perf, tune, state, explained errors, replays, rewind) and `window.__DEBUFF_DEV__`, stripped from production |
 | [`@debuffjp/cli`](./tooling/cli) | `debuff dev · build · assets · test · scenario · fuzz · inspect · report` |
+| [`myaku`](./packages/myaku) | Frame profiler for any web game: finds the hitches players feel and says why in plain words. Standalone; `debuff dev` runs it for you |
 | [`keiko`](./tooling/keiko) | Fast, deterministic logic tests for any web game: the real game in Node, no browser. Standalone; debuff integrates it |
 | [`create-debuff`](./tooling/create-debuff) | `npm create debuff` scaffolder |
 | [`@debuffjp/mcp`](./tooling/mcp) | MCP server: agents inspect, build, test and play your game |
@@ -78,7 +79,7 @@ debuff build            production build + size report (fails on dev leaks)
 debuff assets           regenerate manifest, list unused assets
 debuff test             logic tests (keiko): the real game in Node, no browser, in milliseconds
 debuff scenario         run scenarios/*.json headless, compare captures
-debuff fuzz             (next release) random playtesting; crashes come back as replay files
+debuff fuzz             random playtesting; crashes come back as replay files
 debuff inspect          JSON project summary for agents
 debuff report           size report for an existing dist/
 ```
