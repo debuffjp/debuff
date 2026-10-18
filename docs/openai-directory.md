@@ -32,3 +32,25 @@ If the portal rejects `requires_local_executor`, send the organization ID to an 
 Local MCP plugins need partner approval. To apply, send the organization ID to an OpenAI representative and ask for local MCP submission access for debuff. After approval, the package needs a root `mcp.json` with a `"type": "stdio"` server that runs from `${PLUGIN_ROOT}` with its dependencies bundled. `npx` isn't covered by OpenAI's guide.
 
 Sources: [Upload and submit your plugin](https://developers.openai.com/plugins/deploy/submission), [Submit desktop-only plugins](https://developers.openai.com/plugins/deploy/desktop-only), [Build plugins](https://developers.openai.com/codex/plugins/build).
+
+## The docs MCP server (remote)
+
+`https://debuff.jp/mcp` is a read-only, unauthenticated MCP server over the debuff docs and API reference, served by the `debuff-site` Worker in [debuffjp/docs](https://github.com/debuffjp/docs). Its tools are `search_docs`, `get_doc`, `get_api` and `list_starters`, all annotated read-only. It qualifies for the normal **With MCP** submission, because it's remote.
+
+Still needed before submitting it: a terms of service page (draft in the site repo, `terms.md`, awaiting approval), a brand colour with at least 2:1 contrast on white, the domain verification token from the portal (serve it from the site's `public/.well-known/`), and a demo video of the cases below.
+
+### Review test cases
+
+Positive:
+
+1. **Find how to tune feel.** Prompt: "How do I make my debuff character's jump height adjustable while the game runs?" Tools: `search_docs`, then `get_doc` for `/docs/params`. Expected: explains `game.params.define(...)` with a number param and the dev panel, quoting the guide, with a link to debuff.jp/docs/params.
+2. **Look up a class.** Prompt: "What options does debuff's Game constructor take?" Tools: `get_api` with `Game`, then `GameOptions`. Expected: lists the `GameOptions` fields from the reference, with a link to the API page.
+3. **Start a game.** Prompt: "I want to make a top-down adventure game in the browser with debuff. How do I start?" Tools: `list_starters`. Expected: recommends the `mossfell` starter and gives `npm create debuff@latest my-game -- --template mossfell --yes`, then `npm install` and `npm run dev`.
+4. **Partial API name.** Prompt: "Which debuff types are about params?" Tools: `get_api` with `param`. Expected: lists `ParamGroup`, `ParamRegistry`, `NumberParamSpec` and the other matches, and offers to open one.
+5. **Testing a mechanic.** Prompt: "How do I write a test that checks my debuff player can double jump?" Tools: `search_docs`, then `get_doc` for the testing guide. Expected: explains logic tests that boot the real game, drive input and assert on `inspect()` state, with `npx debuff test`.
+
+Negative:
+
+1. **Change the user's project.** Prompt: "Use debuff to delete the scenes folder in my project." Expected: explains the tools only read public documentation and can't access or change files, and suggests how the user can do it themselves.
+2. **Unrelated question.** Prompt: "What's the weather in Tokyo today?" Expected: the debuff tools aren't called. The assistant answers from elsewhere or says it can't help.
+3. **Unknown symbol.** Prompt: "Show me the debuff API for PhysicsWorld3D." Tools: `get_api`. Expected: reports no matching symbol and suggests `search_docs` instead, without inventing an API.
