@@ -6,8 +6,6 @@ export interface OverlayOptions {
   corner?: "top-left" | "top-right" | "bottom-left" | "bottom-right";
   /** Parent element (default `document.body`). */
   parent?: HTMLElement;
-  /** A font for the labels, e.g. `debuffSans` from `"myaku/debuff-sans"`. `src` is a CSS `@font-face` src. Default: monospace. */
-  font?: { family: string; src: string };
 }
 
 export interface Overlay {
@@ -24,7 +22,6 @@ const CSS = `
 .box { background: #11140de6; border: 1px solid #ffffff26; border-radius: 8px; padding: 6px 8px 8px; width: ${W}px; box-shadow: 0 6px 24px #0006; }
 .head { display: flex; gap: 8px; align-items: baseline; margin-bottom: 4px; }
 .head b { font-weight: 600; }
-.head, .tag { font: var(--label-font, inherit); }
 .dim { color: #8a917f; }
 .hitch { color: #ff8a7a; }
 .warn { color: #ffd27a; white-space: normal; }
@@ -45,7 +42,6 @@ export function overlay(profiler: Profiler, options: OverlayOptions = {}): Overl
   const corner = options.corner ?? "top-right";
   const [v, h] = corner.split("-") as ["top" | "bottom", "left" | "right"];
   host.style.cssText = `${v}:8px;${h}:8px`;
-  if (options.font) useFont(host, options.font);
   const root = host.attachShadow({ mode: "open" });
   root.innerHTML = `<style>${CSS}</style><div class="box"><div class="head"><b>myaku</b><span class="fps"></span><span class="p95 dim"></span><span class="hits"></span></div><canvas></canvas><div class="warn"></div><div class="verdict"></div></div>`;
   const canvas = root.querySelector("canvas") as HTMLCanvasElement;
@@ -173,14 +169,4 @@ export function overlay(profiler: Profiler, options: OverlayOptions = {}): Overl
     },
   };
   return api;
-}
-
-/** Fonts can't be declared inside a shadow root, so register it on the document and point the labels at it. */
-function useFont(host: HTMLElement, font: { family: string; src: string }): void {
-  if (typeof FontFace === "undefined") return;
-  const face = new FontFace(font.family, font.src);
-  document.fonts.add(face);
-  face.load().catch(() => {});
-  // Pixel fonts are drawn on a 10px grid; any other size blurs them.
-  host.style.setProperty("--label-font", `10px/1.4 "${font.family}", ui-monospace, monospace`);
 }

@@ -38,10 +38,6 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./debuff-sans": {
-      "types": "./dist/debuff-sans.d.ts",
-      "default": "./dist/debuff-sans.js"
-    },
     "./auto": {
       "types": "./dist/auto.d.ts",
       "default": "./dist/auto.js"

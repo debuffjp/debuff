@@ -26,7 +26,7 @@ export function chamferPath(c: number): string {
   return `polygon(${c}px 0,calc(100% - ${c}px) 0,100% ${c}px,100% calc(100% - ${c}px),calc(100% - ${c}px) 100%,${c}px 100%,0 calc(100% - ${c}px),0 ${c}px)`;
 }
 
-import { debuffSans } from "myaku/debuff-sans";
+import { DEBUFF_SANS_TTF } from "./debuff-sans-ttf.js";
 
 const STYLE_ID = "debuff-kit-style";
 
@@ -43,8 +43,8 @@ export function kitCss(): string {
   const c = t.chamfer;
   const s = c / 2;
   return `
-@font-face{font-family:"${debuffSans.family}";src:${debuffSans.src};font-display:block}
-[data-debuff-kit]{--dk-label:10px/1.4 "${debuffSans.family}",ui-monospace,monospace;--dk-lime:${t.lime};--dk-text:${t.text};--dk-muted:${t.muted};--dk-ink:${t.ink};--dk-line:${t.line};--dk-raised:${t.raised};
+@font-face{font-family:"debuff sans";src:url(data:font/otf;base64,${DEBUFF_SANS_TTF}) format("opentype");font-display:block}
+[data-debuff-kit]{--dk-label:10px/1.4 "debuff sans",ui-monospace,monospace;--dk-lime:${t.lime};--dk-text:${t.text};--dk-muted:${t.muted};--dk-ink:${t.ink};--dk-line:${t.line};--dk-raised:${t.raised};
   clip-path:${chamferPath(c)};background:${cornerLines(c, t.line)},${t.panel};box-shadow:inset 0 0 0 1px ${t.line};
   color:#e5e7eb;font:11px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;backdrop-filter:blur(4px)}
 [data-debuff-kit] .dk-btn{font:var(--dk-label);cursor:pointer;color:var(--dk-lime);background:var(--dk-raised);border:none;padding:1px 7px;
