@@ -29,6 +29,7 @@ Node.js 22 or newer is required. Pass `root: "my-game"` (the folder you created)
 3. Look with `game_state` and `game_capture`. Drive it with `game_input` and `game_step`. Call `game_pause` before you inspect a live game.
 4. Check `game_errors` after every change. Each error says whose problem it is. If the kind is `debuff-bug`, tell the human and share its `reportUrl`. Don't work around it.
 5. For feel changes, prefer params (`game_params`, `game_set_param`) over code. Prove behaviour with a scenario and `run_scenarios`, and check that `build` reports no leaks.
+6. Write a logic test (`tests/*.test.ts`, keiko; see the keiko skill) for each mechanic and run it with `run_tests`. If the game stutters, call `game_profile` for myaku's explained hitches (see the myaku skill).
 
 The server also has ready-made workflows as prompts: playtest, fix-errors, tune-feel, add-mechanic and explain-stutter.
 
