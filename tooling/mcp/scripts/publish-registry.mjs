@@ -22,7 +22,7 @@ if (!existsSync(key)) fail(`Missing ${key} (the debuff.jp DNS key).`);
 // 1. The npm release must already carry mcpName: the registry checks it.
 let published = "";
 try {
-  published = execFileSync("npm", ["view", `${pkg.name}@${pkg.version}`, "mcpName"], { encoding: "utf8", shell: true }).trim();
+  published = execFileSync(`npm view ${pkg.name}@${pkg.version} mcpName`, { encoding: "utf8", shell: true }).trim();
 } catch {}
 if (published !== pkg.mcpName) fail(`${pkg.name}@${pkg.version} on npm has no mcpName "${pkg.mcpName}" yet: release it to npm first.`);
 
