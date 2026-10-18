@@ -253,7 +253,9 @@ function report(root: string, json: boolean): number {
       finish(
         true,
         "build ready in dist/",
-        `${sky(kb(r.totals.code.brotli))} ${pc.dim("code, brotli ·")} ${pink(kb(r.totals.asset.bytes))} ${pc.dim("assets")}`,
+        `${sky(kb(r.initial.brotli))} ${pc.dim("code at startup, brotli ·")} ${pink(kb(r.totals.asset.bytes))} ${pc.dim("assets")}${
+          r.totals.code.brotli > r.initial.brotli ? pc.dim(` · +${kb(r.totals.code.brotli - r.initial.brotli)} on demand`) : ""
+        }`,
       );
   }
   return r.leaks.length ? 1 : 0;

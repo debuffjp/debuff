@@ -51,8 +51,9 @@ describe("Game", () => {
     expect(game.clock.tick).toBe(10);
   });
 
-  it("freeze() pauses updates without stopping rendering", () => {
+  it("freeze() pauses updates without stopping rendering", async () => {
     const { game, ctx } = makeGame();
+    await vi.dynamicImportSettled(); // the Canvas 2D fallback loads on demand
     const r = recorder();
     game.add(r.scene).go("s");
     game.freeze(5 / 60);
