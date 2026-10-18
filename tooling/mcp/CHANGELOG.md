@@ -1,5 +1,17 @@
 # @debuffjp/mcp
 
+## 0.4.0
+
+### Minor Changes
+
+- 771ec97: New package: myaku, a frame profiler for web games. It finds the frames players feel drop and explains each one (script with its location, GC, GPU uploads, shader compiles, layout, browser throttling), for any engine. `@debuffjp/dev` starts it with debuff's update and render as spans and adds `profile()`; the MCP server adds `game_profile`, and the explain-stutter prompt uses it.
+
+### Patch Changes
+
+- Updated dependencies [27d109a]
+  - keiko@0.3.1
+  - @debuffjp/cli@0.4.0
+
 ## 0.3.3
 
 ### Patch Changes
