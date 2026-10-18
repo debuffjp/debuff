@@ -67,7 +67,27 @@ cli
     s?.start("Bundling");
     await build(await viteConfig(root, { logLevel: "error", build: { sourcemap: o.sourcemap ?? false } }));
     s?.stop("Bundled");
-    return report(root, o.json ?? false);
+    const code = report(root, o.json ?? false);
+    if (code === 0) {
+      const { reportBuild } = await import("./telemetry.js");
+      await reportBuild(root, version, (text) => (o.json ? console.error(text) : console.log(pc.dim(text))));
+    }
+    return code;
+  });
+
+cli
+  .command("telemetry [mode]", "Anonymous build registration: on, off or status (the default)")
+  .action(async (mode: string | undefined) => {
+    const { setTelemetry, telemetryOff, TELEMETRY_DOCS, userConfigFile } = await import("./telemetry.js");
+    if (mode === "on" || mode === "off") setTelemetry(mode === "on");
+    else if (mode && mode !== "status") {
+      console.error(`Unknown mode "${mode}": use on, off or status.`);
+      return 1;
+    }
+    const off = telemetryOff();
+    console.log(off ? `Telemetry is off (${off}).` : "Telemetry is on: `debuff build` registers the project anonymously.");
+    console.log(pc.dim(`Settings: ${userConfigFile()} · what's sent: ${TELEMETRY_DOCS}`));
+    return 0;
   });
 
 cli
