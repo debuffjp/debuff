@@ -1,5 +1,6 @@
 import type { Game, NumberParamSpec, ParamSpec, ParamValue, Plugin } from "@debuffjp/core";
 import { type ExplainedError, loc } from "./explain.js";
+import { applyKit, fillRange, proc } from "./kit.js";
 import { DevSession, diagnose, type FrameSample, HITCH, summarize } from "./session.js";
 
 export interface DevOverlayOptions {
@@ -87,6 +88,7 @@ class Overlay {
     this.session = DevSession.acquire(game);
     this.root = el("div", { "data-debuff-overlay": "" });
     Object.assign(this.root.style, panelStyle(options.position ?? "top-right"));
+    applyKit(this.root);
     this.root.hidden = options.open === false;
 
     // ---- header: always visible, even collapsed ----
@@ -102,7 +104,7 @@ class Overlay {
       this.setCollapsed(false);
       this.showTab("log");
     });
-    Object.assign(this.errorBadge.style, { color: OVER_BUDGET, borderColor: `${OVER_BUDGET}66`, padding: "0 5px" });
+    Object.assign(this.errorBadge.style, { color: OVER_BUDGET, padding: "0 5px" });
     this.errorBadge.hidden = true;
     this.label = chip("", LIME);
     Object.assign(this.label.style, { marginLeft: "auto", fontVariantNumeric: "tabular-nums" });
@@ -128,7 +130,7 @@ class Overlay {
     ] as const) {
       speed.append(el("option", { value: v }, t));
     }
-    Object.assign(speed.style, inputStyle());
+    speed.className = "dk-input";
     speed.addEventListener("change", () => this.session.setSpeed(Number(speed.value)));
     const snap = button("snap", () => this.snapshot());
     snap.title = "Download the current frame as a PNG";
@@ -139,18 +141,9 @@ class Overlay {
 
     // ---- tabs ----
     const tabBar = row();
-    Object.assign(tabBar.style, { gap: "2px", borderBottom: `1px solid ${LIME}33`, marginBottom: "6px" });
+    tabBar.classList.add("dk-tabs");
     for (const t of TABS) {
-      const b = el("button", { type: "button", role: "tab" }, t) as HTMLButtonElement;
-      Object.assign(b.style, {
-        font: "inherit",
-        background: "none",
-        border: "none",
-        borderBottom: "2px solid transparent",
-        color: MUTED,
-        padding: "2px 8px",
-        cursor: "pointer",
-      });
+      const b = el("button", { type: "button", role: "tab", class: "dk-tab" }, t) as HTMLButtonElement;
       b.addEventListener("click", () => this.showTab(t));
       this.tabButtons.set(t, b);
       tabBar.append(b);
@@ -179,7 +172,8 @@ class Overlay {
     const spikeLabel = el("label", { title: `Pause automatically on the first dropped frame (over ${HITCH}× budget)` });
     Object.assign(spikeLabel.style, { display: "flex", alignItems: "center", gap: "4px", color: TEXT });
     const spike = el("input", { type: "checkbox" }) as HTMLInputElement;
-    spike.style.accentColor = OVER_BUDGET;
+    spike.className = "dk-toggle";
+    spike.style.setProperty("--c", OVER_BUDGET);
     spike.addEventListener("change", () => {
       this.session.pauseOnSpikeMs = spike.checked ? BUDGET_MS * HITCH : 0;
     });
@@ -215,7 +209,8 @@ class Overlay {
     const noteRow = row();
     noteRow.style.marginTop = "6px";
     const noteInput = el("input", { type: "text", placeholder: "flag this moment for the agent…" }) as HTMLInputElement;
-    Object.assign(noteInput.style, { ...inputStyle(), flex: "1", minWidth: "0" });
+    noteInput.className = "dk-input";
+    Object.assign(noteInput.style, { flex: "1", minWidth: "0" });
     const addNote = () => {
       if (!noteInput.value.trim()) return;
       this.session.note(noteInput.value.trim());
@@ -241,7 +236,8 @@ class Overlay {
     const timelineRow = row();
     timelineRow.style.marginTop = "6px";
     this.scrub = el("input", { type: "range", min: "0", max: "0", step: "1" }) as HTMLInputElement;
-    Object.assign(this.scrub.style, { flex: "1", minWidth: "0", accentColor: LIME });
+    this.scrub.className = "dk-range";
+    Object.assign(this.scrub.style, { flex: "1", minWidth: "0" });
     this.scrub.title = "Rewind: replays this session's inputs to the chosen tick, then pauses";
     this.scrub.setAttribute("aria-label", "Rewind to tick");
     this.scrubLabel = hint("");
@@ -307,8 +303,6 @@ class Overlay {
     for (const [t, b] of this.tabButtons) {
       const on = t === tab;
       b.setAttribute("aria-selected", String(on));
-      b.style.color = on ? LIME : MUTED;
-      b.style.borderBottomColor = on ? LIME : "transparent";
     }
     store(TAB_KEY, tab);
     if (tab === "state") this.refreshState();
@@ -340,8 +334,7 @@ class Overlay {
       this.label.textContent = this.session.paused ? `paused · tick ${this.game.clock.tick}` : `${s.fps} fps`;
       this.label.title = `work ${s.workMs.toFixed(1)} ms (p95 ${s.workP95Ms.toFixed(1)} ms)`;
       const color = this.session.paused ? AMBER : slow ? OVER_BUDGET : LIME;
-      this.label.style.color = color;
-      this.label.style.background = `${color}22`;
+      this.label.style.setProperty("--c", color);
       const last = this.session.recorder.get(0);
       this.mascot.mood((last && last.intervalMs > BUDGET_MS * HITCH) || slow ? "worried" : "calm");
       this.agentBadge.hidden = !this.session.agentConnected;
@@ -530,10 +523,9 @@ class Overlay {
     for (const [groupId, { schema, values }] of Object.entries(described)) {
       if (groupId.startsWith("dev-")) continue;
       const accent = ACCENTS[groupIndex++ % ACCENTS.length] ?? LIME;
-      const box = el("details", { open: "" });
-      Object.assign(box.style, { borderLeft: `2px solid ${accent}`, paddingLeft: "8px", margin: "0 0 8px" });
+      const box = el("details", { open: "", class: "dk-stack" });
+      box.style.setProperty("--c", accent);
       const summary = el("summary", {}, groupId);
-      Object.assign(summary.style, { cursor: "pointer", color: accent, margin: "2px 0 4px", fontWeight: "600" });
       box.append(summary);
       for (const [key, spec] of Object.entries(schema)) box.append(this.paramRow(groupId, key, spec, values[key] as ParamValue, accent));
       const actions = row();
@@ -569,11 +561,16 @@ class Overlay {
     readout.style.textAlign = "right";
     if (spec.type === "boolean") {
       input.type = "checkbox";
+      input.className = "dk-toggle";
+      input.style.setProperty("--c", accent);
       input.checked = value as boolean;
       input.addEventListener("change", () => this.set(groupId, key, input.checked));
     } else {
       Object.assign(input, rangeFor(spec, value as number));
-      input.style.accentColor = accent;
+      input.className = "dk-range";
+      input.style.setProperty("--c", accent);
+      fillRange(input);
+      input.addEventListener("input", () => fillRange(input));
       // Remember the value a drag starts from, so the whole drag becomes one undoable change.
       const remember = () => {
         if (!this.dragStart.has(id)) this.dragStart.set(id, this.game.params.group(groupId)?.get(key) ?? value);
@@ -642,7 +639,10 @@ class Overlay {
     const input = this.inputs.get(id);
     if (!input) return;
     if (input.type === "checkbox") input.checked = value as boolean;
-    else input.value = String(value);
+    else {
+      input.value = String(value);
+      fillRange(input);
+    }
     this.markChanged(id, value);
   }
 
@@ -657,6 +657,7 @@ class Overlay {
     const tick = this.game.clock.tick;
     this.scrub.max = String(Math.max(known.ticks, tick));
     this.scrub.value = String(tick);
+    fillRange(this.scrub);
     this.scrubLabel.textContent = known.ticks > tick ? `tick ${tick} of ${known.ticks}` : `tick ${tick}`;
   }
 
@@ -749,14 +750,8 @@ const KIND: Record<ExplainedError["kind"], [string, string]> = {
 /** One error, explained: whose problem it is, where to look (click to open in your editor), what to try. */
 function errorCard(e: ExplainedError, clear: () => void): HTMLElement {
   const [label, color] = KIND[e.kind];
-  const card = el("div", { "data-error-kind": e.kind });
-  Object.assign(card.style, {
-    margin: "0 0 6px",
-    padding: "5px 7px",
-    borderLeft: `2px solid ${color}`,
-    background: `${color}12`,
-    borderRadius: "4px",
-  });
+  const card = el("div", { "data-error-kind": e.kind, class: "dk-card" });
+  card.style.setProperty("--c", color);
   const head = row();
   head.append(chip(label, color));
   if (e.count > 1) head.append(hint(`×${e.count}`));
@@ -856,8 +851,8 @@ function hint(text: string): HTMLElement {
 }
 
 function chip(text: string, color: string): HTMLElement {
-  const c = el("span", {}, text);
-  Object.assign(c.style, { padding: "1px 6px", borderRadius: "999px", background: `${color}22`, color, whiteSpace: "nowrap" });
+  const c = el("span", { class: "dk-chip" }, text);
+  c.style.setProperty("--c", color);
   return c;
 }
 
@@ -875,29 +870,12 @@ function line(...parts: (string | [string, string])[]): HTMLElement {
   return div;
 }
 
-function inputStyle(): Partial<CSSStyleDeclaration> {
-  return {
-    font: "inherit",
-    background: "#1a2010",
-    color: "#e7ebe0",
-    border: `1px solid ${LIME}40`,
-    borderRadius: "4px",
-    padding: "1px 4px",
-  };
-}
-
 function button(text: string, onClick: () => void): HTMLButtonElement {
-  const b = el("button", { type: "button" }, text) as HTMLButtonElement;
-  Object.assign(b.style, {
-    font: "inherit",
-    background: "#1a2010",
-    color: LIME,
-    border: `1px solid ${LIME}55`,
-    borderRadius: "4px",
-    padding: "1px 6px",
-    cursor: "pointer",
+  const b = el("button", { type: "button", class: "dk-btn" }, text) as HTMLButtonElement;
+  b.addEventListener("click", () => {
+    proc(b);
+    onClick();
   });
-  b.addEventListener("click", onClick);
   return b;
 }
 
@@ -912,12 +890,6 @@ function panelStyle(position: NonNullable<DevOverlayOptions["position"]>): Parti
     maxHeight: "calc(100vh - 16px)",
     overflow: "auto",
     padding: "8px 10px",
-    background: "rgba(10, 12, 8, 0.92)",
-    color: "#e5e7eb",
-    font: "11px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
-    border: `1px solid ${LIME}40`,
-    borderRadius: "6px",
-    backdropFilter: "blur(4px)",
   };
 }
 
