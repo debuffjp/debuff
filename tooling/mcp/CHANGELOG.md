@@ -1,5 +1,14 @@
 # @debuffjp/mcp
 
+## 0.5.1
+
+### Patch Changes
+
+- Updated dependencies [444da77]
+- Updated dependencies [a586450]
+  - keiko@0.4.1
+  - @debuffjp/cli@0.5.1
+
 ## 0.5.0
 
 ### Minor Changes

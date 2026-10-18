@@ -1,6 +1,6 @@
 {
   "name": "@debuffjp/mcp",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "MCP server for debuff: lets AI agents inspect, build, test and play a debuff game",
   "mcpName": "jp.debuff/debuff",
   "keywords": [
@@ -50,9 +50,9 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@debuffjp/cli": "0.5.0",
+    "@debuffjp/cli": "0.5.1",
     "@modelcontextprotocol/sdk": "^1.32.1",
-    "keiko": "0.4.0",
+    "keiko": "0.4.1",
     "playwright-core": "^1.64.1",
     "vite": "^8.3.4",
     "zod": "^4.6.7"
