@@ -36,6 +36,11 @@ export interface ProfilerOptions {
   contexts?: boolean;
   /** Expose the profiler as `window.__MYAKU__` for tools and agents (default true). */
   global?: boolean;
+  /**
+   * Add update and render spans for engines that announce themselves: PixiJS 8, three.js and a global
+   * `Phaser` (default true, with `myaku()`). Others: `adapt(profiler, game)`.
+   */
+  engines?: boolean;
 }
 
 /** Frames at start-up (scripts compiling, assets decoding) that don't count as play. */
@@ -258,6 +263,11 @@ export class Profiler {
       i = this.spanNames.push(name) - 1;
     }
     this.curSpans[i] = (this.curSpans[i] ?? 0) + ms;
+  }
+
+  /** Run `fn` when the profiler stops (adapters use this to stop watching). */
+  onStop(fn: () => void): void {
+    this.cleanups.push(fn);
   }
 
   /** Stop profiling and restore everything it wrapped. */

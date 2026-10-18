@@ -66,6 +66,27 @@ profiler.stop();     // restore everything myaku wrapped
 | `budgetMs` | 1.5× the display's frame interval | Slower frames are hitches. myaku measures the display: 25 ms at 60 Hz, 12.5 ms at 120 Hz |
 | `contexts` | `true` | Wrap canvas contexts to count draws, uploads and compiles |
 | `global` | `true` | Expose the profiler as `window.__MYAKU__` |
+| `engines` | `true` | Add engine spans automatically (see below) |
+
+## Engines
+
+myaku adds `update` and `render` spans for the engine's own loop, so a slow frame says whether game logic or drawing took the time:
+
+| Engine | How | Spans |
+| --- | --- | --- |
+| PixiJS 8 | Automatic, through Pixi's devtools hook | `update` (your ticker listeners), `render` |
+| three.js | Automatic, through three's devtools hook | `render` |
+| Phaser 3, or Phaser from a script tag | Automatic, through the global `Phaser` | `update`, `update:<scene key>`, `render` |
+| Phaser 4 (ES modules), or anything else | `adapt(profiler, game)` | Same as above |
+| debuff | `debuff dev` | `update`, `render` |
+
+```ts
+import { adapt, myaku } from "myaku";
+const game = new Phaser.Game(config);
+adapt(myaku(), game);
+```
+
+Spans can nest: `update:level` is part of `update`.
 
 A `Report` has `intervalMs` (p50/p95/p99/max, which is what players feel), `cpuMs` (time in frame code), `hitches`, `hitchesPerMinute`, `causes`, `worst` (up to 10 verdicts), `spans` (average ms per frame), `perFrame` (draws, uploads, bytes), `overheadMs` (myaku's own cost) and `support` (what this browser reports).
 
@@ -83,7 +104,7 @@ Capture works everywhere. Script attribution (`script` with a location, and `lay
 
 ## Limits
 
-- **Engine loops hide your code.** When an engine owns the loop (Phaser, PixiJS), the slow callback is the engine's step function, so attribution names the engine's file. Add `profiler.span()` around your own systems to see inside it.
+- **Engine loops hide your code.** When an engine owns the loop, attribution names the engine's file. The [engine spans](#engines) say whether update or render took the time, and in Phaser which scene. Add `profiler.span()` around your own systems to go further.
 - **Contexts created before myaku starts aren't counted.** Import `myaku/auto` first.
 - **No GPU timing yet.** "GPU bound" shows as `unknown` with a draw-call hint.
 
