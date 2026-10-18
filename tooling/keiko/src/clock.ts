@@ -41,8 +41,8 @@ export class VirtualClock {
     this.frames.delete(id);
   };
 
-  // Node's own internals (fetch, streams) set timers through the same globals and need real ones, so a
-  // timer created from node:internal code is passed through. Everything the game sets is virtual.
+  // Node's own internals (fetch, streams) and the dev server's bundlers set timers through the same globals
+  // and need real ones, so their timers are passed through. Everything the game sets is virtual.
   readonly setTimeout = (handler: TimerHandler, delay = 0, ...args: unknown[]): number =>
     fromNode()
       ? (realSetTimeout(handler as () => void, delay, ...args) as unknown as number)
@@ -214,13 +214,19 @@ export const realSetTimeout: typeof setTimeout = globalThis.setTimeout;
 export const realClearTimeout: typeof clearTimeout = globalThis.clearTimeout;
 const realSetInterval: typeof setInterval = globalThis.setInterval;
 
-/** True when the code setting a timer is Node's own (its bundled fetch, streams), not the game's. */
+/**
+ * True when the code setting a timer is Node's own (its bundled fetch, streams) or the dev server's, not the
+ * game's. Vite's dependency optimizer debounces on timers while the game's first import waits for it, so a
+ * virtual one would never fire and boot would hang.
+ */
 function fromNode(): boolean {
   const stack = new Error().stack ?? "";
   // Frame 0 is this function, frame 1 the clock's setTimeout; the caller is next.
   const caller = stack.split("\n")[3] ?? "";
-  return caller.includes("node:");
+  return caller.includes("node:") || TOOLING.test(caller);
 }
+
+const TOOLING = /[\\/]node_modules[\\/](?:vite|rollup|rolldown|esbuild)[\\/]/;
 
 /** Give pending promise callbacks and I/O a turn of the event loop, without waiting on a timer. */
 export const yieldTurn = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
