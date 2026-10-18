@@ -10,18 +10,18 @@
     "test": "debuff test && debuff scenario"
   },
   "dependencies": {
-    "@debuffjp/assets": "0.5.1",
-    "@debuffjp/audio": "0.5.1",
-    "@debuffjp/core": "0.5.1",
-    "@debuffjp/input": "0.5.1",
-    "@debuffjp/juice": "0.5.1",
-    "@debuffjp/tilemap": "0.5.1",
-    "@debuffjp/ui": "0.5.1"
+    "@debuffjp/assets": "0.6.0",
+    "@debuffjp/audio": "0.6.0",
+    "@debuffjp/core": "0.6.0",
+    "@debuffjp/input": "0.6.0",
+    "@debuffjp/juice": "0.6.0",
+    "@debuffjp/tilemap": "0.6.0",
+    "@debuffjp/ui": "0.6.0"
   },
   "devDependencies": {
-    "@debuffjp/cli": "0.5.1",
+    "@debuffjp/cli": "0.6.0",
     "typescript": "^7.0.2",
-    "@debuffjp/dev": "0.5.1",
+    "@debuffjp/dev": "0.6.0",
     "keiko": "0.4.1"
   }
 }
