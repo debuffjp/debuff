@@ -68,6 +68,13 @@ profiler.stop();     // restore everything myaku wrapped
 | `global` | `true` | Expose the profiler as `window.__MYAKU__` |
 | `engines` | `true` | Add engine spans automatically (see below) |
 
+`overlay(profiler, options)` takes `corner`, `parent` and `font`. For debuff's pixel font on the labels (about 3.5 kB brotli, only if you import it):
+
+```ts
+import { debuffSans } from "myaku/debuff-sans";
+overlay(profiler, { font: debuffSans });
+```
+
 ## Engines
 
 myaku adds `update` and `render` spans for the engine's own loop, so a slow frame says whether game logic or drawing took the time:
