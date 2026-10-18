@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { type DrawLike, Menu, panel, panelAround, Transition } from "../src/index.js";
+import { bar, type DrawLike, debuffFrame, Menu, panel, panelAround, Transition } from "../src/index.js";
 
 function recorder() {
   const calls: { op: string; args: unknown[]; alpha: number }[] = [];
@@ -210,5 +210,35 @@ describe("panelAround", () => {
     const { draw, calls } = recorder();
     expect(panelAround(draw, 10.5, 10.5, 5, 5)).toEqual({ x: 8, y: 8 });
     expect(calls[0]?.args.slice(0, 4)).toEqual([1, 1, 19, 19]);
+  });
+});
+
+describe("chamfer, shadow and bar", () => {
+  it("cuts each corner into a pixel staircase that stays inside the box", () => {
+    const { draw, calls } = recorder();
+    panel(draw, 0, 0, 10, 8, [], "#fff", 2);
+    const rows = new Map<number, [number, number]>();
+    for (const { args } of calls) {
+      const [x, y, w, h] = args as number[];
+      for (let r = y; r < y + h; r++) rows.set(r, [x, x + w]);
+    }
+    expect(rows.get(0)).toEqual([2, 8]);
+    expect(rows.get(1)).toEqual([1, 9]);
+    expect(rows.get(2)).toEqual([0, 10]);
+    expect(rows.get(7)).toEqual([2, 8]);
+  });
+
+  it("draws the shadow first, offset, when asked", () => {
+    const { draw, calls } = recorder();
+    panelAround(draw, 50, 50, 20, 10, { ...debuffFrame });
+    expect(calls[0]?.args[4]).toBe(debuffFrame.shadow);
+  });
+
+  it("lights whole segments in equal cells", () => {
+    const { draw, calls } = recorder();
+    expect(bar(draw, 0, 0, 32, 3, 0.46, { segments: 10, gap: 1, fill: "on", empty: "off" })).toBe(29);
+    expect(calls.filter((c) => c.args[4] === "on")).toHaveLength(5);
+    expect(new Set(calls.map((c) => c.args[2]))).toEqual(new Set([2]));
+    expect(bar(draw, 0, 0, 5, 3, Number.NaN)).toBe(0);
   });
 });
