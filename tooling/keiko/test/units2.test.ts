@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mulberry32, VirtualClock } from "../src/clock.js";
+import { mulberry32, realSetTimeout, VirtualClock } from "../src/clock.js";
 import { keyCodeFor, keyFor } from "../src/driver.js";
 
 describe("VirtualClock", () => {
@@ -58,6 +58,28 @@ describe("VirtualClock", () => {
     clock.uninstall();
     clock.setTimeout("alert(1)" as unknown as () => void, 0);
     expect(() => clock.advance(1)).toThrow(/don't evaluate strings/);
+  });
+
+  it("gives the dev server's bundlers real timers, so a game's first import can't deadlock on them", async () => {
+    // Vite's dependency optimizer debounces on setTimeout while the game's import waits for it. If that timer
+    // were virtual it would never fire, because the clock doesn't move until the import finishes.
+    const from = (path: string) =>
+      new Function("fire", `return setTimeout(fire, 1);\n//# sourceURL=${path}`) as (fire: () => void) => unknown;
+    const clock = new VirtualClock();
+    clock.install();
+    try {
+      let vite = false;
+      let game = false;
+      from("D:\\game\\node_modules\\vite\\dist\\node\\chunks\\optimizer.js")(() => (vite = true));
+      from("/game/src/main.ts")(() => (game = true));
+      await new Promise<void>((resolve) => realSetTimeout(resolve, 20));
+      expect(vite).toBe(true);
+      expect(game).toBe(false);
+      clock.advance(1);
+      expect(game).toBe(true);
+    } finally {
+      clock.uninstall();
+    }
   });
 
   it("runs idle callbacks once per frame", () => {

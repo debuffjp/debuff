@@ -1,5 +1,5 @@
 import { Window } from "happy-dom";
-import { sleep, type VirtualClock, yieldTurn } from "./clock.js";
+import { realNow, sleep, type VirtualClock, yieldTurn } from "./clock.js";
 import { inertWebGL, webglClasses } from "./webgl.js";
 import { inlineWorkerClass } from "./worker.js";
 
@@ -310,7 +310,8 @@ export function openPage({
       return inflight + (busy() ? 1 : 0);
     },
     async settle(timeout = 10_000) {
-      const deadline = Date.now() + timeout;
+      // Real time: the game's clock is installed, so Date.now() doesn't move while we wait.
+      const deadline = realNow() + timeout;
       // Quiet means no requests for three turns in a row: a finished load often starts the next one.
       let quietTurns = 0;
       while (quietTurns < 3) {
@@ -319,7 +320,7 @@ export function openPage({
         if (loading) await sleep(2);
         else await yieldTurn();
         quietTurns = loading ? 0 : quietTurns + 1;
-        if (Date.now() > deadline) return false;
+        if (realNow() > deadline) return false;
       }
       return true;
     },
