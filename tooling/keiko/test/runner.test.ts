@@ -387,3 +387,23 @@ describe("headless page", () => {
     expect(thing.custom()).toBe(1);
   });
 });
+
+describe("debuff projects under plain keiko", () => {
+  it("explains a JSON fetch that got index.html back", async () => {
+    const { explainHtmlFallback } = await import("../src/environment.js");
+    const res = new Response("<!doctype html><html></html>", { headers: { "content-type": "text/html" } });
+    Object.defineProperty(res, "url", { value: "http://localhost/assets/manifest.json" });
+    await expect(explainHtmlFallback(res).json()).rejects.toThrow(/"\/assets\/manifest\.json"\) got HTML, not JSON.*npx debuff test/);
+  });
+
+  it("says what to do when @debuffjp/cli can't be loaded", async () => {
+    const { debuffViteConfig } = await import("../src/runner.js");
+    const root = mkdtempSync(join(tmpdir(), "keiko-debuff-"));
+    try {
+      writeFileSync(join(root, "package.json"), JSON.stringify({ dependencies: { "@debuffjp/core": "0.5.0" } }));
+      await expect(debuffViteConfig(root)).rejects.toThrow(/This is a debuff project.*npx debuff test/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});

@@ -116,7 +116,7 @@ For types, add `import type {} from "keiko";` to the file that sets `window.__KE
 
 ### debuff games
 
-Nothing to add. keiko detects debuff projects from their dependencies and drives them through `devTools({ input })`, which every debuff template installs. `game.state` is the active scene's `inspect()`, params and commands are debuff's, and steps are the game's own fixed steps. Run tests with `npx debuff test`, or let an agent run them with the MCP server's `run_tests` tool.
+Nothing to add. keiko detects debuff projects from their dependencies and drives them through `devTools({ input })`, which every debuff template installs. `game.state` is the active scene's `inspect()`, params and commands are debuff's, and steps are the game's own fixed steps. Run tests with `npx debuff test` or `npx keiko` (keiko loads debuff's Vite plugin from the project's `@debuffjp/cli`), or let an agent run them with the MCP server's `run_tests` tool.
 
 ## API
 
