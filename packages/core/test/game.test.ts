@@ -192,18 +192,20 @@ describe("Game splash", () => {
   });
 });
 
-describe("Game splash link", () => {
-  it("a click on the splash opens debuff.jp and skips; keys only skip", () => {
+describe("Game splash", () => {
+  it("a click, tap or key skips it, and nothing links out of the game (portal rules)", () => {
     vi.stubEnv("DEV", false);
     const open = vi.spyOn(window, "open").mockReturnValue(null);
+    const showing = (g: unknown) => (g as { splashTotal: number }).splashTotal > 0;
     const { game, canvas } = makeGame({ splash: true });
     if (canvas.parentElement) document.body.append(canvas.parentElement);
+    expect(showing(game)).toBe(true);
     canvas.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
-    expect(open).toHaveBeenCalledWith("https://debuff.jp/?ref=made-with", "_blank", "noopener");
-    expect(canvas.style.cursor).toBe("");
+    expect(showing(game)).toBe(false);
     const second = makeGame({ splash: true });
     dispatchEvent(new KeyboardEvent("keydown", { code: "Space" }));
-    expect(open).toHaveBeenCalledTimes(1);
+    expect(showing(second.game)).toBe(false);
+    expect(open).not.toHaveBeenCalled();
     game.dispose();
     second.game.dispose();
     open.mockRestore();

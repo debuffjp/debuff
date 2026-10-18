@@ -113,11 +113,6 @@ export class Game {
   private splashTotal = 0;
   private splashLeft = 0;
   private readonly onSplashSkip = () => this.skipSplash();
-  /** A click or tap on the splash opens the debuff site (the gesture allows the new tab); elsewhere it just skips. */
-  private readonly onSplashPointer = (e: Event) => {
-    if (e.target === this.canvas) window.open(SPLASH_URL, "_blank", "noopener");
-    this.skipSplash();
-  };
   private lastTime = 0;
   private running = false;
   /** Whether the caller wants the loop running; visibility pausing respects this. */
@@ -167,7 +162,8 @@ export class Game {
     if (splash && !isDev() && typeof addEventListener !== "undefined") {
       this.splashTotal = this.splashLeft = (splash === true ? undefined : splash.duration) ?? 1.6;
       addEventListener("keydown", this.onSplashSkip);
-      addEventListener("pointerdown", this.onSplashPointer);
+      // A click or tap only skips: no links out, so games are safe on portals (Poki, CrazyGames) that forbid them.
+      addEventListener("pointerdown", this.onSplashSkip);
       this.canvas.style.cursor = "pointer";
       this.canvas.title = "made with debuff";
     }
@@ -181,7 +177,7 @@ export class Game {
     }
     this.splashTotal = this.splashLeft = 0;
     removeEventListener("keydown", this.onSplashSkip);
-    removeEventListener("pointerdown", this.onSplashPointer);
+    removeEventListener("pointerdown", this.onSplashSkip);
   }
 
   /** Install a plugin. Throws if the name is invalid or already installed. */
@@ -398,9 +394,6 @@ export class Game {
     this.phase = "idle";
   }
 }
-
-/** Where a click on the start-up splash goes. The ref tag lets debuff.jp count visits from shipped games; no player data. */
-const SPLASH_URL = "https://debuff.jp/?ref=made-with";
 
 /** True under a bundler's dev mode (Vite: `import.meta.env.DEV`); false elsewhere. */
 function isDev(): boolean {
