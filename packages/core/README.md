@@ -36,7 +36,7 @@ game.start();
 
 | Export | Purpose |
 | --- | --- |
-| `Game` | Loop, scenes, scaling, `camera`, `random`, `params`, `stats`, `freeze()`, `timeScale`, `step(n)` |
+| `Game` | Loop, scenes, scaling, `camera`, `random`, `params`, `stats`, `freeze()`, `timeScale`, `step(n)`, `emit(name, detail?)` (mark a game event, such as a coin or a death, for tests and agents) |
 | `game.use(plugin)`, `Plugin` | Install runtime plugins. See [docs/plugins.md](https://github.com/debuffjp/debuff/blob/main/docs/plugins.md) |
 | `game.hooks` | `beforeUpdate`, `afterUpdate`, `beforeRender`, `afterRender`, `sceneChange`. Each returns an unsubscribe function |
 | `game.inspect` | `register(name, () => json)` for dev tools and scenarios |

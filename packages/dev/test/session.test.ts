@@ -147,3 +147,24 @@ describe("DevSession errors", () => {
     s.release();
   });
 });
+
+describe("game events", () => {
+  it("counts game.emit by name and keeps the latest with tick and detail", () => {
+    const game = makeGame();
+    const hooks = exposeDevHooks(game);
+    game.step(2);
+    game.emit("coin", { score: 1 });
+    game.emit("coin", { score: 2 });
+    game.emit("win");
+    expect(hooks.state().events).toEqual({ coin: 2, win: 1 });
+    expect(hooks.events().map((e) => [e.name, e.tick])).toEqual([
+      ["coin", 2],
+      ["coin", 2],
+      ["win", 2],
+    ]);
+    expect(hooks.events(2)).toEqual([]);
+    expect(game.hooks.counts().gameEvent).toBe(1);
+    game.dispose();
+    expect(game.hooks.counts().gameEvent).toBe(0);
+  });
+});

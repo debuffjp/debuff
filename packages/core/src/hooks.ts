@@ -12,6 +12,8 @@ export interface HookArgs {
   sceneChange: [next: Scene, previous: Scene | undefined];
   /** The loop stopped because game code threw. The error is also rethrown so the console still shows it. */
   error: [error: unknown, context: GameErrorContext];
+  /** Something meaningful happened in the game (`game.emit`). */
+  gameEvent: [name: string, detail: unknown];
 }
 
 /** Where a loop error happened. */
@@ -40,6 +42,7 @@ export class Hooks {
     afterRender: new Set(),
     sceneChange: new Set(),
     error: new Set(),
+    gameEvent: new Set(),
   };
 
   beforeUpdate(fn: (dt: number) => void): Unsubscribe {
@@ -65,6 +68,11 @@ export class Hooks {
   /** The game loop stopped on an error (see `game.lastError`). */
   error(fn: (error: unknown, context: GameErrorContext) => void): Unsubscribe {
     return this.on("error", fn);
+  }
+
+  /** The game called `game.emit(name, detail)`. */
+  gameEvent(fn: (name: string, detail: unknown) => void): Unsubscribe {
+    return this.on("gameEvent", fn);
   }
 
   /** Number of listeners per hook, for inspection. */

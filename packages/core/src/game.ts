@@ -279,6 +279,15 @@ export class Game {
     this.render(this.lastAlpha);
   }
 
+  /**
+   * Mark something meaningful that happened: a coin collected, a death, a level cleared. Tests, replays
+   * and agents can check for it (the dev tools count events by name, e.g. `events.coin` in scenarios).
+   * Costs one call per listener; nothing listens in production unless you do.
+   */
+  emit(name: string, detail?: unknown): void {
+    this.hooks.emit("gameEvent", name, detail);
+  }
+
   /** Hit-stop: pause simulation for `seconds` (rendering continues). */
   freeze(seconds: number): void {
     this.freezeTime = Math.max(this.freezeTime, seconds);

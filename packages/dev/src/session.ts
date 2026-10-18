@@ -4,6 +4,13 @@ import { type ExplainedError, errorKey, explainError, mapLocation } from "./expl
 import type { DrivableInput } from "./index.js";
 import { fastForward, InputRecording, pagePath, type Replay, type ReplayTarget, type RewindRequest, storeRewind } from "./replay.js";
 
+/** A `game.emit` call, as the dev tools saw it. */
+export interface GameEventRecord {
+  name: string;
+  tick: number;
+  detail: unknown;
+}
+
 /** One recorded frame. Times are milliseconds. */
 export interface FrameSample {
   tick: number;
@@ -225,6 +232,11 @@ export class DevSession {
   };
   private readonly onRejection = (e: PromiseRejectionEvent) => this.addError(explainError(e.reason));
   private readonly unsubscribeLoopError: () => void;
+  private readonly unsubscribeEvents: () => void;
+  /** How many times the game emitted each event (`game.emit`) since load. */
+  readonly eventCounts: Record<string, number> = {};
+  /** The latest game events with their tick and detail (max 200). */
+  readonly events: GameEventRecord[] = [];
   /** Who paused the game, or undefined while running. */
   pausedBy: string | undefined;
   /** Pause automatically when a frame exceeds this many milliseconds (0 = off). */
@@ -261,6 +273,11 @@ export class DevSession {
       }
     };
     this.unsubscribeLoopError = game.hooks.error((error, context) => this.onLoopError(error, context));
+    this.unsubscribeEvents = game.hooks.gameEvent((name, detail) => {
+      this.eventCounts[name] = (this.eventCounts[name] ?? 0) + 1;
+      this.events.push({ name, tick: game.clock.tick, detail });
+      if (this.events.length > 200) this.events.shift();
+    });
     addEventListener("error", this.onError);
     addEventListener("unhandledrejection", this.onRejection);
   }
@@ -284,6 +301,7 @@ export class DevSession {
     this.recording?.dispose();
     removeEventListener("error", this.onError);
     this.unsubscribeLoopError();
+    this.unsubscribeEvents();
     removeEventListener("unhandledrejection", this.onRejection);
     sessions.delete(this.game);
   }

@@ -176,6 +176,7 @@ Asking:
 | `await run(duration)` | the playtest | Like `wait`, but lets the game's async code (promise chains, tweens awaited in UI flows, loads) continue between frames, like a browser does |
 | `await eventually(condition, { within })` | steps taken | Like `until`, letting async code and loads finish between frames. Use it after an action that loads a screen |
 | `until(condition, { within })` | steps taken | Plays until `condition(state)` holds. Fails with the last state if it doesn't within `within` (default `"10s"`) |
+| `emitted(name)` | number | How many times the game emitted `name` (debuff: `game.emit("coin")`), 0 until the first time. `game.until(() => game.emitted("coin") > 0)` |
 | `during(duration, check, message?)` | the playtest | Plays and checks an invariant after every step; fails at the step where it broke. `check` can return `false` or throw |
 | `trace(pathOrFn, duration)` | a `Trace` | Plays and records a value every step |
 

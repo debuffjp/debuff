@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { captureDiffMessage, compare } from "../src/scenario/index.js";
+import { stepUntil } from "../src/scenario/browser.js";
+import { captureDiffMessage, compare, pick } from "../src/scenario/index.js";
 
 describe("compare", () => {
   it("passes matching comparisons", () => {
@@ -37,5 +38,30 @@ describe("captureDiffMessage", () => {
     expect(msg).toContain("baseline: scenarios/__baselines__/s/popped.win32.png");
     expect(msg).toContain("diff:     .debuff/captures/s/popped.diff.png");
     expect(msg).toContain("If this change is intended, run `npx debuff scenario --update`.");
+  });
+});
+
+describe("pick", () => {
+  it("reads event counts as 0 until the first emit", () => {
+    const state = { events: { coin: 2 }, state: { x: 1 } };
+    expect(pick(state, "events.coin")).toBe(2);
+    expect(pick(state, "events.win")).toBe(0);
+    expect(pick(state, "state.y")).toBeUndefined();
+  });
+});
+
+describe("stepUntil", () => {
+  it("steps until the conditions hold, or gives up after within", () => {
+    let tick = 0;
+    const hooks = { state: () => ({ tick, events: tick >= 5 ? { coin: 1 } : {} }), step: () => tick++ };
+    (globalThis as { window?: unknown }).window = { __DEBUFF_DEV__: hooks };
+    try {
+      expect(stepUntil([{ "events.coin": { gte: 1 } }, 60])).toEqual({ ticks: 5, met: true });
+      expect(stepUntil([{ tick: { eq: 5 } }, 3])).toEqual({ ticks: 0, met: true });
+      expect(stepUntil([{ tick: { gt: 100 } }, 3])).toEqual({ ticks: 3, met: false });
+      expect(tick).toBe(8);
+    } finally {
+      delete (globalThis as { window?: unknown }).window;
+    }
   });
 });

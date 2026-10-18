@@ -197,6 +197,15 @@ describe("Playtest", () => {
     expect(() => g.replay({ steps: [{ expect: { scene: { eq: "menu" } } }] })).toThrow(/expected "menu", got "play"/);
     expect(() => g.replay({ steps: [{ "tiles:paint": 1 }] })).toThrow(/only runs under `debuff scenario`/);
     expect(() => g.replay({ steps: [{ dance: 1 }] })).toThrow(/unknown step/);
+    // until: play step by step until the conditions hold; event counts read 0 until the first emit.
+    const h = game();
+    h.press("ArrowRight");
+    const before = h.tick;
+    h.replay({ steps: [{ until: { "state.x": { gte: 3 }, "events.coin": { eq: 0 } }, within: 30 }] });
+    expect(h.state.x).toBeGreaterThanOrEqual(3);
+    expect(h.tick - before).toBeLessThanOrEqual(3); // stops as soon as it holds
+    expect(h.emitted("coin")).toBe(0);
+    expect(() => h.replay({ steps: [{ until: { "state.x": { lt: 0 } }, within: 2 }] })).toThrow(/didn't hold within/);
     expect(() => g.replay({} as never)).toThrow(/needs a `steps` array/);
     expect(() => game({ throwAt: 1 }).replay({ steps: [{ wait: 1 }] })).toThrow(GameError);
   });

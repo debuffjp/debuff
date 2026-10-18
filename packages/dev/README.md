@@ -27,6 +27,7 @@ All arguments and return values are JSON-serialisable.
 | `errors()` | runtime errors since load, explained: `kind` (`your-code`, `debuff-usage`, `debuff-bug`, `outside`), source-mapped `where`, `hint`, `count` |
 | `capture()` | PNG data URL of the current frame |
 | `keepForReload()` | save the session for a state-preserving reload; the `debuff dev` client calls it just before a code change reloads the page |
+| `events(sinceTick?)` | the latest `game.emit` calls with tick and detail; `state().events` counts them by name |
 | `rewind(tick)` | reload and replay this session's inputs to `tick`, then pause: the exact state at that moment. Within the known session you can go forward again until new play branches off. Live games only |
 | `replay(toTick?)` | everything played since load (keys, pointer, param changes) up to `toTick`, as a scenario that replays it exactly, plus `warnings` for anything it can't reproduce. Needs `devTools({ input })` |
 

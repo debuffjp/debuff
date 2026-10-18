@@ -36,7 +36,7 @@ Add `--json` for machine-readable output and `--root <dir>` to target another pr
 }
 ```
 
-Time advances only through `wait` steps, so runs are deterministic. Replays saved from the dev panel (or the MCP `game_replay` tool) are scenarios too. Captures are compared against per-platform baselines in `scenarios/__baselines__/`. A missing baseline is recorded unless you pass `--strict`. Set `DEBUFF_BROWSER` to use a specific Chromium build.
+Time advances only through `wait` and `until` steps, so runs are deterministic. `until` steps one tick at a time until its conditions hold, and fails if they don't `within` that many steps (default 600), so a scenario says "until the player lands" instead of guessing a wait. Paths read the dev state: `scene`, `tick`, `state.*` (your `inspect()`), and `events.<name>`, the number of times the game called `game.emit("<name>")` (0 until the first). For example `{ "until": { "events.coin": { "gte": 1 } }, "within": 60 }`. Replays saved from the dev panel (or the MCP `game_replay` tool) are scenarios too. Captures are compared against per-platform baselines in `scenarios/__baselines__/`. A missing baseline is recorded unless you pass `--strict`. Set `DEBUFF_BROWSER` to use a specific Chromium build.
 
 ## Programmatic use
 

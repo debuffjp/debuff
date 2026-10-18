@@ -90,8 +90,26 @@
           "properties": {
             "expect": {
               "type": "object",
-              "description": "Dotted paths into dev state (scene, tick, time, frozen, stats.*, state.*).",
+              "description": "Dotted paths into dev state (scene, tick, time, frozen, stats.*, state.*, events.<name> = times game.emit(name) ran).",
               "additionalProperties": { "$ref": "#/$defs/comparison" }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["until"],
+          "additionalProperties": false,
+          "properties": {
+            "until": {
+              "type": "object",
+              "description": "Advance one step at a time until every condition holds (same paths as expect).",
+              "additionalProperties": { "$ref": "#/$defs/comparison" }
+            },
+            "within": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 600,
+              "description": "Fail if the conditions don't hold within this many steps."
             }
           }
         },

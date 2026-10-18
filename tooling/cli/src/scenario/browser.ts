@@ -58,3 +58,37 @@ export async function diffImages([a, b, threshold]: [string, string, number]): P
   out.ctx.putImageData(out.image, 0, 0);
   return { ratio: different / (da.length / 4), image: out.canvas.toDataURL("image/png") };
 }
+
+/**
+ * Step one tick at a time until every condition holds or `within` ticks pass. Returns the ticks taken and
+ * whether the conditions were met. (A compact, self-contained twin of `compare`; failures are explained in
+ * Node with the full `compare`.)
+ */
+export function stepUntil([conditions, within]: [Record<string, Record<string, unknown>>, number]): { ticks: number; met: boolean } {
+  const hooks = (window as unknown as { __DEBUFF_DEV__?: Hooks }).__DEBUFF_DEV__;
+  if (!hooks) throw new Error("window.__DEBUFF_DEV__ is missing. Call exposeDevHooks(game, { input }) in dev builds.");
+  const pick = (o: unknown, path: string) => {
+    const v = path.split(".").reduce<unknown>((x, k) => (x && typeof x === "object" ? (x as Record<string, unknown>)[k] : undefined), o);
+    return v === undefined && path.startsWith("events.") ? 0 : v;
+  };
+  const holds = (actual: unknown, c: Record<string, unknown>) => {
+    if ("eq" in c && JSON.stringify(actual) !== JSON.stringify(c.eq)) return false;
+    const n = actual as number;
+    if (c.gt !== undefined && !(typeof n === "number" && n > (c.gt as number))) return false;
+    if (c.gte !== undefined && !(typeof n === "number" && n >= (c.gte as number))) return false;
+    if (c.lt !== undefined && !(typeof n === "number" && n < (c.lt as number))) return false;
+    if (c.lte !== undefined && !(typeof n === "number" && n <= (c.lte as number))) return false;
+    const approx = c.approx as [number, number] | undefined;
+    if (approx && !(typeof n === "number" && Math.abs(n - approx[0]) <= approx[1])) return false;
+    return true;
+  };
+  const met = () => {
+    const state = hooks.state?.();
+    return Object.entries(conditions).every(([path, c]) => holds(pick(state, path), c));
+  };
+  for (let ticks = 0; ticks <= within; ticks++) {
+    if (met()) return { ticks, met: true };
+    if (ticks < within) hooks.step?.(1);
+  }
+  return { ticks: within, met: false };
+}
