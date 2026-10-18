@@ -38,3 +38,7 @@ This is a 2D browser game made with **debuff** (https://debuff.jp). These notes 
 - If `game_errors` reports `debuff-bug`, it's a bug in debuff, not this game. Tell the human and share its `reportUrl`; don't work around debuff internals.
 - Prefer debuff's APIs (`draw`, `input`, `assets`, `params`, `juice`) over adding new runtime dependencies. The game should stay small.
 - API reference: https://debuff.jp/api/ · Guides: https://debuff.jp/docs/getting-started
+
+## Publishing
+
+- Production builds open with a short "made with debuff" splash. **For Poki, turn it off** with `new Game({ splash: false })`: Poki doesn't allow splash screens. Game portals also forbid links out of the game and other sites' URLs, so don't add any. Guide: https://debuff.jp/docs/publishing

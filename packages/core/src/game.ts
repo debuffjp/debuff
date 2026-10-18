@@ -52,6 +52,9 @@ export interface GameOptions {
    * A short "made with debuff" card when the game first starts, before your first frame. Any key,
    * click or tap skips it. Not shown in dev, or when time is driven by `step()` (scenarios, agents).
    * `false` removes it. Default on.
+   *
+   * **Publishing on Poki?** Turn it off: Poki doesn't allow splash screens. Other portals have similar rules;
+   * see https://debuff.jp/docs/publishing.
    */
   splash?: boolean | SplashOptions;
 }
