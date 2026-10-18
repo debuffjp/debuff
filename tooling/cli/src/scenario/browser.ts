@@ -92,3 +92,18 @@ export function stepUntil([conditions, within]: [Record<string, Record<string, u
   }
   return { ticks: within, met: false };
 }
+
+/** Play `steps` steps, sampling the frame's luminance on a `grid` × `grid` raster before the first and after each. */
+export function sampleFrames([steps, grid]: [number, number]): { frames: number[][]; stepSeconds: number } {
+  const hooks = (window as unknown as { __DEBUFF_DEV__?: Hooks }).__DEBUFF_DEV__;
+  const luminance = hooks?.luminance;
+  if (!luminance) throw new Error("This version of @debuffjp/dev has no luminance(): update it to use flash checks.");
+  const sample = () => (luminance(grid, grid) as number[]).map((v) => Math.round(v * 1000) / 1000);
+  const frames = [sample()];
+  for (let i = 0; i < steps; i++) {
+    hooks.step?.(1);
+    frames.push(sample());
+  }
+  const state = hooks.state?.() as { step?: number } | undefined;
+  return { frames, stepSeconds: state?.step ?? 1 / 60 };
+}

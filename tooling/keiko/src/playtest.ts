@@ -491,6 +491,12 @@ export class Playtest<S = any> {
         });
         break;
       }
+      case "flashes":
+        // Nothing is rendered headless, so flashing can't be judged here; keep time moving like `debuff scenario` does.
+        this.advance(value as number);
+        break;
+      case "contrast":
+        break; // Needs real pixels: `debuff scenario` checks it.
       case "capture":
         break; // Nothing is rendered headless; captures belong to `debuff scenario`.
       default:

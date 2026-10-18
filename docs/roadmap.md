@@ -37,7 +37,7 @@ Proposals, ordered by leverage. Each builds on something debuff already has (a f
 
 - [x] **Deterministic replays and time travel.** Recording, save/copy, rewind and scrub in the dev panel, save as scenario, and `game_replay` / `game_rewind` for agents. Inputs plus seed are a complete recording. Rewind and scrub in the dev panel, share a replay file that reproduces a bug exactly, and turn any replay into a scenario.
 - [x] **Fuzz playtesting.** `debuff fuzz` drives random and biased inputs headlessly for N minutes, and reports explained errors and stuck states, each with a replay file. It works in CI, and agents can use it via MCP.
-- [ ] **Accessibility checks in scenarios.** Flash safety (frame-to-frame luminance, following WCAG 2.3.1's limit of three flashes a second), contrast of key UI against the background, reduced-motion coverage. Most engines don't ship this, and it's cheap given the scenario runner.
+- [x] **Accessibility checks in scenarios.** `flashes` and `contrast` steps and `reducedMotion` scenarios (red flashes still to do). Flash safety (frame-to-frame luminance, following WCAG 2.3.1's limit of three flashes a second), contrast of key UI against the background, reduced-motion coverage. Most engines don't ship this, and it's cheap given the scenario runner.
 - [x] **State-preserving hot reload.** Edit your code and keep your place: `debuff dev` replays the session's inputs with the new code to the tick you were on, so tuning a boss fight doesn't mean playing back to it.
 - [ ] **Scenario recording from live play.** Play a sequence, save it as a scenario with captures.
 - [ ] **Change reports.** For any change (yours or an agent's): files, params, size delta, before and after captures.

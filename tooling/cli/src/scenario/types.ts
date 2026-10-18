@@ -10,6 +10,8 @@ export interface Scenario {
   name?: string;
   /** Path to open on the dev server. Default "/". */
   page?: string;
+  /** Run with the browser asking for reduced motion (`prefers-reduced-motion: reduce`). */
+  reducedMotion?: boolean;
   steps: Step[];
 }
 
@@ -46,6 +48,13 @@ export type Step =
    * (default 600, ten seconds at 60 Hz). Same paths as `expect`: `{ "until": { "events.coin": { "gte": 1 } }, "within": 120 }`.
    */
   | { until: Record<string, Comparison>; within?: number }
+  /**
+   * Play this many steps and fail if the screen flashes in a way that could trigger photosensitive seizures:
+   * more than three flashes a second over a quarter of a 10° field (an approximation of WCAG 2.3.1).
+   */
+  | { flashes: number }
+  /** Fail if the light and dark parts of a region (`[x, y, w, h]`, logical units) contrast less than `min` (default 4.5, WCAG AA text). */
+  | { contrast: [number, number, number, number]; min?: number }
   /** Screenshot compared against the per-platform baseline. */
   | { capture: string; tolerance?: number }
   /** Plugin step: `{ "<plugin>:<step>": value }`. */

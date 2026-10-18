@@ -36,7 +36,17 @@ Add `--json` for machine-readable output and `--root <dir>` to target another pr
 }
 ```
 
-Time advances only through `wait` and `until` steps, so runs are deterministic. `until` steps one tick at a time until its conditions hold, and fails if they don't `within` that many steps (default 600), so a scenario says "until the player lands" instead of guessing a wait. Paths read the dev state: `scene`, `tick`, `state.*` (your `inspect()`), and `events.<name>`, the number of times the game called `game.emit("<name>")` (0 until the first). For example `{ "until": { "events.coin": { "gte": 1 } }, "within": 60 }`. Replays saved from the dev panel (or the MCP `game_replay` tool) are scenarios too. Captures are compared against per-platform baselines in `scenarios/__baselines__/`. A missing baseline is recorded unless you pass `--strict`. Set `DEBUFF_BROWSER` to use a specific Chromium build.
+Time advances only through `wait` and `until` steps, so runs are deterministic. `until` steps one tick at a time until its conditions hold, and fails if they don't `within` that many steps (default 600), so a scenario says "until the player lands" instead of guessing a wait. Paths read the dev state: `scene`, `tick`, `state.*` (your `inspect()`), and `events.<name>`, the number of times the game called `game.emit("<name>")` (0 until the first). For example `{ "until": { "events.coin": { "gte": 1 } }, "within": 60 }`. Replays saved from the dev panel (or the MCP `game_replay` tool) are scenarios too. ### Accessibility checks
+
+Scenarios can screen what the game actually draws:
+
+- `{ "flashes": 240 }` plays 240 steps and fails on flashing that could trigger photosensitive seizures: more than three flashes a second over a quarter of a 10° field. It approximates WCAG 2.3.1's general flash threshold, taking the 10° field as a third of the screen each way.
+- `{ "contrast": [x, y, w, h], "min": 4.5 }` fails if the light and dark parts of a region (say, your HUD text) contrast less than `min` (default 4.5:1, WCAG AA for text).
+- `"reducedMotion": true` at the top of a scenario runs it with the browser asking for reduced motion, so you can check that mode too.
+
+These are screening checks on one run, not a certification: a pass means nothing obviously unsafe happened in the steps you played. Red flashes aren't checked yet.
+
+Captures are compared against per-platform baselines in `scenarios/__baselines__/`. A missing baseline is recorded unless you pass `--strict`. Set `DEBUFF_BROWSER` to use a specific Chromium build.
 
 ## Programmatic use
 

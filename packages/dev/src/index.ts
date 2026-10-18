@@ -92,6 +92,12 @@ export interface DevHooks {
   errors(): ExplainedError[];
   /** PNG data URL of the current frame. */
   capture(): string;
+  /**
+   * The current frame's relative luminance (0 black to 1 white, WCAG), averaged over a `cols` × `rows`
+   * grid, row by row. `region` (`[x, y, w, h]` in logical units) samples part of the screen. For flash
+   * and contrast checks in scenarios.
+   */
+  luminance(cols: number, rows: number, region?: [number, number, number, number]): number[];
   /** Names of the commands the game registered with `devTools({ commands })`. */
   commands(): string[];
   /** Run a game command, e.g. to start a scenario at a checkpoint. Recorded in replays. */
@@ -249,6 +255,7 @@ function createHooks(game: Game, session: DevSession, options: DevHooksOptions, 
       game.redraw();
       return game.canvas.toDataURL("image/png");
     },
+    luminance: (cols, rows, region) => sampleLuminance(game, cols, rows, region),
   };
 }
 
@@ -300,3 +307,33 @@ export {
   type Note,
   summarize,
 } from "./session.js";
+
+let sampler: CanvasRenderingContext2D | null | undefined;
+
+/** Downscale the current frame onto a small canvas and convert each cell to WCAG relative luminance. */
+function sampleLuminance(game: Game, cols: number, rows: number, region?: [number, number, number, number]): number[] {
+  if (!(cols >= 1 && rows >= 1 && cols * rows <= 1_000_000)) throw new RangeError("luminance: cols and rows must be at least 1");
+  game.redraw();
+  sampler ??= document.createElement("canvas").getContext("2d", { willReadFrequently: true });
+  if (!sampler) throw new Error("luminance: a 2D canvas is unavailable");
+  const canvas = sampler.canvas;
+  canvas.width = cols;
+  canvas.height = rows;
+  sampler.imageSmoothingEnabled = true;
+  sampler.imageSmoothingQuality = "high";
+  // Logical units to backing-store pixels.
+  const sx = game.canvas.width / game.width;
+  const sy = game.canvas.height / game.height;
+  const [x, y, w, h] = region ?? [0, 0, game.width, game.height];
+  sampler.clearRect(0, 0, cols, rows);
+  sampler.drawImage(game.canvas, x * sx, y * sy, w * sx, h * sy, 0, 0, cols, rows);
+  const data = sampler.getImageData(0, 0, cols, rows).data;
+  const linear = (c: number) => {
+    const v = c / 255;
+    return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  const out: number[] = [];
+  for (let i = 0; i < data.length; i += 4)
+    out.push(0.2126 * linear(data[i] ?? 0) + 0.7152 * linear(data[i + 1] ?? 0) + 0.0722 * linear(data[i + 2] ?? 0));
+  return out;
+}

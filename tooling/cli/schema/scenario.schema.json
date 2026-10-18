@@ -10,6 +10,10 @@
     "$schema": { "type": "string" },
     "name": { "type": "string", "description": "Defaults to the file name." },
     "page": { "type": "string", "description": "Path to open on the dev server.", "default": "/" },
+    "reducedMotion": {
+      "type": "boolean",
+      "description": "Run with the browser asking for reduced motion (prefers-reduced-motion: reduce)."
+    },
     "steps": { "type": "array", "items": { "$ref": "#/$defs/step" } }
   },
   "$defs": {
@@ -110,6 +114,39 @@
               "minimum": 0,
               "default": 600,
               "description": "Fail if the conditions don't hold within this many steps."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["flashes"],
+          "additionalProperties": false,
+          "properties": {
+            "flashes": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Play this many steps and fail on flashing that could trigger photosensitive seizures: more than three flashes a second over a quarter of a 10° field (approximates WCAG 2.3.1)."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["contrast"],
+          "additionalProperties": false,
+          "properties": {
+            "contrast": {
+              "type": "array",
+              "items": { "type": "number" },
+              "minItems": 4,
+              "maxItems": 4,
+              "description": "Region [x, y, w, h] in logical units."
+            },
+            "min": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 21,
+              "default": 4.5,
+              "description": "Minimum contrast between the region's light and dark parts (4.5 is WCAG AA for text)."
             }
           }
         },
