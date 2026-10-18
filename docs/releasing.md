@@ -23,10 +23,10 @@ Local publishes don't carry npm provenance attestations.
 
 ## MCP Registry
 
-`@debuffjp/mcp` is listed on the official MCP Registry as `jp.debuff/debuff`, verified by a DNS TXT record on debuff.jp. The signing key lives only on the maintainer's machine, in `.debuff/mcp-registry/key.pem`, which is git-ignored. After an npm release of `@debuffjp/mcp`, update the listing from the repo root in Git Bash:
+`@debuffjp/mcp` is listed on the official MCP Registry as `jp.debuff/debuff`, verified by a DNS TXT record on debuff.jp. The signing key lives only on the maintainer's machine, in `.debuff/mcp-registry/key.pem`, which is git-ignored. After an npm release of `@debuffjp/mcp`, update the listing from the repo root (PowerShell or any shell):
 
 ```bash
-bash tooling/mcp/scripts/publish-registry.sh
+node tooling/mcp/scripts/publish-registry.mjs
 ```
 
 It generates `tooling/mcp/server.json` from package.json (so the version matches npm), fetches `mcp-publisher` if needed, signs in with the DNS key and publishes.
