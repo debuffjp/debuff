@@ -49,6 +49,8 @@ export interface Evidence {
   throttled?: boolean;
   /** Whether this browser reports script attribution at all. */
   attribution: boolean;
+  /** Whether heap readings are live enough to see garbage collection (missing means yes). */
+  heap?: boolean;
 }
 
 /** A slow frame, explained. JSON-serialisable. */
@@ -195,10 +197,12 @@ export function explainFrame(frame: Frame, ev: Evidence, budgetMs: number): Verd
     });
   }
 
+  const noHeap =
+    ev.heap === false ? " Garbage collection can't be ruled out: this browser doesn't report the heap closely enough to see it." : "";
   return verdict({
     cause: "unknown",
     confidence: "low",
-    summary: `${over} The game's code took only ${fmt(frame.cpuMs)}, so the time went elsewhere${frame.draws > 2000 ? ` (${frame.draws} draw calls is a lot: the GPU may be the bottleneck)` : ""}.`,
+    summary: `${over} The game's code took only ${fmt(frame.cpuMs)}, so the time went elsewhere${frame.draws > 2000 ? ` (${frame.draws} draw calls is a lot: the GPU may be the bottleneck)` : ""}.${noHeap}`,
     hint:
       frame.draws > 2000
         ? "Batch draws: fewer textures (use an atlas), fewer state changes, and fewer separate objects."

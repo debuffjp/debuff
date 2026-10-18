@@ -27,12 +27,14 @@ export interface Report {
   /** myaku's own cost per frame, in ms. */
   overheadMs: number;
   support: { attribution: boolean; heap: boolean; contexts: boolean };
+  /** What myaku couldn't see, in plain words. Check this before trusting an empty or quiet report. */
+  warnings: string[];
 }
 
 export function summarize(
   frames: Frame[],
   hitches: Verdict[],
-  meta: { budgetMs: number; displayIntervalMs: number | undefined; overheadMs: number; support: Report["support"] },
+  meta: { budgetMs: number; displayIntervalMs: number | undefined; overheadMs: number; support: Report["support"]; warnings: string[] },
 ): Report {
   // Start-up frames (scripts still compiling, assets decoding) aren't play; leave them out.
   const timed = frames.filter((f) => f.index >= WARMUP_FRAMES);
@@ -61,6 +63,7 @@ export function summarize(
     perFrame: { draws: avg((f) => f.draws), uploads: avg((f) => f.uploads), uploadBytes: avg((f) => f.uploadBytes) },
     overheadMs: round(meta.overheadMs, 3),
     support: meta.support,
+    warnings: meta.warnings,
   };
 }
 
