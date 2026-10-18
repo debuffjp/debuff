@@ -18,3 +18,4 @@ dist-types/
 .debuff/
 coverage/
 /.scratch/
+tooling/mcp/server.json
