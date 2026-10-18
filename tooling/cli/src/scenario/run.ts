@@ -4,7 +4,7 @@ import { amber, lime, paint, pc } from "create-debuff";
 import type { Browser, Page } from "playwright-core";
 import type { StepDef } from "../plugin.js";
 import { createDevServer } from "../vite.js";
-import { analyzeFlashes, contrastRatio, FLASH_GRID } from "./a11y.js";
+import { analyzeFlashes, contrastGrid, contrastRatio, FLASH_GRID } from "./a11y.js";
 import { callHook, diffImages, hooksReady, sampleFrames, stepUntil } from "./browser.js";
 import type { CaptureResult, Comparison, RunOptions, Scenario, ScenarioReport, Step, StepResult } from "./types.js";
 
@@ -198,12 +198,7 @@ async function runStep(step: Step, call: Call, capture: Capture, until: Until, s
   } else if ("contrast" in step) {
     const [, , w, h] = step.contrast;
     const min = step.min ?? 4.5;
-    const lum = await call<number[]>(
-      "luminance",
-      Math.max(1, Math.min(256, Math.round(w))),
-      Math.max(1, Math.min(256, Math.round(h))),
-      step.contrast,
-    );
+    const lum = await call<number[]>("luminance", ...contrastGrid(w, h), step.contrast);
     const ratio = contrastRatio(lum);
     if (ratio < min) return `contrast ${ratio.toFixed(2)}:1 in [${step.contrast.join(", ")}] is below ${min}:1`;
   } else if ("until" in step) {

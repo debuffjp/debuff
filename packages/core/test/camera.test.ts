@@ -52,3 +52,22 @@ describe("Camera interpolation", () => {
     expect(cam.view()[4]).toBe(-10);
   });
 });
+
+describe("Camera pixel snapping", () => {
+  it("keeps a smoothly followed sprite on one pixel instead of shimmying", () => {
+    // A target moving at a steady speed, followed with the default smoothing: once the lag settles,
+    // the target's snapped screen position must stay put (it used to flip between two pixels).
+    const cam = new Camera({ width: 320, height: 180 });
+    const target = { x: 0, y: 0 };
+    cam.follow(target);
+    const r = new Random(1);
+    const seen = new Set<number>();
+    for (let i = 0; i < 600; i++) {
+      target.x += 37.3 / 60;
+      cam.update(1 / 60, r);
+      const m = cam.view();
+      if (i > 300) seen.add(Math.round(m[0] * target.x + m[4]));
+    }
+    expect(seen.size).toBe(1);
+  });
+});

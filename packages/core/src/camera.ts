@@ -83,14 +83,16 @@ export class Camera {
   }
 
   /** The camera as an affine matrix `[a, b, c, d, e, f]` from world to viewport units.
-   *  Use with `draw.withCamera(camera, () => { ... })`. Positions snap to whole pixels. */
+   *  Use with `draw.withCamera(camera, () => { ... })`. The offset isn't rounded here: `Draw` snaps each sprite
+   *  to whole pixels after the camera, so a followed sprite lands on `round(p - camera)` and holds still, where
+   *  rounding the camera first (`round(p) - round(camera)`) made it shimmy a pixel whenever it moved. */
   view(): [number, number, number, number, number, number] {
     const z = this.zoom;
     // Before the first update there is no previous step to blend from.
     const a = Number.isNaN(this.prevX) ? 1 : this.renderAlpha;
     const x = a === 1 ? this.x : this.prevX + (this.x - this.prevX) * a;
     const y = a === 1 ? this.y : this.prevY + (this.y - this.prevY) * a;
-    return [z, 0, 0, z, this.width / 2 - z * Math.round(x + this.offsetX), this.height / 2 - z * Math.round(y + this.offsetY)];
+    return [z, 0, 0, z, this.width / 2 - z * (x + this.offsetX), this.height / 2 - z * (y + this.offsetY)];
   }
 
   /** Convert a viewport point (e.g. pointer) to world coordinates. */

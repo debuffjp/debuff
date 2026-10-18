@@ -41,6 +41,26 @@ export interface FuzzOptions {
   stuckSeconds?: number;
   /** Page to open. Default "/". */
   page?: string;
+  /**
+   * State paths the loop check skips, e.g. `["state.shots"]` for counters that rise and fall in normal play.
+   * Fields that flip on their own are already ignored; use this for ones that flip together.
+   */
+  ignore?: string[];
+}
+
+/**
+ * A loop is the game bouncing between the same two states with input unchanged: the scene flipping, or at least
+ * two state fields flipping in step (a screen index and the player's position, say). One field flipping on its own
+ * is normal play (a bullet count rising and falling), so it doesn't count. `flips` maps each path to the values it
+ * took, in order, since input last changed.
+ */
+export function findLoop(flips: ReadonlyMap<string, readonly string[]>): { paths: string[]; values: [string, string] } | undefined {
+  const flipping = [...flips].filter(([, seen]) => seen.length >= LOOP_FLIPS + 1 && new Set(seen.slice(-(LOOP_FLIPS + 1))).size === 2);
+  const scene = flipping.find(([path]) => path === "scene");
+  const found = scene ? [scene] : flipping.length >= 2 ? flipping : [];
+  const first = found[0];
+  if (!first) return undefined;
+  return { paths: found.map(([path]) => path), values: [first[1].at(-2) ?? "", first[1].at(-1) ?? ""] };
 }
 
 export interface FuzzFinding {
@@ -131,6 +151,7 @@ export async function runFuzz(options: FuzzOptions): Promise<FuzzReport> {
         await page.waitForFunction(hooksReady, undefined, { timeout: 15_000 });
 
         const steps: Step[] = [];
+        const ignore = new Set(options.ignore ?? []);
         const held = new Set<string>();
         let played = 0;
         let lastState = "";
@@ -162,23 +183,22 @@ export async function runFuzz(options: FuzzOptions): Promise<FuzzReport> {
             fields.push(...Object.entries(state.state).map(([k, v]): [string, unknown] => [`state.${k}`, v]));
           for (const [path, value] of fields) {
             // true/false phase flags (scrolling, attacking) flip all the time in normal play.
-            if (typeof value === "boolean") continue;
+            if (typeof value === "boolean" || ignore.has(path)) continue;
             const json = JSON.stringify(value) ?? "undefined";
             const seen = flips.get(path) ?? [];
             if (seen.at(-1) !== json) seen.push(json);
             flips.set(path, seen);
-            if (seen.length >= LOOP_FLIPS + 1 && new Set(seen).size === 2) {
-              loopReported = true;
-              findings.push({
-                kind: "loop",
-                run,
-                tick: state.tick,
-                message: `${path} kept flipping between ${seen[0]} and ${seen[1]} while ${[...held].join("+")} stayed held. Possible loop (e.g. a door or stairs that send the player straight back).`,
-                repro: save("loop"),
-              });
-              return;
-            }
           }
+          const loop = findLoop(flips);
+          if (!loop) return;
+          loopReported = true;
+          findings.push({
+            kind: "loop",
+            run,
+            tick: state.tick,
+            message: `${loop.paths.join(" and ")} kept flipping between the same two states while ${[...held].join("+")} stayed held (${loop.paths[0]}: ${loop.values[0]} ⇄ ${loop.values[1]}). Possible loop (e.g. a door or stairs that send the player straight back).`,
+            repro: save("loop"),
+          });
         };
         const advance = async (n: number): Promise<HookResult<unknown>> => {
           // Step in short chunks so loops shorter than one hold are seen.

@@ -123,12 +123,27 @@ export function analyzeFlashes(frames: number[][], cols: number, rows: number, s
 }
 
 /**
- * WCAG contrast ratio between the light and dark parts of a sampled region: the 95th and 5th percentile
- * luminance, so a few stray pixels don't decide it. 1 is no contrast, 21 is black on white.
+ * WCAG contrast ratio between a sampled region's background and its foreground (text, icons). The background
+ * is the median luminance (most of a text box is background); the foreground is every sample clearly different
+ * from it, and its median stands for the text, so a few stray pixels or anti-aliased edges don't decide it and
+ * a short label in a big box still counts. 1 is no contrast (or nothing on the background), 21 is black on white.
  */
 export function contrastRatio(luminance: number[]): number {
   if (!luminance.length) return 1;
   const sorted = [...luminance].sort((a, b) => a - b);
-  const at = (q: number) => sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))] ?? 0;
-  return (at(0.95) + 0.05) / (at(0.05) + 0.05);
+  const median = (v: number[]) => v[Math.floor(v.length / 2)] ?? 0;
+  const background = median(sorted);
+  const foreground = sorted.filter((v) => Math.abs(v - background) > 0.02);
+  if (!foreground.length) return 1;
+  const text = median(foreground);
+  return (Math.max(background, text) + 0.05) / (Math.min(background, text) + 0.05);
+}
+
+/**
+ * How many luminance samples to take for a region `w` × `h` logical pixels: one per pixel, so 1-pixel strokes of
+ * pixel fonts keep their full contrast. Only regions past 1024 pixels a side are averaged down.
+ */
+export function contrastGrid(w: number, h: number): [number, number] {
+  const side = (v: number) => Math.max(1, Math.min(1024, Math.round(v)));
+  return [side(w), side(h)];
 }

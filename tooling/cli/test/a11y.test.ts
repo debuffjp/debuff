@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyzeFlashes, contrastRatio, transitions } from "../src/scenario/a11y.js";
+import { analyzeFlashes, contrastGrid, contrastRatio, transitions } from "../src/scenario/a11y.js";
 
 /** `steps` frames of a cols × rows grid where `flash(step, col, row)` gives each cell's luminance. */
 const frames = (steps: number, cols: number, rows: number, at: (t: number, c: number, r: number) => number) =>
@@ -56,9 +56,27 @@ describe("analyzeFlashes", () => {
 });
 
 describe("contrastRatio", () => {
-  it("is the WCAG ratio between the light and dark parts", () => {
+  it("is the WCAG ratio between the background and what's on it", () => {
     expect(contrastRatio([0, 0, 1, 1])).toBeCloseTo(21);
     expect(contrastRatio([0.2, 0.2, 0.2])).toBe(1);
     expect(contrastRatio([])).toBe(1);
+  });
+
+  it("counts a short label in a big box (text under 5% of the region)", () => {
+    const box = [...Array(97).fill(0), 1, 1, 1];
+    expect(contrastRatio(box)).toBeCloseTo(21);
+  });
+
+  it("isn't decided by a few stray pixels or soft edges", () => {
+    // Mostly white text (0.9) on dark (0), with a little anti-aliasing and one stray bright pixel.
+    const box = [...Array(80).fill(0), ...Array(15).fill(0.9), 0.3, 0.4, 0.5, 1];
+    expect(contrastRatio(box)).toBeCloseTo(19, 0);
+  });
+});
+
+describe("contrastGrid", () => {
+  it("samples one cell per logical pixel, so pixel-font strokes keep their contrast", () => {
+    expect(contrastGrid(288, 72)).toEqual([288, 72]);
+    expect(contrastGrid(0.4, 3000)).toEqual([1, 1024]);
   });
 });
