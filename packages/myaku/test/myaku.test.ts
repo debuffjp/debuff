@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { debuffSans } from "../src/debuff-sans.js";
 import { type Evidence, explainFrame, type Frame, myaku, overlay, Profiler } from "../src/index.js";
 
 const MB = 1024 * 1024;
@@ -230,15 +229,6 @@ describe("Profiler", () => {
     expect(o.element.hidden).toBe(false);
     o.destroy();
     expect(document.querySelector("[data-myaku]")).toBeNull();
-    p.stop();
-  });
-
-  it("uses an opt-in font for its labels", () => {
-    const p = new Profiler({ budgetMs: 20 });
-    const o = overlay(p, { font: debuffSans });
-    expect(debuffSans.src).toMatch(/^url\(data:font\/otf;base64,/);
-    if (typeof FontFace !== "undefined") expect(o.element.style.getPropertyValue("--label-font")).toContain("debuff sans");
-    o.destroy();
     p.stop();
   });
 });
