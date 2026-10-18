@@ -1,17 +1,16 @@
 /**
  * Terminal colours, without a dependency: the subset of picocolors debuff uses, with the same rules for
- * when colour is on (NO_COLOR and --no-color turn it off; FORCE_COLOR, --color, Windows, CI and TTYs turn it on).
+ * when colour is on (NO_COLOR and --no-color turn it off; FORCE_COLOR and --color turn it on; otherwise only an interactive TTY gets colour,
+ * so piped output, logs and agents see plain text).
  */
 const env = typeof process === "undefined" ? {} : process.env;
 const argv = typeof process === "undefined" ? [] : process.argv;
 
 export const isColorSupported =
   !("NO_COLOR" in env || argv.includes("--no-color")) &&
-  ("FORCE_COLOR" in env ||
+  ((env.FORCE_COLOR !== undefined && env.FORCE_COLOR !== "0") ||
     argv.includes("--color") ||
-    (typeof process !== "undefined" && process.platform === "win32") ||
-    (typeof process !== "undefined" && process.stdout?.isTTY === true && env.TERM !== "dumb") ||
-    "CI" in env);
+    (typeof process !== "undefined" && process.stdout?.isTTY === true && env.TERM !== "dumb"));
 
 /**
  * Wrap text in an SGR style. An inner close of the same kind (from nested styling) is replaced with
