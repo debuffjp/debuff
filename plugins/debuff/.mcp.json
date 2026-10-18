@@ -2,7 +2,7 @@
   "mcpServers": {
     "debuff": {
       "command": "npx",
-      "args": ["-y", "@debuffjp/mcp@0.7.0"]
+      "args": ["-y", "@debuffjp/mcp@0.7.1"]
     }
   }
 }
