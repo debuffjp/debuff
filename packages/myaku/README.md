@@ -92,6 +92,23 @@ A `Report` has `intervalMs` (p50/p95/p99/max, which is what players feel), `cpuM
 
 **Check `warnings` before trusting a quiet report.** myaku says when it can't see something: no frames (the game kept its own `requestAnimationFrame` from before myaku loaded), no canvas context (created before myaku loaded), span names past the limit (added up under `other`), or a heap reported too coarsely to see GC. The overlay shows the same warnings. `profiler.warnings()` returns them at any time.
 
+## Recording and budgets in CI
+
+`npx myaku record` plays your game in Chrome or Edge with myaku injected, so it needs no changes to the game and works on a production build. It prints frame-time percentiles and the worst hitches, and fails when you set a budget and the game goes over it:
+
+```bash
+npm run build
+npx myaku record dist --seconds 20 --cpu 4 --p95 20 --hitches 6
+```
+
+- **Target:** a folder (served locally, default `dist`) or a URL (your dev server, staging).
+- **`--play file.mjs`:** a module whose default export, `async (page) => {}`, plays the game with Playwright's `page` (press keys, click Play). Without it, myaku records whatever the game does by itself.
+- **`--cpu 4`:** slow the CPU down, like a mid-range phone.
+- **Budgets:** `--p95 <ms>`, `--p99 <ms>`, `--hitches <per minute>`. Exit code 1 when one is over, 2 on errors.
+- **`--json`, `--out report.json`:** the full report and budget results, for CI artifacts and agents.
+
+Timings depend on the machine, so set budgets from runs on the same CI runner. It uses the Chrome or Edge you have installed (`MYAKU_BROWSER` to pick one).
+
 ## How it works
 
 - **Frames:** myaku wraps `requestAnimationFrame`. A frame's interval runs from its start to the next frame's start, which is the gap the player sees. Its CPU time is the time the frame callbacks ran.
@@ -108,6 +125,7 @@ Capture works everywhere. Script attribution (`script` with a location, and `lay
 
 - **Engine loops hide your code.** When an engine owns the loop, attribution names the engine's file. The [engine spans](#engines) say whether update or render took the time, and in Phaser which scene. Add `profiler.span()` around your own systems to go further.
 - **Contexts created before myaku starts aren't counted.** Import `myaku/auto` first.
+- **`myaku record` needs Chromium** (Chrome or Edge).
 - **No GPU timing yet.** "GPU bound" shows as `unknown` with a draw-call hint.
 
 ## With debuff
