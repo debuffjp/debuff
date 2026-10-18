@@ -1,5 +1,12 @@
 # keiko
 
+## 0.4.1
+
+### Patch Changes
+
+- 444da77: `npx keiko` runs debuff projects: it loads debuff's Vite plugin from the project's `@debuffjp/cli` (or says to install it), and a JSON fetch answered with index.html now says so instead of `Unexpected token '<'`.
+- a586450: Tests no longer hang forever when a game imports a dependency Vite has not pre-bundled yet. Vite's dependency optimizer now gets real timers, and a boot that never settles fails with an error after its timeout instead of waiting forever.
+
 ## 0.4.0
 
 ### Minor Changes
