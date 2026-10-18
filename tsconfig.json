@@ -26,6 +26,9 @@
       "path": "packages/dev"
     },
     {
+      "path": "packages/myaku"
+    },
+    {
       "path": "tooling/create-debuff"
     },
     {

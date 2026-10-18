@@ -1,0 +1,56 @@
+{
+  "name": "myaku",
+  "version": "0.0.0",
+  "description": "A frame profiler for web games: finds the frames players feel drop and says why, in plain words, for any engine",
+  "keywords": [
+    "game",
+    "gamedev",
+    "web-game",
+    "browser-game",
+    "html5-game",
+    "profiler",
+    "performance",
+    "fps",
+    "frame-time",
+    "jank",
+    "stutter",
+    "webgl",
+    "phaser",
+    "pixijs",
+    "debuff"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/debuffjp/debuff/tree/main/packages/myaku#readme",
+  "bugs": "https://github.com/debuffjp/debuff/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/debuffjp/debuff.git",
+    "directory": "packages/myaku"
+  },
+  "type": "module",
+  "sideEffects": [
+    "./dist/auto.js"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./auto": {
+      "types": "./dist/auto.d.ts",
+      "default": "./dist/auto.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -1,4 +1,5 @@
 import type { Game, GameErrorContext, ParamValue } from "@debuffjp/core";
+import { myaku, type Profiler } from "myaku";
 import { type ExplainedError, errorKey, explainError, mapLocation } from "./explain.js";
 import type { DrivableInput } from "./index.js";
 import { InputRecording } from "./replay.js";
@@ -232,8 +233,25 @@ export class DevSession {
   private refs = 0;
   private nextNote = 1;
 
+  /** myaku: hitches explained (`profile()`), with debuff's update and render as spans. */
+  readonly profiler: Profiler;
+  private readonly unsubscribeSpans: (() => void)[];
+
   private constructor(readonly game: Game) {
     this.recorder = new FrameRecorder(game);
+    this.profiler = myaku();
+    let updateStart = 0;
+    let renderStart = 0;
+    this.unsubscribeSpans = [
+      game.hooks.beforeUpdate(() => {
+        updateStart = performance.now();
+      }),
+      game.hooks.afterUpdate(() => this.profiler.addSpan("update", performance.now() - updateStart)),
+      game.hooks.beforeRender(() => {
+        renderStart = performance.now();
+      }),
+      game.hooks.afterRender(() => this.profiler.addSpan("render", performance.now() - renderStart)),
+    ];
     this.recorder.onFrame = () => {
       const latest = this.recorder.get(0);
       if (this.pauseOnSpikeMs > 0 && latest && latest.intervalMs > this.pauseOnSpikeMs && !this.pausedBy) {
@@ -259,6 +277,8 @@ export class DevSession {
   release(): void {
     if (--this.refs > 0) return;
     this.recorder.dispose();
+    for (const off of this.unsubscribeSpans) off();
+    this.profiler.stop();
     this.recording?.dispose();
     removeEventListener("error", this.onError);
     this.unsubscribeLoopError();
