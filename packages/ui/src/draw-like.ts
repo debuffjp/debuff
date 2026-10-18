@@ -2,7 +2,7 @@
 export type FontLike = string | object;
 
 export interface TextOptions {
-  font?: FontLike;
+  font?: FontLike | undefined;
   color?: string | number;
   align?: "left" | "center" | "right";
   baseline?: "top" | "middle" | "bottom";
