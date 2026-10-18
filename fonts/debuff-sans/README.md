@@ -2,7 +2,7 @@
 
 ![debuff sans specimen](specimen.png)
 
-A pixel font for 2D web games, made for [debuff](https://debuff.jp) and free for any project.
+A pixel font for 2D web games, made for [debuff](https://debuff.jp) and free for any project. Downloads: [debuffjp/debuff-sans releases](https://github.com/debuffjp/debuff-sans/releases/latest).
 
 - Printable ASCII plus `· × … ° ← ↑ → ↓ ♥ ★` (105 glyphs).
 - 5×7 capitals, 2-pixel descenders, proportional widths with 1 pixel of spacing.
