@@ -35,6 +35,7 @@
         "websiteURL": "https://debuff.jp",
         "supportURL": "https://discord.gg/jshbDHSpCY",
         "privacyPolicyURL": "https://debuff.jp/privacy",
+        "termsOfServiceURL": "https://debuff.jp/terms",
         "defaultPrompt": [
           "Make me a small pixel-art platformer I can play in the browser",
           "Add a double jump to my debuff game and prove it works with a test",
