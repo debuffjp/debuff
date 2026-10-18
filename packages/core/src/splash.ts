@@ -78,7 +78,7 @@ export function drawSplash(draw: Draw, width: number, height: number, t: number,
   draw.pop();
 
   // debuff sans, at a whole-number scale so its pixels stay square.
-  const textScale = Math.max(1, Math.round(small / 7));
+  const textScale = Math.max(1, Math.round(small / 7) - 1);
   draw.push();
   draw.translate(Math.round(cx), Math.round(top));
   draw.scale(textScale);
