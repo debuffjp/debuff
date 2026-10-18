@@ -2,6 +2,7 @@
   "name": "@debuffjp/mcp",
   "version": "0.4.0",
   "description": "MCP server for debuff: lets AI agents inspect, build, test and play a debuff game",
+  "mcpName": "jp.debuff/debuff",
   "keywords": [
     "game",
     "gamedev",
