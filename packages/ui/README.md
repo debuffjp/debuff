@@ -41,7 +41,13 @@ Text is measured with `draw.measure`, so nothing is positioned by guesswork:
 - `Menu`: `new Menu(items, { actions, onBack, wrap })`, `update(input)` (with `input.pointer`, a tap selects the row under it; on a value row the left half lowers and the right half raises), `tap(x, y)`, `move(delta)`, `select()`, `measure(draw, style)`, `draw(draw, x, y, style)`, `drawPanel(draw, cx, cy, style)`, `focused`, `inspect()`
   - items: `{ label, onSelect?, disabled?, value?, change? }`
   - style: `font`, `color`, `focusColor`, `disabledColor`, `gap` (3), `align` (`left`/`center`), `cursor` (`>`), `cursorGap` (4), `valueGap` (12); panel adds `title`, `titleFont`, `titleColor`, `titleGap` (6), `borders`, `fill`, `padding` (6)
-- `panel(draw, x, y, w, h, borders, fill?)`: 1px rings, outermost first, then the fill
-- `panelAround(draw, cx, cy, w, h, { borders, fill, padding })`: a panel fitted around content, centred and pixel-snapped; returns the content's top-left
+- `panel(draw, x, y, w, h, borders, fill?, chamfer?)`: 1px rings, outermost first, then the fill; `chamfer` cuts each corner by that many pixels
+- `panelAround(draw, cx, cy, w, h, { borders, fill, padding, chamfer, shadow, shadowOffset })`: a panel fitted around content, centred and pixel-snapped; returns the content's top-left
+- `bar(draw, x, y, w, h, value, { segments, gap, fill, empty })`: a segmented meter; `value` (0–1) lights whole cells only, all the same width; returns the width used
 
-Colours and fonts are yours to choose; the defaults are plain greys.
+Colours and fonts are yours to choose; the defaults are plain greys. For debuff's own look (chamfered corners, a lime edge, a hard ink shadow), spread `debuffFrame` into any frame or menu panel style:
+
+```ts
+import { debuffFrame } from "@debuffjp/ui";
+pause.drawPanel(draw, game.width / 2, game.height / 2, { ...debuffFrame, title: "paused" });
+```
