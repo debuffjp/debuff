@@ -23,7 +23,7 @@ const PINK = "#f472b6";
 const ACCENTS = [LIME, SKY, PINK, AMBER, VIOLET];
 const OVER_BUDGET = "#f87171";
 const TEXT = "#cfd6c4";
-const MUTED = "#8a9479";
+const MUTED = "#9ca78a";
 const BUDGET_MS = 1000 / 60;
 const BARS = 120;
 const BAR_W = 2;
@@ -116,7 +116,7 @@ class Overlay {
 
     // ---- toolbar ----
     const toolbar = row();
-    toolbar.style.margin = "6px 0";
+    toolbar.style.margin = "8px 0";
     this.pauseButton = button("pause", () => (this.session.paused ? this.session.resume() : this.session.pause()));
     const step = button("step", () => this.session.step(1));
     step.title = "Advance one fixed step (pauses first)";
@@ -289,7 +289,7 @@ class Overlay {
   setCollapsed(collapsed: boolean): void {
     this.collapsed = collapsed;
     this.body.hidden = collapsed;
-    this.collapseButton.textContent = collapsed ? "▸" : "▾";
+    this.collapseButton.textContent = collapsed ? "+" : "–";
     this.collapseButton.title = collapsed ? "Expand the dev panel" : "Collapse the dev panel";
     this.collapseButton.setAttribute("aria-expanded", String(!collapsed));
     store(COLLAPSED_KEY, collapsed ? "1" : "0");
@@ -891,7 +891,7 @@ function panelStyle(position: NonNullable<DevOverlayOptions["position"]>): Parti
     width: "290px",
     maxHeight: "calc(100vh - 16px)",
     overflow: "auto",
-    padding: "8px 10px",
+    padding: "8px",
   };
 }
 
