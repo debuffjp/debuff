@@ -1,5 +1,11 @@
 # @debuffjp/core
 
+## 0.7.0
+
+### Patch Changes
+
+- 4798506: The splash's "made with" line is one scale step smaller.
+
 ## 0.6.0
 
 ### Minor Changes
