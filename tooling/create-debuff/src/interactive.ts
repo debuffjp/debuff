@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import * as p from "@clack/prompts";
-import pc from "picocolors";
+import pc from "./ansi.js";
 import { banner, lime, pink, sky } from "./brand.js";
 import { create, detectPackageManager, isEmptyDir, listTemplates, ownVersion, resolveTemplate } from "./scaffold.js";
 

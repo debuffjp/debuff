@@ -1,7 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join, relative } from "node:path";
-import { amber, lime, paint } from "create-debuff";
-import pc from "picocolors";
+import { amber, lime, paint, pc } from "create-debuff";
 import type { Browser, Page } from "playwright-core";
 import type { StepDef } from "../plugin.js";
 import { createDevServer } from "../vite.js";

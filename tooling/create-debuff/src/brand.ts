@@ -1,4 +1,4 @@
-import pc from "picocolors";
+import pc from "./ansi.js";
 
 /** debuff palette. Lime is the brand; the accents are for splashes of colour in tooling. */
 export const PALETTE = {
