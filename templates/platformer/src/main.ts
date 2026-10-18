@@ -205,6 +205,8 @@ const play: Scene = {
       if (coin.taken || !overlaps(player, { x: coin.x, y: coin.y, w: coin.width, h: coin.height })) continue;
       coin.taken = true;
       score++;
+      // Tests and agents can wait for this: `events.coin` in scenarios, `game.emitted("coin")` in keiko.
+      game.emit("coin", { score });
       particles.emit({ x: coin.x + 6, y: coin.y + 6, count: 12, colors: ["#fbbf24", "#fde68a"], speed: [30, 90], life: [0.25, 0.5] });
       audio.synth({ freq: 880, freqEnd: 1320, decay: 0.1, volume: 0.12 });
     }
@@ -212,6 +214,7 @@ const play: Scene = {
     // Goal and pits.
     if (!won && goal && overlaps(player, { x: goal.x, y: goal.y, w: goal.width, h: goal.height })) {
       won = true;
+      game.emit("win", { score });
       if (score > save.get("best")) save.set("best", score);
       game.camera.shake(0.3);
       audio.synth({ freq: 520, freqEnd: 1040, decay: 0.4, volume: 0.15 });

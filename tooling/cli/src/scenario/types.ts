@@ -39,8 +39,13 @@ export type Step =
   | { set: Record<string, number | boolean> }
   /** Run a command the game registered with `devTools({ commands })`. */
   | { command: string; args?: unknown[] }
-  /** Assert on dev state paths: "scene", "tick", "state.score", "stats.fps". */
+  /** Assert on dev state paths: "scene", "tick", "state.score", "stats.fps", "events.coin" (times `game.emit("coin")` ran). */
   | { expect: Record<string, Comparison> }
+  /**
+   * Advance one step at a time until every condition holds, failing if they don't within `within` steps
+   * (default 600, ten seconds at 60 Hz). Same paths as `expect`: `{ "until": { "events.coin": { "gte": 1 } }, "within": 120 }`.
+   */
+  | { until: Record<string, Comparison>; within?: number }
   /** Screenshot compared against the per-platform baseline. */
   | { capture: string; tolerance?: number }
   /** Plugin step: `{ "<plugin>:<step>": value }`. */

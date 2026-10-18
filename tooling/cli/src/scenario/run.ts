@@ -4,12 +4,14 @@ import { amber, lime, paint, pc } from "create-debuff";
 import type { Browser, Page } from "playwright-core";
 import type { StepDef } from "../plugin.js";
 import { createDevServer } from "../vite.js";
-import { callHook, diffImages, hooksReady } from "./browser.js";
+import { callHook, diffImages, hooksReady, stepUntil } from "./browser.js";
 import type { CaptureResult, Comparison, RunOptions, Scenario, ScenarioReport, Step, StepResult } from "./types.js";
 
 /** Pixels whose summed RGB delta exceeds this count as different (absorbs anti-aliasing noise). */
 const PIXEL_THRESHOLD = 48;
 const DEFAULT_TOLERANCE = 0.002;
+/** `until` gives up after this many steps unless the step says otherwise: ten seconds at 60 Hz. */
+const DEFAULT_WITHIN = 600;
 const VIEWPORT = { width: 960, height: 540 };
 
 export function findScenarios(root: string, files: string[]): string[] {
@@ -24,7 +26,11 @@ export function findScenarios(root: string, files: string[]): string[] {
 
 /** Read a dotted path, e.g. "state.player.x". */
 export function pick(obj: unknown, path: string): unknown {
-  return path.split(".").reduce<unknown>((o, k) => (o && typeof o === "object" ? (o as Record<string, unknown>)[k] : undefined), obj);
+  const value = path
+    .split(".")
+    .reduce<unknown>((o, k) => (o && typeof o === "object" ? (o as Record<string, unknown>)[k] : undefined), obj);
+  // Event counts start at 0: an event the game hasn't emitted yet just isn't in the map.
+  return value === undefined && path.startsWith("events.") ? 0 : value;
 }
 
 /** Returns a failure message, or undefined if every condition holds. */
@@ -116,15 +122,24 @@ async function runOne(page: Page, base: string, name: string, scenario: Scenario
           ? await plugin.run((step as Record<string, unknown>)[key], stepContext)
           : `Unknown plugin step "${key}". Is its plugin listed in debuff.config.ts?`;
       } else {
-        message = await runStep(step, call, async (capture, tolerance) => {
-          const result = await compareCapture(page, options, name, capture, tolerance, await call<string>("capture"));
-          captures.push(result);
-          if (result.status === "diff") {
-            return captureDiffMessage(capture, result, tolerance, options.root);
-          }
-          if (result.status === "missing") return `capture "${capture}" has no baseline for ${process.platform} (run with --update)`;
-          return undefined;
-        });
+        message = await runStep(
+          step,
+          call,
+          async (capture, tolerance) => {
+            const result = await compareCapture(page, options, name, capture, tolerance, await call<string>("capture"));
+            captures.push(result);
+            if (result.status === "diff") {
+              return captureDiffMessage(capture, result, tolerance, options.root);
+            }
+            if (result.status === "missing") return `capture "${capture}" has no baseline for ${process.platform} (run with --update)`;
+            return undefined;
+          },
+          (conditions, within) =>
+            page.evaluate(stepUntil, [conditions as Record<string, Record<string, unknown>>, within] as [
+              Record<string, Record<string, unknown>>,
+              number,
+            ]),
+        );
       }
     } catch (err) {
       message = err instanceof Error ? (err.message.split("\n")[0] ?? err.message) : String(err);
@@ -146,8 +161,9 @@ async function runOne(page: Page, base: string, name: string, scenario: Scenario
 
 type Call = <R>(method: string, ...args: unknown[]) => Promise<R>;
 type Capture = (name: string, tolerance: number) => Promise<string | undefined>;
+type Until = (conditions: Record<string, Comparison>, within: number) => Promise<{ ticks: number; met: boolean }>;
 
-async function runStep(step: Step, call: Call, capture: Capture): Promise<string | undefined> {
+async function runStep(step: Step, call: Call, capture: Capture, until: Until): Promise<string | undefined> {
   if ("wait" in step) await call("step", step.wait);
   else if ("press" in step) await call("press", step.press);
   else if ("release" in step) await call("release", step.release);
@@ -169,6 +185,18 @@ async function runStep(step: Step, call: Call, capture: Capture): Promise<string
       return m ? [`${path}: ${m}`] : [];
     });
     if (failures.length) return failures.join("; ");
+  } else if ("until" in step) {
+    const within = step.within ?? DEFAULT_WITHIN;
+    if (!Number.isInteger(within) || within < 0) return `until: "within" must be a whole number of steps, got ${within}`;
+    const result = await until(step.until, within);
+    if (!result.met) {
+      const state = await call<unknown>("state");
+      const failures = Object.entries(step.until).flatMap(([path, c]) => {
+        const m = compare(pick(state, path), c);
+        return m ? [`${path}: ${m}`] : [];
+      });
+      return `not met within ${within} steps: ${failures.join("; ") || "conditions changed back"}`;
+    }
   } else if ("capture" in step) {
     return capture(step.capture, step.tolerance ?? DEFAULT_TOLERANCE);
   } else {

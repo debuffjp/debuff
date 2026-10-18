@@ -125,7 +125,22 @@ export class Playtest<S = any> {
    * games the rest of its dev state (`"plugins.tweens.active"`). For the game's state, `game.state.player.x` is shorter.
    */
   get(path: string): unknown {
-    return pick(this.driver.snapshot(), path);
+    const value = pick(this.driver.snapshot(), path);
+    // Event counts start at 0: an event the game hasn't emitted yet just isn't in the map.
+    return value === undefined && path.startsWith("events.") ? 0 : value;
+  }
+
+  /**
+   * How many times the game emitted `name` since it booted (debuff: `game.emit("coin")`). 0 if never, or
+   * if the game doesn't report events.
+   *
+   * ```ts
+   * game.until(() => game.emitted("coin") > 0, { within: "2s" });
+   * ```
+   */
+  emitted(name: string): number {
+    const count = this.get(`events.${name}`);
+    return typeof count === "number" ? count : 0;
   }
 
   /** Every param, by group: `{ player: { speed: 140, gravity: 900 } }`. */
@@ -465,6 +480,17 @@ export class Playtest<S = any> {
           if (failure) throw new Error(`${path}: ${failure}`);
         }
         break;
+      case "until": {
+        const conditions = Object.entries(value as Record<string, Comparison>).filter(
+          ([path]) => path !== "renderer" && !path.startsWith("stats."),
+        );
+        const within = (step as { within?: number }).within ?? 600;
+        this.until(() => conditions.every(([path, cmp]) => compare(this.get(path), cmp) === undefined), {
+          within,
+          message: `until ${show(value)}`,
+        });
+        break;
+      }
       case "capture":
         break; // Nothing is rendered headless; captures belong to `debuff scenario`.
       default:

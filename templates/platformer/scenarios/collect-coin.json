@@ -1,0 +1,15 @@
+{
+  "$schema": "../node_modules/@debuffjp/cli/schema/scenario.schema.json",
+  "steps": [
+    { "wait": 30 },
+    { "expect": { "events.coin": { "eq": 0 } } },
+    { "set": { "player.jumpSpeed": 400 } },
+    { "press": "ArrowRight" },
+    { "until": { "state.player.x": { "gte": 110 } }, "within": 120 },
+    { "press": "Space" },
+    { "until": { "events.coin": { "gte": 1 } }, "within": 60 },
+    { "release": "Space" },
+    { "release": "ArrowRight" },
+    { "expect": { "state.score": { "eq": 1 } } }
+  ]
+}

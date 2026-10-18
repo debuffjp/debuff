@@ -2,7 +2,7 @@ import type { Game, ParamDescription, ParamValue, Plugin } from "@debuffjp/core"
 import type { Report } from "myaku";
 import type { ExplainedError } from "./explain.js";
 import { type Replay, takeRewind } from "./replay.js";
-import { DevSession, type FrameSample, type Note } from "./session.js";
+import { DevSession, type FrameSample, type GameEventRecord, type Note } from "./session.js";
 
 /** The parts of `@debuffjp/input`'s `Input` the hooks drive. Structural, so `dev` does not depend on `input`. */
 export interface DrivableInput {
@@ -31,6 +31,8 @@ export interface DevState {
   plugins: Record<string, unknown>;
   /** Number of notes the human has flagged (read them with `notes()`). */
   notes: number;
+  /** How many times the game emitted each event (`game.emit("coin")` → `events.coin`) since load. */
+  events: Record<string, number>;
 }
 
 /**
@@ -74,6 +76,8 @@ export interface DevHooks {
    * Within the known session you can go forward again, until new play branches off.
    */
   rewind(tick: number): void;
+  /** The latest game events (`game.emit`), oldest first, optionally only those after `sinceTick`. */
+  events(sinceTick?: number): GameEventRecord[];
   /**
    * Save the session for a state-preserving reload (the `debuff dev` client calls this just before a
    * code change reloads the page). After the reload the new code replays it to the same tick.
@@ -182,6 +186,7 @@ function createHooks(game: Game, session: DevSession, options: DevHooksOptions, 
     pluginNames: game.plugins,
     plugins: game.inspect.snapshot(),
     notes: session.notes.length,
+    events: { ...session.eventCounts },
   });
 
   return {
@@ -220,6 +225,7 @@ function createHooks(game: Game, session: DevSession, options: DevHooksOptions, 
     keepForReload: () => {
       if (!controlled && options.keepState !== false) session.keepForReload();
     },
+    events: (sinceTick = -1) => session.events.filter((e) => e.tick > sinceTick).map((e) => ({ ...e })),
     rewind: (tick) => {
       if (controlled) throw new Error("Rewind works on a live game; in a scenario or headless copy, replay its steps instead");
       session.rewind(tick);
@@ -289,6 +295,7 @@ export {
   FrameRecorder,
   type FrameSample,
   type FrameSummary,
+  type GameEventRecord,
   HITCH,
   type Note,
   summarize,
