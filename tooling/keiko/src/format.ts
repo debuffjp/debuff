@@ -1,4 +1,4 @@
-import pc from "picocolors";
+import pc from "./ansi.js";
 import type { TestReport, TestResult } from "./runner.js";
 import { show } from "./values.js";
 

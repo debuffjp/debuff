@@ -91,7 +91,7 @@ export interface CommandImporter extends ImporterBase {
 export type AssetImporter = FunctionImporter | CommandImporter;
 
 export interface CommandOption {
-  /** cac-style flags, e.g. "--out <dir>" or "-w, --watch". */
+  /** Flags, e.g. "--out <dir>" (takes a value) or "-w, --watch" (a boolean, with a short alias). */
   flags: string;
   description: string;
   default?: unknown;

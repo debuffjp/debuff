@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
-import pc from "picocolors";
+import pc from "./ansi.js";
 import { findTests, formatResult, formatSummary, runTests } from "./runner.js";
 
 const HELP = `keiko: fast, deterministic tests for web games

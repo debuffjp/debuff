@@ -1,8 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, extname, join, relative, sep } from "node:path";
 import { brotliCompressSync, gzipSync } from "node:zlib";
-import { lime, paint, pink, sky } from "create-debuff";
-import pc from "picocolors";
+import { lime, paint, pc, pink, sky } from "create-debuff";
 
 export interface FileReport {
   path: string;

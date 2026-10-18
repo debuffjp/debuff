@@ -2,17 +2,16 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import * as p from "@clack/prompts";
-import cac from "cac";
-import { amber, banner, lime, paint, pink, sky } from "create-debuff";
-import pc from "picocolors";
+import { amber, banner, lime, paint, pc, pink, sky } from "create-debuff";
 import { compileAssets, findUnused } from "./assets/index.js";
+import { Cli } from "./commands.js";
 import { loadConfig } from "./config.js";
 import { inspectProject } from "./inspect.js";
 import type { ToolingPlugin } from "./plugin.js";
 import { buildReport, formatReport } from "./report.js";
 import { createDevServer, viteConfig } from "./vite.js";
 
-const cli = cac("debuff");
+const cli = new Cli("debuff");
 const version = (JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string }).version;
 
 interface Common {
@@ -261,7 +260,6 @@ function report(root: string, json: boolean): number {
   return r.leaks.length ? 1 : 0;
 }
 
-cli.help();
 cli.version(version);
 
 /** Register `debuff <plugin>:<command>` for every command contributed by plugins in debuff.config.ts. */
@@ -294,9 +292,9 @@ async function registerPluginCommands(): Promise<void> {
 
 async function main(): Promise<void> {
   await registerPluginCommands();
-  cli.parse(process.argv, { run: false });
+  cli.parse(process.argv);
   if (!cli.matchedCommand) {
-    // cac has already printed help or the version for these flags.
+    // parse() has already printed help or the version for these flags.
     if (cli.options.help || cli.options.version) return;
     if (process.argv.length > 2) {
       console.error(pc.red(`unknown command: ${process.argv.slice(2).find((a) => !a.startsWith("-")) ?? process.argv[2]}\n`));
