@@ -1,5 +1,11 @@
 # create-debuff
 
+## 0.4.0
+
+### Patch Changes
+
+- 793eab1: The "Next steps" note mentions `npm test` when the new project has logic tests.
+
 ## 0.3.3
 
 No changes in this release.
