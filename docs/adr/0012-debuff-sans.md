@@ -30,4 +30,4 @@ game that uses `Draw` bundles the font (~1.3 kB brotli). We accept that for cons
 - New games get pixel text with no setup, the same on every machine and in headless tests.
 - Games that relied on the implicit monospace default change appearance; passing `font: "8px monospace"`
   restores it.
-- The font can be released on its own (it has no debuff dependencies).
+- The font is also released on its own under the SIL OFL 1.1 (`fonts/debuff-sans`, TTF/BDF/PNG from `release.mjs`).
