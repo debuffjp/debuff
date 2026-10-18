@@ -29,6 +29,9 @@
       "path": "packages/myaku"
     },
     {
+      "path": "packages/myaku/cli"
+    },
+    {
       "path": "tooling/create-debuff"
     },
     {

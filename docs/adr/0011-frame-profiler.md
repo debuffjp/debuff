@@ -59,4 +59,4 @@ The causes it recognises are: your script (with location), garbage collection (h
 
 ## Scope of v1
 
-Capture, verdicts, the overlay, the JSON report (`profiler.report()`, and `window.__MYAKU__` for tools) and debuff's MCP `game_profile`. GPU timer queries, `npx myaku record`, CI budgets and the HTML report come after.
+Capture, verdicts, the overlay, the JSON report (`profiler.report()`, and `window.__MYAKU__` for tools) and debuff's MCP `game_profile`. Then `npx myaku record` with CI budgets (`--p95`, `--p99`, `--hitches`): it injects myaku into the page through Playwright request interception, so it needs no changes to the game and works on production builds. The CLI lives in `packages/myaku/cli` with its own build; nothing in the browser entry points imports it, and its one dependency, `playwright-core`, is only used there. GPU timer queries and the HTML report come after.

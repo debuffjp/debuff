@@ -44,13 +44,27 @@
     }
   },
   "files": [
+    "bin",
     "dist",
+    "dist-cli",
     "README.md"
   ],
   "scripts": {
-    "build": "tsc -b"
+    "build": "tsc -b . cli"
   },
   "publishConfig": {
     "access": "public"
+  },
+  "bin": {
+    "myaku": "bin/myaku.js"
+  },
+  "dependencies": {
+    "playwright-core": "^1.64.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

@@ -317,6 +317,14 @@ export class Profiler {
     this.cleanups.push(fn);
   }
 
+  /** Forget the frames recorded so far (keeps measuring). Frame numbers keep counting up. */
+  reset(): void {
+    this.count = 0;
+    this.head = 0;
+    this.stalls.length = 0;
+    this.hidden.length = 0;
+  }
+
   /** Stop profiling and restore everything it wrapped. */
   stop(): void {
     if (!this.running) return;
