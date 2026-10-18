@@ -1,5 +1,15 @@
 # @debuffjp/core
 
+## 0.6.0
+
+### Minor Changes
+
+- 22157f7: `draw.text` and menus now default to **debuff sans**, a built-in pixel font (printable ASCII, 5x7 capitals, proportional), instead of the browser's `8px monospace`. `debuffSans()` returns it as a `BitmapFont`. Pass `font: "8px monospace"` to keep the old look.
+
+### Patch Changes
+
+- 6b0ff8a: debuff sans everywhere: the splash's "made with" line and the dev overlay's labels (title, buttons, tabs, chips, param groups) use it. Longer readouts stay monospace for legibility.
+
 ## 0.5.1
 
 No changes in this release.

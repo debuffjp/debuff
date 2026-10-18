@@ -1,5 +1,11 @@
 # @debuffjp/cli
 
+## 0.6.0
+
+### Patch Changes
+
+- create-debuff@0.6.0
+
 ## 0.5.1
 
 ### Patch Changes

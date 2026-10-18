@@ -1,5 +1,15 @@
 # @debuffjp/dev
 
+## 0.6.0
+
+### Minor Changes
+
+- 5a34826: The dev overlay has its own look: chamfered panels, keycap buttons that flash on click, segmented sliders, stack-style param groups and status chips. The styles are a small class-based kit, injected once and scoped to the overlay.
+
+### Patch Changes
+
+- 6b0ff8a: debuff sans everywhere: the splash's "made with" line and the dev overlay's labels (title, buttons, tabs, chips, param groups) use it. Longer readouts stay monospace for legibility.
+
 ## 0.5.1
 
 No changes in this release.
