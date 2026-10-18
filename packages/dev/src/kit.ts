@@ -55,9 +55,12 @@ export function kitCss(): string {
 [data-debuff-kit] .dk-btn.dk-proc{animation:dk-proc 150ms steps(3)}
 @keyframes dk-proc{0%{background:#fff;color:var(--dk-ink)}50%{background:var(--dk-lime);color:var(--dk-ink)}}
 [data-debuff-kit] .dk-chip,[data-debuff-kit] .dk-label{font:var(--dk-label)}
+[data-debuff-kit] label>.dk-label{position:relative;top:2px}
 [data-debuff-kit] .dk-chip{--c:var(--dk-lime);color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent);padding:0 6px;
   white-space:nowrap;clip-path:${chamferPath(s)};box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c) 45%,transparent)}
 [data-debuff-kit] .dk-input{font:inherit;color:#e7ebe0;background:#11160a;border:none;padding:1px 4px;clip-path:${chamferPath(s)};box-shadow:inset 0 0 0 1px ${t.lime}40}
+[data-debuff-kit] select.dk-input{font:var(--dk-label);appearance:none;cursor:pointer;padding-right:14px;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='5' height='3' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h5v1H0zM1 1h3v1H1zM2 2h1v1H2z' fill='%23cffb2d'/%3E%3C/svg%3E") right 5px center/5px 3px no-repeat,#11160a}
 [data-debuff-kit] .dk-tabs{display:flex;gap:2px;border-bottom:1px solid var(--dk-line);margin-bottom:6px}
 [data-debuff-kit] .dk-tab{font:var(--dk-label);cursor:pointer;color:var(--dk-muted);background:none;border:none;padding:2px 8px;margin-bottom:-1px}
 [data-debuff-kit] .dk-tab[aria-selected=true]{color:var(--dk-lime);background:var(--dk-raised);
@@ -75,8 +78,8 @@ export function kitCss(): string {
 [data-debuff-kit] input[type=range].dk-range{appearance:none;--c:var(--dk-lime);--p:50%;height:8px;margin:0;min-width:0;cursor:pointer;background:
   repeating-linear-gradient(90deg,transparent 0 5px,${t.ink} 5px 6px),
   linear-gradient(90deg,var(--c) var(--p),var(--dk-line) var(--p))}
-[data-debuff-kit] input[type=range].dk-range::-webkit-slider-thumb{appearance:none;width:8px;height:8px;background:#fff;transform:rotate(45deg);box-shadow:2px 2px 0 var(--dk-ink)}
-[data-debuff-kit] input[type=range].dk-range::-moz-range-thumb{width:8px;height:8px;border:none;border-radius:0;background:#fff;transform:rotate(45deg);box-shadow:2px 2px 0 var(--dk-ink)}
+[data-debuff-kit] input[type=range].dk-range::-webkit-slider-thumb{appearance:none;width:4px;height:14px;background:#fff;border:none;border-radius:0;box-shadow:inset 0 0 0 1px var(--dk-ink),1px 1px 0 var(--dk-ink)}
+[data-debuff-kit] input[type=range].dk-range::-moz-range-thumb{appearance:none;width:4px;height:14px;background:#fff;border:none;border-radius:0;box-shadow:inset 0 0 0 1px var(--dk-ink),1px 1px 0 var(--dk-ink)}
 [data-debuff-kit] .dk-card{--c:var(--dk-lime);margin:0 0 6px;padding:5px 7px 5px 9px;background:color-mix(in srgb,var(--c) 8%,transparent);
   border-left:3px solid var(--c);clip-path:polygon(0 0,calc(100% - ${s}px) 0,100% ${s}px,100% 100%,0 100%)}
 @media (prefers-reduced-motion:reduce){[data-debuff-kit] *{animation:none!important;transition:none!important}}`;
