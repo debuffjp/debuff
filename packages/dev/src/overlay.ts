@@ -95,8 +95,6 @@ class Overlay {
     const header = el("div");
     Object.assign(header.style, { display: "flex", alignItems: "center", gap: "6px", userSelect: "none" });
     this.mascot = new Buff();
-    const title = el("strong", { class: "dk-label" }, "debuff");
-    Object.assign(title.style, { color: LIME, fontSize: "20px", lineHeight: "1", fontWeight: "normal" });
     this.agentBadge = chip("agent", VIOLET);
     this.agentBadge.title = "An agent is connected to this game";
     this.agentBadge.hidden = true;
@@ -110,7 +108,7 @@ class Overlay {
     Object.assign(this.label.style, { marginLeft: "auto", fontVariantNumeric: "tabular-nums" });
     this.collapseButton = button("", () => this.setCollapsed(!this.collapsed));
     Object.assign(this.collapseButton.style, { padding: "0 6px", minWidth: "22px" });
-    header.append(this.mascot.root, title, this.agentBadge, this.errorBadge, this.label, this.collapseButton);
+    header.append(this.mascot.root, this.agentBadge, this.errorBadge, this.label, this.collapseButton);
     // Double-click the header bar to collapse or expand, like a window title bar.
     header.addEventListener("dblclick", (e) => {
       if (!(e.target instanceof HTMLButtonElement)) this.setCollapsed(!this.collapsed);
@@ -550,7 +548,11 @@ class Overlay {
     const r = el("label");
     Object.assign(r.style, { display: "grid", gridTemplateColumns: "1fr 1.4fr 3.5em", gap: "6px", alignItems: "center" });
     const units = spec.type === "number" && spec.units ? ` (${spec.units})` : "";
-    const name = el("span", { title: `${spec.description ?? id}${units}\ndefault ${String(spec.default)} · double-click to reset` }, key);
+    const name = el(
+      "span",
+      { class: "dk-label", title: `${spec.description ?? id}${units}\ndefault ${String(spec.default)} · double-click to reset` },
+      key,
+    );
     name.style.cursor = "default";
     name.addEventListener("dblclick", (e) => {
       e.preventDefault();
@@ -900,7 +902,7 @@ class Buff {
   private current: "calm" | "worried" = "calm";
 
   constructor() {
-    this.root = el("span", { "aria-hidden": "true" });
+    this.root = el("span", { role: "img", "aria-label": "debuff", title: "debuff" });
     Object.assign(this.root.style, {
       position: "relative",
       display: "inline-block",
