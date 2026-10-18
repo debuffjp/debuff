@@ -77,7 +77,13 @@ export function drawSplash(draw: Draw, width: number, height: number, t: number,
   draw.rect(-width, -logoH * 0.36, width * 2, logoH * 0.72, STRIPE);
   draw.pop();
 
-  draw.text("made with", cx, top, { font: `${small}px system-ui, sans-serif`, color: MUTED, align: "center", baseline: "top" });
+  // debuff sans, at a whole-number scale so its pixels stay square.
+  const textScale = Math.max(1, Math.round(small / 7));
+  draw.push();
+  draw.translate(Math.round(cx), Math.round(top));
+  draw.scale(textScale);
+  draw.text("made with", 0, 0, { color: MUTED, align: "center", baseline: "top" });
+  draw.pop();
 
   // The logo punches in (a quick overshoot), then boils at ~8 frames a second like hand-drawn animation.
   const k = reducedMotion ? 1 : Math.min(1, t * 5);
