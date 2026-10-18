@@ -4,7 +4,8 @@ import { amber, lime, paint, pc } from "create-debuff";
 import type { Browser, Page } from "playwright-core";
 import type { StepDef } from "../plugin.js";
 import { createDevServer } from "../vite.js";
-import { callHook, diffImages, hooksReady, stepUntil } from "./browser.js";
+import { analyzeFlashes, contrastRatio, FLASH_GRID } from "./a11y.js";
+import { callHook, diffImages, hooksReady, sampleFrames, stepUntil } from "./browser.js";
 import type { CaptureResult, Comparison, RunOptions, Scenario, ScenarioReport, Step, StepResult } from "./types.js";
 
 /** Pixels whose summed RGB delta exceeds this count as different (absorbs anti-aliasing noise). */
@@ -96,6 +97,7 @@ async function runOne(page: Page, base: string, name: string, scenario: Scenario
   const started = Date.now();
   const url = new URL(scenario.page ?? "/", base);
   url.searchParams.set("debuff-scenario", "1");
+  await page.emulateMedia({ reducedMotion: scenario.reducedMotion ? "reduce" : "no-preference" });
   await page.goto(url.toString());
   await page.waitForFunction(hooksReady, undefined, { timeout: 15_000 });
 
@@ -139,6 +141,7 @@ async function runOne(page: Page, base: string, name: string, scenario: Scenario
               Record<string, Record<string, unknown>>,
               number,
             ]),
+          (steps) => page.evaluate(sampleFrames, [steps, FLASH_GRID] as [number, number]),
         );
       }
     } catch (err) {
@@ -162,8 +165,9 @@ async function runOne(page: Page, base: string, name: string, scenario: Scenario
 type Call = <R>(method: string, ...args: unknown[]) => Promise<R>;
 type Capture = (name: string, tolerance: number) => Promise<string | undefined>;
 type Until = (conditions: Record<string, Comparison>, within: number) => Promise<{ ticks: number; met: boolean }>;
+type Sample = (steps: number) => Promise<{ frames: number[][]; stepSeconds: number }>;
 
-async function runStep(step: Step, call: Call, capture: Capture, until: Until): Promise<string | undefined> {
+async function runStep(step: Step, call: Call, capture: Capture, until: Until, sample: Sample): Promise<string | undefined> {
   if ("wait" in step) await call("step", step.wait);
   else if ("press" in step) await call("press", step.press);
   else if ("release" in step) await call("release", step.release);
@@ -185,6 +189,23 @@ async function runStep(step: Step, call: Call, capture: Capture, until: Until): 
       return m ? [`${path}: ${m}`] : [];
     });
     if (failures.length) return failures.join("; ");
+  } else if ("flashes" in step) {
+    if (!Number.isInteger(step.flashes) || step.flashes < 1) return `flashes: play a whole number of steps, got ${step.flashes}`;
+    const { frames, stepSeconds } = await sample(step.flashes);
+    const r = analyzeFlashes(frames, FLASH_GRID, FLASH_GRID, 1 / stepSeconds);
+    if (!r.safe)
+      return `flashing could trigger seizures: ${Math.round(r.worstArea * 100)}% of a 10° field flashed up to ${r.maxFlashesPerSecond} times a second (limit 3), worst at step ${r.atStep} of ${step.flashes}`;
+  } else if ("contrast" in step) {
+    const [, , w, h] = step.contrast;
+    const min = step.min ?? 4.5;
+    const lum = await call<number[]>(
+      "luminance",
+      Math.max(1, Math.min(256, Math.round(w))),
+      Math.max(1, Math.min(256, Math.round(h))),
+      step.contrast,
+    );
+    const ratio = contrastRatio(lum);
+    if (ratio < min) return `contrast ${ratio.toFixed(2)}:1 in [${step.contrast.join(", ")}] is below ${min}:1`;
   } else if ("until" in step) {
     const within = step.within ?? DEFAULT_WITHIN;
     if (!Number.isInteger(within) || within < 0) return `until: "within" must be a whole number of steps, got ${within}`;

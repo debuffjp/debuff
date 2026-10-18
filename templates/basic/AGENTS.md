@@ -20,7 +20,7 @@ This is a 2D browser game made with **debuff** (https://debuff.jp). These notes 
 - `src/main.ts`: the game, which creates `new Game(...)`, scenes (`update`, `render`, `inspect`) and params.
 - `assets/`: source art, audio and data. The manifest and atlases are generated from it, and only files the game references ship. Don't edit generated files.
 - `tests/`: logic tests (`*.test.ts`, `keiko`). They boot the real game headless, drive input, time and params, and assert on `inspect()` state. Add one for each mechanic you build. Guide: https://debuff.jp/docs/testing
-- `scenarios/`: JSON scripts run in a real browser. Prefer assertions on state over screenshots: `expect` and `until` read `state.*` (your `inspect()`) and `events.<name>`, the number of times the game called `game.emit("<name>")`. `{ "until": { "events.coin": { "gte": 1 } }, "within": 60 }` waits for a coin instead of guessing a wait. Add a capture only when a change is visual.
+- `scenarios/`: JSON scripts run in a real browser. Prefer assertions on state over screenshots: `expect` and `until` read `state.*` (your `inspect()`) and `events.<name>`, the number of times the game called `game.emit("<name>")`. `{ "until": { "events.coin": { "gte": 1 } }, "within": 60 }` waits for a coin instead of guessing a wait. Add a capture only when a change is visual. When you add effects that flash or shake (hits, explosions, screen flashes), add a `{ "flashes": 240 }` step to check them for photosensitive safety, and a `{ "contrast": [x, y, w, h] }` step for new HUD text.
 - `.mcp.json`: connects the debuff MCP server, so you can play and inspect the running game.
 
 ## Work loop

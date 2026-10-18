@@ -1,0 +1,4 @@
+{
+  "$schema": "../node_modules/@debuffjp/cli/schema/scenario.schema.json",
+  "steps": [{ "wait": 20 }, { "contrast": [6, 4, 60, 10] }, { "press": "ArrowRight" }, { "flashes": 240 }, { "release": "ArrowRight" }]
+}
