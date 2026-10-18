@@ -1,4 +1,5 @@
 import type { Game, ParamDescription, ParamValue, Plugin } from "@debuffjp/core";
+import type { Report } from "myaku";
 import type { ExplainedError } from "./explain.js";
 import type { Replay } from "./replay.js";
 import { DevSession, type FrameSample, type Note } from "./session.js";
@@ -58,6 +59,11 @@ export interface DevHooks {
   setParam(group: string, key: string, value: ParamValue): void;
   /** The latest `n` frame breakdowns (update/render ms, steps, quads, draw calls, long tasks), oldest first. */
   frames(n?: number): FrameSample[];
+  /**
+   * myaku's report: frame-time percentiles, hitches per minute, and the worst hitches explained (cause,
+   * confidence, the script to look at, a hint), with debuff's update and render as spans.
+   */
+  profile(): Report;
   /**
    * Everything played since page load (keys, pointer, param changes) up to `toTick` (default: now), as a
    * scenario that replays it exactly. Pass a note's `tick` to get the session leading up to that note.
@@ -192,6 +198,7 @@ function createHooks(game: Game, session: DevSession, options: DevHooksOptions, 
     params: () => game.params.describe(),
     setParam: (group, key, value) => session.setParam(group, key, value, who()),
     frames: (n = 60) => session.recorder.recent(n),
+    profile: () => session.profiler.report(),
     replay: (toTick) => {
       if (!session.recording) throw new Error("Replays need input: use devTools({ input })");
       return session.recording.toReplay(toTick);

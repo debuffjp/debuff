@@ -29,7 +29,7 @@ export function createServer(options: ServerOptions): McpServer {
         "Tools for building 2D web games with debuff. Start with inspect_project. To see the game, call game_start, then game_state / game_capture. " +
         "If the human has the game open under `debuff dev`, game_start attaches to it (mode live): they see your actions in their overlay, and their " +
         "flagged moments are in game_notes, so read those first. Otherwise you get a private paused copy (mode headless) where time only advances through game_step. " +
-        "Use game_pause before inspecting a live game, and game_frames to explain stutter. Prompts (playtest, fix-errors, tune-feel, add-mechanic, explain-stutter) give step-by-step workflows. Prefer tuning params (game_params, game_set_param) over code changes, " +
+        "Use game_pause before inspecting a live game, and game_profile to explain stutter (game_frames for raw numbers). Prompts (playtest, fix-errors, tune-feel, add-mechanic, explain-stutter) give step-by-step workflows. Prefer tuning params (game_params, game_set_param) over code changes, " +
         "and verify changes with run_tests (fast logic tests in tests/, no browser) and run_scenarios (screenshots). Creative direction belongs to the human: propose alternatives rather than deciding art or feel.",
     },
   );
@@ -314,6 +314,21 @@ export function createServer(options: ServerOptions): McpServer {
       annotations: { readOnlyHint: true },
     },
     safely(async ({ count }) => json(await live().call("frames", count ?? 60))),
+  );
+
+  server.registerTool(
+    "game_profile",
+    {
+      title: "Frame profile",
+      description:
+        "Why the game stutters, from myaku: frame-time percentiles (p50/p95/p99), hitches per minute, and the worst hitches explained. " +
+        "Each has a cause (script, gc, upload, compile, layout, throttled, hidden, unknown), a confidence, the script and function to look at when known, " +
+        "and a hint. Spans show time in debuff's update and render. Prefer this over game_frames to explain stutter; measure in live mode, since headless " +
+        "stepping doesn't reflect real play.",
+      inputSchema: {},
+      annotations: { readOnlyHint: true },
+    },
+    safely(async () => json(await live().call("profile"))),
   );
 
   server.registerTool(

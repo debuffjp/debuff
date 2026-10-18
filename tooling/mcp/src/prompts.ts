@@ -23,7 +23,7 @@ export function registerPrompts(server: McpServer): void {
 
 1. Call game_start. In live mode, read game_notes first: they're moments the human flagged.
 2. Call game_state and game_capture to see where things are, then play: game_input for keys and pointer, game_step to advance time (60 steps = 1 second). Capture before and after anything interesting.
-3. Watch game_errors throughout, and use game_frames if anything stutters.
+3. Watch game_errors throughout, and use game_profile if anything stutters.
 4. Report a short list of findings. For each: what you did, what happened, what you expected, a capture, and severity (bug, feel, polish). Suggest fixes, but don't change code yet.
 
 ${RULES}`),
@@ -95,9 +95,9 @@ ${RULES}`),
     () =>
       user(`Find out why this game stutters.
 
-1. Call game_start (live mode gives real timings; headless timings only reflect stepping), then game_frames with count 240.
-2. Classify the dropped frames (intervalMs over about 25): high updateMs means game logic; high renderMs with many quads or drawCalls means drawing; steps over 1 means the loop was catching up; longTaskMs or little work means something outside the game (GC, the browser, other tabs).
-3. Point to the likely code (the update or render of the active scene, from game_state) and propose a fix. Measure again after any change.
+1. Call game_start (live mode gives real timings; headless timings only reflect stepping). Let it run (or play it with game_input) for a few seconds, then call game_profile.
+2. Read the worst hitches: each has a cause, a confidence, the script to look at when known (where), and a hint. "throttled" and "hidden" mean the browser, not the game: ask the human to bring the window to the front and measure again.
+3. For "script" with a location, read that code; with only spans, compare update and render, and use game_frames (count 240) for steps over 1 (the loop catching up). Propose a fix, then measure again after the change.
 
 ${RULES}`),
   );
