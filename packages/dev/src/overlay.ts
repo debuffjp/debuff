@@ -95,8 +95,8 @@ class Overlay {
     const header = el("div");
     Object.assign(header.style, { display: "flex", alignItems: "center", gap: "6px", userSelect: "none" });
     this.mascot = new Buff();
-    const title = el("strong", {}, "debuff");
-    Object.assign(title.style, { color: LIME, fontSize: "12px", letterSpacing: "0.02em" });
+    const title = el("strong", { class: "dk-label" }, "debuff");
+    Object.assign(title.style, { color: LIME, fontSize: "20px", lineHeight: "1", fontWeight: "normal" });
     this.agentBadge = chip("agent", VIOLET);
     this.agentBadge.title = "An agent is connected to this game";
     this.agentBadge.hidden = true;

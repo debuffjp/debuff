@@ -26,6 +26,8 @@ export function chamferPath(c: number): string {
   return `polygon(${c}px 0,calc(100% - ${c}px) 0,100% ${c}px,100% calc(100% - ${c}px),calc(100% - ${c}px) 100%,${c}px 100%,0 calc(100% - ${c}px),0 ${c}px)`;
 }
 
+import { DEBUFF_SANS_TTF } from "./debuff-sans-ttf.js";
+
 const STYLE_ID = "debuff-kit-style";
 
 /** The 1px diagonal border lines a clipped box loses at its corners, drawn as backgrounds. */
@@ -41,25 +43,27 @@ export function kitCss(): string {
   const c = t.chamfer;
   const s = c / 2;
   return `
-[data-debuff-kit]{--dk-lime:${t.lime};--dk-text:${t.text};--dk-muted:${t.muted};--dk-ink:${t.ink};--dk-line:${t.line};--dk-raised:${t.raised};
+@font-face{font-family:"debuff sans";src:url(data:font/otf;base64,${DEBUFF_SANS_TTF}) format("opentype");font-display:block}
+[data-debuff-kit]{--dk-label:10px/1.4 "debuff sans",ui-monospace,monospace;--dk-lime:${t.lime};--dk-text:${t.text};--dk-muted:${t.muted};--dk-ink:${t.ink};--dk-line:${t.line};--dk-raised:${t.raised};
   clip-path:${chamferPath(c)};background:${cornerLines(c, t.line)},${t.panel};box-shadow:inset 0 0 0 1px ${t.line};
   color:#e5e7eb;font:11px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;backdrop-filter:blur(4px)}
-[data-debuff-kit] .dk-btn{font:inherit;cursor:pointer;color:var(--dk-lime);background:var(--dk-raised);border:none;padding:1px 7px;
+[data-debuff-kit] .dk-btn{font:var(--dk-label);cursor:pointer;color:var(--dk-lime);background:var(--dk-raised);border:none;padding:1px 7px;
   clip-path:${chamferPath(s)};box-shadow:inset 0 0 0 1px ${t.lime}55,inset 0 -2px 0 #0007;transition:transform 40ms steps(1)}
 [data-debuff-kit] .dk-btn:hover{box-shadow:inset 0 0 0 1px var(--dk-lime),inset 0 -2px 0 #0007}
 [data-debuff-kit] .dk-btn:active{transform:translateY(1px);box-shadow:inset 0 0 0 1px var(--dk-lime)}
 [data-debuff-kit] .dk-btn:focus-visible,[data-debuff-kit] .dk-tab:focus-visible,[data-debuff-kit] .dk-input:focus-visible{outline:1px solid var(--dk-lime);outline-offset:1px}
 [data-debuff-kit] .dk-btn.dk-proc{animation:dk-proc 150ms steps(3)}
 @keyframes dk-proc{0%{background:#fff;color:var(--dk-ink)}50%{background:var(--dk-lime);color:var(--dk-ink)}}
+[data-debuff-kit] .dk-chip,[data-debuff-kit] .dk-label{font:var(--dk-label)}
 [data-debuff-kit] .dk-chip{--c:var(--dk-lime);color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent);padding:0 6px;
   white-space:nowrap;clip-path:${chamferPath(s)};box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c) 45%,transparent)}
 [data-debuff-kit] .dk-input{font:inherit;color:#e7ebe0;background:#11160a;border:none;padding:1px 4px;clip-path:${chamferPath(s)};box-shadow:inset 0 0 0 1px ${t.lime}40}
 [data-debuff-kit] .dk-tabs{display:flex;gap:2px;border-bottom:1px solid var(--dk-line);margin-bottom:6px}
-[data-debuff-kit] .dk-tab{font:inherit;cursor:pointer;color:var(--dk-muted);background:none;border:none;padding:2px 8px;margin-bottom:-1px}
+[data-debuff-kit] .dk-tab{font:var(--dk-label);cursor:pointer;color:var(--dk-muted);background:none;border:none;padding:2px 8px;margin-bottom:-1px}
 [data-debuff-kit] .dk-tab[aria-selected=true]{color:var(--dk-lime);background:var(--dk-raised);
   clip-path:polygon(${s}px 0,calc(100% - ${s}px) 0,100% ${s}px,100% 100%,0 100%,0 ${s}px);box-shadow:inset 0 1px 0 var(--dk-lime),inset 1px 0 0 var(--dk-line),inset -1px 0 0 var(--dk-line)}
 [data-debuff-kit] .dk-stack{--c:var(--dk-lime);margin:0 0 8px;clip-path:polygon(0 0,100% 0,100% 100%,${c}px 100%,0 calc(100% - ${c}px))}
-[data-debuff-kit] .dk-stack>summary{list-style:none;cursor:pointer;color:var(--c);font-weight:600;padding:1px 6px;margin:0 0 4px;
+[data-debuff-kit] .dk-stack>summary{font:var(--dk-label);list-style:none;cursor:pointer;color:var(--c);font-weight:600;padding:1px 6px;margin:0 0 4px;
   border-left:3px solid var(--c);background:color-mix(in srgb,var(--c) 9%,transparent)}
 [data-debuff-kit] .dk-stack>summary::-webkit-details-marker{display:none}
 [data-debuff-kit] .dk-stack>summary::before{content:"▸";display:inline-block;margin-right:6px;transition:transform 60ms steps(2)}
