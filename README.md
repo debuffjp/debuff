@@ -1,8 +1,5 @@
 <h1 align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./.github/lockup-lime.svg">
-    <img src="./.github/lockup-ink.svg" width="360" alt="debuff">
-  </picture>
+  <img src="./.github/logo.svg" width="420" alt="debuff">
 </h1>
 
 **more room for play.** 
