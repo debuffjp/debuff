@@ -45,3 +45,7 @@ PixiJS 8, three.js and Phaser 3 get `update` and `render` spans automatically. F
 - `unknown`, low confidence: say so. Don't invent a cause.
 
 Measure again after every fix, and compare p95/p99 frame time (`intervalMs`), not averages.
+
+## Without the human: `npx myaku record`
+
+To measure yourself, or to guard against regressions in CI: `npm run build`, then `npx myaku record dist --seconds 10` (or a URL). It plays the game in Chrome or Edge with myaku injected, no game changes needed, and prints percentiles and the worst hitches. Add `--play play.mjs` (default export `async (page) => {}`) to drive input, `--cpu 4` to simulate a phone, and `--p95 20 --hitches 6` to fail over budget. Docs: https://debuff.jp/myaku/record
