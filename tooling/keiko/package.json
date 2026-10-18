@@ -1,6 +1,6 @@
 {
   "name": "keiko",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Fast, deterministic tests for web games: play your real game in Node with no browser, with time, input and randomness under the test's control",
   "keywords": [
     "game",
