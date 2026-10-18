@@ -1,5 +1,28 @@
 # @debuffjp/core
 
+## 0.5.0
+
+### Minor Changes
+
+- 60fd560: New: rewind. The dev panel's log tab has a timeline slider: drag to any tick of the session and the page reloads, replays your inputs to that tick (without drawing, so it's quick) and pauses there with the game's exact state. You can drag forward again until you play on from the earlier point. Agents can do the same with the MCP `game_rewind` tool, for example at a note's tick, and games with `window.__DEBUFF_DEV__.rewind(tick)`.
+  
+  **save as scenario** in the panel writes the session so far to `scenarios/<name>.json` through `debuff dev`, with a capture at the end, so a bug you just played becomes a regression test.
+  
+  `game.step(steps, false)` advances without drawing.
+- 28b3d48: New: assertions on what happens in the game, not on pixels.
+  
+  - `game.emit("coin", detail?)` marks a game event. The dev tools count events by name in `state().events`, and `__DEBUFF_DEV__.events()` lists the latest with their tick and detail.
+  - Scenarios have an `until` step: `{ "until": { "events.coin": { "gte": 1 } }, "within": 60 }` steps one tick at a time until the conditions hold, and fails with the actual values if they don't. Use it instead of guessing a `wait`. `expect` and `until` read `events.<name>` as 0 until the first emit.
+  - keiko replays `until` steps and adds `game.emitted("coin")`.
+  - New projects' `AGENTS.md` tells agents to prefer state and event assertions over screenshots, and the platformer emits `coin` and `win`, with a `collect-coin` scenario that uses them.
+
+### Patch Changes
+
+- 1f17bac: Smaller startup: the splash and the Canvas 2D fallback load on demand, so WebGL2 browsers never download the fallback and games without the splash never download it. The starter's startup code drops from 14.1 to 13.3 kB brotli. `debuff build` reports code at startup separately from code loaded on demand.
+- b37f2d9: Document turning off the splash for portals: the `splash` option's docs and new projects' AGENTS.md say Poki requires `splash: false`, with a link to the new publishing guide.
+- 092b259: The start-up splash shows the new DEBUFF logo on a slanted stripe, punching in and then "boiling" like hand-drawn animation (still for players who prefer reduced motion). The splash no longer opens debuff.jp on click or shows a URL: a click or tap only skips it, so games are safe on portals such as Poki and CrazyGames that forbid links out of the game.
+- a162599: The splash uses the DEBUFF wordmark (white letters, thick black outline) without the swoosh.
+
 ## 0.4.0
 
 No changes in this release.
