@@ -109,6 +109,13 @@ export class Profiler {
   private readonly ownUrl = callSite(new Error().stack ?? "", "")?.url ?? "";
   private readonly curSpans = new Float64Array(MAX_SPANS);
   private lastHeap = 0;
+  /** Heap readings taken and how many differed from the one before: is the heap reported live? */
+  private heapReads = 0;
+  private heapChanges = 0;
+  /** Game canvas contexts instrumented (myaku's own overlay excluded). */
+  private gameContexts = 0;
+  private spansDropped = false;
+  private readonly startedAt = typeof performance === "undefined" ? 0 : performance.now();
   private fixedBudget: number | undefined;
   private displayMs: number | undefined;
   private readonly stalls: Stall[] = [];
@@ -118,7 +125,7 @@ export class Profiler {
   private running = true;
   /** Overhead of the profiler's own bookkeeping, per frame, averaged. */
   private overhead = 0;
-  readonly support: { attribution: boolean; heap: boolean; contexts: boolean };
+  private readonly baseSupport: { attribution: boolean; heap: boolean; contexts: boolean };
   private readonly listeners = new Set<(profiler: Profiler) => void>();
 
   constructor(options: ProfilerOptions = {}) {
@@ -139,7 +146,7 @@ export class Profiler {
     this.slow = Array.from({ length: n }, () => ({ site: undefined, name: "" }));
     const loaf =
       typeof PerformanceObserver !== "undefined" && (PerformanceObserver.supportedEntryTypes ?? []).includes("long-animation-frame");
-    this.support = { attribution: loaf, heap: heapUsed() !== undefined, contexts: options.contexts !== false };
+    this.baseSupport = { attribution: loaf, heap: heapUsed() !== undefined, contexts: options.contexts !== false };
     this.wrapFrames();
     if (options.contexts !== false) this.wrapContexts();
     if (loaf) this.observeStalls();
@@ -223,6 +230,41 @@ export class Profiler {
     return out;
   }
 
+  /**
+   * What this browser lets myaku see. `heap` is true only while heap readings change often enough to catch
+   * a collection: some browsers report a coarse, rarely refreshed value, which can't show GC.
+   */
+  get support(): { attribution: boolean; heap: boolean; contexts: boolean } {
+    const live = this.heapReads < 120 || this.heapChanges * 60 >= this.heapReads;
+    return { ...this.baseSupport, heap: this.baseSupport.heap && live };
+  }
+
+  /**
+   * Problems that make the numbers incomplete, in plain words: no frames seen, no canvas context seen,
+   * spans dropped, heap not reported. Empty when myaku sees everything it can.
+   */
+  warnings(): string[] {
+    const out: string[] = [];
+    const elapsed = performance.now() - this.startedAt;
+    if (this.total === 0 && elapsed > 2000) {
+      out.push(
+        "No frames recorded. The game may have kept its own reference to requestAnimationFrame before myaku loaded: load myaku first (its own script tag, before the game's).",
+      );
+    }
+    if (this.baseSupport.contexts && this.gameContexts === 0 && this.total > 60 && hasGameCanvas()) {
+      out.push(
+        "No canvas context seen, so draws, uploads and compiles aren't counted. The game created its context before myaku loaded: load myaku first.",
+      );
+    }
+    if (this.spansDropped) {
+      out.push(`More than ${MAX_SPANS} span names: the rest are added up under "other".`);
+    }
+    if (this.baseSupport.heap && !this.support.heap) {
+      out.push("This browser reports the heap too coarsely to see garbage collection, so GC hitches show as unknown.");
+    }
+    return out;
+  }
+
   /** Percentiles, hitches with verdicts, causes and spans for the frames in the buffer. JSON-serialisable. */
   report(): Report {
     return summarize(this.frames(), this.hitches(), {
@@ -230,6 +272,7 @@ export class Profiler {
       displayIntervalMs: this.displayMs,
       overheadMs: this.overhead,
       support: this.support,
+      warnings: this.warnings(),
     });
   }
 
@@ -259,8 +302,12 @@ export class Profiler {
   addSpan(name: string, ms: number): void {
     let i = this.spanNames.indexOf(name);
     if (i < 0) {
-      if (this.spanNames.length >= MAX_SPANS) return;
-      i = this.spanNames.push(name) - 1;
+      if (this.spanNames.length >= MAX_SPANS - 1) {
+        // Keep the last slot for everything past the limit, so time isn't silently lost.
+        this.spansDropped = true;
+        i = this.spanNames.indexOf("other");
+        if (i < 0) i = this.spanNames.push("other") - 1;
+      } else i = this.spanNames.push(name) - 1;
     }
     this.curSpans[i] = (this.curSpans[i] ?? 0) + ms;
   }
@@ -319,7 +366,11 @@ export class Profiler {
     // A heap drop seen now happened during the frame that's closing.
     const heap = heapUsed();
     this.cur.heap = heap !== undefined && this.lastHeap > heap ? this.lastHeap - heap : 0;
-    if (heap !== undefined) this.lastHeap = heap;
+    if (heap !== undefined) {
+      this.heapReads++;
+      if (heap !== this.lastHeap) this.heapChanges++;
+      this.lastHeap = heap;
+    }
     if (this.cur.at >= 0) this.commit(t);
     this.cur.at = t;
     this.cur.cpu = 0;
@@ -387,6 +438,7 @@ export class Profiler {
         if (ctx && typeof ctx === "object" && !seen.has(ctx)) {
           seen.add(ctx);
           self.instrument(ctx as Record<string, unknown>, String(args[0]));
+          if (!isOverlayCanvas(this)) self.gameContexts++;
         }
         return ctx;
       };
@@ -511,7 +563,15 @@ export class Profiler {
     }
     scripts.sort((a, b) => b.ms - a.ms);
     const hidden = this.hidden.some(([a, b]) => a < end && b > start) || (this.hiddenSince !== undefined && this.hiddenSince < end);
-    return { scripts, layoutMs, stallMs, hidden, throttled: this.throttled(frame), attribution: this.support.attribution };
+    return {
+      scripts,
+      layoutMs,
+      stallMs,
+      hidden,
+      throttled: this.throttled(frame),
+      attribution: this.support.attribution,
+      heap: this.support.heap,
+    };
   }
 
   /**
@@ -604,4 +664,15 @@ function callSite(stack: string, own: string): CallSite | null {
     return { url, line: Number(m[4]), fn: (m[1] ?? m[2] ?? "").replace(/^Object\./, "") };
   }
   return null;
+}
+
+/** Whether a canvas belongs to myaku's own overlay (inside its shadow root). */
+function isOverlayCanvas(canvas: unknown): boolean {
+  const root = (canvas as { getRootNode?: () => unknown }).getRootNode?.() as { host?: Element } | undefined;
+  return Boolean(root?.host?.hasAttribute?.("data-myaku"));
+}
+
+/** Whether the page has a canvas outside myaku's overlay. */
+function hasGameCanvas(): boolean {
+  return typeof document !== "undefined" && document.querySelector("canvas") !== null;
 }

@@ -88,7 +88,9 @@ adapt(myaku(), game);
 
 Spans can nest: `update:level` is part of `update`.
 
-A `Report` has `intervalMs` (p50/p95/p99/max, which is what players feel), `cpuMs` (time in frame code), `hitches`, `hitchesPerMinute`, `causes`, `worst` (up to 10 verdicts), `spans` (average ms per frame), `perFrame` (draws, uploads, bytes), `overheadMs` (myaku's own cost) and `support` (what this browser reports).
+A `Report` has `intervalMs` (p50/p95/p99/max, which is what players feel), `cpuMs` (time in frame code), `hitches`, `hitchesPerMinute`, `causes`, `worst` (up to 10 verdicts), `spans` (average ms per frame), `perFrame` (draws, uploads, bytes), `overheadMs` (myaku's own cost), `support` (what this browser reports) and `warnings`.
+
+**Check `warnings` before trusting a quiet report.** myaku says when it can't see something: no frames (the game kept its own `requestAnimationFrame` from before myaku loaded), no canvas context (created before myaku loaded), span names past the limit (added up under `other`), or a heap reported too coarsely to see GC. The overlay shows the same warnings. `profiler.warnings()` returns them at any time.
 
 ## How it works
 
@@ -100,7 +102,7 @@ A `Report` has `intervalMs` (p50/p95/p99/max, which is what players feel), `cpuM
 
 ## Browser support
 
-Capture works everywhere. Script attribution (`script` with a location, and `layout`) and heap drops (`gc`) need Chromium. Elsewhere, verdicts fall back to frame code time and spans, and say so.
+Capture works everywhere. Script attribution (`script` with a location, and `layout`) and heap drops (`gc`) need Chromium. myaku checks that heap readings actually change from frame to frame. If a browser reports the heap too coarsely, `support.heap` is `false`, there are no `gc` verdicts, and `unknown` verdicts say GC can't be ruled out. Elsewhere, verdicts fall back to frame code time and spans, and say so.
 
 ## Limits
 

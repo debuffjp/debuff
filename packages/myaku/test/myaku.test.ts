@@ -184,6 +184,36 @@ describe("Profiler", () => {
     }
   });
 
+  it("warns when it can't see frames, contexts, every span or the heap", () => {
+    const memory = { usedJSHeapSize: 50_000_000 };
+    (performance as unknown as { memory?: typeof memory }).memory = memory;
+    try {
+      const p = new Profiler({ budgetMs: 20 });
+      expect(p.warnings()).toEqual([]);
+      now = 3000;
+      expect(p.warnings()[0]).toMatch(/No frames recorded/);
+      document.body.appendChild(document.createElement("canvas"));
+      loop(() => {
+        for (let i = 0; i < 20; i++) p.addSpan(`system${i}`, 1);
+      });
+      // A heap that never changes: reported too coarsely to see GC.
+      for (let i = 1; i <= 150; i++) tick(3000 + i * 16);
+      const warnings = p.warnings();
+      expect(warnings.some((w) => /No canvas context seen/.test(w))).toBe(true);
+      expect(warnings.some((w) => /under "other"/.test(w))).toBe(true);
+      expect(warnings.some((w) => /too coarsely/.test(w))).toBe(true);
+      expect(p.support.heap).toBe(false);
+      expect(p.frame()?.spans.other).toBe(5);
+      expect(Object.keys(p.frame()?.spans ?? {})).toHaveLength(16);
+      expect(p.report().warnings).toEqual(warnings);
+      expect(explainFrame(frame(), { ...evidence(), heap: false }, 25).summary).toMatch(/can't be ruled out/);
+      p.stop();
+    } finally {
+      delete (performance as unknown as { memory?: unknown }).memory;
+      document.querySelector("canvas")?.remove();
+    }
+  });
+
   it("shows an overlay with a frame graph and explains the frame you click", () => {
     const p = new Profiler({ budgetMs: 20 });
     const o = overlay(p, { corner: "bottom-left" });

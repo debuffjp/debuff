@@ -24,6 +24,8 @@ const CSS = `
 .head b { font-weight: 600; }
 .dim { color: #8a917f; }
 .hitch { color: #ff8a7a; }
+.warn { color: #ffd27a; white-space: normal; }
+.warn p { margin: 4px 0 0; }
 canvas { display: block; width: ${W}px; height: ${H}px; cursor: pointer; }
 .verdict { margin-top: 6px; white-space: normal; }
 .verdict p { margin: 4px 0 0; }
@@ -41,7 +43,7 @@ export function overlay(profiler: Profiler, options: OverlayOptions = {}): Overl
   const [v, h] = corner.split("-") as ["top" | "bottom", "left" | "right"];
   host.style.cssText = `${v}:8px;${h}:8px`;
   const root = host.attachShadow({ mode: "open" });
-  root.innerHTML = `<style>${CSS}</style><div class="box"><div class="head"><b>myaku</b><span class="fps"></span><span class="p95 dim"></span><span class="hits"></span></div><canvas></canvas><div class="verdict"></div></div>`;
+  root.innerHTML = `<style>${CSS}</style><div class="box"><div class="head"><b>myaku</b><span class="fps"></span><span class="p95 dim"></span><span class="hits"></span></div><canvas></canvas><div class="warn"></div><div class="verdict"></div></div>`;
   const canvas = root.querySelector("canvas") as HTMLCanvasElement;
   const dpr = Math.min(2, globalThis.devicePixelRatio || 1);
   canvas.width = W * dpr;
@@ -53,6 +55,22 @@ export function overlay(profiler: Profiler, options: OverlayOptions = {}): Overl
   const p95El = root.querySelector(".p95") as HTMLElement;
   const hitsEl = root.querySelector(".hits") as HTMLElement;
   const verdictEl = root.querySelector(".verdict") as HTMLElement;
+  const warnEl = root.querySelector(".warn") as HTMLElement;
+  let shownWarnings = "";
+  // Say so when myaku can't see something, instead of showing a quiet graph that looks healthy.
+  const warnings = () => {
+    const list = profiler.warnings();
+    const key = list.join("\n");
+    if (key === shownWarnings) return;
+    shownWarnings = key;
+    warnEl.textContent = "";
+    for (const w of list) {
+      const p = document.createElement("p");
+      p.textContent = `⚠ ${w}`;
+      warnEl.append(p);
+    }
+  };
+  const warningTimer = setInterval(warnings, 1000);
   (options.parent ?? document.body).appendChild(host);
 
   let selected: number | undefined;
@@ -145,6 +163,7 @@ export function overlay(profiler: Profiler, options: OverlayOptions = {}): Overl
     },
     destroy() {
       unsubscribe();
+      clearInterval(warningTimer);
       window.removeEventListener("keydown", onKey);
       host.remove();
     },
