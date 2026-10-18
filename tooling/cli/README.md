@@ -16,7 +16,7 @@ npx debuff --help
 | `debuff assets` | Run the asset pipeline: list every asset, its importer and size, plus unused and generated files |
 | `debuff test [files] [-t text] [--json]` | Run logic tests (`tests/**/*.test.ts`) with [keiko](https://github.com/debuffjp/debuff/tree/main/tooling/keiko): the real game in Node, no browser, in milliseconds |
 | `debuff scenario [files] [--update] [--strict]` | Run `scenarios/*.json` in headless Chrome/Edge |
-| `debuff fuzz [--seconds] [--runs] [--seed] [--keys]` | Play headless with random but plausible input. Reports explained errors and stuck states, each saved as a scenario in `.debuff/fuzz/` that reproduces it. Exits 1 on errors |
+| `debuff fuzz [--seconds] [--runs] [--seed] [--keys] [--ignore]` | Play headless with random but plausible input. Reports explained errors, stuck states and loops (the scene, or two state fields, flipping between the same two values), each saved as a scenario in `.debuff/fuzz/` that reproduces it. `--ignore state.shots` skips noisy fields. Exits 1 on errors |
 | `debuff inspect` | JSON summary of the project |
 
 Add `--json` for machine-readable output and `--root <dir>` to target another project.

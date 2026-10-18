@@ -192,8 +192,9 @@ cli
   .option("--runs <n>", "Independent runs", { default: 3 })
   .option("--seed <n>", "Input seed, to repeat a run exactly")
   .option("--keys <codes>", "Comma-separated KeyboardEvent.code values to press")
+  .option("--ignore <paths>", "Comma-separated state paths the loop check skips, e.g. state.shots")
   .option("--json", "Machine-readable output")
-  .action(async (o: Common & { seconds: number; runs: number; seed?: number; keys?: string }) => {
+  .action(async (o: Common & { seconds: number; runs: number; seed?: number; keys?: string; ignore?: string }) => {
     const { runFuzz } = await import("./fuzz.js");
     if (!o.json) {
       header("fuzz", "random hands, real bugs");
@@ -204,6 +205,14 @@ cli
       seconds: Number(o.seconds),
       runs: Number(o.runs),
       ...(o.seed === undefined ? {} : { seed: Number(o.seed) }),
+      ...(o.ignore
+        ? {
+            ignore: o.ignore
+              .split(",")
+              .map((k) => k.trim())
+              .filter(Boolean),
+          }
+        : {}),
       ...(o.keys
         ? {
             keys: o.keys
