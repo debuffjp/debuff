@@ -1,7 +1,7 @@
 import type { Game, ParamDescription, ParamValue, Plugin } from "@debuffjp/core";
 import type { Report } from "myaku";
 import type { ExplainedError } from "./explain.js";
-import type { Replay } from "./replay.js";
+import { type Replay, takeRewind } from "./replay.js";
 import { DevSession, type FrameSample, type Note } from "./session.js";
 
 /** The parts of `@debuffjp/input`'s `Input` the hooks drive. Structural, so `dev` does not depend on `input`. */
@@ -69,6 +69,11 @@ export interface DevHooks {
    * scenario that replays it exactly. Pass a note's `tick` to get the session leading up to that note.
    */
   replay(toTick?: number): Replay;
+  /**
+   * Reload and replay this session's inputs to `tick`, then pause there: the exact state at that moment.
+   * Within the known session you can go forward again, until new play branches off.
+   */
+  rewind(tick: number): void;
   /** Moments the human flagged in the overlay, with the game state at that tick. */
   notes(): Note[];
   /**
@@ -121,6 +126,9 @@ export function devTools(options: DevHooksOptions = {}): Plugin {
       const errors = session.errors;
       const hooks = createHooks(game, session, options, errors, () => (hooks.controlled ? "scenario" : "agent"));
       window.__DEBUFF_DEV__ = hooks;
+      // A rewind reloaded the page: replay to the chosen tick before the first frame runs.
+      const rewind = options.input && !hooks.controlled ? takeRewind() : undefined;
+      if (rewind && options.input) session.restore(rewind, { game, input: options.input, command: hooks.command });
       const unlink = options.agentLink === false || hooks.controlled ? undefined : linkAgent(game, session, options, errors);
       return () => {
         unlink?.();
@@ -199,6 +207,10 @@ function createHooks(game: Game, session: DevSession, options: DevHooksOptions, 
     setParam: (group, key, value) => session.setParam(group, key, value, who()),
     frames: (n = 60) => session.recorder.recent(n),
     profile: () => session.profiler.report(),
+    rewind: (tick) => {
+      if (controlled) throw new Error("Rewind works on a live game; in a scenario or headless copy, replay its steps instead");
+      session.rewind(tick);
+    },
     replay: (toTick) => {
       if (!session.recording) throw new Error("Replays need input: use devTools({ input })");
       return session.recording.toReplay(toTick);

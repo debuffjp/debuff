@@ -251,7 +251,7 @@ export class Game {
 
   /** Advance by real elapsed seconds and render once. Exposed so tests and scenarios
    *  can drive the game without requestAnimationFrame. */
-  frame(elapsed: number): void {
+  frame(elapsed: number, draw = true): void {
     const t0 = performance.now();
     const alpha = this.clock.advance(elapsed, (dt) => {
       if (this.freezeTime > 0) {
@@ -269,6 +269,7 @@ export class Game {
       this.hooks.emit("afterUpdate", scaled);
     });
     this.lastAlpha = alpha;
+    if (!draw) return;
     this.render(alpha);
     this.stats.record(elapsed * 1000, performance.now() - t0);
   }
@@ -287,9 +288,12 @@ export class Game {
     return this.freezeTime > 0;
   }
 
-  /** Advance exactly `steps` simulation steps (deterministic; for scenarios). */
-  step(steps = 1): void {
-    for (let i = 0; i < steps; i++) this.frame(this.clock.step);
+  /**
+   * Advance exactly `steps` simulation steps (deterministic; for scenarios). `draw: false` skips rendering
+   * and frame stats, for fast-forwarding through a replay; call `redraw()` afterwards.
+   */
+  step(steps = 1, draw = true): void {
+    for (let i = 0; i < steps; i++) this.frame(this.clock.step, draw);
   }
 
   /** Recompute CSS size and backing-store resolution. Called automatically on container

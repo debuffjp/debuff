@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { join } from "node:path";
 import type { ViteDevServer } from "vite";
@@ -11,6 +11,25 @@ export const AGENT_PATHS = {
   rpc: "/__debuff/agent/rpc",
   status: "/__debuff/agent/status",
 } as const;
+
+/** The dev panel's "save as scenario" posts `{ name, scenario }` here (see `@debuffjp/dev`). */
+export const SCENARIO_PATH = "/__debuff/scenario";
+
+/**
+ * Write a scenario from the dev panel to `scenarios/<name>.json`, never overwriting: a taken name gets a
+ * numeric suffix. Returns the path relative to the project root.
+ */
+export function saveScenario(root: string, name: string, scenario: unknown): string {
+  if (!/^[\w-]{1,80}$/.test(name)) throw new Error("Scenario names may use letters, digits, - and _ (max 80)");
+  if (typeof scenario !== "object" || scenario === null || !Array.isArray((scenario as { steps?: unknown }).steps))
+    throw new Error("Expected a scenario with a steps array");
+  const dir = join(root, "scenarios");
+  mkdirSync(dir, { recursive: true });
+  let file = `${name}.json`;
+  for (let n = 2; existsSync(join(dir, file)); n++) file = `${name}-${n}.json`;
+  writeFileSync(join(dir, file), `${JSON.stringify(scenario, null, 2)}\n`);
+  return `scenarios/${file}`;
+}
 
 /** Written while `debuff dev` runs, so tools can find the live game. */
 export const DEV_SERVER_FILE = ".debuff/dev-server.json";
@@ -50,6 +69,14 @@ export function attachAgentLink(server: ViteDevServer, root: string): void {
 
   server.middlewares.use(async (req, res, next) => {
     const url = req.url?.split("?")[0];
+    if (url === SCENARIO_PATH && req.method === "POST") {
+      try {
+        const { name, scenario } = (await readJson(req)) as { name: string; scenario: unknown };
+        return reply(res, 200, { file: saveScenario(root, name, scenario) });
+      } catch (err) {
+        return reply(res, 400, { error: err instanceof Error ? err.message : String(err) });
+      }
+    }
     if (!url?.startsWith("/__debuff/agent/")) return next();
     try {
       if (url === AGENT_PATHS.events && req.method === "GET") {

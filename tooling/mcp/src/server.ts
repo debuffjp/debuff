@@ -373,6 +373,23 @@ export function createServer(options: ServerOptions): McpServer {
   );
 
   server.registerTool(
+    "game_rewind",
+    {
+      title: "Rewind the live game",
+      annotations: { readOnlyHint: false, destructiveHint: false },
+      description:
+        "Live mode only. Take the human's game back (or forward, within the known session) to `tick`: the page reloads, replays " +
+        "the session's inputs to that tick and stays paused, so the state is exactly what it was then. Use a note's `tick` to look " +
+        "at the moment the human flagged. The page needs a second to reload; then use game_state or game_capture.",
+      inputSchema: { tick: z.number().int().min(0).describe("Tick to go to, e.g. a note's tick.") },
+    },
+    safely(async ({ tick }) => {
+      await live().call("rewind", tick);
+      return json({ rewinding: tick });
+    }),
+  );
+
+  server.registerTool(
     "game_errors",
     {
       title: "Runtime errors",

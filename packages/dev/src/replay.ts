@@ -88,6 +88,11 @@ export class InputRecording {
     this.restore.push(game.params.onChange((c) => this.add({ set: { [`${c.group}.${c.key}`]: c.value } })));
   }
 
+  /** Events recorded so far. */
+  get count(): number {
+    return this.events.length;
+  }
+
   /** Note something that makes an exact replay impossible (shown with the replay). */
   warn(message: string): void {
     this.warnings.add(message);
@@ -130,3 +135,70 @@ export class InputRecording {
 }
 
 const round = (n: number) => Math.round(n * 100) / 100;
+
+/** What a rewind carries across the page reload (sessionStorage, this tab only). */
+export interface RewindRequest {
+  v: 1;
+  /** The page the replay was recorded on; a rewind on another page is ignored. */
+  page: string;
+  /** The whole known session, so you can scrub forward again after rewinding. */
+  timeline: Replay;
+  /** Tick to stop at. */
+  tick: number;
+}
+
+const REWIND_KEY = "debuff:rewind";
+
+export function storeRewind(request: RewindRequest): void {
+  sessionStorage.setItem(REWIND_KEY, JSON.stringify(request));
+}
+
+/** Read and clear a pending rewind for this page, if any. */
+export function takeRewind(): RewindRequest | undefined {
+  let raw: string | null = null;
+  try {
+    raw = sessionStorage.getItem(REWIND_KEY);
+    sessionStorage.removeItem(REWIND_KEY);
+  } catch {
+    return undefined;
+  }
+  if (!raw) return undefined;
+  try {
+    const request = JSON.parse(raw) as RewindRequest;
+    return request.v === 1 && request.page === pagePath() ? request : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export const pagePath = (): string => location.pathname;
+
+export interface ReplayTarget {
+  game: Game;
+  input: DrivableInput;
+  command: (name: string, ...args: unknown[]) => unknown;
+}
+
+/**
+ * Play `steps` into the game up to `toTick`, without drawing, exactly as `debuff scenario` would.
+ * Input goes through the (recorded) input, so the recording picks the session up again.
+ */
+export function fastForward({ game, input, command }: ReplayTarget, steps: ReplayStep[], toTick: number): void {
+  for (const step of steps) {
+    if (game.clock.tick >= toTick) break;
+    if ("wait" in step) game.step(Math.min(step.wait, toTick - game.clock.tick), false);
+    else if ("press" in step) input.keys.press(step.press);
+    else if ("release" in step) input.keys.release(step.release);
+    else if ("pointerDown" in step) input.pointer.press(...step.pointerDown);
+    else if ("pointerMove" in step) input.pointer.move(...step.pointerMove);
+    else if ("pointerUp" in step) input.pointer.release();
+    else if ("set" in step)
+      for (const [path, value] of Object.entries(step.set)) {
+        const [group = "", key = ""] = path.split(".");
+        game.params.group(group)?.set(key, value);
+      }
+    else if ("command" in step) command(step.command, ...(step.args ?? []));
+  }
+  if (game.clock.tick < toTick) game.step(toTick - game.clock.tick, false);
+  game.redraw();
+}
