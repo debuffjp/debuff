@@ -32,6 +32,7 @@
     "capabilities": ["Interactive", "Read", "Write"],
     "websiteURL": "https://debuff.jp",
     "privacyPolicyURL": "https://debuff.jp/privacy",
+    "termsOfServiceURL": "https://debuff.jp/terms",
     "defaultPrompt": ["Make me a small pixel-art platformer I can play in the browser"],
     "brandColor": "#CFFB2D",
     "composerIcon": "./assets/icon.svg",
