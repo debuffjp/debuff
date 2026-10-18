@@ -26,6 +26,7 @@ All arguments and return values are JSON-serialisable.
 | `tap(x, y)` / `pointerDown` / `pointerMove` / `pointerUp` | pointer, in logical coordinates |
 | `errors()` | runtime errors since load, explained: `kind` (`your-code`, `debuff-usage`, `debuff-bug`, `outside`), source-mapped `where`, `hint`, `count` |
 | `capture()` | PNG data URL of the current frame |
+| `keepForReload()` | save the session for a state-preserving reload; the `debuff dev` client calls it just before a code change reloads the page |
 | `rewind(tick)` | reload and replay this session's inputs to `tick`, then pause: the exact state at that moment. Within the known session you can go forward again until new play branches off. Live games only |
 | `replay(toTick?)` | everything played since load (keys, pointer, param changes) up to `toTick`, as a scenario that replays it exactly, plus `warnings` for anything it can't reproduce. Needs `devTools({ input })` |
 
@@ -39,6 +40,12 @@ The toolbar has pause, step, speed (1×, ½×, ¼×), **snap** (download the cur
 - **tune**: sliders for every `game.params` group. Values you've changed from their defaults turn amber. Double-click a name to reset it, and **copy changes** copies just your changes, ready to paste into the param definitions.
 - **state**: your scene's `inspect()` data and plugin snapshots, updating live.
 - **log**: runtime errors, each labelled with whose problem it is (your code, a call debuff rejected, a debuff bug, or something outside the game), with a link that opens the exact source line in your editor, a hint, and a report link for debuff bugs. Also an activity log of who changed what (you, an agent or a scenario) with undo, and notes you can flag for agents. **save replay** and **copy replay** turn the session so far into a scenario that `debuff scenario` plays back exactly, and **save as scenario** writes it to `scenarios/` (through `debuff dev`) with a capture at the end, as a regression test. The **timeline** slider rewinds: drag to any tick and the page reloads, replays your inputs to that tick and pauses there. Drag forward again to return, until you play on from the earlier point.
+
+## Keep your place on reload
+
+Under `debuff dev`, editing your code no longer sends you back to the start. Just before the page reloads, the dev tools save the session's inputs. The new code then replays them to the tick you were on (without drawing, typically a few milliseconds per hundred ticks), and the game carries on running, or stays paused if it was paused. The log says how long the replay took.
+
+Because the inputs are replayed with the **new** code, a change to how the game plays shows up right where you were: lower the run speed and the player is where they'd be at the new speed. Keys you were holding are let go after the replay. Pass `devTools({ input, keepState: false })` to turn it off.
 
 ## Agent link
 

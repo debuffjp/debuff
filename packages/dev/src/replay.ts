@@ -145,6 +145,10 @@ export interface RewindRequest {
   timeline: Replay;
   /** Tick to stop at. */
   tick: number;
+  /** Why: a rewind stays paused there; a code reload carries on playing if the game was running. */
+  reason?: "rewind" | "reload";
+  /** Keep running after the replay (reloads of a running game). */
+  resume?: boolean;
 }
 
 const REWIND_KEY = "debuff:rewind";
@@ -184,15 +188,25 @@ export interface ReplayTarget {
  * Input goes through the (recorded) input, so the recording picks the session up again.
  */
 export function fastForward({ game, input, command }: ReplayTarget, steps: ReplayStep[], toTick: number): void {
+  const held = new Set<string>();
+  let pointerHeld = false;
   for (const step of steps) {
     if (game.clock.tick >= toTick) break;
     if ("wait" in step) game.step(Math.min(step.wait, toTick - game.clock.tick), false);
-    else if ("press" in step) input.keys.press(step.press);
-    else if ("release" in step) input.keys.release(step.release);
-    else if ("pointerDown" in step) input.pointer.press(...step.pointerDown);
-    else if ("pointerMove" in step) input.pointer.move(...step.pointerMove);
-    else if ("pointerUp" in step) input.pointer.release();
-    else if ("set" in step)
+    else if ("press" in step) {
+      held.add(step.press);
+      input.keys.press(step.press);
+    } else if ("release" in step) {
+      held.delete(step.release);
+      input.keys.release(step.release);
+    } else if ("pointerDown" in step) {
+      pointerHeld = true;
+      input.pointer.press(...step.pointerDown);
+    } else if ("pointerMove" in step) input.pointer.move(...step.pointerMove);
+    else if ("pointerUp" in step) {
+      pointerHeld = false;
+      input.pointer.release();
+    } else if ("set" in step)
       for (const [path, value] of Object.entries(step.set)) {
         const [group = "", key = ""] = path.split(".");
         game.params.group(group)?.set(key, value);
@@ -200,5 +214,13 @@ export function fastForward({ game, input, command }: ReplayTarget, steps: Repla
     else if ("command" in step) command(step.command, ...(step.args ?? []));
   }
   if (game.clock.tick < toTick) game.step(toTick - game.clock.tick, false);
+  // Nobody is physically holding these any more: let go, or they'd stay stuck down.
+  for (const code of held) input.keys.release(code);
+  if (pointerHeld) input.pointer.release();
+  // The replay took real time: restart the loop's clock so the next frame doesn't try to catch up on it.
+  if (game.isRunning) {
+    game.stop();
+    game.start();
+  }
   game.redraw();
 }
