@@ -6,11 +6,10 @@ import { ParamRegistry } from "./params.js";
 import { type Plugin, PluginRegistry } from "./plugin.js";
 import { Random } from "./random.js";
 import type { Backend } from "./render/backend.js";
-import { Canvas2DBackend } from "./render/canvas2d.js";
 import { Draw } from "./render/draw.js";
 import { WebGL2Backend } from "./render/webgl2.js";
 import type { Scene } from "./scene.js";
-import { drawSplash, type SplashOptions } from "./splash.js";
+import type { drawSplash, SplashOptions } from "./splash.js";
 import { FrameStats } from "./stats.js";
 
 /** Camera shake multiplier when the player prefers reduced motion: a hint of feedback, not none. */
@@ -111,6 +110,7 @@ export class Game {
   /** What the frame is doing right now, so a loop error can say where it came from. */
   private phase = "idle";
   private splashTotal = 0;
+  private splash: typeof drawSplash | undefined;
   private splashLeft = 0;
   private readonly onSplashSkip = () => this.skipSplash();
   private lastTime = 0;
@@ -135,7 +135,10 @@ export class Game {
     this.random = new Random(options.seed ?? 1);
     this.background = options.background ?? "#000";
     // alpha:false lets the compositor skip blending; desynchronized lowers input latency where supported.
-    this.draw = new Draw(createBackend(this.canvas, options.renderer ?? "auto"), !this.pixelArt);
+    this.draw = new Draw(
+      createBackend(this.canvas, options.renderer ?? "auto", (backend) => this.draw.setBackend(backend)),
+      !this.pixelArt,
+    );
     this.camera = new Camera({ width: this.width, height: this.height });
     this.camera.x = this.width / 2;
     this.camera.y = this.height / 2;
@@ -164,16 +167,19 @@ export class Game {
       addEventListener("keydown", this.onSplashSkip);
       // A click or tap only skips: no links out, so games are safe on portals (Poki, CrazyGames) that forbid them.
       addEventListener("pointerdown", this.onSplashSkip);
-      this.canvas.style.cursor = "pointer";
-      this.canvas.title = "made with debuff";
+      // Loaded on demand: games that turn the splash off, and dev builds, never download it.
+      import("./splash.js").then(
+        (m) => {
+          this.splash = m.drawSplash;
+        },
+        () => this.skipSplash(),
+      );
     }
   }
 
   /** End the start-up splash now (if it is showing or pending). */
   skipSplash(): void {
     if (this.splashTotal > 0) {
-      this.canvas.style.cursor = "";
-      this.canvas.removeAttribute("title");
     }
     this.splashTotal = this.splashLeft = 0;
     removeEventListener("keydown", this.onSplashSkip);
@@ -334,7 +340,7 @@ export class Game {
         if (this.splashLeft === 0) this.skipSplash();
         this.draw.begin("#000", this.width, this.height, this.renderScale);
         try {
-          drawSplash(this.draw, this.width, this.height, 1 - this.splashLeft / (this.splashTotal || 1), this.reducedMotion);
+          this.splash?.(this.draw, this.width, this.height, 1 - this.splashLeft / (this.splashTotal || 1), this.reducedMotion);
         } catch {
           this.skipSplash(); // never let branding break a game
         }
@@ -400,7 +406,25 @@ function isDev(): boolean {
   return import.meta.env?.DEV === true;
 }
 
-function createBackend(canvas: HTMLCanvasElement, choice: "auto" | "webgl2" | "2d"): Backend {
+/** Stands in while the Canvas 2D fallback loads (a few milliseconds, on browsers without WebGL2): draws nothing. */
+const PENDING = {
+  kind: "2d",
+  raw: null,
+  begin() {},
+  quad() {},
+  setBlend() {},
+  setClip() {},
+  end() {},
+  resize() {},
+  invalidate() {},
+  dispose() {},
+} as unknown as Backend;
+
+/**
+ * WebGL2 when available. Otherwise the Canvas 2D fallback, loaded on demand so WebGL2 browsers (nearly all)
+ * never download it: `ready` receives it once loaded, and frames before that draw nothing.
+ */
+function createBackend(canvas: HTMLCanvasElement, choice: "auto" | "webgl2" | "2d", ready: (backend: Backend) => void): Backend {
   if (choice !== "2d") {
     // preserveDrawingBuffer:false is fastest; captures render and read in the same task.
     const gl = canvas.getContext("webgl2", {
@@ -415,5 +439,6 @@ function createBackend(canvas: HTMLCanvasElement, choice: "auto" | "webgl2" | "2
   }
   const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
   if (!ctx) throw new Error("No WebGL2 or Canvas 2D context available");
-  return new Canvas2DBackend(ctx);
+  import("./render/canvas2d.js").then((m) => ready(new m.Canvas2DBackend(ctx)));
+  return PENDING;
 }

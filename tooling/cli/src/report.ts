@@ -10,12 +10,16 @@ export interface FileReport {
   bytes: number;
   gzip: number;
   brotli: number;
+  /** Code fetched only when needed (a dynamic import), not at startup. */
+  lazy?: boolean;
 }
 
 export interface BuildReport {
   dir: string;
   files: FileReport[];
   totals: Record<FileReport["kind"], { bytes: number; gzip: number; brotli: number }>;
+  /** Code the page loads at startup (what players wait for). `totals.code` also counts on-demand chunks. */
+  initial: { bytes: number; gzip: number; brotli: number };
   largestAsset: FileReport | undefined;
   leaks: { path: string; token: string }[];
 }
@@ -54,16 +58,30 @@ export function buildReport(dir: string): BuildReport {
       for (const token of DEV_TOKENS) if (text.includes(token)) leaks.push({ path, token });
     }
   }
+  // Startup code is what index.html references (its scripts and Vite's modulepreload links); other code
+  // files are chunks loaded on demand, like the splash or the Canvas 2D fallback.
+  const pages = files
+    .filter((f) => f.kind === "html")
+    .map((f) => readFileSync(join(dir, f.path), "utf8"))
+    .join("\n");
+  const referenced = new Set([...pages.matchAll(/(?:src|href)="\/?([^"]+)"/g)].map((m) => (m[1] ?? "").replace(/^\.\//, "")));
+  if (pages) for (const f of files) if (f.kind === "code" && !referenced.has(f.path)) f.lazy = true;
   const zero = () => ({ bytes: 0, gzip: 0, brotli: 0 });
+  const initial = zero();
   const totals: BuildReport["totals"] = { code: zero(), html: zero(), asset: zero(), map: zero(), other: zero() };
   for (const f of files) {
     const t = totals[f.kind];
     t.bytes += f.bytes;
     t.gzip += f.gzip;
     t.brotli += f.brotli;
+    if (f.kind === "code" && !f.lazy) {
+      initial.bytes += f.bytes;
+      initial.gzip += f.gzip;
+      initial.brotli += f.brotli;
+    }
   }
   const largestAsset = files.filter((f) => f.kind === "asset").sort((a, b) => b.bytes - a.bytes)[0];
-  return { dir, files, totals, largestAsset, leaks };
+  return { dir, files, totals, initial, largestAsset, leaks };
 }
 
 const kb = (n: number) => `${(n / 1024).toFixed(1)} kB`;
@@ -80,7 +98,7 @@ export function formatReport(r: BuildReport): string {
   const lines = [pc.dim(`${"file".padEnd(w)}  ${"raw".padStart(9)}  ${"gzip".padStart(9)}  ${"brotli".padStart(9)}`)];
   for (const f of r.files) {
     lines.push(
-      `${kindColor[f.kind](f.path.padEnd(w))}  ${pc.dim(kb(f.bytes).padStart(9))}  ${kb(f.gzip).padStart(9)}  ${pc.bold(kb(f.brotli).padStart(9))}`,
+      `${kindColor[f.kind](f.path.padEnd(w))}  ${pc.dim(kb(f.bytes).padStart(9))}  ${kb(f.gzip).padStart(9)}  ${pc.bold(kb(f.brotli).padStart(9))}${f.lazy ? pc.dim("  on demand") : ""}`,
     );
   }
   lines.push("");

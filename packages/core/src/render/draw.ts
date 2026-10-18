@@ -61,9 +61,12 @@ export class Draw {
   private readonly textCache = new TextCache();
   private circleTexture: HTMLCanvasElement | OffscreenCanvas | undefined;
 
+  private backingW = 0;
+  private backingH = 0;
+
   /** @internal */
   constructor(
-    private readonly backend: Backend,
+    private backend: Backend,
     /** Default filtering for images (false for pixel art). */
     public smooth: boolean,
   ) {}
@@ -359,7 +362,16 @@ export class Draw {
 
   /** @internal */
   resize(w: number, h: number): void {
+    this.backingW = w;
+    this.backingH = h;
     this.backend.resize(w, h);
+  }
+
+  /** @internal Switch to a backend that finished loading (the Canvas 2D fallback), at the current size. */
+  setBackend(backend: Backend): void {
+    this.backend.dispose();
+    this.backend = backend;
+    if (this.backingW) backend.resize(this.backingW, this.backingH);
   }
 
   // ---- internals ---------------------------------------------------------------------------
