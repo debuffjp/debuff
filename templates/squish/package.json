@@ -1,0 +1,24 @@
+{
+  "name": "@debuffjp/template-squish",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "debuff dev",
+    "build": "tsc --noEmit && debuff build",
+    "assets": "debuff assets",
+    "test": "debuff test && debuff scenario"
+  },
+  "dependencies": {
+    "@debuffjp/audio": "0.7.1",
+    "@debuffjp/core": "0.7.1",
+    "@debuffjp/input": "0.7.1",
+    "@debuffjp/juice": "0.7.1"
+  },
+  "devDependencies": {
+    "@debuffjp/cli": "0.7.1",
+    "typescript": "^7.0.2",
+    "@debuffjp/dev": "0.7.1",
+    "keiko": "0.4.1"
+  }
+}

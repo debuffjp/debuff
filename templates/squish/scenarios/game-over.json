@@ -1,0 +1,14 @@
+{
+  "$schema": "../node_modules/@debuffjp/cli/schema/scenario.schema.json",
+  "steps": [
+    { "wait": 60 },
+    { "command": "board", "args": [["abaacdef", "cdefabcd", "efabcdef", "abcdefab", "cdefabcd", "efabcdef", "abcdefab", "cdefabcd"]] },
+    { "command": "moves", "args": [1] },
+    { "tap": [33, 171] },
+    { "tap": [75, 171] },
+    { "until": { "events.over": { "gte": 1 } }, "within": 300 },
+    { "wait": 30 },
+    { "capture": "over" },
+    { "contrast": [40, 250, 280, 150] }
+  ]
+}
