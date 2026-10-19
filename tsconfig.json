@@ -14,6 +14,9 @@
       "path": "packages/juice"
     },
     {
+      "path": "packages/share"
+    },
+    {
       "path": "packages/ui"
     },
     {
