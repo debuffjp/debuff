@@ -1,8 +1,9 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import type { Page } from "playwright-core";
+import { loadConfig } from "./config.js";
 import { hooksReady } from "./scenario/browser.js";
-import { launchBrowser } from "./scenario/run.js";
+import { launchBrowser, VIEWPORT } from "./scenario/run.js";
 import type { Step } from "./scenario/types.js";
 import { createDevServer } from "./vite.js";
 
@@ -137,13 +138,15 @@ export async function runFuzz(options: FuzzOptions): Promise<FuzzReport> {
   const base = server.resolvedUrls?.local[0];
   if (!base) throw new Error("Dev server did not report a URL");
   const browser = await launchBrowser();
+  // The project's scenario viewport, so a portrait game is fuzzed at its own shape.
+  const [width, height] = (await loadConfig(options.root)).viewport ?? VIEWPORT;
   const findings: FuzzFinding[] = [];
   let totalSteps = 0;
 
   try {
     for (let run = 1; run <= runs; run++) {
       const random = rng(seed + run * 7919);
-      const page = await browser.newPage({ viewport: { width: 960, height: 540 }, deviceScaleFactor: 1 });
+      const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 });
       try {
         const url = new URL(options.page ?? "/", base);
         url.searchParams.set("debuff-scenario", "1");

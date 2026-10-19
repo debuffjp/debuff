@@ -35,6 +35,33 @@ describe("Tweens", () => {
     tweens.update(1);
     expect(s.scaleX).toBe(1);
   });
+
+  it("squash leaves a move on the same target running", () => {
+    // Found building the squish template: squashing a piece mid-swap used to stop the swap.
+    const tweens = new Tweens();
+    const p = { x: 0, scaleX: 1, scaleY: 1 };
+    tweens.to(p, { x: 10 }, { duration: 0.5, ease: "linear" });
+    squash(tweens, p, 0.3);
+    expect(tweens.has(p, "x")).toBe(true);
+    tweens.update(1);
+    expect(p.x).toBe(10);
+    expect(p.scaleX).toBe(1);
+  });
+
+  it("kill can stop just some properties; has reports what's still running", () => {
+    const tweens = new Tweens();
+    const p = { x: 0, y: 0 };
+    tweens.to(p, { x: 10, y: 10 }, { duration: 1, ease: "linear", delay: 0.5 });
+    expect(tweens.has(p)).toBe(true); // waiting on its delay still counts
+    tweens.kill(p, ["y"]);
+    expect(tweens.has(p, "y")).toBe(false);
+    tweens.update(1.5);
+    expect(p).toEqual({ x: 10, y: 0 });
+    expect(tweens.has(p)).toBe(false);
+    tweens.to(p, { x: 0 }, { duration: 1 });
+    tweens.kill(p);
+    expect(tweens.has(p)).toBe(false);
+  });
 });
 
 describe("ease", () => {

@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { basename, join, relative } from "node:path";
 import { amber, lime, paint, pc } from "create-debuff";
 import type { Browser, Page } from "playwright-core";
+import { checkViewport } from "../config.js";
 import type { StepDef } from "../plugin.js";
 import { createDevServer } from "../vite.js";
 import { analyzeFlashes, contrastGrid, contrastRatio, FLASH_GRID } from "./a11y.js";
@@ -13,7 +14,8 @@ const PIXEL_THRESHOLD = 48;
 const DEFAULT_TOLERANCE = 0.002;
 /** `until` gives up after this many steps unless the step says otherwise: ten seconds at 60 Hz. */
 const DEFAULT_WITHIN = 600;
-const VIEWPORT = { width: 960, height: 540 };
+/** The default browser viewport for scenarios and fuzzing, in CSS pixels. */
+export const VIEWPORT: [number, number] = [960, 540];
 
 export function findScenarios(root: string, files: string[]): string[] {
   if (files.length) return files.map((f) => join(root, f));
@@ -76,7 +78,9 @@ export async function runScenarios(options: RunOptions): Promise<ScenarioReport[
   try {
     for (const file of files) {
       const scenario = JSON.parse(readFileSync(file, "utf8")) as Scenario;
-      const page = await browser.newPage({ viewport: VIEWPORT, deviceScaleFactor: 1 });
+      if (scenario.viewport !== undefined) checkViewport(scenario.viewport, `${relative(options.root, file)}: viewport`);
+      const [width, height] = scenario.viewport ?? options.viewport ?? VIEWPORT;
+      const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 });
       try {
         reports.push(await runOne(page, base, scenario.name ?? basename(file, ".json"), scenario, options));
       } finally {

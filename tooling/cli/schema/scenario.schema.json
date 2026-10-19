@@ -14,6 +14,13 @@
       "type": "boolean",
       "description": "Run with the browser asking for reduced motion (prefers-reduced-motion: reduce)."
     },
+    "viewport": {
+      "type": "array",
+      "description": "Browser viewport [width, height] in CSS pixels for this scenario. Default: scenarios.viewport in debuff.config.ts, else [960, 540].",
+      "prefixItems": [{ "type": "integer", "minimum": 100, "maximum": 4096 }, { "type": "integer", "minimum": 100, "maximum": 4096 }],
+      "minItems": 2,
+      "maxItems": 2
+    },
     "steps": { "type": "array", "items": { "$ref": "#/$defs/step" } }
   },
   "$defs": {

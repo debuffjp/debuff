@@ -10,6 +10,14 @@ export interface DebuffConfig {
     /** Atlas packing for PNG images (default on). `false` disables it. */
     atlas?: AtlasOptions | false;
   };
+  scenarios?: {
+    /**
+     * Browser viewport for scenarios and fuzzing, `[width, height]` in CSS pixels. Default `[960, 540]`.
+     * Set it to your game's shape, e.g. `[360, 640]` for a portrait game, so captures and contrast checks
+     * see the game at full size. A scenario's own `viewport` wins.
+     */
+    viewport?: [number, number];
+  };
 }
 
 export interface ResolvedConfig {
@@ -18,6 +26,8 @@ export interface ResolvedConfig {
   file: string | undefined;
   plugins: ToolingPlugin[];
   atlas: AtlasOptions | false;
+  /** `scenarios.viewport`, when set. */
+  viewport?: [number, number];
 }
 
 /** Identity helper that gives `debuff.config.ts` full type checking and editor completion. */
@@ -38,7 +48,22 @@ export async function loadConfig(root: string): Promise<ResolvedConfig> {
   const { module } = await runnerImport<{ default?: DebuffConfig }>(file);
   const config = module.default;
   if (!config || typeof config !== "object") throw new Error(`${file} must \`export default defineConfig({ ... })\``);
-  return { root, file, plugins: validatePlugins(config.plugins ?? [], file), atlas: config.assets?.atlas ?? {} };
+  const viewport = config.scenarios?.viewport;
+  if (viewport !== undefined) checkViewport(viewport, `${file}: scenarios.viewport`);
+  return {
+    root,
+    file,
+    plugins: validatePlugins(config.plugins ?? [], file),
+    atlas: config.assets?.atlas ?? {},
+    ...(viewport ? { viewport } : {}),
+  };
+}
+
+/** A browser viewport `[width, height]`: whole CSS pixels from 100 to 4096. Throws a readable error otherwise. */
+export function checkViewport(value: unknown, where: string): asserts value is [number, number] {
+  const ok =
+    Array.isArray(value) && value.length === 2 && value.every((n) => Number.isInteger(n) && (n as number) >= 100 && (n as number) <= 4096);
+  if (!ok) throw new Error(`${where} must be [width, height] in whole CSS pixels from 100 to 4096, got ${JSON.stringify(value)}`);
 }
 
 export function validatePlugins(plugins: unknown[], source = "config"): ToolingPlugin[] {
