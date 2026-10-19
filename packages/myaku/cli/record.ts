@@ -2,7 +2,7 @@
  * `myaku record`: play a game in a real browser with myaku injected, and return its report. Node only;
  * nothing in myaku's browser entry points imports this.
  */
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,6 +27,8 @@ export interface RecordOptions {
   play?: (page: Page) => Promise<void>;
   /** Also record a Chromium trace and check myaku's hitches against the frames actually presented. */
   trace?: boolean;
+  /** With `trace`: also save the raw trace here, for Chrome DevTools or Perfetto. */
+  traceFile?: string | undefined;
 }
 
 export interface Budget {
@@ -174,6 +176,7 @@ export async function record(options: RecordOptions): Promise<Report & { trace?:
     if (!cdp || !traced) return report;
     await cdp.send("Tracing.end");
     await traced;
+    if (options.traceFile) writeFileSync(options.traceFile, JSON.stringify({ traceEvents: events }));
     return analyze(report, hitches, events, startedAt).report;
   } finally {
     await browser.close();

@@ -15,6 +15,10 @@ export const TRACE_CATEGORIES = ["disabled-by-default-devtools.timeline.frame", 
 /** The `performance.mark` that ties performance.now() to trace time. */
 export const SYNC_MARK = "myaku-trace-sync";
 
+/** A `gpu` verdict needs the GPU at least this busy over this many frame budgets before the hitch. */
+const PRIOR_FRAMES = 10;
+const PRIOR_LOAD = 0.3;
+
 export interface TraceEvent {
   name: string;
   cat: string;
@@ -193,7 +197,20 @@ export function analyze(
     const inside = all.filter((p) => p.end > a && p.start < b + slack);
     const swapMs = Math.max(0, ...inside.map((p) => p.stages.Swap ?? 0));
     const drawMs = Math.max(0, ...inside.map((p) => p.stages.StartDrawToSwapStart ?? 0));
-    if (gpuMs >= h.intervalMs * 0.5 || swapMs >= h.budgetMs) {
+    const stalled = gpuMs >= h.intervalMs * 0.5 || swapMs >= h.budgetMs;
+    // The GPU process serves the whole browser and waits on the OS, so a busy GPU alone doesn't mean
+    // this page's drawing. A game that loads the GPU keeps it busy in the frames before too; a lone
+    // stall with an idle GPU before it is the driver, the OS or another app.
+    const before = PRIOR_FRAMES * h.budgetMs;
+    const loadMs = overlap(gpuBusy, a - before * 1000, a) / 1000;
+    if (stalled && loadMs < before * PRIOR_LOAD) {
+      return {
+        ...h,
+        summary: `${h.summary} Chrome's trace shows the GPU stalled for ${fmt(Math.max(gpuMs, swapMs))}, but the game had kept it only ${Math.round((loadMs / before) * 100)}% busy just before: more likely the driver, the OS or another app than the game's drawing.`,
+        hint: "One-off GPU stalls on a lightly loaded GPU are usually outside the game's control. If they repeat, try another browser or check for other GPU-heavy apps.",
+      };
+    }
+    if (stalled) {
       reclassified++;
       return {
         ...h,
