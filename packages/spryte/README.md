@@ -1,8 +1,12 @@
 # spryte
 
-A small, fast 2D renderer for the web. You draw in immediate mode (sprites, bulk sprites, rects, circles, lines, text, clips, blend modes, render targets and custom shaders), and spryte batches it onto WebGL2 with instancing, falling back to Canvas 2D automatically. No dependencies, no scene graph, no game framework.
+**A 2D renderer for the web that draws moving sprites 2–4× faster than the most widely used one**, in an [open, pixel-checked benchmark](https://github.com/debuffjp/2dbench), from about a ninth of the JavaScript (10.1 kB brotli).
 
-> **Alpha.** spryte is the renderer inside [debuff](https://debuff.jp), where games already run on it. The API may still change before 1.0. So far it has been measured on desktop Chrome only; mobile and other browsers aren't verified yet.
+![Most sprites each library holds at 60 fps, per 2dbench scene](https://debuff.jp/charts/max-at-60fps.svg)
+
+You draw in immediate mode (sprites, bulk sprites, rects, circles, lines, text, clips, blend modes, render targets and custom shaders), and spryte batches it onto WebGL2 with instancing, falling back to Canvas 2D automatically. No dependencies, no scene graph, no game framework.
+
+> **Alpha.** spryte is the renderer inside [debuff](https://debuff.jp), where games already run on it. The API may still change before 1.0. It's measured mostly on desktop Chrome (Windows and Linux), plus one iPhone; Safari on macOS, Firefox and Android are barely covered yet. [Run 2dbench on your device](https://debuffjp.github.io/2dbench/mobile.html) to help.
 
 ```bash
 npm install spryte
