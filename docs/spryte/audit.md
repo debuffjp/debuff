@@ -102,9 +102,23 @@ API debt to settle before 1.0: `begin`, `end`, `resize`, `dispose` and `renderSc
 6. Public lifecycle API cleanup (section 6), then API docs.
 7. Render targets and a minimal custom-shader hook, only once a real game needs them.
 
+### Progress since the audit (2026-10-19)
+
+- **Differentiation against PixiJS, measured** (`packages/spryte/docs/benchmarks.md`; one machine, so the caveats apply):
+  - `draw.sprites()` bulk path: about 3× ParticleContainer at 200k.
+  - With per-copy scale, rotation and colour: about 4× ParticleContainer with every dynamic property on.
+  - A `sprite()` loop is about 4× PixiJS `Sprite`.
+  - About 10× less JS at startup (8.4 vs 87.8 kB brotli).
+- **New features:**
+  - Render targets (`createTarget`, `into`).
+  - Custom shaders (`createShader`, `withShader`, with errors mapped to your line numbers).
+  - `draw.ready`, `draw.contextLost`, and per-copy `sprites()` values.
+- **Verification:** 19 real-GPU pixel checks (`npm run test:browser`) run inside `npm run check`. Each new check was confirmed to fail on a deliberately broken implementation.
+- **Standalone repo:** private `debuffjp/spryte`, kept current with `git subtree split`. Nothing is published yet.
+
 ## 9. Release readiness
 
-Not ready for a standalone release. The code is production-proven inside debuff, but it has no WebGL2 unit tests, no device matrix, one benchmark machine, an unsettled name, and lifecycle methods still marked internal. A public beta is reasonable after plan steps 2–4.
+Not ready for a 1.0. A public beta is now justified on features and performance, but still has no device matrix. The code is production-proven inside debuff, but it has no WebGL2 unit tests, no device matrix, one benchmark machine, an unsettled name, and lifecycle methods still marked internal. A public beta is reasonable after plan steps 2–4.
 
 ## 10. Open decisions (need the maintainer)
 
