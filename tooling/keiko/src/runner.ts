@@ -205,6 +205,7 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
   }
 
   const reg = registry();
+  let firstBoot = true;
   let page: HeadlessPage | undefined;
   const closePage = async () => {
     reg.current = undefined;
@@ -246,7 +247,11 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
       });
       // Fresh module instances for every game: the game's top-level code runs again in the new page.
       modules.clearCache();
-      const bootLimit = realNow() + (play.timeout ?? 10_000);
+      // The first game in a run also waits for Vite to pre-bundle the dependencies, which on a cold
+      // cache can take far longer than booting does.
+      const bootMs = play.timeout ?? (firstBoot ? 60_000 : 10_000);
+      firstBoot = false;
+      const bootLimit = realNow() + bootMs;
       for (const src of scripts) {
         try {
           // A browser keeps running frames and timers while a module awaits at the top level (an engine's
@@ -261,7 +266,7 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
             // on network or machine speed.
             await Promise.race([imported, page.settle(Math.max(0, bootLimit - realNow()))]);
             if (done) break;
-            if (realNow() > bootLimit) throw new Error(`it was still loading after ${play.timeout ?? 10_000} ms`);
+            if (realNow() > bootLimit) throw new Error(`it was still loading after ${bootMs} ms`);
             if (debuff) clock.advanceTime(clock.stepMs);
             else clock.advance(1);
           }

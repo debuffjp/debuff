@@ -20,3 +20,4 @@ dist-types/
 coverage/
 /.scratch/
 tooling/mcp/server.json
+/compat/.real/
