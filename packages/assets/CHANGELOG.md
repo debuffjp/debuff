@@ -1,5 +1,11 @@
 # @debuffjp/assets
 
+## 0.9.2
+
+### Patch Changes
+
+- 9ee5b42: Only the left mouse button presses `Pointer`, keys release when focus leaves the keyboard target, and asset URLs carry a content hash so a redeploy can't mix old and new atlases.
+
 ## 0.9.1
 
 No changes in this release.

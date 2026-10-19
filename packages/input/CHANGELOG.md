@@ -1,5 +1,12 @@
 # @debuffjp/input
 
+## 0.9.2
+
+### Patch Changes
+
+- cc424e9: Gamepad input is now recorded, so rewind, the reload that keeps your place, and replays saved as scenarios reproduce pad sessions. Scenarios gain a `pad` step.
+- 9ee5b42: Only the left mouse button presses `Pointer`, keys release when focus leaves the keyboard target, and asset URLs carry a content hash so a redeploy can't mix old and new atlases.
+
 ## 0.9.1
 
 No changes in this release.

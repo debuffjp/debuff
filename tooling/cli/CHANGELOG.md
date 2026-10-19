@@ -1,5 +1,17 @@
 # @debuffjp/cli
 
+## 0.9.2
+
+### Patch Changes
+
+- c2a9cfa: The dev server's agent endpoints now refuse requests from other origins and POSTs that aren't JSON, so a website you visit can no longer write scenarios or drive your game.
+- 7c2ee14: Failed asset imports are no longer cached, malformed asset URLs get a 400 instead of hanging, sibling folders like `assets-src/` no longer trigger reloads, and image preloads match the versioned asset URLs.
+- cc424e9: Gamepad input is now recorded, so rewind, the reload that keeps your place, and replays saved as scenarios reproduce pad sessions. Scenarios gain a `pad` step.
+- Updated dependencies [1754dac]
+- Updated dependencies [97deedd]
+  - keiko@0.5.1
+  - create-debuff@0.9.2
+
 ## 0.9.1
 
 ### Patch Changes

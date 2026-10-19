@@ -1,5 +1,16 @@
 # myaku
 
+## 0.5.0
+
+### Minor Changes
+
+- f29a0f0: `playwright-core` is now an optional peer dependency, so using only the in-browser profiler no longer installs it. `myaku record` users need `npm install -D playwright-core`; without it, the CLI says so.
+
+### Patch Changes
+
+- f739c4a: Hidden and throttled frames no longer count against fps, percentiles or hitch rate (reported under `paused`). Percentiles use nearest rank, so p99 of a short run is no longer always the max. `--trace` ignores screen gaps after the recording ended, uses the trace's refresh rate when the page couldn't measure one, and clips script time to the frame it blames.
+- d224bda: `record --trace` no longer says hitches went unseen when the trace has no presented frames or ended early (they are now "not covered by the trace"), notes when Chrome's trace buffer filled, and only blames the compositor when it can see canvas GPU work.
+
 ## 0.4.0
 
 ### Minor Changes
