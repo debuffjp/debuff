@@ -1,5 +1,16 @@
 # myaku
 
+## 0.3.0
+
+### Minor Changes
+
+- d4a6c44: `update` and `render` spans for Excalibur (found automatically) and KAPLAY (automatic with its default globals, or `adapt(profiler, k)`). PixiJS apps are now found even when Pixi runs its devtools hook before the ticker is set up, which left real games like Puzzling Potions and Bubbo Bubbo without spans.
+
+### Patch Changes
+
+- a761975: keiko: `new Date()` and `Date()` now run on the virtual clock, not just `Date.now()`. `test.deterministic` now gives its second run a different date as well as a different seed, as documented. A pointer press at a new position now moves the pointer there first, as in a browser, so engines that only track the position on moves (KAPLAY) see the right spot. myaku: corrections to the README. Both packages are now checked against real Phaser 3 and 4, PixiJS, KAPLAY, Excalibur and three.js with a local suite (`npm run compat`).
+- cfa9fff: Spans that ran but measured 0 ms (the browser rounds `performance.now()`) now still appear in frames and reports, instead of looking as if the engine was never hooked up.
+
 ## 0.2.0
 
 ### Minor Changes
