@@ -18,7 +18,8 @@ interface Bunny {
 
 const params = new URLSearchParams(location.search);
 const renderer = params.get("renderer") ?? "canvas2d";
-const scene = params.get("scene") === "mixed" ? "mixed" : "bunny";
+// particles: one texture, per-sprite position, scale, rotation, tint and alpha: ParticleContainer's best case.
+const scene = (["mixed", "particles"] as const).find((s) => s === params.get("scene")) ?? "bunny";
 const TINTS = [0xffffffff, 0xff8080ff, 0x80ff80ff, 0x8080ffff];
 /** Per-sprite look for the mixed scene, derived from the index so every renderer draws the same thing. */
 const look = (i: number, frame: number) => ({
@@ -85,16 +86,33 @@ async function setup(): Promise<{ draw: Draw; sync: () => void | Promise<void> }
     const raw = draw.raw;
     if (raw.kind !== "webgl2") throw new Error("spryte bench needs WebGL2");
     let pos = new Float32Array(0);
+    let scale = new Float32Array(0);
+    let rotation = new Float32Array(0);
+    let color = new Uint32Array(0);
+    const each = { scale, rotation, color };
     return {
       draw: () => {
-        if (pos.length < bunnies.length * 2) pos = new Float32Array(bunnies.length * 2);
-        for (let i = 0; i < bunnies.length; i++) {
+        const n = bunnies.length;
+        if (pos.length < n * 2) {
+          pos = new Float32Array(n * 2);
+          each.scale = scale = new Float32Array(n);
+          each.rotation = rotation = new Float32Array(n);
+          each.color = color = new Uint32Array(n);
+        }
+        for (let i = 0; i < n; i++) {
           const b = bunnies[i] as Bunny;
           pos[i * 2] = b.x;
           pos[i * 2 + 1] = b.y;
+          if (scene === "particles") {
+            const l = look(i, frameNo);
+            scale[i] = l.scale;
+            rotation[i] = l.rotation;
+            color[i] = ((l.tint & 0xffffff00) | Math.round(l.alpha * 255)) >>> 0;
+          }
         }
         draw.begin("#11140d", WIDTH, HEIGHT, 1);
-        draw.sprites(texture, pos, bunnies.length);
+        if (scene === "particles") draw.sprites(texture, pos, n, undefined, each);
+        else draw.sprites(texture, pos, n);
         draw.end();
       },
       sync: () => readPixel(raw.gl),
@@ -184,7 +202,10 @@ async function setup(): Promise<{ draw: Draw; sync: () => void | Promise<void> }
   const tex = PIXI.Texture.from(texture);
   tex.source.scaleMode = "nearest";
   if (renderer === "pixi-particle") {
-    const container = new PIXI.ParticleContainer({ dynamicProperties: { position: true } });
+    const all = scene === "particles";
+    const container = new PIXI.ParticleContainer({
+      dynamicProperties: { position: true, scale: all, rotation: all, color: all },
+    });
     app.stage.addChild(container);
     const particles: InstanceType<typeof PIXI.Particle>[] = [];
     return {
@@ -199,6 +220,13 @@ async function setup(): Promise<{ draw: Draw; sync: () => void | Promise<void> }
           const b = bunnies[i] as Bunny;
           p.x = b.x;
           p.y = b.y;
+          if (all) {
+            const l = look(i, frameNo);
+            p.scaleX = p.scaleY = l.scale;
+            p.rotation = l.rotation;
+            p.tint = l.tint >>> 8;
+            p.alpha = l.alpha;
+          }
         }
         app.render();
       },
