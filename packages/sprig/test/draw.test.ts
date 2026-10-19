@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { Camera, toRGBA } from "../src/index.js";
-import type { Backend, ClipRect, Matrix, TextureSource } from "../src/render/backend.js";
-import { Draw } from "../src/render/draw.js";
+import type { Backend, ClipRect, Matrix, TextureSource } from "../src/backend.js";
+import { Draw } from "../src/draw.js";
+import { toRGBA } from "../src/index.js";
 
 interface Quad {
   m: Matrix;
@@ -110,9 +110,8 @@ describe("Draw", () => {
 
   it("applies the camera view and restores afterwards", () => {
     const { draw, quad } = recorder();
-    const camera = new Camera({ width: 100, height: 100 });
-    camera.x = 200;
-    camera.y = 50;
+    // What a centred 100x100 camera at (200, 50) returns.
+    const camera = { view: (): Matrix => [1, 0, 0, 1, 50 - 200, 50 - 50] };
     draw.withCamera(camera, () => draw.rect(200, 50, 1, 1, "#fff"));
     draw.rect(0, 0, 1, 1, "#fff");
     expect(at(quad(0).m, 0, 0)).toEqual([50, 50]);

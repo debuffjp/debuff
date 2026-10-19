@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { Canvas2DBackend } from "../src/render/canvas2d.js";
+import { Canvas2DBackend } from "../../sprig/src/canvas2d.js";
+import { Draw } from "../../sprig/src/draw.js";
 import { debuffSans } from "../src/render/debuff-sans.js";
 import { DEBUFF_SANS, DEBUFF_SANS_EXTRAS } from "../src/render/debuff-sans-data.js";
-import { Draw } from "../src/render/draw.js";
 
 describe("debuff sans", () => {
   it("covers printable ASCII with proportional widths", () => {
@@ -31,6 +31,7 @@ describe("debuff sans", () => {
     for (const name of ["setTransform", "fillRect", "drawImage", "clearRect", "save", "restore", "beginPath", "rect", "clip"])
       ctx[name] = () => calls.push(name);
     const draw = new Draw(new Canvas2DBackend(ctx as unknown as CanvasRenderingContext2D), false);
+    draw.font = debuffSans; // what Game does
     expect(draw.measure("hi")).toEqual(debuffSans().measure("hi"));
     draw.text("hi", 0, 0);
     expect(calls.filter((c) => c === "drawImage")).toHaveLength(2); // one quad per glyph, no CSS raster

@@ -1,6 +1,4 @@
-import type { TextureSource } from "./render/backend.js";
-import type { Color } from "./render/color.js";
-import type { Draw, Frame } from "./render/draw.js";
+import type { Color, Draw, Frame, TextureSource } from "@debuffjp/sprig";
 
 export type { Frame };
 

@@ -1,3 +1,4 @@
+import { createRenderer, type Draw } from "@debuffjp/sprig";
 import { Camera } from "./camera.js";
 import { FixedClock, type FixedClockOptions } from "./clock.js";
 import { type GameErrorContext, Hooks } from "./hooks.js";
@@ -5,9 +6,7 @@ import { InspectRegistry } from "./inspect.js";
 import { ParamRegistry } from "./params.js";
 import { type Plugin, PluginRegistry } from "./plugin.js";
 import { Random } from "./random.js";
-import type { Backend } from "./render/backend.js";
-import { Draw } from "./render/draw.js";
-import { WebGL2Backend } from "./render/webgl2.js";
+import { debuffSans } from "./render/debuff-sans.js";
 import type { Scene } from "./scene.js";
 import type { drawSplash, SplashOptions } from "./splash.js";
 import { FrameStats } from "./stats.js";
@@ -137,11 +136,8 @@ export class Game {
     this.clock = new FixedClock(options.clock);
     this.random = new Random(options.seed ?? 1);
     this.background = options.background ?? "#000";
-    // alpha:false lets the compositor skip blending; desynchronized lowers input latency where supported.
-    this.draw = new Draw(
-      createBackend(this.canvas, options.renderer ?? "auto", (backend) => this.draw.setBackend(backend)),
-      !this.pixelArt,
-    );
+    this.draw = createRenderer(this.canvas, { backend: options.renderer ?? "auto", smooth: !this.pixelArt });
+    this.draw.font = debuffSans;
     this.camera = new Camera({ width: this.width, height: this.height });
     this.camera.x = this.width / 2;
     this.camera.y = this.height / 2;
@@ -420,41 +416,4 @@ export class Game {
 /** True under a bundler's dev mode (Vite: `import.meta.env.DEV`); false elsewhere. */
 function isDev(): boolean {
   return import.meta.env?.DEV === true;
-}
-
-/** Stands in while the Canvas 2D fallback loads (a few milliseconds, on browsers without WebGL2): draws nothing. */
-const PENDING = {
-  kind: "2d",
-  raw: null,
-  begin() {},
-  quad() {},
-  setBlend() {},
-  setClip() {},
-  end() {},
-  resize() {},
-  invalidate() {},
-  dispose() {},
-} as unknown as Backend;
-
-/**
- * WebGL2 when available. Otherwise the Canvas 2D fallback, loaded on demand so WebGL2 browsers (nearly all)
- * never download it: `ready` receives it once loaded, and frames before that draw nothing.
- */
-function createBackend(canvas: HTMLCanvasElement, choice: "auto" | "webgl2" | "2d", ready: (backend: Backend) => void): Backend {
-  if (choice !== "2d") {
-    // preserveDrawingBuffer:false is fastest; captures render and read in the same task.
-    const gl = canvas.getContext("webgl2", {
-      alpha: false,
-      antialias: false,
-      premultipliedAlpha: true,
-      desynchronized: true,
-      powerPreference: "high-performance",
-    });
-    if (gl) return new WebGL2Backend(gl);
-    if (choice === "webgl2") throw new Error("WebGL2 is unavailable in this browser");
-  }
-  const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
-  if (!ctx) throw new Error("No WebGL2 or Canvas 2D context available");
-  import("./render/canvas2d.js").then((m) => ready(new m.Canvas2DBackend(ctx)));
-  return PENDING;
 }

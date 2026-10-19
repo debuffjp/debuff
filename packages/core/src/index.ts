@@ -1,3 +1,20 @@
+// The renderer lives in @debuffjp/sprig; re-exported so games keep importing it from core.
+export {
+  BitmapFont,
+  type BitmapFontOptions,
+  type BlendMode,
+  type ClipRect,
+  type Color,
+  Draw,
+  type Frame,
+  type Glyph,
+  type Matrix,
+  type RawContext,
+  type SpriteDrawOptions,
+  type TextDrawOptions,
+  type TextureSource,
+  toRGBA,
+} from "@debuffjp/sprig";
 export { Camera, type CameraOptions } from "./camera.js";
 export { FixedClock, type FixedClockOptions } from "./clock.js";
 export { Game, type GameOptions, type ScaleMode } from "./game.js";
@@ -18,11 +35,7 @@ export {
 } from "./params.js";
 export type { Plugin } from "./plugin.js";
 export { Random } from "./random.js";
-export type { BlendMode, ClipRect, Matrix, RawContext, TextureSource } from "./render/backend.js";
-export { BitmapFont, type BitmapFontOptions, type Glyph } from "./render/bitmap-font.js";
-export { type Color, toRGBA } from "./render/color.js";
 export { debuffSans } from "./render/debuff-sans.js";
-export { Draw, type Frame, type SpriteDrawOptions, type TextDrawOptions } from "./render/draw.js";
 export type { Scene } from "./scene.js";
 export type { SplashOptions } from "./splash.js";
 export { type AnimationClip, type Origin, originOffset, Sprite, type SpriteOptions, sliceGrid } from "./sprite.js";

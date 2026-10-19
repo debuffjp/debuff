@@ -1,7 +1,6 @@
 import type { Backend, BlendMode, ClipRect, Matrix, RawContext, TextureSource } from "./backend.js";
 import type { BitmapFont } from "./bitmap-font.js";
 import { type Color, toRGBA } from "./color.js";
-import { debuffSans } from "./debuff-sans.js";
 
 /** A rectangular region of an image, in source pixels. */
 export interface Frame {
@@ -32,7 +31,7 @@ export interface SpriteDrawOptions {
 }
 
 export interface TextDrawOptions {
-  /** A `BitmapFont`, or a CSS font such as "16px monospace". Default: debuff sans, the built-in pixel font. */
+  /** A `BitmapFont`, or a CSS font such as "16px monospace". Default: `draw.font`. */
   font?: string | BitmapFont | undefined;
   color?: Color;
   align?: "left" | "center" | "right";
@@ -50,6 +49,11 @@ const WHITE = 0xffffffff;
 export class Draw {
   /** Global alpha multiplier for subsequent draws. */
   alpha = 1;
+  /**
+   * Font for `text()` and `measure()` when none is given: a CSS font, a `BitmapFont`, or a function returning
+   * one (called on first use, so a font built from a canvas costs nothing until text is drawn).
+   */
+  font: string | BitmapFont | (() => string | BitmapFont) = "16px sans-serif";
   /** Quads (sprites, rects, glyph runs…) submitted this frame. Reset each frame; for diagnostics. */
   quads = 0;
   /** Preallocated transform stack: push/pop copy six numbers and never allocate. */
@@ -271,11 +275,12 @@ export class Draw {
   /** Text, rasterised once and cached as a texture (crisp at the current render scale). */
   text(text: string, x: number, y: number, o: TextDrawOptions = {}): void {
     if (!text) return;
-    if (typeof o.font !== "string") {
-      this.bitmapText(text, x, y, o.font ?? debuffSans(), o);
+    const font = o.font ?? this.defaultFont();
+    if (typeof font !== "string") {
+      this.bitmapText(text, x, y, font, o);
       return;
     }
-    const entry = this.textCache.get(text, o.font, this.renderScale, (src) => this.backend.invalidate(src));
+    const entry = this.textCache.get(text, font, this.renderScale, (src) => this.backend.invalidate(src));
     const ax = o.align === "center" ? 0.5 : o.align === "right" ? 1 : 0;
     const ay = o.baseline === "middle" ? 0.5 : o.baseline === "bottom" ? 1 : 0;
     this.local(x - ax * entry.w, y - ay * entry.h, entry.w, entry.h);
@@ -288,7 +293,7 @@ export class Draw {
    * The logical box `text()` fills for this string and font, so layouts can align and centre without
    * guessing. Same cache as `text()`, so measuring then drawing rasterises once.
    */
-  measure(text: string, font: string | BitmapFont = debuffSans()): { w: number; h: number } {
+  measure(text: string, font: string | BitmapFont = this.defaultFont()): { w: number; h: number } {
     if (!text) return { w: 0, h: 0 };
     if (typeof font !== "string") return font.measure(text);
     const entry = this.textCache.get(text, font, this.renderScale, (src) => this.backend.invalidate(src));
@@ -396,6 +401,10 @@ export class Draw {
       this.frames.set(image, f);
     }
     return f;
+  }
+
+  private defaultFont(): string | BitmapFont {
+    return typeof this.font === "function" ? this.font() : this.font;
   }
 
   private withAlpha(rgba: number, alpha: number): number {
