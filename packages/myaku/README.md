@@ -114,12 +114,28 @@ npx myaku record dist --seconds 20 --cpu 4 --p95 20 --hitches 6
 
 Timings depend on the machine, so set budgets from runs on the same CI runner. It uses the Chrome or Edge you have installed (`MYAKU_BROWSER` to pick one).
 
+## What it sees that the browser doesn't tell you
+
+Chromium's [Long Animation Frames](https://w3c.github.io/long-animation-frames/) API (LoAF) is the best signal a page gets about slow frames, and myaku uses it. Games need more than it gives:
+
+| | Long Animation Frames | myaku |
+| --- | --- | --- |
+| Which frames | Over 50 ms (three game frames) | Over 1.5× the display interval (25 ms at 60 Hz), including frames whose timestamps look on time |
+| Where in the game loop | The one `requestAnimationFrame` callback | The game's own callback and source line, then engine spans (`update:<scene>`, `render`) found automatically |
+| GPU work | Not covered | Draw calls, texture and buffer uploads with bytes, shader compiles |
+| Garbage collection, throttling, hidden tabs | Not covered | A verdict for each, or `unknown` when it can't tell |
+| Browsers | Chromium | Every browser, with attribution in Chromium |
+
+On a Phaser game slowed by a 70 ms and a 30 ms function, 8 seconds of play produced 3 LoAF entries and 7 real hitches. myaku reported all 7.
+
 ## How it works
 
-- **Frames:** myaku wraps `requestAnimationFrame`. A frame's interval runs from its start to the next frame's start, which is the gap the player sees. Its CPU time is the time the frame callbacks ran.
+- **Frames:** myaku wraps `requestAnimationFrame`. A frame's interval runs from its start to the next frame's start, which is the gap the player sees, and is never shorter than the frame's own code. Chrome can stamp the frame after a 30 ms callback right back on the 16.7 ms grid, which hides the overrun from timestamps. Its CPU time is the time the frame callbacks ran.
 - **GPU work:** myaku wraps the methods of each canvas context the game creates, counting `draw*` calls, texture and buffer uploads (with bytes), and shader compiles and links.
 - **Attribution:** Chromium's Long Animation Frames entries report which scripts ran during slow frames. Because myaku's wrapper sits in front of your frame callbacks, myaku records where each callback was registered (one stack capture per distinct callback) and points at that instead.
 - **Almost no garbage:** frames live in fixed-size typed arrays, so profiling doesn't cause the GC it looks for. What myaku allocates per frame (a callback wrapper, span closures) is a few small short-lived objects. Overhead is typically under 0.1 ms per frame and is reported as `overheadMs`.
+- **Engines found where they announce themselves:** PixiJS's and three.js's devtools hooks, Excalibur's devtools global, Phaser's and KAPLAY's globals. Nothing is added to the game. PixiJS can call its hook before its ticker exists, so myaku finishes hooking up once `init()` has run.
+- **Spans that ran always count:** browsers round `performance.now()`, so cheap work often measures 0 ms. A span that ran still shows up (as 0 ms), so "the engine wasn't hooked up" and "the engine was fast" look different.
 - **Warm-up:** the first 10 frames (scripts compiling, assets decoding) aren't counted as play.
 
 ## Browser support
