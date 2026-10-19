@@ -45,7 +45,16 @@ export async function loadConfig(root: string): Promise<ResolvedConfig> {
   if (!file) return { root, file: undefined, plugins: [], atlas: {} };
   // Vite's module runner transpiles TypeScript without a separate loader dependency.
   const { runnerImport } = await import("vite");
-  const { module } = await runnerImport<{ default?: DebuffConfig }>(file);
+  // runnerImport sets process.env.NODE_ENV to "development" for the whole process. Put it back, or a
+  // `debuff build` that loaded a config would build in dev mode and ship the dev tools to players.
+  const nodeEnv = process.env.NODE_ENV;
+  let module: { default?: DebuffConfig };
+  try {
+    ({ module } = await runnerImport<{ default?: DebuffConfig }>(file));
+  } finally {
+    if (nodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = nodeEnv;
+  }
   const config = module.default;
   if (!config || typeof config !== "object") throw new Error(`${file} must \`export default defineConfig({ ... })\``);
   const viewport = config.scenarios?.viewport;
