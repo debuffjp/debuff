@@ -1,6 +1,6 @@
 # @debuffjp/core
 
-Game loop, fixed-step clock, scenes, camera, sprites, typed creative parameters and a batched WebGL2 renderer with automatic Canvas 2D fallback. No dependencies.
+Game loop, fixed-step clock, scenes, camera, sprites and typed creative parameters. Rendering is [spryte](../spryte), a batched WebGL2 renderer with automatic Canvas 2D fallback, re-exported here so `Draw`, `BitmapFont` and friends import from `@debuffjp/core` as before. One dependency (spryte), no others.
 
 ```bash
 npm install @debuffjp/core
