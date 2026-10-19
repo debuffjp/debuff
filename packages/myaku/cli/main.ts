@@ -24,6 +24,7 @@ Options:
   --headed          Show the browser
   --trace           Also record Chrome's trace: check hitches against presented
                     frames, and name GPU and compositor causes (a little slower)
+  --trace-out <f>   With --trace, also save the raw trace (open in DevTools or Perfetto)
   --p95 <ms>        Fail if 95th-percentile frame time is over this
   --p99 <ms>        Fail if 99th-percentile frame time is over this
   --hitches <n>     Fail if there are more hitches per minute than this
@@ -53,6 +54,7 @@ export async function main(argv: string[]): Promise<number> {
       play: { type: "string" },
       headed: { type: "boolean" },
       trace: { type: "boolean" },
+      "trace-out": { type: "string" },
       p95: { type: "string" },
       p99: { type: "string" },
       hitches: { type: "string" },
@@ -90,7 +92,8 @@ export async function main(argv: string[]): Promise<number> {
     ...(values.cpu !== undefined ? { cpuThrottle: num(values.cpu, "cpu") } : {}),
     ...(size ? { viewport: { width: Number(size[1]), height: Number(size[2]) } } : {}),
     ...(values.headed ? { headed: true } : {}),
-    ...(values.trace ? { trace: true } : {}),
+    ...(values.trace || values["trace-out"] ? { trace: true } : {}),
+    ...(values["trace-out"] ? { traceFile: values["trace-out"] } : {}),
     ...(play ? { play } : {}),
   });
   const budgets = checkBudgets(report, {

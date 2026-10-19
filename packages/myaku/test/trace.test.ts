@@ -101,15 +101,35 @@ describe("myaku record --trace", () => {
     expect(none.missed).toEqual([{ at: 200, ms: 50 }]);
   });
 
-  it("turns unknown into gpu when the GPU process was busy through the hitch", () => {
+  const gpuTask = (at: number, ms: number): TraceEvent => ({
+    name: "task",
+    cat: "gpu",
+    ph: "X",
+    ts: us(at),
+    dur: ms * 1000,
+    pid: GPU,
+    tid: 9,
+  });
+
+  it("turns unknown into gpu when the game kept the GPU busy before and through the hitch", () => {
     const h = verdict(10, 195, 45, "unknown");
-    const ev = [...frames(), { name: "task", cat: "gpu", ph: "X", ts: us(196), dur: 44_000, pid: GPU, tid: 9 }];
+    // Ten frames before the hitch at 10 ms of GPU work each, then busy through it.
+    const load = Array.from({ length: 10 }, (_, i) => gpuTask(195 - 167 + i * 16.7, 10));
+    const ev = [...frames(), ...load, gpuTask(196, 44)];
     const { report: r, hitches } = analyze(report([h]), [h], ev, 100);
     expect(hitches[0]?.cause).toBe("gpu");
     expect(hitches[0]?.confidence).toBe("high");
     expect(r.worst[0]?.cause).toBe("gpu");
     expect(r.causes).toEqual({ gpu: 1 });
     expect(r.trace.reclassified).toBe(1);
+  });
+
+  it("doesn't blame the game for a lone GPU stall on an idle GPU", () => {
+    const h = verdict(10, 195, 45, "unknown");
+    const { report: r, hitches } = analyze(report([h]), [h], [...frames(), gpuTask(196, 44)], 100);
+    expect(hitches[0]?.cause).toBe("unknown");
+    expect(hitches[0]?.summary).toMatch(/driver, the OS or another app/);
+    expect(r.trace.reclassified).toBe(0);
   });
 
   it("turns unknown into compositor when drawing was slow but the GPU idle", () => {

@@ -111,7 +111,7 @@ npx myaku record dist --seconds 20 --cpu 4 --p95 20 --hitches 6
 - **`--play file.mjs`:** a module whose default export, `async (page) => {}`, plays the game with Playwright's `page` (press keys, click Play). Without it, myaku records whatever the game does by itself.
 - **`--cpu 4`:** slow the CPU down, like a mid-range phone.
 - **Budgets:** `--p95 <ms>`, `--p99 <ms>`, `--hitches <per minute>`. Exit code 1 when one is over, 2 on errors.
-- **`--trace`:** check hitches against the frames Chrome actually presented, and name `gpu` and `compositor` causes. See [below](#--trace-what-reached-the-screen).
+- **`--trace`, `--trace-out trace.json`:** check hitches against the frames Chrome actually presented, and name `gpu` and `compositor` causes. `--trace-out` also saves the raw trace for Chrome DevTools or Perfetto. See [below](#--trace-what-reached-the-screen).
 - **`--json`, `--out report.json`:** the full report and budget results, for CI artifacts and agents.
 - **`--warmup <s>`** (default 1), **`--viewport 1280x720`**, **`--headed`:** settle time before recording, window size, and showing the browser.
 
@@ -123,7 +123,7 @@ npx myaku record dist --seconds 20 --cpu 4 --p95 20 --hitches 6
 - **Hitch check.** Each hitch is `confirmed` (the screen went a refresh without a new frame) or `unconfirmed` (rAF was late but every refresh still got a frame). `trace.missed` lists screen gaps myaku's hitch list doesn't cover.
 - **GPU and compositor causes.** An `unknown` verdict becomes `gpu` when the GPU process was busy through the hitch or the swap waited, or `compositor` when Chrome's compositor drew slowly with the GPU idle.
 
-It's off by default. On the compat games, traced and plain runs had the same fps, p95 and myaku overhead, but a heavier game makes a bigger trace. `gpu` means Chrome's GPU process was busy, which can include work for other tabs or the browser itself, so a lone `gpu` hitch on a light game is a lead, not an answer. It's Chromium only, and nothing changes in the page: the in-page profiler is the same in every browser.
+It's off by default. On the compat games, traced and plain runs had the same fps, p95 and myaku overhead, but a heavier game makes a bigger trace. The GPU process serves the whole browser and waits on the OS, so `gpu` also needs the game to have kept the GPU busy in the frames just before. A lone stall on an idle GPU (a blocked present, another app) stays `unknown`, and its summary says the GPU stalled. A GPU-bound game's first slow frame after light ones can stay `unknown` for the same reason. Chrome doesn't report GPU-side timings for a single page, so this is busy time in the GPU process, not GPU execution time. It's Chromium only, and nothing changes in the page: the in-page profiler is the same in every browser.
 
 Timings depend on the machine, so set budgets from runs on the same CI runner. It uses the Chrome or Edge you have installed (`MYAKU_BROWSER` to pick one).
 
