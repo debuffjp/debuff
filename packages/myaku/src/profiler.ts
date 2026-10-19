@@ -401,7 +401,10 @@ export class Profiler {
   private commit(next: number): void {
     const k = this.head;
     const f = this.f;
-    const interval = next - this.cur.at;
+    // A frame lasts at least as long as its own code ran. Chrome can stamp the next frame on the regular
+    // grid even when this one's callbacks overran (31 ms of work, then a timestamp 16.7 ms later), and
+    // Long Animation Frames only reports frames over 50 ms, so without this those hitches go unseen.
+    const interval = Math.max(next - this.cur.at, this.cur.cpu);
     f.at[k] = this.cur.at;
     f.interval[k] = interval;
     f.cpu[k] = this.cur.cpu;
