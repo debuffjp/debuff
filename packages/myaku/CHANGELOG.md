@@ -1,5 +1,17 @@
 # myaku
 
+## 0.4.0
+
+### Minor Changes
+
+- 4dfc682: `myaku record --trace` records Chrome's own frame pipeline while it plays, and checks myaku against it: presented-frame percentiles next to the rAF ones, each hitch confirmed or flagged as not seen on screen, gaps myaku missed, and `unknown` hitches named `gpu` or `compositor` from evidence. A lone GPU stall on a lightly loaded GPU stays `unknown` and says it's likely outside the game. `--trace-out` saves the raw trace for DevTools or Perfetto. Opt-in and Chromium only; nothing changes in the page.
+  
+  The display rate is now measured again every 30 frames, keeping the fastest rate seen, so a slow start (shaders compiling, a heavy first scene) no longer doubles the hitch budget for the whole run. `profiler.budgetMs` can now be set.
+
+### Patch Changes
+
+- c2d6ed6: Frames whose own code overran the budget (say 31 ms of game code) are now hitches even when Chrome stamps the next frame on time. They were invisible before, and too short for Long Animation Frames, which only reports frames over 50 ms.
+
 ## 0.3.0
 
 ### Minor Changes
