@@ -3,7 +3,7 @@
 - Status: accepted
 - Date: 2026-10-16
 - Amends: ADR 0001 (Canvas 2D first)
-- Amended by: ADR 0013 (the renderer is now spryte; the numbers below are from a single, non-interleaved run and are superseded by `packages/spryte/docs/benchmarks.md`)
+- Amended by: ADR 0013 (the renderer is now spryte). **The numbers below are historical**: a single, non-interleaved run with no parity check, and the prototype rows have no committed raw data. They are superseded by `packages/spryte/docs/benchmarks.md` and `bench/renderer/results/`.
 
 ## Context
 
