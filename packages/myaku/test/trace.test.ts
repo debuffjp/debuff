@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyze, busy, pipelines, SYNC_MARK, type TraceEvent } from "../cli/trace.js";
+import { analyze, busy, pipelines, SYNC_MARK, type TraceEvent, vsyncMs } from "../cli/trace.js";
 import type { Report, Verdict } from "../src/index.js";
 
 const PID = 1;
@@ -136,6 +136,24 @@ describe("myaku record --trace", () => {
     const h = verdict(10, 195, 45, "unknown");
     const { hitches } = analyze(report([h]), [h], frames({ draw: 20 }), 100);
     expect(hitches[0]?.cause).toBe("compositor");
+  });
+
+  it("blames the game's canvas, not the compositor, when the compositor waited on the canvas's GPU work", () => {
+    const h = verdict(10, 195, 45, "unknown");
+    const load = Array.from({ length: 10 }, (_, i) => gpuTask(195 - 167 + i * 16.7, 10));
+    const present: TraceEvent = { ...gpuTask(196, 44), name: "DXGISwapChainImageBacking::Present" };
+    const { hitches } = analyze(report([h]), [h], [...frames({ draw: 20 }), ...load, gpuTask(196, 44), present], 100);
+    expect(hitches[0]?.cause).toBe("gpu");
+  });
+
+  it("lets the trace correct a throttled guess", () => {
+    const h = verdict(10, 195, 45, "throttled");
+    expect(analyze(report([h]), [h], frames({ draw: 20 }), 100).hitches[0]?.cause).toBe("compositor");
+  });
+
+  it("reads the display's refresh interval from the pipeline spacing", () => {
+    expect(vsyncMs(frames())).toBeCloseTo(16.7, 0);
+    expect(vsyncMs(frames().filter((e) => e.name !== SYNC_MARK))).toBeUndefined();
   });
 
   it("leaves unknown alone when the trace shows nothing busy, and keeps other causes", () => {
