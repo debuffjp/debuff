@@ -1,6 +1,6 @@
 {
   "name": "myaku",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A frame profiler for web games: finds the frames players feel drop and says why, in plain words, for any engine",
   "keywords": [
     "game",

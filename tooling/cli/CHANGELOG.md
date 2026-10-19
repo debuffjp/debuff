@@ -1,5 +1,21 @@
 # @debuffjp/cli
 
+## 0.9.0
+
+### Minor Changes
+
+- 61798e2: `debuff build` now adds link-preview tags (Open Graph and Twitter), a web app manifest and a preview image (your first scenario baseline) to `dist/`, configured by `launch` in `debuff.config.ts`. New `debuff ship itch|wavedash|press` gets a build ready for a store: an itch.io zip with limit checks, Wavedash config and `Wavedash.init()` checks, or a press kit with a factsheet and screenshots. It never uploads anything.
+
+### Patch Changes
+
+- Updated dependencies [d4a6c44]
+- Updated dependencies [a9b440f]
+- Updated dependencies [a761975]
+- Updated dependencies [cfa9fff]
+- Updated dependencies [d159eef]
+  - keiko@0.5.0
+  - create-debuff@0.9.0
+
 ## 0.8.0
 
 ### Minor Changes
