@@ -40,12 +40,12 @@ Text is measured with `draw.measure`, so nothing is positioned by guesswork:
 - `Transition`: `run(swap?)` → covers the screen, calls `swap` once fully covered, then uncovers. `update(dt)`, `draw(draw, x, y, w, h)`, `stop()`, `active`, `blocking`, `cover`, `inspect()`
 - `Menu`: `new Menu(items, { actions, onBack, wrap })`, `update(input)` (with `input.pointer`, a tap selects the row under it; on a value row the left half lowers and the right half raises), `tap(x, y)`, `move(delta)`, `select()`, `measure(draw, style)`, `draw(draw, x, y, style)`, `drawPanel(draw, cx, cy, style)`, `focused`, `inspect()`
   - items: `{ label, onSelect?, disabled?, value?, change? }`
-  - style: `font`, `color`, `focusColor`, `disabledColor`, `gap` (3), `align` (`left`/`center`), `cursor` (`>`), `cursorGap` (4), `valueGap` (12); panel adds `title`, `titleFont`, `titleColor`, `titleGap` (6), `borders`, `fill`, `padding` (6)
-- `panel(draw, x, y, w, h, borders, fill?, chamfer?)`: 1px rings, outermost first, then the fill; `chamfer` cuts each corner by that many pixels
-- `panelAround(draw, cx, cy, w, h, { borders, fill, padding, chamfer, shadow, shadowOffset })`: a panel fitted around content, centred and pixel-snapped; returns the content's top-left
+  - style: `font`, `color`, `focusColor`, `disabledColor`, `gap` (3), `align` (`left`/`center`), `cursor` (`>`), `cursorGap` (4), `valueGap` (12), `highlight` (a jelly pill behind the focused row; on with debuff's look, `false` turns it off); panel adds `title`, `titleFont`, `titleColor`, `titleGap` (6), `borders`, `fill`, `padding`, `radius`
+- `panel(draw, x, y, w, h, borders, fill?, chamfer?, radius?)`: 1px rings, outermost first, then the fill; `radius` rounds each corner, `chamfer` cuts it by that many pixels instead
+- `panelAround(draw, cx, cy, w, h, { borders, fill, padding, radius, chamfer, shadow, shadowOffset })`: a panel fitted around content, centred and pixel-snapped; returns the content's top-left
 - `bar(draw, x, y, w, h, value, { segments, gap, fill, empty })`: a segmented meter; `value` (0–1) lights whole cells only, all the same width; returns the width used
 
-Colours and fonts are yours to choose; the defaults are plain greys. For debuff's own look (chamfered corners, a lime edge, a hard ink shadow), spread `debuffFrame` into any frame or menu panel style:
+Out of the box, panels and menus use debuff's own look ("squish"): a soft, round-cornered dark panel with no outline, light labels, lime focus and a jelly highlight that squashes when focus moves. Set your own `borders` or `fill` and you get exactly what you set. `debuffFrame` is that look as a style object, to spread into anything:
 
 ```ts
 import { debuffFrame } from "@debuffjp/ui";
