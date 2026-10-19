@@ -4,8 +4,7 @@ import { play, test } from "keiko";
 
 test("bubbo bubbo: Play reaches the game", async () => {
   const game = await play();
-  await game.eventually((s) => s?.screen === "TitleScreen" && s.playButton != null, { within: "20s" });
-  const { x, y } = game.state.playButton;
-  game.tap(x, y);
+  // The title fades in, then slides its buttons into place: tap Play once the engine shows it settled on screen.
+  await game.tapWhenReady((g) => g.engine?.targets.some((t) => t.text === "SHOOT BUBBLES!") && g.state?.playButton, { within: "20s" });
   await game.eventually((s) => s?.screen === "GameScreen", { within: "10s" });
 });

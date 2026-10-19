@@ -1,12 +1,14 @@
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import pc from "./ansi.js";
+import { init } from "./init.js";
 import { findTests, formatResult, formatSummary, runTests } from "./runner.js";
 
 const HELP = `keiko: fast, deterministic tests for web games
 
 Usage:
   keiko [files...] [options]
+  keiko init            Write a first test for your game, for the engine it uses
 
 Runs tests/**/*.test.ts (and src/**/*.test.ts) against your real game in Node, with no browser.
 
@@ -39,10 +41,14 @@ export async function main(argv: string[]): Promise<number> {
     return 0;
   }
   const root = resolve(values.root ?? process.cwd());
+  if (positionals[0] === "init") return init(root);
   if (!findTests(root, positionals).length) {
     if (values.json)
       console.log(JSON.stringify({ ok: true, passed: 0, failed: 0, skipped: 0, todo: 0, durationMs: 0, results: [], outside: [] }));
-    else console.log(`No tests yet. Add one in tests/, e.g. tests/game.test.ts.\nGuide: ${pc.cyan("https://debuff.jp/docs/testing")}`);
+    else
+      console.log(
+        `No tests yet. Write a first one with ${pc.cyan("npx keiko init")}, or add one in tests/.\nGuide: ${pc.cyan("https://debuff.jp/docs/testing")}`,
+      );
     return 0;
   }
   if (!values.json) console.log(`\n${pc.bold("keiko")} ${pc.dim("稽古 · practice for web games")}\n`);

@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { yieldTurn } from "./clock.js";
 import { type Driver, MissingHookError, type ParamValue } from "./driver.js";
 import { type Duration, describeSteps, toSteps } from "./duration.js";
+import type { EngineInfo, EngineTarget } from "./engines.js";
 import { Trace } from "./trace.js";
 import { pick, show } from "./values.js";
 
@@ -55,6 +56,8 @@ export interface PlaytestInit {
   loading?: () => boolean;
   /** Resolves relative scenario paths. */
   root: string;
+  /** What keiko reads from the engine itself (Phaser, PixiJS), with no hook in the game. */
+  engine?: () => EngineInfo | undefined;
 }
 
 /**
@@ -84,6 +87,7 @@ export class Playtest<S = any> {
   private readonly root: string;
   private readonly settler: ((timeout?: number) => Promise<boolean>) | undefined;
   private readonly loading: () => boolean;
+  private readonly engineInfo: () => EngineInfo | undefined;
 
   /** @internal Use {@link play}. */
   constructor(
@@ -97,6 +101,7 @@ export class Playtest<S = any> {
     this.root = init.root;
     this.settler = init.settle;
     this.loading = init.loading ?? (() => false);
+    this.engineInfo = init.engine ?? (() => undefined);
   }
 
   // ---- reading ---------------------------------------------------------------------------------
@@ -106,9 +111,26 @@ export class Playtest<S = any> {
     return this.driver.state() as S;
   }
 
-  /** The active scene's name, if the game reports one. */
+  /**
+   * The active scene's name: what the game reports, or else what keiko reads from the engine
+   * (Phaser's topmost active scene, the class of PixiJS's topmost screen).
+   */
   get scene(): string | undefined {
-    return this.driver.scene();
+    return this.driver.scene() ?? this.engine?.scene;
+  }
+
+  /**
+   * What keiko reads from Phaser 3 or PixiJS 8 without any hook in the game: the active `scene`, every
+   * active scene, and the `targets` a player can press (visible and taking input), with centres in page
+   * pixels for `tap(x, y)`. `undefined` for other engines. Read fresh on every access.
+   *
+   * ```ts
+   * const game = await play({ ready: (g) => g.engine?.targets.some((t) => t.text === "PLAY") });
+   * await game.tapWhenReady((g) => g.engine?.targets.find((t) => t.text === "PLAY"));
+   * ```
+   */
+  get engine(): EngineInfo | undefined {
+    return this.engineInfo();
   }
 
   /** Steps played since the game booted. */
@@ -242,6 +264,51 @@ export class Playtest<S = any> {
         const what = options.message ?? (condition.toString().length < 120 ? condition.toString() : "the condition");
         throw new TimeoutError(
           `${what} didn't hold within ${describeSteps(limit, this.stepSeconds)}.${this.tapHint()} Last state: ${show(this.state, 400)}`,
+        );
+      }
+      this.advance(1);
+    }
+  }
+
+  /**
+   * Wait for something to press, then tap its centre: the way a player waits for a menu to finish
+   * appearing. `find` returns a point in page pixels (or anything with `x` and `y`, like an
+   * {@link EngineInfo} target), or nothing while it isn't there yet. keiko taps once the point has
+   * stayed put for `steady` steps (default 10), so buttons that slide or bounce in are pressed where
+   * they land. Lets async code and loads finish between frames, like {@link eventually}.
+   *
+   * ```ts
+   * await game.tapWhenReady((g) => g.engine?.targets.find((t) => t.text === "PLAY"));
+   * await game.tapWhenReady((g) => g.state.playButton, { within: "5s" });
+   * ```
+   */
+  async tapWhenReady(
+    find: (game: Playtest<S>) => { x: number; y: number } | EngineTarget | undefined | null | false,
+    options: { within?: Duration; steady?: number; timeout?: number } = {},
+  ): Promise<this> {
+    const limit = toSteps(options.within ?? "10s", this.stepSeconds);
+    const steady = options.steady ?? 10;
+    let last: string | undefined;
+    let still = 0;
+    for (let steps = 0; ; steps++) {
+      await this.quiet(options.timeout);
+      const point = find(this) || undefined;
+      const at = point && Number.isFinite(point.x) && Number.isFinite(point.y) ? `${point.x},${point.y}` : undefined;
+      still = at !== undefined && at === last ? still + 1 : 0;
+      last = at;
+      if (point && at !== undefined && still >= steady) return this.tap(point.x, point.y);
+      if (steps >= limit) {
+        const why = at === undefined ? "nothing to tap appeared" : `the target kept moving (last at ${at})`;
+        throw new TimeoutError(
+          `tapWhenReady(): ${why} within ${describeSteps(limit, this.stepSeconds)}. ${find.toString().length < 120 ? `Looked for ${find.toString()}. ` : ""}` +
+            `Last state: ${show(this.state, 300)}${
+              this.engine
+                ? `; engine targets: ${show(
+                    this.engine.targets.map((t) => t.text ?? t.name ?? t.type),
+                    200,
+                  )}`
+                : ""
+            }`,
         );
       }
       this.advance(1);

@@ -4,10 +4,9 @@ import { expect, play, test } from "keiko";
 const home = { ready: (g) => g.state?.screen === "HomeScreen" && g.state.playButton != null };
 
 async function pressPlay(game) {
-  // The home screen reveals its buttons one after another; Play takes input once it has appeared.
-  await game.run("2s");
-  const { x, y } = game.state.playButton;
-  game.tap(x, y);
+  // The home screen reveals its buttons one after another: tap Play once it has appeared and settled.
+  // (The hook reports its position from the start, so wait for the engine to show it taking input.)
+  await game.tapWhenReady((g) => g.engine?.targets.some((t) => t.text === "Start Game") && g.state.playButton);
   await game.eventually((s) => s.screen === "GameScreen" && s.board?.pieces > 0, { within: "10s" });
 }
 

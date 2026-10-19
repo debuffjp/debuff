@@ -309,7 +309,9 @@ export class Profiler {
         if (i < 0) i = this.spanNames.push("other") - 1;
       } else i = this.spanNames.push(name) - 1;
     }
-    this.curSpans[i] = (this.curSpans[i] ?? 0) + ms;
+    // Browsers round performance.now() (to 0.1 ms or coarser), so cheap work often measures 0. Count it
+    // as a sliver above 0, so a span that ran still appears in frames and reports (as 0 ms).
+    this.curSpans[i] = (this.curSpans[i] ?? 0) + Math.max(ms, Number.MIN_VALUE);
   }
 
   /** Run `fn` when the profiler stops (adapters use this to stop watching). */

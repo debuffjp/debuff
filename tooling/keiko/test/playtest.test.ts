@@ -253,6 +253,17 @@ describe("Playtest", () => {
     expect(() => g.until(() => false, { within: 2 })).not.toThrow(/after tap/);
   });
 
+  it("taps a target once it appears and stops moving", async () => {
+    const g = game();
+    // Appears at step 3, slides until step 8, then stays.
+    const target = () => (g.tick < 3 ? undefined : { x: Math.min(g.tick, 8) * 10, y: 5 });
+    await g.tapWhenReady(target, { steady: 4 });
+    expect(g.state.pointer).toEqual([80, 5]);
+    expect(g.tick).toBe(13); // 8 + 4 steady steps + the tap's own step
+    await expect(g.tapWhenReady(() => undefined, { within: 3 })).rejects.toThrow(/nothing to tap appeared within 3 steps/);
+    await expect(g.tapWhenReady(() => ({ x: g.tick, y: 0 }), { within: 3 })).rejects.toThrow(/the target kept moving/);
+  });
+
   it("explains a settle that times out", async () => {
     const g = new Playtest<FakeState>(debuffDriver(fakeHooks()), { root: ".", settle: async () => false });
     await expect(g.settle(5)).rejects.toThrow(/still had requests in flight after 5 ms/);

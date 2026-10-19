@@ -37,7 +37,7 @@ Each has a small game in [`compat/`](https://github.com/debuffjp/debuff/tree/mai
 
 ### Real games
 
-keiko also plays open-source games it was never written for. Each needs only a small `window.__KEIKO__` hook added. To reproduce these rows, run `npm run compat` once, then `node compat/real.mjs` from the repo root. It clones each game at a pinned commit, applies the hook from [`compat/real/<game>/hook.patch`](https://github.com/debuffjp/debuff/tree/main/compat/real) and runs the tests next to it. It runs locally only, not in CI.
+keiko also plays open-source games it was never written for. Each needs only a small `window.__KEIKO__` hook added, and each also has a test that uses no hook at all, only [`game.engine`](#phaser-and-pixijs-no-hook-needed-to-start). To reproduce these rows, run `npm run compat` once, then `node compat/real.mjs` from the repo root. It clones each game at a pinned commit, applies the hook from [`compat/real/<game>/hook.patch`](https://github.com/debuffjp/debuff/tree/main/compat/real) and runs the tests next to it. It runs locally only, not in CI.
 
 | Game | Engine | Tests | Deterministic |
 | --- | --- | --- | --- |
@@ -64,9 +64,30 @@ This README is the complete reference. Using debuff? Its guide, [debuff.jp/docs/
 
 ```bash
 npm install -D keiko
+npx keiko init
 ```
 
+`keiko init` looks at your dependencies and writes `tests/smoke.test.js` (or `.ts`) for the engine it finds: the game boots and plays 5 seconds without an error. It never overwrites a file. It also prints a `window.__KEIKO__` hook for your entry file, ready to fill in for when tests need your game's own state.
+
 Put tests in `tests/**/*.test.ts` (or `.js`; `src/**/*.test.ts` works too) and run `npx keiko`. If you use TypeScript, add `"tests"` to `include` in `tsconfig.json`.
+
+### Phaser and PixiJS: no hook needed to start
+
+For Phaser 3 and PixiJS 8 games, keiko reads `game.engine` from the engine itself:
+
+- `scene`: the topmost active scene (Phaser) or screen (PixiJS)
+- `scenes`: all of them
+- `targets`: what a player can press, with centres in page pixels. These are objects that are visible, taking input and on screen, with their `type`, `text` and `name`
+
+That's enough to press Play and land on the game:
+
+```ts
+const game = await play({ ready: (g) => g.engine?.scene === "HomeScreen" });
+await game.tapWhenReady((g) => g.engine?.targets.find((t) => t.text === "Start Game"));
+await game.eventually(() => game.engine?.scene === "GameScreen");
+```
+
+`tapWhenReady` waits until the target exists and has stopped moving, so a button that fades or slides in gets pressed where it lands. Phaser 4's ES module build has no global, so it needs the hook below.
 
 ### Let tests see your game
 
@@ -154,6 +175,7 @@ Reading:
 | `game.window` | The game's page, for globals and the DOM |
 | `game.stepSeconds` | Seconds per step |
 | `game.driver` | How keiko drives this game (`kind`: `"debuff"`, `"keiko"` or `"clock"`) |
+| `game.engine` | What keiko reads from Phaser 3 or PixiJS 8 with no hook: `scene`, `scenes`, `targets` (see [above](#phaser-and-pixijs-no-hook-needed-to-start)) |
 
 Playing (each returns the playtest, so calls chain):
 
@@ -176,6 +198,7 @@ Asking:
 | | Returns | |
 | --- | --- | --- |
 | `await run(duration)` | the playtest | Like `wait`, but lets the game's async code (promise chains, tweens awaited in UI flows, loads) continue between frames, like a browser does |
+| `await tapWhenReady(find, { within, steady })` | the playtest | Waits until `find(game)` returns a point (`{ x, y }`, or an engine target) that has stayed put for `steady` steps (default 10), then taps it |
 | `await eventually(condition, { within })` | steps taken | Like `until`, letting async code and loads finish between frames. Use it after an action that loads a screen |
 | `until(condition, { within })` | steps taken | Plays until `condition(state)` holds. Fails with the last state if it doesn't within `within` (default `"10s"`) |
 | `emitted(name)` | number | How many times the game emitted `name` (debuff: `game.emit("coin")`), 0 until the first time. `game.until(() => game.emitted("coin") > 0)` |
@@ -262,6 +285,7 @@ Errors a game raises outside any test (say, an asset that fails to load after it
 ## The CLI
 
 ```bash
+npx keiko init                # a first test for your game, for the engine it uses
 npx keiko                     # every test
 npx keiko tests/jump.test.ts  # some files
 npx keiko tests/levels        # every test in a folder
