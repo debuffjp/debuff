@@ -67,13 +67,34 @@ describe("runTests", { timeout: 60_000 }, () => {
 
   it("filters by name and reports files that fail to load", async () => {
     const filtered = await runTests({ root: fixture, files: ["tests/dot.test.ts", "broken/syntax.test.ts"], filter: "WALKS" });
-    expect(filtered.results.map((r) => [r.name, r.status])).toEqual([["walks right at its speed", "pass"]]);
+    expect(filtered.results.map((r) => [r.name, r.status])).toEqual([
+      ["walks right at its speed", "pass"],
+      ["(loading the file)", "fail"],
+    ]);
     const broken = await runTests({ root: fixture, files: ["broken/syntax.test.ts"] });
     expect(broken.results[0]).toMatchObject({
       name: "(loading the file)",
       status: "fail",
       error: { message: "this file can't even load" },
     });
+  });
+
+  it("never filters out a file that fails to load, and fails a filter that matches nothing", async () => {
+    const broken = await runTests({ root: fixture, files: ["broken/syntax.test.ts"], filter: "x" });
+    expect(broken.ok).toBe(false);
+    expect(broken.results.map((r) => [r.name, r.status])).toEqual([["(loading the file)", "fail"]]);
+    const none = await runTests({ root: fixture, files: ["tests/dot.test.ts"], filter: "no such test" });
+    expect(none).toMatchObject({ ok: false, results: [] });
+    expect(none.outside[0]?.message).toMatch(/no test name contains "no such test"/);
+  });
+
+  it("stops a timed-out test from touching the next test's game", async () => {
+    const late = await runTests({ root: fixture, files: ["late/late.test.ts"] });
+    expect(late.results.map((r) => [r.name, r.status])).toEqual([
+      ["times out, then plays anyway", "fail"],
+      ["plays on undisturbed", "pass"],
+    ]);
+    expect(late.outside).toEqual([]);
   });
 
   it("finds nothing to do in a project without tests", async () => {
