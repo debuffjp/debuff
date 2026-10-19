@@ -1,0 +1,22 @@
+diff --git a/starshake/src/main.js b/starshake/src/main.js
+index 6b28f60..f942515 100644
+--- a/starshake/src/main.js
++++ b/starshake/src/main.js
+@@ -25,3 +25,17 @@ const config = {
+ };
+ 
+ const game = new Phaser.Game(config);
++
++if (import.meta.env.DEV) {
++  window.__KEIKO__ = {
++    scene: () => game.scene.getScenes(true)[0]?.scene.key,
++    state: () => {
++      const s = game.scene.getScene("game");
++      const p = game.scene.isActive("game") ? s.player : undefined;
++      return {
++        player: p && { x: Math.round(p.x), y: Math.round(p.y) },
++        shots: game.scene.isActive("game") ? s.shots.countActive() : 0,
++      };
++    },
++  };
++}
