@@ -10,13 +10,13 @@ import { chromium } from "playwright-core";
 import { build, preview } from "vite";
 
 const root = dirname(fileURLToPath(import.meta.url));
-const ALL = ["canvas2d", "spryte", "debuff-2d", "debuff-webgl", "pixi-sprite", "pixi-particle"];
+const ALL = ["canvas2d", "spryte", "spryte-bulk", "debuff-2d", "debuff-webgl", "pixi-sprite", "pixi-particle"];
 // Positional, since npm swallows unknown --flags: `npm run bench:renderer -- mixed spryte`.
 const scene = process.argv.includes("mixed") ? "mixed" : "bunny";
 // The mixed scene needs rotation, scale, tint and alpha per sprite, which these can't do.
 const MIXED_OK = ["spryte", "debuff-webgl", "pixi-sprite"];
 const renderers = process.argv.slice(2).filter((a) => ALL.includes(a));
-const COUNTS = [1_000, 2_000, 5_000, 10_000, 20_000, 50_000, 100_000, 200_000, 400_000, 800_000];
+const COUNTS = [1_000, 2_000, 5_000, 10_000, 20_000, 50_000, 100_000, 200_000, 400_000, 800_000, 1_600_000];
 const FRAME_BUDGET_MS = 1000 / 60; // full CPU+GPU frame must fit a 60 Hz frame
 const FIXED = [10_000, 50_000];
 
