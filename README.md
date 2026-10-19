@@ -42,12 +42,12 @@ New projects include a `.mcp.json`, so a coding agent like Claude Code can play 
 | AI agents | read code and guess | **play your game**: state, frames and errors, and you see what they did |
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/debuffjp/docs/main/public/shots/bench.svg" width="640" alt="Sprites at 60 fps: spryte draw.sprites 800k, PixiJS ParticleContainer 200k, spryte draw.sprite 100k, PixiJS Sprite 50k, Canvas 2D 5k">
+  <img src="https://debuff.jp/shots/bench.svg" width="640" alt="Sprites at 60 fps: spryte draw.sprites 800k, PixiJS ParticleContainer 200k, spryte draw.sprite 100k, PixiJS Sprite 50k, Canvas 2D 5k">
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/debuffjp/docs/main/public/shots/dev-error.png" width="300" alt="The dev panel explaining an error: your code, the source line and a hint">
-  <img src="https://raw.githubusercontent.com/debuffjp/docs/main/public/shots/dev-tune.png" width="300" alt="The dev panel's tune tab with live sliders">
+  <img src="https://debuff.jp/shots/dev-error.png" width="300" alt="The dev panel explaining an error: your code, the source line and a hint">
+  <img src="https://debuff.jp/shots/dev-tune.png" width="300" alt="The dev panel's tune tab with live sliders">
 </p>
 
 More in [Why debuff](https://debuff.jp/docs/why). Agents can start from [llms.txt](https://debuff.jp/llms.txt).
