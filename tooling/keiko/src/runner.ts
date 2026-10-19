@@ -4,6 +4,7 @@
  *
  * @module
  */
+import { AsyncLocalStorage } from "node:async_hooks";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join, relative, resolve } from "node:path";
@@ -223,7 +224,16 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
 
   const booter: Booter = {
     async boot(play: PlayOptions, hooks) {
+      // A test that already ended (it timed out, but its body kept going) must never touch the page:
+      // by now it belongs to the next test.
+      const run = running.getStore();
+      const alive = () => {
+        if (run && !run.live)
+          throw new Error(`play(): test "${run.name}" kept running after its timeout. Make sure it awaits everything it starts.`);
+      };
+      alive();
       await closePage();
+      alive();
       const pagePath = play.page ?? "index.html";
       const htmlFile = join(root, pagePath);
       if (!existsSync(htmlFile)) throw new Error(`play(): no page at ${pagePath}. Pass { page: "…html" } relative to the project root.`);
@@ -249,6 +259,7 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
         // debuff games stop their loop and wait for steps when opened this way.
         search: debuff ? { "debuff-scenario": "1" } : {},
       });
+      const opened = page;
       // Before the game's scripts run, so engines that announce themselves are seen.
       engines = watchEngines(page.window as unknown as Window);
       // Fresh module instances for every game: the game's top-level code runs again in the new page.
@@ -270,21 +281,24 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
           while (!done) {
             // Before each frame, wait until the page is quiet, so how many frames boot takes doesn't depend
             // on network or machine speed.
-            await Promise.race([imported, page.settle(Math.max(0, bootLimit - realNow()))]);
+            await Promise.race([imported, opened.settle(Math.max(0, bootLimit - realNow()))]);
+            alive();
             if (done) break;
             if (realNow() > bootLimit) throw new Error(`it was still loading after ${bootMs} ms`);
             if (debuff) clock.advanceTime(clock.stepMs);
             else clock.advance(1);
           }
           await imported;
+          alive();
         } catch (err) {
+          alive();
           throw new Error(`play(): the game threw while loading ${src}: ${err instanceof Error ? err.message : String(err)}`, {
             cause: err,
           });
         }
       }
-      const w = page.window as unknown as Window & { __DEBUFF_DEV__?: DebuffDevHooks; __KEIKO__?: KeikoHooks };
-      const current = page;
+      const w = opened.window as unknown as Window & { __DEBUFF_DEV__?: DebuffDevHooks; __KEIKO__?: KeikoHooks };
+      const current = opened;
       const init = {
         root,
         window: w as unknown as Window,
@@ -317,10 +331,13 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
         // (engines often start their scenes a frame or two in), so play one while waiting.
         // Frames advance only once the page is quiet, so boot is deterministic whatever the network does.
         await current.settle(Math.max(0, limit - realNow()));
+        alive();
         if (game && game.driver.kind !== "debuff") game.driver.step(1);
         else await sleep(2);
+        alive();
       }
       await current.settle(Math.max(0, limit - realNow()));
+      alive();
       if (play.params) game.set(play.params);
       // A browser paints a game's first frame before a player can act, and engines often need it (to build
       // scenes, or to hit-test pointers against what they drew). debuff games wait for steps from tick 0.
@@ -334,6 +351,9 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
   // A game's async work (asset loads, promise chains) can fail at any moment, including between tests.
   // Errors during a test fail that test; anything else is reported once at the end, never a crash.
   const onStray = (err: unknown) => {
+    // A test that outlived its timeout already failed; what it does later isn't the next test's fault.
+    const from = running.getStore();
+    if (from && !from.live) return;
     if (strays.current) strays.current.push(err);
     else report.outside.push(describeFailure(err, root, undefined));
   };
@@ -350,19 +370,23 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
       try {
         await modules.import(`/${file}`);
       } catch (err) {
-        all.push({ file, suites: [], name: "(loading the file)", fn: () => Promise.reject(err), mode: "run", timeout: 0 });
+        all.push({ file, suites: [], name: LOAD_FAILURE, fn: () => Promise.reject(err), mode: "run", timeout: 0 });
         continue;
       }
       all.push(...reg.tests);
     }
     const focused = all.some((t) => t.mode === "only");
     const filter = options.filter?.toLowerCase();
+    let matched = 0;
 
     for (const t of all) {
       const fullName = [...t.suites, t.name].join(" › ");
       const base = { file: t.file, suites: t.suites, name: t.name, fullName, logs: [] as string[] };
       // A filter leaves other tests out of the report entirely; `.skip` and `.only` keep them, marked skipped.
-      if (filter && !fullName.toLowerCase().includes(filter)) continue;
+      // A file that failed to load is always reported: its tests can't be filtered, and hiding it would pass the run.
+      const loadFailure = t.name === LOAD_FAILURE && t.suites.length === 0;
+      if (filter && !loadFailure && !fullName.toLowerCase().includes(filter)) continue;
+      if (filter && !loadFailure) matched++;
       let result: TestResult;
       if (t.mode === "todo") result = { ...base, status: "todo", durationMs: 0 };
       else if (t.mode === "skip" || (focused && t.mode !== "only")) result = { ...base, status: "skip", durationMs: 0 };
@@ -373,6 +397,12 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
       else if (result.status === "skip") report.skipped++;
       else report.todo++;
       options.onResult?.(result);
+    }
+    if (filter && matched === 0) {
+      report.outside.push({
+        kind: "Error",
+        message: `no test name contains "${options.filter}", so nothing ran. Check the -t/--filter text.`,
+      });
     }
   } finally {
     await closePage();
@@ -389,6 +419,12 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
   report.durationMs = Math.round(realNow() - started);
   return report;
 }
+
+/** The name of the failure a test file that can't be loaded reports in place of its tests. */
+const LOAD_FAILURE = "(loading the file)";
+
+/** The test whose body is running, through every async step it takes, so late `play()` calls can be refused. */
+const running = new AsyncLocalStorage<{ name: string; live: boolean }>();
 
 /** The Vite environment games run in. */
 const ENVIRONMENT = "keiko";
@@ -410,6 +446,7 @@ async function runOne(
   const t0 = realNow();
   let error: unknown;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  const run = { name: base.fullName, live: true };
   try {
     const timeout =
       t.timeout > 0
@@ -417,7 +454,7 @@ async function runOne(
             timer = realSetTimeout(() => reject(new Error(`the test took longer than ${t.timeout} ms of real time`)), t.timeout);
           })
         : undefined;
-    const body = Promise.resolve().then(() => t.fn());
+    const body = running.run(run, () => Promise.resolve().then(() => t.fn()));
     await (timeout ? Promise.race([body, timeout]) : body);
     // Let pending asset loads and promise callbacks settle, so their errors belong to this test.
     await sleep(0);
@@ -425,6 +462,7 @@ async function runOne(
   } catch (err) {
     error = err;
   } finally {
+    run.live = false;
     realClearTimeout(timer);
     strays.current = undefined;
     restoreConsole();
