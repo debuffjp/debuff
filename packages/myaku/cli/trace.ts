@@ -19,6 +19,9 @@ export const SYNC_MARK = "myaku-trace-sync";
 const PRIOR_FRAMES = 10;
 const PRIOR_LOAD = 0.3;
 
+/** GPU-process tasks that are the page's canvas: WebGL commands and presenting the canvas image. */
+const CANVAS_TASK = /WebGL|ImageBacking::Present/;
+
 export interface TraceEvent {
   name: string;
   cat: string;
@@ -90,10 +93,22 @@ export function pipelines(events: TraceEvent[], pid: number): Pipeline[] {
   return out;
 }
 
+/** The display's refresh interval in ms, from the spacing of Chrome's frame pipelines (one per vsync). */
+export function vsyncMs(events: TraceEvent[]): number | undefined {
+  const mark = events.find((e) => e.name === SYNC_MARK);
+  if (!mark) return undefined;
+  const starts = [...new Set(pipelines(events, mark.pid).map((p) => p.start))].sort((a, b) => a - b);
+  const gaps: number[] = [];
+  for (let i = 1; i < starts.length; i++) gaps.push(((starts[i] ?? 0) - (starts[i - 1] ?? 0)) / 1000);
+  gaps.sort((a, b) => a - b);
+  const median = gaps[Math.floor(gaps.length / 2)];
+  return median && median > 2 ? median : undefined;
+}
+
 /** Busy intervals (µs) of a thread, merging nested and overlapping complete events. */
-export function busy(events: TraceEvent[], pid: number, tid: number): [number, number][] {
+export function busy(events: TraceEvent[], pid: number, tid: number, name?: RegExp): [number, number][] {
   const spans = events
-    .filter((e) => e.pid === pid && e.tid === tid && e.ph === "X" && e.dur !== undefined)
+    .filter((e) => e.pid === pid && e.tid === tid && e.ph === "X" && e.dur !== undefined && (!name || name.test(e.name)))
     .map((e) => [e.ts, e.ts + (e.dur ?? 0)] as [number, number])
     .sort((a, b) => a[0] - b[0]);
   const out: [number, number][] = [];
@@ -176,9 +191,12 @@ export function analyze(
 
   const gpu = threadOf(events, "CrGpuMain");
   const gpuBusy = gpu ? busy(events, gpu.pid, gpu.tid) : [];
+  // GPU tasks for the game's canvas: WebGL commands, and presenting the canvas's own image (where a
+  // GPU-bound canvas waits). Names from Chrome on Windows; elsewhere this may find none.
+  const canvasBusy = gpu ? busy(events, gpu.pid, gpu.tid, CANVAS_TASK) : [];
   if (!gpu) notes.push("The trace had no GPU process thread, so GPU time couldn't be measured.");
 
-  const threshold = report.budgetMs * 1.5;
+  const threshold = report.budgetMs;
   let confirmed = 0;
   let unconfirmed = 0;
   let reclassified = 0;
@@ -191,12 +209,26 @@ export function analyze(
     const seen = gaps.some((g) => g.ms > threshold && g.end > a && g.start < b + slack);
     if (seen) confirmed++;
     else unconfirmed++;
-    if (h.cause !== "unknown") return h;
+    // `throttled` is the page's guess from slow idle frames, which a GPU-bound game also makes.
+    if (h.cause !== "unknown" && h.cause !== "throttled") return h;
     // GPU work for this frame can land after rAF's interval ends, so look as far as the pipeline does.
     const gpuMs = Math.min(h.intervalMs, overlap(gpuBusy, a, b + slack) / 1000);
     const inside = all.filter((p) => p.end > a && p.start < b + slack);
     const swapMs = Math.max(0, ...inside.map((p) => p.stages.Swap ?? 0));
     const drawMs = Math.max(0, ...inside.map((p) => p.stages.StartDrawToSwapStart ?? 0));
+    // Chrome's compositor waits on the canvas's GPU work too, so a slow draw stage alone could be either.
+    // It's the compositor's own cost when most of the GPU time wasn't the game's canvas.
+    const canvasMs = overlap(canvasBusy, a, b + slack) / 1000;
+    if (drawMs >= h.budgetMs * 0.5 && canvasMs <= gpuMs * 0.5) {
+      reclassified++;
+      return {
+        ...h,
+        cause: "compositor" as Verdict["cause"],
+        confidence: "medium" as const,
+        summary: `Frame ${h.frame} took ${fmt(h.intervalMs)} (budget ${fmt(h.budgetMs)}). The game's code took only ${fmt(h.evidence.cpuMs)}; Chrome's compositor spent ${fmt(drawMs)} drawing the page (from Chrome's trace).`,
+        hint: "Fewer composited layers over the canvas: DOM UI with transforms, filters, blurs, or opacity animations, or a canvas that isn't the page's only big element.",
+      };
+    }
     const stalled = gpuMs >= h.intervalMs * 0.5 || swapMs >= h.budgetMs;
     // The GPU process serves the whole browser and waits on the OS, so a busy GPU alone doesn't mean
     // this page's drawing. A game that loads the GPU keeps it busy in the frames before too; a lone
@@ -218,17 +250,6 @@ export function analyze(
         confidence: gpuMs >= h.intervalMs * 0.8 ? ("high" as const) : ("medium" as const),
         summary: `Frame ${h.frame} took ${fmt(h.intervalMs)} (budget ${fmt(h.budgetMs)}). The game's code took only ${fmt(h.evidence.cpuMs)}, but the GPU was busy for ${fmt(gpuMs)}${swapMs >= h.budgetMs ? ` and the swap waited ${fmt(swapMs)}` : ""} (from Chrome's trace).`,
         hint: "Draw less per frame: fewer pixels (lower resolution or fewer full-screen passes), cheaper shaders, fewer overdrawn layers.",
-      };
-    }
-    // The compositor draws on the GPU process too, so only blame it when the GPU itself was mostly idle.
-    if (drawMs >= h.budgetMs * 0.5 && gpuMs < h.intervalMs * 0.25) {
-      reclassified++;
-      return {
-        ...h,
-        cause: "compositor" as Verdict["cause"],
-        confidence: "medium" as const,
-        summary: `Frame ${h.frame} took ${fmt(h.intervalMs)} (budget ${fmt(h.budgetMs)}). The game's code took only ${fmt(h.evidence.cpuMs)}; Chrome's compositor spent ${fmt(drawMs)} drawing the page (from Chrome's trace).`,
-        hint: "Fewer composited layers over the canvas: DOM UI with transforms, filters, or opacity animations, or a canvas that isn't the page's only big element.",
       };
     }
     return h;

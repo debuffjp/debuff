@@ -104,6 +104,31 @@ describe("Profiler", () => {
     requestAnimationFrame(frameFn);
   };
 
+  it("measures the display again after a slow start, keeping the fastest rate", () => {
+    const p = myaku();
+    loop(() => {
+      now += 1;
+    });
+    let t = 0;
+    // A GPU-heavy opening at 30 fps, then normal play at 60, then a slow stretch again.
+    for (let i = 0; i < 31; i++) {
+      t += 1000 / 30;
+      tick(t);
+    }
+    expect(p.displayIntervalMs).toBeCloseTo(1000 / 30);
+    for (let i = 0; i < 30; i++) {
+      t += 1000 / 60;
+      tick(t);
+    }
+    expect(p.displayIntervalMs).toBeCloseTo(1000 / 60);
+    for (let i = 0; i < 60; i++) {
+      t += 1000 / 30;
+      tick(t);
+    }
+    expect(p.displayIntervalMs).toBeCloseTo(1000 / 60);
+    expect(p.budgetMs).toBeCloseTo(25);
+  });
+
   it("records frames from requestAnimationFrame, measures the display and finds hitches", () => {
     const p = myaku();
     expect(myaku()).toBe(p);

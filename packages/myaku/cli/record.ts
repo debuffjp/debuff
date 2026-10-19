@@ -8,7 +8,7 @@ import { extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Report, Verdict } from "myaku";
 import type { Browser, CDPSession, Page } from "playwright-core";
-import { analyze, SYNC_MARK, TRACE_CATEGORIES, type TraceEvent, type TraceSummary } from "./trace.js";
+import { analyze, SYNC_MARK, TRACE_CATEGORIES, type TraceEvent, type TraceSummary, vsyncMs } from "./trace.js";
 
 export interface RecordOptions {
   /** A URL to open, or a folder to serve (a production build such as `dist/`). */
@@ -169,15 +169,29 @@ export async function record(options: RecordOptions): Promise<Report & { trace?:
     const playing = options.play?.(page);
     await page.waitForTimeout(seconds * 1000);
     await playing;
-    const { report, hitches } = (await page.evaluate(() => {
-      const m = (window as unknown as { __MYAKU__: { report(): unknown; hitches(): unknown } }).__MYAKU__;
-      return { report: m.report(), hitches: m.hitches() };
-    })) as { report: Report; hitches: Verdict[] };
+    const read = (budgetMs?: number) =>
+      page.evaluate((budget) => {
+        const m = (window as unknown as { __MYAKU__: { report(): unknown; hitches(): unknown; budgetMs: number | undefined } }).__MYAKU__;
+        if (budget !== undefined) m.budgetMs = budget;
+        return { report: m.report(), hitches: m.hitches() };
+      }, budgetMs) as Promise<{ report: Report; hitches: Verdict[] }>;
+    let { report, hitches } = await read();
     if (!cdp || !traced) return report;
     await cdp.send("Tracing.end");
     await traced;
+    // A game that never reaches the display's rate (GPU- or compositor-bound throughout) makes the
+    // page measure a slower display. The trace knows the real one, so judge hitches by that.
+    const vsync = vsyncMs(events);
+    const pageVsync = report.displayIntervalMs;
+    let budgetNote: string | undefined;
+    if (vsync && pageVsync && vsync < pageVsync * 0.8) {
+      ({ report, hitches } = await read(vsync * 1.5));
+      budgetNote = `The game never reached the display's rate, so myaku measured a ${Math.round(1000 / pageVsync)} Hz display; Chrome presented at ${Math.round(1000 / vsync)} Hz, so the budget comes from that.`;
+    }
     if (options.traceFile) writeFileSync(options.traceFile, JSON.stringify({ traceEvents: events }));
-    return analyze(report, hitches, events, startedAt).report;
+    const result = analyze(report, hitches, events, startedAt).report;
+    if (budgetNote) result.trace.notes.unshift(budgetNote);
+    return result;
   } finally {
     await browser.close();
     served?.server.close();

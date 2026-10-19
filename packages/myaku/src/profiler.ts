@@ -165,9 +165,12 @@ export class Profiler {
     return this.count;
   }
 
-  /** The hitch threshold in milliseconds. */
+  /** The hitch threshold in milliseconds. Set it to override the measured one; `undefined` measures again. */
   get budgetMs(): number {
     return this.fixedBudget ?? (this.displayMs ?? 1000 / 60) * 1.5;
+  }
+  set budgetMs(ms: number | undefined) {
+    this.fixedBudget = ms;
   }
 
   /** The display's frame interval, once measured. */
@@ -420,21 +423,28 @@ export class Profiler {
     this.head = (k + 1) % this.size;
     this.count = Math.min(this.count + 1, this.size);
     this.total++;
-    if (this.displayMs === undefined && this.total >= 30 && this.total % 30 === 0) this.measureDisplay();
+    if (this.total >= 30 && this.total % 30 === 0) this.measureDisplay();
     this.pruneStalls();
     for (const fn of this.listeners) fn(this);
   }
 
-  /** The display's refresh interval: the median of the first frames, snapped to a common rate. */
+  /**
+   * The display's refresh interval: the median of the last 30 frames, snapped to a common rate.
+   * Measured again every 30 frames, keeping the fastest rate seen: frames can't come faster than the
+   * display, but a slow stretch (start-up, a GPU-heavy scene) can make it look slower.
+   */
   private measureDisplay(): void {
-    const intervals = Array.from(this.f.interval.subarray(0, this.count))
-      .filter((v) => v > 0)
-      .sort((a, b) => a - b);
+    const intervals: number[] = [];
+    for (let i = 0; i < Math.min(30, this.count); i++) {
+      const v = this.f.interval[(this.head - 1 - i + this.size) % this.size] ?? 0;
+      if (v > 0) intervals.push(v);
+    }
+    intervals.sort((a, b) => a - b);
     const median = intervals[Math.floor(intervals.length / 2)];
     // Over ~30 fps the browser is throttling (hidden window, power saving): measure again later.
     if (!median || median > 34) return;
     const hz = REFRESH_RATES.reduce((best, r) => (Math.abs(1000 / r - median) < Math.abs(1000 / best - median) ? r : best));
-    this.displayMs = 1000 / hz;
+    if (this.displayMs === undefined || 1000 / hz < this.displayMs) this.displayMs = 1000 / hz;
   }
 
   private wrapContexts(): void {

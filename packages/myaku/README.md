@@ -39,7 +39,7 @@ DevTools profile pages. myaku profiles games:
 | `throttled` | The browser slowed frames (hidden window, power saving) | A run of slow frames with the game idle |
 | `hidden` | The tab was in the background | `visibilitychange` |
 | `gpu` | The GPU was busy drawing the frame | Only with `myaku record --trace`: Chrome's GPU process was busy, or the swap waited |
-| `compositor` | Chrome's compositor took long drawing the page, with the GPU mostly idle | Only with `myaku record --trace` |
+| `compositor` | Chrome's compositor took long drawing the page's layers (DOM over the canvas, blurs, filters) | Only with `myaku record --trace` |
 | `unknown` | Your code was quick; the time went elsewhere (GPU, compositor) | Says so, with low confidence, rather than guessing |
 
 Each verdict has a `confidence` (`high`, `medium` or `low`). Low confidence means "a lead, not an answer".
@@ -65,7 +65,7 @@ profiler.stop();     // restore everything myaku wrapped
 | Option | Default | |
 | --- | --- | --- |
 | `size` | `600` | Frames kept |
-| `budgetMs` | 1.5× the display's frame interval | Slower frames are hitches. myaku measures the display: 25 ms at 60 Hz, 12.5 ms at 120 Hz |
+| `budgetMs` | 1.5× the display's frame interval | Slower frames are hitches. myaku measures the display every 30 frames and keeps the fastest rate seen: 25 ms at 60 Hz, 12.5 ms at 120 Hz. Settable later |
 | `contexts` | `true` | Wrap canvas contexts to count draws, uploads and compiles |
 | `global` | `true` | Expose the profiler as `window.__MYAKU__` |
 | `engines` | `true` | Add engine spans automatically (see below) |
@@ -121,7 +121,8 @@ npx myaku record dist --seconds 20 --cpu 4 --p95 20 --hitches 6
 
 - **Presented frames.** `trace.presentedMs` is the time between frames the display actually showed, next to the rAF-based `intervalMs`, with counts of presented and dropped frames.
 - **Hitch check.** Each hitch is `confirmed` (the screen went a refresh without a new frame) or `unconfirmed` (rAF was late but every refresh still got a frame). `trace.missed` lists screen gaps myaku's hitch list doesn't cover.
-- **GPU and compositor causes.** An `unknown` verdict becomes `gpu` when the GPU process was busy through the hitch or the swap waited, or `compositor` when Chrome's compositor drew slowly with the GPU idle.
+- **GPU and compositor causes.** An `unknown` (or `throttled`) verdict becomes `gpu` when the GPU was busy through the hitch on the game's canvas, or `compositor` when Chrome's compositor drew the page slowly and most of the GPU time wasn't the canvas. Canvas GPU work is recognised by Chrome's task names on Windows; elsewhere, slow compositor draws may all read as `compositor`.
+- **The real refresh rate.** A game that never reaches the display's rate (30 fps on a 60 Hz screen throughout) makes the page measure a slower display. The trace knows the real rate, so the budget comes from that, with a note.
 
 It's off by default. On the compat games, traced and plain runs had the same fps, p95 and myaku overhead, but a heavier game makes a bigger trace. The GPU process serves the whole browser and waits on the OS, so `gpu` also needs the game to have kept the GPU busy in the frames just before. A lone stall on an idle GPU (a blocked present, another app) stays `unknown`, and its summary says the GPU stalled. A GPU-bound game's first slow frame after light ones can stay `unknown` for the same reason. Chrome doesn't report GPU-side timings for a single page, so this is busy time in the GPU process, not GPU execution time. It's Chromium only, and nothing changes in the page: the in-page profiler is the same in every browser.
 
