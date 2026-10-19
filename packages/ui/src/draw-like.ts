@@ -12,6 +12,8 @@ export interface TextOptions {
 export interface DrawLike {
   alpha: number;
   rect(x: number, y: number, w: number, h: number, color: string | number): void;
+  /** Filled circle. Optional: when present, panels with a `radius` get round corners. */
+  circle?(x: number, y: number, radius: number, color: string | number): void;
   text(text: string, x: number, y: number, options?: TextOptions): void;
   /** The box `text()` fills, in logical pixels. */
   measure(text: string, font?: FontLike): { w: number; h: number };
