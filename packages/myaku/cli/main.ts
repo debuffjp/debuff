@@ -22,6 +22,8 @@ Options:
   --viewport <WxH>  Window size (default 1280x720)
   --play <file>     A module whose default export, async (page) => {}, plays the game
   --headed          Show the browser
+  --trace           Also record Chrome's trace: check hitches against presented
+                    frames, and name GPU and compositor causes (a little slower)
   --p95 <ms>        Fail if 95th-percentile frame time is over this
   --p99 <ms>        Fail if 99th-percentile frame time is over this
   --hitches <n>     Fail if there are more hitches per minute than this
@@ -50,6 +52,7 @@ export async function main(argv: string[]): Promise<number> {
       viewport: { type: "string" },
       play: { type: "string" },
       headed: { type: "boolean" },
+      trace: { type: "boolean" },
       p95: { type: "string" },
       p99: { type: "string" },
       hitches: { type: "string" },
@@ -87,6 +90,7 @@ export async function main(argv: string[]): Promise<number> {
     ...(values.cpu !== undefined ? { cpuThrottle: num(values.cpu, "cpu") } : {}),
     ...(size ? { viewport: { width: Number(size[1]), height: Number(size[2]) } } : {}),
     ...(values.headed ? { headed: true } : {}),
+    ...(values.trace ? { trace: true } : {}),
     ...(play ? { play } : {}),
   });
   const budgets = checkBudgets(report, {
@@ -118,6 +122,14 @@ function format(r: Awaited<ReturnType<typeof record>>, budgets: Budget[]): strin
         : ""
     }`,
   ];
+  if (r.trace) {
+    const t = r.trace;
+    lines.push(
+      `${bold("shown")}    p50 ${ms(t.presentedMs.p50)} · p95 ${ms(t.presentedMs.p95)} · p99 ${ms(t.presentedMs.p99)} · max ${ms(t.presentedMs.max)}${dim(` · ${t.presented} presented, ${t.dropped} dropped`)}`,
+      `${bold("trace")}    ${t.confirmed} hitches confirmed, ${t.unconfirmed} not seen on screen, ${t.missed.length} missed by myaku${t.reclassified ? `, ${t.reclassified} unknown → gpu/compositor` : ""}${dim(` · GPU ${ms(t.gpuMsPerFrame)}/frame`)}`,
+    );
+    for (const n of t.notes) lines.push(red(`⚠ ${n}`));
+  }
   const spans = Object.entries(r.spans);
   if (spans.length) lines.push(`${bold("spans")}    ${spans.map(([k, v]) => `${k} ${ms(v)}`).join(" · ")}`);
   for (const w of r.warnings) lines.push(red(`⚠ ${w}`));

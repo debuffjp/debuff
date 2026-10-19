@@ -6,8 +6,9 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { Report } from "myaku";
-import type { Browser, Page } from "playwright-core";
+import type { Report, Verdict } from "myaku";
+import type { Browser, CDPSession, Page } from "playwright-core";
+import { analyze, SYNC_MARK, TRACE_CATEGORIES, type TraceEvent, type TraceSummary } from "./trace.js";
 
 export interface RecordOptions {
   /** A URL to open, or a folder to serve (a production build such as `dist/`). */
@@ -24,6 +25,8 @@ export interface RecordOptions {
   headed?: boolean;
   /** Drives the game while recording: an `async (page) => {}`, e.g. pressing keys. */
   play?: (page: Page) => Promise<void>;
+  /** Also record a Chromium trace and check myaku's hitches against the frames actually presented. */
+  trace?: boolean;
 }
 
 export interface Budget {
@@ -102,7 +105,7 @@ async function launch(headed: boolean): Promise<Browser> {
   throw new Error("No Chromium-based browser found. Install Chrome or Edge, or set MYAKU_BROWSER to a browser executable.");
 }
 
-export async function record(options: RecordOptions): Promise<Report> {
+export async function record(options: RecordOptions): Promise<Report & { trace?: TraceSummary }> {
   const seconds = options.seconds ?? 10;
   const warmup = options.warmup ?? 1;
   // Enough frames for the whole recording at up to 240 Hz.
@@ -132,8 +135,9 @@ export async function record(options: RecordOptions): Promise<Report> {
       }
       return route.continue();
     });
-    if (options.cpuThrottle && options.cpuThrottle > 1) {
-      const cdp = await page.context().newCDPSession(page);
+    let cdp: CDPSession | undefined;
+    if (options.trace || (options.cpuThrottle && options.cpuThrottle > 1)) cdp = await page.context().newCDPSession(page);
+    if (cdp && options.cpuThrottle && options.cpuThrottle > 1) {
       await cdp.send("Emulation.setCPUThrottlingRate", { rate: options.cpuThrottle });
     }
     await page.goto(url, { waitUntil: "load" }).catch(() => {
@@ -145,12 +149,32 @@ export async function record(options: RecordOptions): Promise<Report> {
         throw new Error("myaku didn't start in the page. Is it a normal HTML page with scripts?");
       });
     await page.waitForTimeout(warmup * 1000);
+    const events: TraceEvent[] = [];
+    let traced: Promise<unknown> | undefined;
+    if (cdp && options.trace) {
+      cdp.on("Tracing.dataCollected", (e) => {
+        for (const v of e.value) events.push(v as unknown as TraceEvent);
+      });
+      traced = new Promise((done) => cdp.once("Tracing.tracingComplete", done));
+      await cdp.send("Tracing.start", { transferMode: "ReportEvents", traceConfig: { includedCategories: TRACE_CATEGORIES } });
+    }
     // Start the report from here: drop warm-up frames by restarting the profiler's buffer.
-    await page.evaluate(() => (window as unknown as { __MYAKU__: { reset(): void } }).__MYAKU__.reset());
+    const startedAt = await page.evaluate((mark) => {
+      performance.mark(mark);
+      (window as unknown as { __MYAKU__: { reset(): void } }).__MYAKU__.reset();
+      return performance.now();
+    }, SYNC_MARK);
     const playing = options.play?.(page);
     await page.waitForTimeout(seconds * 1000);
     await playing;
-    return (await page.evaluate(() => (window as unknown as { __MYAKU__: { report(): unknown } }).__MYAKU__.report())) as Report;
+    const { report, hitches } = (await page.evaluate(() => {
+      const m = (window as unknown as { __MYAKU__: { report(): unknown; hitches(): unknown } }).__MYAKU__;
+      return { report: m.report(), hitches: m.hitches() };
+    })) as { report: Report; hitches: Verdict[] };
+    if (!cdp || !traced) return report;
+    await cdp.send("Tracing.end");
+    await traced;
+    return analyze(report, hitches, events, startedAt).report;
   } finally {
     await browser.close();
     served?.server.close();

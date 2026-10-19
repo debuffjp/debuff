@@ -66,12 +66,14 @@ for (const name of names) {
   const server = await createServer({ root, logLevel: "silent", server: { port: 0 } });
   await server.listen();
   try {
-    const r = await record({ target: server.resolvedUrls.local[0], seconds: 3 });
+    const r = await record({ target: server.resolvedUrls.local[0], seconds: 3, trace: process.env.MYAKU_TRACE === "1" });
     if (r.frames < 30) myaku.push(`only ${r.frames} frames in 3 s`);
     for (const w of r.warnings) myaku.push(`warning: ${w}`);
     if (!(r.perFrame.draws > 0)) myaku.push("no draw calls counted");
     for (const s of spans) if (!(s in r.spans)) myaku.push(`no "${s}" span (got ${Object.keys(r.spans).join(", ") || "none"})`);
     detail = `${r.frames} frames, p95 ${r.intervalMs.p95} ms, ${r.perFrame.draws} draws/frame, spans: ${Object.keys(r.spans).join(", ") || "none"}`;
+    if (r.trace)
+      detail += ` | trace: shown p95 ${r.trace.presentedMs.p95} ms, ${r.trace.dropped} dropped, hitches ${r.trace.confirmed} confirmed/${r.trace.unconfirmed} unseen/${r.trace.missed.length} missed, gpu ${r.trace.gpuMsPerFrame} ms/frame, cpu p95 ${r.cpuMs.p95} ms, causes ${JSON.stringify(r.causes)}`;
   } catch (e) {
     myaku.push(e.message);
   } finally {

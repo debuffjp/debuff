@@ -36,6 +36,7 @@ for (const name of names) {
     const r = await record({
       target: server.resolvedUrls.local[0],
       seconds: 2,
+      trace: process.env.MYAKU_TRACE === "1",
       play: async (page) => {
         await page.keyboard.down("ArrowRight");
         await page.mouse.click(200, 100);
@@ -47,6 +48,8 @@ for (const name of names) {
     for (const s of spans[name] ?? [])
       if (!(s in r.spans)) row.myaku.push(`no "${s}" span (got ${Object.keys(r.spans).join(", ") || "none"})`);
     row.detail = `${r.frames} frames, p95 ${r.intervalMs.p95} ms, ${r.perFrame.draws} draws/frame, spans: ${Object.keys(r.spans).join(", ") || "none"}`;
+    if (r.trace)
+      row.detail += ` | trace: shown p95 ${r.trace.presentedMs.p95} ms, ${r.trace.dropped} dropped, hitches ${r.trace.confirmed} confirmed/${r.trace.unconfirmed} unseen/${r.trace.missed.length} missed, gpu ${r.trace.gpuMsPerFrame} ms/frame, cpu p95 ${r.cpuMs.p95} ms, causes ${JSON.stringify(r.causes)}`;
   } catch (e) {
     row.myaku.push(e.message);
   } finally {
