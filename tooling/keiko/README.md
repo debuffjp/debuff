@@ -228,7 +228,7 @@ test.sweep("clears the first gap", { "player.jumpSpeed": [260, 290, 320], "playe
 });
 ```
 
-**Determinism checks** play a script twice and compare the state after every step. The second run gets a different `Math.random()` seed and a different date, so logic that depends on unseeded randomness or the wall clock is caught:
+**Determinism checks** play a script twice and compare the state after every step. A deterministic game is what makes replays, fuzz findings and recorded bugs play back the same way every time, so a failure in CI is one you can reproduce. The second run gets a different `Math.random()` seed and a different date, so logic that depends on unseeded randomness or the wall clock is caught:
 
 ```ts
 test.deterministic("ten seconds of play are reproducible", (game) => {
@@ -237,7 +237,7 @@ test.deterministic("ten seconds of play are reproducible", (game) => {
 // ✖ the two runs diverged at tick 37: state.enemies.0.x was 112 in the first run and 118 in the second.
 ```
 
-Pass `{ sameSeed: true }` if your engine seeds its own generator from `Math.random()` on purpose.
+Pass `{ sameSeed: true }` when the game takes all its randomness from `Math.random()`, as engine helpers like `Phaser.Math.Between` do. keiko seeds it, so the game replays exactly from a seed, and the check then confirms nothing else (the clock, real-time timers) leaks in. The error says so when that's the likely fix.
 
 ### `expect(value)`
 

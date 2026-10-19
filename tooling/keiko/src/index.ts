@@ -190,8 +190,12 @@ export const test: TestApi = Object.assign((name: string, fn: TestFn, options?: 
             recent(a) || recent(b)
               ? "The game was loading (requests or modules) in the steps before, so this is likely a load finishing on a different frame in each run, not your logic. " +
                 "Assert on the outcome with `await game.eventually(…)` instead of exact ticks, or wait for loads with `await game.settle()` before the part you compare."
-              : "Look for Math.random(), Date.now() or real-time timers in game logic: use a seeded generator and the time step your loop passes in. " +
-                "If the step follows an async flow (a promise chain, a worker's reply), it may land on a different frame each run: assert the outcome with `await game.eventually(…)`.";
+              : options.sameSeed
+                ? "Look for Date.now() or real-time timers in game logic: use the time step your loop passes in. " +
+                  "If the step follows an async flow (a promise chain, a worker's reply), it may land on a different frame each run: assert the outcome with `await game.eventually(…)`."
+                : "The second run had a different Math.random() seed. If the game takes all its randomness from Math.random() (engine helpers like Phaser.Math.Between do), " +
+                  "keiko already seeds it, so the game replays exactly from a seed: pass `{ sameSeed: true }` to check that. " +
+                  "Otherwise look for Date.now(), real-time timers or a generator seeded some other way, and use the time step your loop passes in.";
           throw new Error(
             `the two runs diverged at tick ${a[i]?.tick}: ${at} was ${show(read(a[i]?.state))} in the first run and ${show(read(b[i]?.state))} in the second. ${cause}`,
           );
