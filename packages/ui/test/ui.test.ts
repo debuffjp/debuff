@@ -208,8 +208,26 @@ describe("panel", () => {
 describe("panelAround", () => {
   it("snaps the frame to whole pixels and returns the content origin", () => {
     const { draw, calls } = recorder();
-    expect(panelAround(draw, 10.5, 10.5, 5, 5)).toEqual({ x: 8, y: 8 });
+    expect(panelAround(draw, 10.5, 10.5, 5, 5, { borders: ["#ddd"], fill: "#222" })).toEqual({ x: 8, y: 8 });
     expect(calls[0]?.args.slice(0, 4)).toEqual([1, 1, 19, 19]);
+  });
+
+  it("gives an unstyled frame debuff's look: a round-cornered panel, no outline", () => {
+    const { draw, calls } = recorder();
+    const circles: unknown[][] = [];
+    const round = { ...draw, circle: (...args: unknown[]) => circles.push(args) };
+    panelAround(round, 50, 50, 20, 10);
+    expect(circles).toHaveLength(4);
+    expect(circles.every((c) => c[2] === debuffFrame.radius && c[3] === debuffFrame.fill)).toBe(true);
+    expect(calls.every((c) => c.args[4] === debuffFrame.fill)).toBe(true);
+  });
+
+  it("keeps a style that sets its own borders or fill exactly as set", () => {
+    const { draw, calls } = recorder();
+    const circles: unknown[] = [];
+    panelAround({ ...draw, circle: () => circles.push(1) }, 50, 50, 20, 10, { borders: ["#c3a6d8"], fill: "#1a1020", chamfer: 2 });
+    expect(circles).toHaveLength(0);
+    expect(calls[0]?.args[4]).toBe("#c3a6d8");
   });
 });
 
@@ -230,8 +248,8 @@ describe("chamfer, shadow and bar", () => {
 
   it("draws the shadow first, offset, when asked", () => {
     const { draw, calls } = recorder();
-    panelAround(draw, 50, 50, 20, 10, { ...debuffFrame });
-    expect(calls[0]?.args[4]).toBe(debuffFrame.shadow);
+    panelAround(draw, 50, 50, 20, 10, { borders: ["#fff"], fill: "#222", shadow: "#050604", shadowOffset: 1 });
+    expect(calls[0]?.args[4]).toBe("#050604");
   });
 
   it("lights whole segments in equal cells", () => {
@@ -240,5 +258,22 @@ describe("chamfer, shadow and bar", () => {
     expect(calls.filter((c) => c.args[4] === "on")).toHaveLength(5);
     expect(new Set(calls.map((c) => c.args[2]))).toEqual(new Set([2]));
     expect(bar(draw, 0, 0, 5, 3, Number.NaN)).toBe(0);
+  });
+});
+
+describe("menu highlight", () => {
+  it("squashes the focus pill when focus moves, then springs back", () => {
+    const menu = new Menu([{ label: "play" }, { label: "quit" }]);
+    const pillWidth = () => {
+      const { draw, calls } = recorder();
+      menu.draw({ ...draw, circle: () => {} }, 0, 0);
+      return (calls.find((c) => c.op === "rect" && c.args[4] === "#2a3320")?.args[2] as number) ?? 0;
+    };
+    const rest = pillWidth();
+    menu.move(1);
+    expect(pillWidth()).toBeGreaterThan(rest);
+    const none = { pressed: () => false };
+    for (let i = 0; i < 30; i++) menu.update(none);
+    expect(pillWidth()).toBeCloseTo(rest, 5);
   });
 });

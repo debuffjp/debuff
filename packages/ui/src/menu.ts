@@ -47,6 +47,11 @@ export interface MenuStyle {
   cursorGap?: number;
   /** Minimum pixels between the label column and the value column. Default 12. */
   valueGap?: number;
+  /**
+   * A soft pill behind the focused row that squashes and springs back when focus moves. Default on with
+   * debuff's look (a style that sets no `color`), off otherwise; `false` turns it off.
+   */
+  highlight?: string | number | false;
 }
 
 export interface MenuPanelStyle extends MenuStyle, FrameStyle {
@@ -94,6 +99,8 @@ export class Menu<A extends string = string> {
   private actions: MenuActions<A>;
   /** Row boxes from the last draw, for pointer hits. */
   private rows: { x: number; y: number; w: number; h: number }[] = [];
+  /** 1 right after focus moves, easing to 0 over a few updates: squashes the highlight. */
+  private bump = 0;
 
   constructor(items: MenuItem[], options: MenuOptions<A> = {}) {
     this.items = items;
@@ -117,6 +124,7 @@ export class Menu<A extends string = string> {
       if (!this.wrap && (next < 0 || next >= n)) return;
       i = (next + n) % n;
       if (!this.items[i]?.disabled) {
+        if (i !== this.focus) this.bump = 1;
         this.focus = i;
         return;
       }
@@ -131,6 +139,8 @@ export class Menu<A extends string = string> {
 
   /** Read input for this step. Returns true if anything happened. */
   update(input: InputLike<A>): boolean {
+    this.bump *= 0.72;
+    if (this.bump < 0.01) this.bump = 0;
     // A tap is handled by the rows alone, so a pointer bound to "confirm" doesn't also select the focused row.
     if (input.pointer?.pressed) return this.tap(input.pointer.x, input.pointer.y);
     const a = this.actions;
@@ -153,6 +163,7 @@ export class Menu<A extends string = string> {
     const i = this.rows.findIndex((r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
     const item = this.items[i];
     if (!item || item.disabled) return false;
+    if (i !== this.focus) this.bump = 1;
     this.focus = i;
     const row = this.rows[i] as { x: number; w: number };
     if (item.change) item.change(x < row.x + row.w / 2 ? -1 : 1);
@@ -209,10 +220,36 @@ export class Menu<A extends string = string> {
     this.rows = [];
     const x0 = Math.round(x);
     const y0 = Math.round(y);
+    // debuff's look: light labels, lime focus, and a jelly pill behind the focused row.
+    const squish = style.color === undefined;
+    const pill = style.highlight === false ? undefined : (style.highlight ?? (squish ? "#2a3320" : undefined));
+    if (pill !== undefined && draw.circle && this.items.length) {
+      const ry = y0 + this.focus * (l.rowH + l.gap);
+      // Wider and flatter right after focus moves, springing back to its rest size.
+      const sx = 1 + 0.12 * this.bump,
+        sy = 1 - 0.25 * this.bump;
+      const pw = (l.w + 8) * sx,
+        ph = (l.rowH + 4) * sy;
+      const px = x0 + l.w / 2 - pw / 2,
+        py = ry + l.rowH / 2 - ph / 2;
+      const r = Math.min(ph / 2, pw / 2);
+      draw.rect(px + r, py, pw - r * 2, ph, pill);
+      draw.circle(px + r, py + r, r, pill);
+      draw.circle(px + pw - r, py + r, r, pill);
+      if (ph > r * 2) {
+        draw.rect(px, py + r, pw, ph - r * 2, pill);
+        draw.circle(px + r, py + ph - r, r, pill);
+        draw.circle(px + pw - r, py + ph - r, r, pill);
+      }
+    }
     for (let i = 0; i < this.items.length; i++) {
       const item = this.items[i] as MenuItem;
       const focused = i === this.focus;
-      const color = item.disabled ? (style.disabledColor ?? "#666") : focused ? (style.focusColor ?? "#fff") : (style.color ?? "#999");
+      const color = item.disabled
+        ? (style.disabledColor ?? (squish ? "#6b7560" : "#666"))
+        : focused
+          ? (style.focusColor ?? (squish ? "#cffb2d" : "#fff"))
+          : (style.color ?? "#d3dcc2");
       const offset = style.align === "center" ? Math.floor((l.labelW - (l.widths[i] ?? 0)) / 2) : 0;
       const lx = x0 + l.gutter + offset;
       const ry = y0 + i * (l.rowH + l.gap);
