@@ -138,7 +138,8 @@ function threadOf(events: TraceEvent[], name: string): { pid: number; tid: numbe
 
 /**
  * Check a report's hitches against the trace. `hitches` is the profiler's full hitch list (the
- * report keeps only the worst 10); `startedAt` is performance.now() when the report's frames began.
+ * report keeps only the worst 10); `startedAt` is performance.now() when the report's frames began and
+ * `endedAt` when they were read (presentations after that weren't part of the run).
  * Returns the trace summary and the report with `unknown` verdicts upgraded where the trace shows why.
  */
 export function analyze(
@@ -146,6 +147,7 @@ export function analyze(
   hitches: Verdict[],
   events: TraceEvent[],
   startedAt: number,
+  endedAt = Number.POSITIVE_INFINITY,
 ): { report: Report & { trace: TraceSummary }; hitches: Verdict[] } {
   const notes: string[] = [];
   const mark = events.find((e) => e.name === SYNC_MARK);
@@ -182,7 +184,9 @@ export function analyze(
   const toPage = (us: number) => (us - origin) / 1000;
   const from = toTrace(startedAt);
 
-  const all = pipelines(events, mark.pid).filter((p) => p.end >= from);
+  const to = toTrace(endedAt);
+  // Only the recorded run: the page keeps presenting while the report is read and the trace stops.
+  const all = pipelines(events, mark.pid).filter((p) => p.end >= from && p.start <= to);
   // A presentation with fresh content: a non-forked pipeline that presented everything.
   const shown = all.filter((p) => p.state === "STATE_PRESENTED_ALL" && !p.forked);
   const times = [...new Set(shown.map((p) => p.end))].sort((a, b) => a - b);
@@ -323,7 +327,9 @@ function fmt(ms: number): string {
 
 function pct(sorted: number[], p: number): number {
   if (!sorted.length) return 0;
-  return round(sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))] ?? 0);
+  // Nearest rank: the smallest value with at least p of the values at or below it.
+  const i = Math.min(sorted.length - 1, Math.max(0, Math.ceil(sorted.length * p) - 1));
+  return round(sorted[i] ?? 0);
 }
 
 function round(v: number): number {
