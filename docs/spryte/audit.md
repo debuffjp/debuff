@@ -37,7 +37,7 @@ Renderer setup (`createBackend`, the `PENDING` placeholder) was in `core/src/gam
 
 ## 3. Bugs, limitations, bottlenecks found while reading
 
-Ordered by likely user impact. None of these is fixed in this change, which only does the extraction.
+Ordered by likely user impact. Items 1–3 are fixed (see "Status" after the list), with unit tests in `packages/spryte/test/webgl2.test.ts`.
 
 1. **Precision risk on mobile.** The fragment shader is `precision mediump float`, so `v_uv` is mediump. On GPUs where mediump is real fp16 (many Mali and Adreno chips; desktop is always fp32), texel addressing in atlases wider than about 1–2k px can be off by a texel, which shows as bleeding and shimmer in pixel art. Fix: `highp` on the UV varying. Needs a device to confirm. **Not verified on hardware.**
 2. **Switching filtering re-uploads the texture.** `texture()` keys its cache by source and deletes and re-uploads when `smooth` differs. Drawing one image both smooth and pixelated in the same frame re-uploads it on every switch. Fix: sampler objects (WebGL2 has them) or two cache entries.
@@ -47,6 +47,8 @@ Ordered by likely user impact. None of these is fixed in this change, which only
 6. **Text cache eviction** sorts the whole map (256 entries) on overflow. It's rare, so it's not a hot path.
 7. **Canvas 2D fallback** is 20–40× slower (ADR 0007) and tint/flash cost two scratch-canvas compositions per quad. That's acceptable as a fallback.
 8. **Upload stalls:** the first draw of a new image uploads synchronously in the frame. There's no preload/upload API, so a level start can hitch.
+
+**Status (2026-10-19):** fixed 1 (UVs are `highp`; still **not verified on a phone**), fixed 2 (sampler objects: one upload per source, filtering chosen per draw), and fixed 3 (`dispose` deletes the program, buffers, VAO, samplers and white texture; shaders are deleted after linking). The WebGL2 backend now has unit tests against a recording fake GL, covering batching, the 8-unit split, context loss and restore, `invalidate`, scissor and `dispose`. The basic template's startup code went from 14.7 to 14.9 kB brotli.
 
 ## 4. Must not regress
 
@@ -94,8 +96,8 @@ API debt to settle before 1.0: `begin`, `end`, `resize`, `dispose` and `renderSc
 
 1. **Done in this change:** a `packages/spryte` workspace package as the canonical source, `createRenderer`, an injectable default font, core re-exports, tests moved, a standalone example, and a README.
 2. Decide the name and repo (see section 5), then `git subtree split` into its own repo with CI, and have debuff pin the published version.
-3. Correctness fixes, each with a test: UV precision, filtering re-uploads (samplers), complete `dispose`.
-4. WebGL2 unit coverage: a headless-GL or Playwright pixel test for the backend, so it stops depending only on game scenarios.
+3. ~~Correctness fixes~~ done. Next: verify `highp` on real iOS and Android devices.
+4. ~~WebGL2 unit coverage~~ done with a fake GL. Still to do: a pixel-level browser test inside spryte itself, so it doesn't depend on debuff's game scenarios.
 5. Benchmark suite beyond bunnymark (tilemap world, particles, text-heavy UI, create/destroy churn), run on at least one iPhone and one mid-range Android, with the methodology published.
 6. Public lifecycle API cleanup (section 6), then API docs.
 7. Render targets and a minimal custom-shader hook, only once a real game needs them.
