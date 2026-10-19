@@ -69,6 +69,10 @@ export function attachAgentLink(server: ViteDevServer, root: string): void {
 
   server.middlewares.use(async (req, res, next) => {
     const url = req.url?.split("?")[0];
+    if (url === SCENARIO_PATH || url?.startsWith("/__debuff/agent/")) {
+      const refusal = refuseForeign(req);
+      if (refusal) return reply(res, refusal.status, { ok: false, error: refusal.error });
+    }
     if (url === SCENARIO_PATH && req.method === "POST") {
       try {
         const { name, scenario } = (await readJson(req)) as { name: string; scenario: unknown };
@@ -149,6 +153,46 @@ export function attachAgentLink(server: ViteDevServer, root: string): void {
     for (const page of pages) page.end();
     rmSync(file, { force: true });
   });
+}
+
+const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
+
+/**
+ * CSRF guard for the dev server's `/__debuff/` endpoints. Any website the developer visits could
+ * otherwise POST here (write scenarios, drive the game) or subscribe to the event streams. Browsers
+ * always send `Origin` on cross-origin requests, so one that is present must be the dev server's own
+ * (loopback names are interchangeable when the port matches). Node clients send no Origin and pass.
+ * POSTs must be `application/json`, which a cross-site form or no-cors fetch cannot send without a
+ * preflight that we never answer.
+ */
+export function refuseForeign(req: Pick<IncomingMessage, "headers" | "method">): { status: number; error: string } | undefined {
+  const origin = req.headers.origin;
+  if (origin !== undefined && !isOwnOrigin(origin, req.headers.host)) {
+    return { status: 403, error: `[debuff] Refused a request from ${origin}: the dev server only accepts its own origin.` };
+  }
+  if (req.method === "POST") {
+    const type = (req.headers["content-type"] ?? "").split(";")[0]!.trim().toLowerCase();
+    if (type !== "application/json") return { status: 415, error: "[debuff] Expected Content-Type: application/json." };
+  }
+  return undefined;
+}
+
+function isOwnOrigin(origin: string, host: string | undefined): boolean {
+  if (!host) return false;
+  let o: URL;
+  let h: URL;
+  try {
+    o = new URL(origin);
+    h = new URL(`http://${host}`);
+  } catch {
+    return false;
+  }
+  if (o.protocol !== "http:" && o.protocol !== "https:") return false;
+  const port = (u: URL) => u.port || (u.protocol === "https:" ? "443" : "80");
+  const hostPort = h.port || port(o);
+  if (port(o) !== hostPort) return false;
+  if (o.hostname === h.hostname) return true;
+  return LOOPBACK.has(o.hostname) && LOOPBACK.has(h.hostname);
 }
 
 function reply(res: ServerResponse, status: number, body?: unknown): void {
