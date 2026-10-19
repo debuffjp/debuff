@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { BitmapFont } from "../src/render/bitmap-font.js";
-import { Canvas2DBackend } from "../src/render/canvas2d.js";
-import { Draw, type Frame } from "../src/render/draw.js";
+import { BitmapFont } from "../src/bitmap-font.js";
+import { Canvas2DBackend } from "../src/canvas2d.js";
+import { Draw, type Frame } from "../src/draw.js";
 
 const image = { width: 30, height: 7 } as unknown as HTMLCanvasElement;
 const grid = (n: number): Frame[] => Array.from({ length: n }, (_, i) => ({ image, x: i * 5, y: 0, w: 5, h: 7 }));
@@ -69,5 +69,19 @@ describe("Draw with a BitmapFont", () => {
     // Centred: width 8 → starts at 16; bottom: height 7 → top at -7.
     expect(at).toContainEqual([16, -7]);
     expect(draw.measure("ab", font)).toEqual({ w: 8, h: 7 });
+  });
+
+  it("uses draw.font when no font is given, resolving a function lazily", () => {
+    const { draw, calls } = recorder();
+    let built = 0;
+    const font = new BitmapFont({ frames: grid(2), chars: "ab", widths: [3, 4] });
+    draw.font = () => {
+      built++;
+      return font;
+    };
+    expect(built).toBe(0);
+    expect(draw.measure("ab")).toEqual({ w: 8, h: 7 });
+    draw.text("ab", 0, 0);
+    expect(calls.filter((c) => c.name === "drawImage")).toHaveLength(2);
   });
 });

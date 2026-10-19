@@ -1,6 +1,5 @@
-import { BitmapFont } from "./bitmap-font.js";
+import { BitmapFont, type Frame } from "@debuffjp/sprig";
 import { DEBUFF_SANS, DEBUFF_SANS_EXTRAS } from "./debuff-sans-data.js";
-import type { Frame } from "./draw.js";
 
 const W = 6;
 const H = 9;

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { FrameStats, Game, type Scene } from "../src/index.js";
+import { debuffSans, FrameStats, Game, type Scene } from "../src/index.js";
 import { fakeCanvas } from "./helpers.js";
 
 // The splash art needs real text rasterising; its timing is what these tests cover.
@@ -30,6 +30,12 @@ function recorder(id = "s") {
 }
 
 describe("Game", () => {
+  it("renders through sprig with debuff sans as the default font", () => {
+    const { game } = makeGame();
+    expect(game.draw.font).toBe(debuffSans);
+    expect(game.draw.measure("hi")).toEqual(debuffSans().measure("hi"));
+  });
+
   it("runs scene lifecycle in order and rejects unknown scenes", () => {
     const { game } = makeGame();
     const a = recorder("a");

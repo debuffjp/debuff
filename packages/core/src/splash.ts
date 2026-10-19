@@ -1,4 +1,4 @@
-import type { Draw } from "./render/draw.js";
+import type { Draw } from "@debuffjp/sprig";
 
 export interface SplashOptions {
   /** Seconds on screen before the game starts. Any key, click or tap skips it. Default 1.6. */

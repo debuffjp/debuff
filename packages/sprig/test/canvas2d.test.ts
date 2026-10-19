@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { Canvas2DBackend } from "../src/render/canvas2d.js";
-import { Draw } from "../src/render/draw.js";
+import { Canvas2DBackend } from "../src/canvas2d.js";
+import { Draw } from "../src/draw.js";
 
 function recordingContext() {
   const calls: { name: string; args: unknown[]; state: { alpha: number; fill: unknown; op: string } }[] = [];
