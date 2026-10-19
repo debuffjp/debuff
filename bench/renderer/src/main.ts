@@ -1,5 +1,5 @@
 // Bunnymark: N textured sprites bouncing under gravity. Same simulation for every renderer;
-// only the drawing differs. ?renderer=canvas2d|spryte|debuff-webgl|debuff-2d|pixi-sprite|pixi-particle
+// only the drawing differs. ?renderer=canvas2d|spryte|spryte-bulk|debuff-webgl|debuff-2d|pixi-sprite|pixi-particle
 // ?scene=bunny (default: one texture, position only) or mixed (4 textures, rotation, scale, tint, alpha:
 // what real games do, and what breaks naive batching).
 import { Game } from "@debuffjp/core";
@@ -78,6 +78,28 @@ async function setup(): Promise<{ draw: Draw; sync: () => void | Promise<void> }
   const texture = makeTexture();
   // Separate images, not an atlas: the mixed scene measures multi-texture batching.
   const textures = [texture, makeTexture("#ff6b6b"), makeTexture("#6bc5ff"), makeTexture("#ffd36b")];
+  if (renderer === "spryte-bulk") {
+    // draw.sprites(): one call per frame from a reused Float32Array, spryte's answer to ParticleContainer.
+    const draw = createRenderer(canvas, { backend: "webgl2", smooth: false });
+    draw.resize(WIDTH, HEIGHT);
+    const raw = draw.raw;
+    if (raw.kind !== "webgl2") throw new Error("spryte bench needs WebGL2");
+    let pos = new Float32Array(0);
+    return {
+      draw: () => {
+        if (pos.length < bunnies.length * 2) pos = new Float32Array(bunnies.length * 2);
+        for (let i = 0; i < bunnies.length; i++) {
+          const b = bunnies[i] as Bunny;
+          pos[i * 2] = b.x;
+          pos[i * 2 + 1] = b.y;
+        }
+        draw.begin("#11140d", WIDTH, HEIGHT, 1);
+        draw.sprites(texture, pos, bunnies.length);
+        draw.end();
+      },
+      sync: () => readPixel(raw.gl),
+    };
+  }
   if (renderer === "spryte") {
     // spryte on its own: createRenderer + draw.sprite, no game framework.
     const draw = createRenderer(canvas, { backend: "webgl2", smooth: false });
