@@ -3,29 +3,16 @@ import { Audio } from "@debuffjp/audio";
 import { Game, overlaps, type Scene, Storage } from "@debuffjp/core";
 import { devOverlay, devTools } from "@debuffjp/dev";
 import { Input } from "@debuffjp/input";
-import { Particles } from "@debuffjp/juice";
+import { Particles, squash, Tweens } from "@debuffjp/juice";
 import { fromTiled, type MapObject, type Tilemap } from "@debuffjp/tilemap";
-import { panel, Transition } from "@debuffjp/ui";
+import { panelAround, Transition } from "@debuffjp/ui";
+import { bigText, C, drawFoe, drawGround, drawHero, drawSwing, heart, key, type Look, relic, seed, TILE } from "./art";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game");
 if (!canvas) throw new Error('Missing <canvas id="game">');
 
-// Moss / plum palette. Tiles and sprites in assets/ use the same colours.
-const C = {
-  ink: "#1a1020",
-  plum: "#4a2a52",
-  violet: "#8a5aa0",
-  lilac: "#c8a0d8",
-  cream: "#efe6cf",
-  moss: "#3e5a34",
-  sage: "#7a9a5a",
-  pale: "#c8d6a0",
-  gold: "#e0b050",
-  rose: "#d0607a",
-};
-
 const HUD = 16;
-const game = new Game({ canvas, width: 256, height: 176 + HUD, pixelArt: true, scale: "integer", background: C.ink });
+const game = new Game({ canvas, width: 256, height: 176 + HUD, background: C.ink });
 const input = new Input(game, {
   bindings: {
     left: ["ArrowLeft", "KeyA", "PadLeft", "PadStickLeft"],
@@ -37,6 +24,7 @@ const input = new Input(game, {
 });
 const audio = new Audio();
 const particles = new Particles(() => game.random.next());
+const tweens = new Tweens();
 const save = new Storage("debuff-mossfell", { bestSeeds: 0, wins: 0 });
 
 // Feel values live in params: tune live with the dev overlay (press `) or from agents and scenarios.
@@ -66,33 +54,14 @@ const foes = game.params.define("enemies", {
 
 const assets = new Assets(await (await fetch("assets/manifest.json")).json());
 await assets.load();
-const F = assets.frames("sprites");
-const frame = (i: number) => {
-  const f = F[i];
-  if (!f) throw new Error(`sprites has no frame ${i}`);
-  return f;
-};
-const SPR = {
-  hero: 0,
-  slime: 12,
-  moth: 14,
-  thorn: 16,
-  heart: 18,
-  seed: 19,
-  key: 20,
-  shot: 21,
-  relic: 22,
-  hudFull: 23,
-  hudHalf: 24,
-  hudEmpty: 25,
-};
-const TILE = { floor: 6, door: 8, stairs: 9 };
 const T = 16;
 const SW = 16 * T;
 const SH = 11 * T;
 const DUNGEON_COL = 3;
 
-const loadMap = (): Tilemap => fromTiled(assets.json("world"), { image: () => assets.frame("tiles") });
+// The map gives the layout and which tiles are solid. Its tiles are drawn in code (src/art.ts), so the
+// tileset needs no image.
+const loadMap = (): Tilemap => fromTiled(assets.json("world"), { image: () => ({ image: undefined as never, x: 0, y: 0 }) });
 let map = loadMap();
 const objects = map.objects("entities");
 const find = (type: string): MapObject => {
@@ -108,7 +77,6 @@ const returnAt = find("Return");
 
 type Dir = "down" | "up" | "left" | "right";
 const DIRS: Record<Dir, [number, number]> = { down: [0, 1], up: [0, -1], left: [-1, 0], right: [1, 0] };
-const DIR_ROW: Record<Dir, number> = { down: 0, up: 1, left: 2, right: 3 };
 
 type Kind = "slime" | "moth" | "thorn" | "warden";
 interface Foe {
@@ -147,6 +115,18 @@ let foesOnScreen: Foe[] = [];
 let shots: Shot[] = [];
 let drops: Pickup[] = [];
 const taken = new Set<number>();
+// Squash-and-stretch state, for drawing only: gameplay never reads it.
+const heroLook: Look = { scaleX: 1, scaleY: 1 };
+const foeLooks = new WeakMap<Foe, Look>();
+const lookOf = (f: Foe): Look => {
+  const l = foeLooks.get(f) ?? { scaleX: 1, scaleY: 1 };
+  foeLooks.set(f, l);
+  return l;
+};
+/** A squash that settles with a wobble, skipped when the player prefers reduced motion. */
+const squish = (l: Look, amount: number) => {
+  if (!game.reducedMotion) squash(tweens, l, amount, 0.3);
+};
 let wardenDown = false;
 let doorOpen = false;
 let kills = 0;
@@ -256,10 +236,11 @@ function damagePlayer(halves: number, fromX: number, fromY: number): void {
   player.ky = ((c.y - fromY) / d) * tuning.values.knockback;
   game.camera.shake(0.35);
   game.freeze(0.06);
+  squish(heroLook, -0.3);
   sfx.hurt();
   if (player.hp === 0) {
     state = "lost";
-    particles.emit({ x: c.x, y: c.y, count: 24, colors: [C.violet, C.lilac, C.plum], speed: [20, 90], life: [0.4, 0.9] });
+    particles.emit({ x: c.x, y: c.y, count: 24, colors: [C.lilac, C.text, C.panelHi], speed: [20, 90], life: [0.4, 0.9] });
   }
 }
 
@@ -280,7 +261,7 @@ function killFoe(f: Foe): void {
     x: cx,
     y: cy,
     count: f.kind === "warden" ? 40 : 14,
-    colors: [C.sage, C.pale, C.lilac],
+    colors: [C.sky, C.pink, C.text],
     speed: [30, 100],
     life: [0.25, 0.6],
   });
@@ -310,7 +291,7 @@ function tryDoor(): void {
     if (map.get("ground", x, row) !== TILE.door) continue;
     map.set("ground", x, row, TILE.floor);
     map.setCollision(x, row, 0);
-    particles.emit({ x: x * T + 8, y: row * T + 8, count: 10, colors: [C.gold, C.cream], speed: [20, 60], life: [0.3, 0.6] });
+    particles.emit({ x: x * T + 8, y: row * T + 8, count: 10, colors: [C.amber, C.text], speed: [20, 60], life: [0.3, 0.6] });
   }
   game.camera.shake(0.3);
   sfx.door();
@@ -376,6 +357,7 @@ function updateFoes(dt: number): void {
       f.kx = ((f.x + f.w / 2 - c.x) / d) * kb;
       f.ky = ((f.y + f.h / 2 - c.y) / d) * kb;
       game.freeze(0.04);
+      squish(lookOf(f), 0.4);
       sfx.hit();
       if (f.hp <= 0) killFoe(f);
     }
@@ -403,7 +385,7 @@ function updatePickups(): void {
     if (it.kind === "heart") player.hp = Math.min(tuning.values.maxHearts * 2, player.hp + 2);
     if (it.kind === "seed") player.seeds++;
     if (it.kind === "key") player.keys++;
-    particles.emit({ x: it.x + 8, y: it.y + 8, count: 10, colors: [C.gold, C.cream], speed: [20, 70], life: [0.2, 0.5] });
+    particles.emit({ x: it.x + 8, y: it.y + 8, count: 10, colors: [C.amber, C.text], speed: [20, 70], life: [0.2, 0.5] });
     if (it.kind === "relic") {
       state = "won";
       save.set("wins", save.get("wins") + 1);
@@ -441,6 +423,7 @@ const play: Scene = {
     if (anyInput && titleTime > 0.5) titleTime = 0.5;
     titleTime = Math.max(0, titleTime - dt);
     particles.update(dt);
+    tweens.update(dt);
 
     if (state !== "play") {
       if (input.pressed("attack")) reset();
@@ -473,6 +456,7 @@ const play: Scene = {
     player.swing = Math.max(0, player.swing - dt);
     if (input.pressed("attack") && player.swing === 0) {
       player.swing = t.swingTime;
+      squish(heroLook, 0.25);
       sfx.swing();
     }
 
@@ -528,94 +512,96 @@ const play: Scene = {
   },
 
   render(draw, alpha) {
+    const time = game.clock.time;
+    const calm = game.reducedMotion;
     draw.withCamera(game.camera, () => {
-      map.draw(draw, { camera: game.camera });
-      const bob = Math.floor(game.clock.time * 4) % 2;
+      const col0 = Math.floor((cam.x - game.width / 2) / T) - 1;
+      const row0 = Math.floor((cam.y - game.height / 2) / T) - 1;
+      const get = (col: number, row: number) => (map.inBounds(col, row) ? map.get("ground", col, row) : 0);
+      drawGround(draw, get, col0, row0, col0 + game.width / T + 2, row0 + game.height / T + 2, DUNGEON_COL * 16);
+
+      const bob = calm ? 0 : Math.sin(time * 4) * 1.2;
       for (const it of visiblePickups()) {
-        const i = { heart: SPR.heart, seed: SPR.seed, key: SPR.key, relic: SPR.relic }[it.kind];
-        draw.sprite(frame(i), it.x + 8, it.y + 8 - bob);
+        const x = it.x + 8;
+        const y = it.y + 8 - bob;
+        if (it.kind === "heart") heart(draw, x, y, 5, C.pink);
+        else if (it.kind === "seed") seed(draw, x, y);
+        else if (it.kind === "key") key(draw, x, y);
+        else relic(draw, x, y, time);
       }
       if (!scroll) {
-        for (const f of foesOnScreen) {
-          const anim = Math.floor(game.clock.time * (f.kind === "moth" ? 8 : 4)) % 2;
-          const i = f.kind === "warden" ? SPR.slime : SPR[f.kind];
-          const scale = f.kind === "warden" ? 2 : 1;
-          draw.sprite(
-            frame(i + anim),
-            Math.round(smooth(f, alpha).x + f.w / 2),
-            Math.round(smooth(f, alpha).y + f.h / 2 - (scale - 1) * 6),
-            {
-              scaleX: scale,
-              scaleY: scale,
-              flash: f.hurt > 0 ? 0.8 : 0,
-              tint: f.kind === "warden" ? C.lilac : undefined,
-            },
-          );
+        for (const [i, f] of foesOnScreen.entries()) {
+          // Idle wobble: each blob breathes out of step with the others; the hit squash plays on top.
+          const look = lookOf(f);
+          const w = calm || tweens.has(look, "scaleX") ? 0 : Math.sin(time * (f.kind === "moth" ? 7 : 4) + i * 1.7) * 0.06;
+          const at = smooth(f, alpha);
+          drawFoe(draw, f.kind, at.x + f.w / 2, at.y + f.h, { scaleX: look.scaleX + w, scaleY: look.scaleY - w }, time, f.hurt > 0.15);
         }
         for (const s of shots) {
           const at = smooth(s, alpha);
-          draw.sprite(frame(SPR.shot), Math.round(at.x), Math.round(at.y));
+          draw.circle(at.x, at.y, 3, C.pink);
+          draw.circle(at.x, at.y, 1.2, C.ink);
         }
       }
 
-      // Hero, with a blink while invulnerable and the blade drawn as two rects.
+      // Hero: blinks while invulnerable, bounces as it walks, and sweeps a soft arc when it swings.
       const c = center();
       const at = smooth(player, alpha);
       const lag = { x: at.x - player.x, y: at.y - player.y };
       const blink = player.invuln > 0 && Math.floor(player.invuln * 16) % 2 === 0;
       if (state !== "lost" && !blink) {
-        if (player.swing > 0) {
-          const b = swordBox();
-          b.x += lag.x;
-          b.y += lag.y;
-          draw.rect(b.x, b.y + (b.w > b.h ? 2 : 0), b.w > b.h ? b.w : 2, b.w > b.h ? 2 : b.h, C.cream);
-          draw.rect(b.x + (b.w > b.h ? 0 : 2), b.y + (b.w > b.h ? 2 : 0), b.w > b.h ? b.w : 1, b.w > b.h ? 1 : b.h, C.lilac);
-        }
-        const step = player.swing > 0 ? 2 : Math.floor(player.walk * 8) % 2;
-        draw.sprite(frame(SPR.hero + DIR_ROW[player.facing] * 3 + step), Math.round(c.x + lag.x), Math.round(c.y - 3 + lag.y));
+        const [dx, dy] = DIRS[player.facing];
+        const x = c.x + lag.x;
+        const y = c.y + lag.y;
+        const w =
+          calm || tweens.has(heroLook, "scaleX") ? 0 : player.walk > 0 ? Math.sin(player.walk * 18) * 0.1 : Math.sin(time * 3) * 0.03;
+        if (player.swing > 0 && dy < 0)
+          drawSwing(draw, x, y - 1, dx, dy, 1 - player.swing / tuning.values.swingTime, 5 + tuning.values.swingReach * 0.7);
+        drawHero(draw, x, y + 5, { scaleX: heroLook.scaleX - w, scaleY: heroLook.scaleY + w }, dx, dy);
+        if (player.swing > 0 && dy >= 0)
+          drawSwing(draw, x, y - 1, dx, dy, 1 - player.swing / tuning.values.swingTime, 5 + tuning.values.swingReach * 0.7);
       }
       particles.draw(draw);
     });
 
-    // HUD bar.
+    // HUD: hearts, seeds and keys on a plain ink strip.
     draw.rect(0, 0, game.width, HUD, C.ink);
-    draw.rect(0, HUD - 1, game.width, 1, C.plum);
     const maxH = tuning.values.maxHearts;
     for (let i = 0; i < maxH; i++) {
       const left = player.hp - i * 2;
-      draw.sprite(frame(left >= 2 ? SPR.hudFull : left === 1 ? SPR.hudHalf : SPR.hudEmpty), 10 + i * 12, 7);
+      const x = 10 + i * 13;
+      heart(draw, x, 8, 5, left >= 2 ? C.pink : C.panelHi);
+      if (left === 1) draw.clip(x - 6, 0, 6, HUD, () => heart(draw, x, 8, 5, C.pink));
     }
-    draw.sprite(frame(SPR.seed), 138, 7);
-    draw.text(`${player.seeds}`, 147, 4, { color: C.gold });
-    draw.sprite(frame(SPR.key), 172, 7);
-    draw.text(`${player.keys}`, 182, 4, { color: C.cream });
-    draw.text(inDungeon() ? "hollow" : "fell", 250, 4, { color: C.sage, align: "right" });
+    seed(draw, 138, 9);
+    draw.text(`${player.seeds}`, 146, 4, { color: C.amber });
+    key(draw, 172, 8);
+    draw.text(`${player.keys}`, 182, 4, { color: C.text });
+    draw.text(inDungeon() ? "hollow" : "fell", 250, 4, { color: C.muted, align: "right" });
 
     fade.draw(draw, 0, HUD, game.width, game.height - HUD);
     const mid = HUD + 88;
     if (titleTime > 0) {
-      // A framed card over the fell, faded out once the player starts.
-      const a = Math.min(1, titleTime * 2);
-      draw.alpha = a;
-      panel(draw, 48, mid - 44, 160, 64, [C.lilac, C.ink, C.ink, C.plum], C.ink);
-      draw.text("mossfell", 128, mid - 34, { font: "bold 16px monospace", color: C.pale, align: "center", baseline: "top" });
-      draw.rect(92, mid - 13, 72, 1, C.plum);
-      draw.text("find the mossheart", 128, mid - 8, { color: C.lilac, align: "center", baseline: "top" });
-      draw.text("arrows move  ·  z swings", 128, mid + 4, { color: C.sage, align: "center", baseline: "top" });
+      // A squish card over the fell, faded out once the player starts.
+      draw.alpha = Math.min(1, titleTime * 2);
+      panelAround(draw, 128, mid - 14, 150, 50);
+      bigText(draw, "mossfell", 128, mid - 30, 2, C.lime);
+      draw.text("find the mossheart", 128, mid - 8, { color: C.text, align: "center", baseline: "top" });
+      draw.text("arrows move  ·  z swings", 128, mid + 4, { color: C.muted, align: "center", baseline: "top" });
       draw.alpha = 1;
     }
     if (state === "won") {
-      draw.rect(0, mid - 22, game.width, 40, "rgba(26,16,32,0.8)");
-      draw.text("the mossheart is yours", 128, mid - 12, { color: C.pale, align: "center" });
+      panelAround(draw, 128, mid - 5, 220, 26);
+      draw.text("the mossheart is yours", 128, mid - 12, { color: C.lime, align: "center" });
       draw.text(`seeds ${player.seeds}  best ${save.get("bestSeeds")}  ·  attack to play again`, 128, mid + 2, {
-        color: C.lilac,
+        color: C.text,
         align: "center",
       });
     }
     if (state === "lost") {
-      draw.rect(0, mid - 22, game.width, 40, "rgba(26,16,32,0.8)");
-      draw.text("you fell in the fell", 128, mid - 12, { color: C.rose, align: "center" });
-      draw.text("attack to try again", 128, mid + 2, { color: C.lilac, align: "center" });
+      panelAround(draw, 128, mid - 5, 150, 26);
+      draw.text("you fell in the fell", 128, mid - 12, { color: C.pink, align: "center" });
+      draw.text("attack to try again", 128, mid + 2, { color: C.text, align: "center" });
     }
   },
 
