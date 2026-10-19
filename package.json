@@ -24,7 +24,8 @@
     "lint:packages": "node scripts/lint-packages.mjs && node fonts/debuff-sans/build.mjs --check",
     "test:package-manager": "node scripts/smoke-package-manager.mjs",
     "prepare": "lefthook install",
-    "bench:renderer": "npm run bench -w @debuffjp/bench-renderer"
+    "bench:renderer": "npm run bench -w @debuffjp/bench-renderer",
+    "compat": "npm run build && npm install --prefix compat --no-audit --no-fund && node compat/run.mjs"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",

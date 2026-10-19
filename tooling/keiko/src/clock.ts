@@ -107,7 +107,7 @@ export class VirtualClock {
     if (ms > 0) this.runIdle();
   }
 
-  /** Point timers, `performance.now`, `Date.now` and `Math.random` at this clock until {@link uninstall}. */
+  /** Point timers, `performance.now`, `Date` and `Math.random` at this clock until {@link uninstall}. */
   install(): void {
     if (this.restore) return;
     const g = globalThis as unknown as Record<string, unknown>;
@@ -115,15 +115,26 @@ export class VirtualClock {
     const saved = {
       now: perf.now,
       dateNow: Date.now,
+      Date: globalThis.Date,
       random: Math.random,
       timers: (["setTimeout", "setInterval", "clearTimeout", "clearInterval"] as const).map((k) => [k, g[k]] as const),
     };
     perf.now = () => this.ms;
     Date.now = () => this.epoch + Math.floor(this.ms);
+    // `new Date()` and `Date()` read the virtual clock too.
+    const RealDate = saved.Date;
+    const VirtualDate = function (this: unknown, ...args: unknown[]) {
+      if (!new.target) return new RealDate(Date.now()).toString();
+      return Reflect.construct(RealDate, args.length ? args : [Date.now()], new.target);
+    } as unknown as DateConstructor;
+    Object.setPrototypeOf(VirtualDate, RealDate);
+    Object.defineProperty(VirtualDate, "prototype", { value: RealDate.prototype });
+    g.Date = VirtualDate;
     Math.random = this.random;
     for (const [k] of saved.timers) g[k] = this[k];
     this.restore = () => {
       perf.now = saved.now;
+      g.Date = saved.Date;
       Date.now = saved.dateNow;
       Math.random = saved.random;
       for (const [k, v] of saved.timers) g[k] = v;

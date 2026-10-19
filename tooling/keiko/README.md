@@ -23,21 +23,21 @@ It works with any game that runs in a browser and loads through an `index.html`,
 
 ### Engines it's tested with
 
-Each was checked with a small game: boot, hold a key and move, click, and a determinism check.
+Each has a small game in [`compat/`](https://github.com/debuffjp/debuff/tree/main/compat) that checks boot, holding a key to move, a click at an exact position, seeded randomness and a determinism check. Maintainers run it with `npm run compat`.
 
 | Engine | Version | Keyboard | Pointer | Deterministic | Notes |
 | --- | --- | --- | --- | --- | --- |
 | debuff | 0.3 | ✔ | ✔ | ✔ | Driven through its dev hooks |
-| Phaser | 4.2, 3.x | ✔ | ✔ (exact position) | ✔ | Canvas and WebGL renderers |
+| Phaser | 4.2, 3.90 | ✔ | ✔ | ✔ | |
 | PixiJS | 8.22 | ✔ | ✔ | ✔ | |
-| KAPLAY | 3001.0 | ✔ | ✔ | ✔ | |
+| KAPLAY | 3001.0 | ✔ | ✔ | ✔ | Needs keiko 0.4.2+ for click positions |
 | Excalibur | 0.32 | ✔ | ✔ | ✔ | |
 | three.js | r186 | ✔ | ✔ | ✔ | |
 | Hand-written canvas loop | | ✔ | ✔ | ✔ | |
 
 ### Real games
 
-keiko was also run against open-source games it had never seen. Each needed only a `window.__KEIKO__` hook added.
+keiko was also run by hand against open-source games it had never seen. Each needed only a `window.__KEIKO__` hook added. These runs aren't in `compat/` yet.
 
 | Game | Engine | Tests | Deterministic |
 | --- | --- | --- | --- |
@@ -53,7 +53,7 @@ This README is the complete reference. Using debuff? Its guide, [debuff.jp/docs/
 ## What makes it different
 
 - **It plays your actual game.** `play()` boots the scripts your `index.html` loads, through your Vite config, in a fresh headless page. No mocks of your game and no special build.
-- **Time is the test's.** `requestAnimationFrame`, `setTimeout`, `setInterval`, `requestIdleCallback`, `performance.now()` and `Date.now()` run on a virtual clock that only moves when the test steps it, so engines with their own loop, and gameplay built on timers, play frame by frame the same way every run. `Math.random()` is seeded.
+- **Time is the test's.** `requestAnimationFrame`, `setTimeout`, `setInterval`, `requestIdleCallback`, `performance.now()` and `Date` (`Date.now()`, `new Date()`) run on a virtual clock that only moves when the test steps it, so engines with their own loop, and gameplay built on timers, play frame by frame the same way every run. `Math.random()` is seeded.
 - **It asks game questions.** How long until the player reaches top speed (`until`)? Does the player ever leave the screen (`during`)? How high is the jump (`trace`)? Does it still work at every gravity you might ship (`test.sweep`)? Is the game deterministic (`test.deterministic`)?
 - **Failures show the game.** Every failure reports the frame, time, scene and state when it broke, the line in your test, and the console output.
 - **Bugs become tests.** `game.replay(file)` plays a recorded scenario, so a bug found by hand or by a fuzzer becomes a millisecond regression test.
@@ -226,7 +226,7 @@ test.sweep("clears the first gap", { "player.jumpSpeed": [260, 290, 320], "playe
 });
 ```
 
-**Determinism checks** play a script twice and compare the state after every step. The second run gets a different `Math.random()` seed and date, so logic that depends on unseeded randomness or the wall clock is caught:
+**Determinism checks** play a script twice and compare the state after every step. The second run gets a different `Math.random()` seed and a different date, so logic that depends on unseeded randomness or the wall clock is caught:
 
 ```ts
 test.deterministic("ten seconds of play are reproducible", (game) => {
@@ -255,7 +255,7 @@ Errors a game raises outside any test (say, an asset that fails to load after it
 
 ### Replaying scenarios
 
-`game.replay()` takes a JSON file (or object) of steps: `wait`, `press`, `release`, `tap`, `pointerDown`, `pointerMove`, `pointerUp`, `set`, `command` and `expect`. It's the [debuff scenario format](https://debuff.jp/docs/scenarios), so debuff's overlay replays and fuzz findings play directly; any tool can write it. `capture` steps are skipped, since nothing is drawn.
+`game.replay()` takes a JSON file (or object) of steps: `wait`, `press`, `release`, `tap`, `pointerDown`, `pointerMove`, `pointerUp`, `set`, `command`, `expect` and `until` (`within` in steps, default 600). It's the [debuff scenario format](https://debuff.jp/docs/scenarios), so debuff's overlay replays and fuzz findings play directly; any tool can write it. `capture` and `contrast` steps are skipped, and `flashes` only plays its frames, since nothing is drawn: those are checked by `debuff scenario`. Plugin steps (names with a `:`) are refused.
 
 ## The CLI
 
@@ -265,6 +265,8 @@ npx keiko tests/jump.test.ts  # some files
 npx keiko tests/levels        # every test in a folder
 npx keiko -t "pause"          # tests whose name contains "pause"
 npx keiko --json              # a report for tools and agents
+npx keiko --root games/demo   # a project in another folder
+npx keiko --no-debuff         # drive a debuff game through __KEIKO__ instead (--debuff forces the opposite)
 ```
 
 Exits with 1 when a test fails. For tools, the same runner is `runTests()` from `keiko/runner`.

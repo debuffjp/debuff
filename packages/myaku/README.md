@@ -80,6 +80,8 @@ myaku adds `update` and `render` spans for the engine's own loop, so a slow fram
 | Phaser 4 (ES modules), or anything else | `adapt(profiler, game)` | Same as above |
 | debuff | `debuff dev` | `update`, `render` |
 
+Each row is checked against the real engine by the repo's local [`compat/`](https://github.com/debuffjp/debuff/tree/main/compat) suite (`npm run compat`).
+
 ```ts
 import { adapt, myaku } from "myaku";
 const game = new Phaser.Game(config);
@@ -88,7 +90,7 @@ adapt(myaku(), game);
 
 Spans can nest: `update:level` is part of `update`.
 
-A `Report` has `intervalMs` (p50/p95/p99/max, which is what players feel), `cpuMs` (time in frame code), `hitches`, `hitchesPerMinute`, `causes`, `worst` (up to 10 verdicts), `spans` (average ms per frame), `perFrame` (draws, uploads, bytes), `overheadMs` (myaku's own cost), `support` (what this browser reports) and `warnings`.
+A `Report` has `frames`, `seconds`, `fps`, `budgetMs`, `displayIntervalMs`, `intervalMs` (p50/p95/p99/max, which is what players feel), `cpuMs` (p50/p95/max time in frame code), `hitches`, `hitchesPerMinute`, `causes`, `worst` (up to 10 verdicts), `spans` (average ms per frame), `perFrame` (draws, uploads, bytes), `overheadMs` (myaku's own cost), `support` (what this browser reports) and `warnings`.
 
 **Check `warnings` before trusting a quiet report.** myaku says when it can't see something: no frames (the game kept its own `requestAnimationFrame` from before myaku loaded), no canvas context (created before myaku loaded), span names past the limit (added up under `other`), or a heap reported too coarsely to see GC. The overlay shows the same warnings. `profiler.warnings()` returns them at any time.
 
@@ -106,6 +108,7 @@ npx myaku record dist --seconds 20 --cpu 4 --p95 20 --hitches 6
 - **`--cpu 4`:** slow the CPU down, like a mid-range phone.
 - **Budgets:** `--p95 <ms>`, `--p99 <ms>`, `--hitches <per minute>`. Exit code 1 when one is over, 2 on errors.
 - **`--json`, `--out report.json`:** the full report and budget results, for CI artifacts and agents.
+- **`--warmup <s>`** (default 1), **`--viewport 1280x720`**, **`--headed`:** settle time before recording, window size, and showing the browser.
 
 Timings depend on the machine, so set budgets from runs on the same CI runner. It uses the Chrome or Edge you have installed (`MYAKU_BROWSER` to pick one).
 
@@ -114,7 +117,7 @@ Timings depend on the machine, so set budgets from runs on the same CI runner. I
 - **Frames:** myaku wraps `requestAnimationFrame`. A frame's interval runs from its start to the next frame's start, which is the gap the player sees. Its CPU time is the time the frame callbacks ran.
 - **GPU work:** myaku wraps the methods of each canvas context the game creates, counting `draw*` calls, texture and buffer uploads (with bytes), and shader compiles and links.
 - **Attribution:** Chromium's Long Animation Frames entries report which scripts ran during slow frames. Because myaku's wrapper sits in front of your frame callbacks, myaku records where each callback was registered (one stack capture per distinct callback) and points at that instead.
-- **No allocations per frame:** frames live in fixed-size typed arrays, so profiling doesn't cause the GC it looks for. Overhead is typically under 0.1 ms per frame and is reported as `overheadMs`.
+- **Almost no garbage:** frames live in fixed-size typed arrays, so profiling doesn't cause the GC it looks for. What myaku allocates per frame (a callback wrapper, span closures) is a few small short-lived objects. Overhead is typically under 0.1 ms per frame and is reported as `overheadMs`.
 - **Warm-up:** the first 10 frames (scripts compiling, assets decoding) aren't counted as play.
 
 ## Browser support
