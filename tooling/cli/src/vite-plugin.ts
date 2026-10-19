@@ -99,27 +99,38 @@ export function debuff(options: DebuffViteOptions = {}): PluginOption[] {
     configureServer(server) {
       const dir = join(root, ASSETS_DIR);
       server.watcher.add(dir);
+      // chokidar may report either separator on Windows, so normalise before the prefix check.
+      const prefix = `${dir.replaceAll("\\", "/").replace(/\/$/, "")}/`;
       const onChange = (file: string) => {
-        if (!file.startsWith(dir)) return;
+        if (!file.replaceAll("\\", "/").startsWith(prefix)) return;
         compile().then(() => server.ws.send({ type: "full-reload" }));
       };
       server.watcher.on("add", onChange);
       server.watcher.on("unlink", onChange);
       server.watcher.on("change", onChange);
       if (options.agentLink) attachAgentLink(server, root);
-      server.middlewares.use(async (req, res, next) => {
+      server.middlewares.use((req, res, next) => {
         const url = req.url?.split("?")[0];
         if (!url?.startsWith(URL_PREFIX)) return next();
-        const rel = decodeURIComponent(url.slice(URL_PREFIX.length));
-        const body = read(await latest(), rel);
-        if (!body) {
-          res.statusCode = 404;
-          res.end(`[debuff] ${rel} is not in the asset manifest. Run \`debuff assets\` to see what was imported.`);
+        let rel: string;
+        try {
+          rel = decodeURIComponent(url.slice(URL_PREFIX.length));
+        } catch {
+          res.statusCode = 400;
+          res.end(`[debuff] ${url} is not a valid URL (malformed percent-encoding).`);
           return;
         }
-        res.setHeader("Content-Type", MIME[extname(rel).toLowerCase()] ?? "application/octet-stream");
-        res.setHeader("Cache-Control", "no-cache");
-        res.end(body);
+        return (async () => {
+          const body = read(await latest(), rel);
+          if (!body) {
+            res.statusCode = 404;
+            res.end(`[debuff] ${rel} is not in the asset manifest. Run \`debuff assets\` to see what was imported.`);
+            return;
+          }
+          res.setHeader("Content-Type", MIME[extname(rel).toLowerCase()] ?? "application/octet-stream");
+          res.setHeader("Cache-Control", "no-cache");
+          res.end(body);
+        })().catch(next);
       });
     },
     // Preload the manifest and the default group's images so they download alongside the code,
@@ -127,7 +138,8 @@ export function debuff(options: DebuffViteOptions = {}): PluginOption[] {
     async transformIndexHtml() {
       const r = await latest();
       const images = new Set<string>();
-      for (const a of Object.values(r.manifest.assets)) if (a.type === "image" && !a.group) images.add(a.src);
+      for (const a of Object.values(r.manifest.assets))
+        if (a.type === "image" && !a.group) images.add(a.hash ? `${a.src}?v=${a.hash}` : a.src);
       return [
         ...(serving ? [{ tag: "script", attrs: { type: "module", src: RELOAD_CLIENT }, injectTo: "head" as const }] : []),
         {
