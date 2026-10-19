@@ -29,3 +29,15 @@ Like for like: `spryte` (`draw.sprite`, one call per sprite) pairs with `pixi-sp
 4. **Environment.** Saved with every result: GPU, Chrome version, CPU, OS, memory, power source and plan (detected on Windows), the PixiJS version, the spryte version and commit, and `BENCH_NOTE`.
 
 Results go to `results/<date>-<platform>-<scene>.json`. Commit results from new devices: phones and integrated GPUs especially.
+
+## Phones and tablets
+
+Desktop numbers don't predict phones. A phone's GPU is often limited by how fast it can fill pixels, not by the CPU, which is where most of spryte's lead comes from. There are three ways to measure on real devices, cheapest first:
+
+1. **Your own phone, on your Wi-Fi.** `npm run build && npm run phone -w @debuffjp/bench-renderer`. Open `http://<this computer's LAN IP>:4800/mobile.html` on the phone, fill in the device note, and tap **Run**. Each renderer runs in a fresh iframe, and the page shows a table and copies the results as JSON. Keep the screen on and the tab in front. Windows may ask to allow Node through the firewall the first time.
+2. **Anyone's phone, from the site.** Deploy `mobile.html` with the site (for example at debuff.jp/bench) and ask the community to run it and paste their JSON. This is the cheapest way to cover many devices, and a good launch asset.
+3. **Cloud device farms, for devices you don't own.** BrowserStack's open-source program gives free access to its real-device cloud for public, licensed open-source projects (apply on their site). Open `mobile.html` in BrowserStack Live on a real iPhone or Android, or automate it with Playwright or Appium through BrowserStack Automate.
+
+**Automating your own Android phone:** install Android platform-tools (adb), enable USB debugging, and Playwright's `_android` API can drive the phone's Chrome the same way `run.mjs` drives desktop Chrome. **iOS Safari** can't be automated from Windows. Use a Mac (Safari Web Inspector) or a device cloud, or simply run `mobile.html` by hand.
+
+Device notes matter: include the model, OS and browser version, whether it was charging, and low-power mode. The page records what the browser exposes (user agent, GPU string, pixel ratio, core count, and battery state where available), but iOS hides the exact GPU and model.
