@@ -177,6 +177,13 @@ describe("engine adapters", () => {
     p.stop();
   });
 
+  it("keeps a span that ran but measured 0 ms", () => {
+    const p = new Profiler({ global: false });
+    const spans = spansAfter(p, () => p.addSpan("update", 0));
+    expect(Object.keys(spans)).toEqual(["update"]);
+    expect(spans.update).toBeLessThan(1e-300);
+  });
+
   it("ignores objects that aren't engines, and can be turned off", () => {
     const p = new Profiler({ global: false });
     expect(adapt(p, {})).toBeUndefined();

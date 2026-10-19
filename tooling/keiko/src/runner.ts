@@ -12,6 +12,7 @@ import type { InlineConfig, ViteDevServer } from "vite";
 import type { ModuleRunner } from "vite/module-runner";
 import { realClearTimeout, realNow, realSetTimeout, sleep, VirtualClock } from "./clock.js";
 import { type DebuffDevHooks, debuffDriver, genericDriver, type KeikoHooks } from "./driver.js";
+import { type EngineWatch, watchEngines } from "./engines.js";
 import { type HeadlessPage, openPage } from "./environment.js";
 import { Playtest } from "./playtest.js";
 import { type Booter, type PlayOptions, registry, type TestCase } from "./registry.js";
@@ -207,6 +208,7 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
   const reg = registry();
   let firstBoot = true;
   let page: HeadlessPage | undefined;
+  let engines: EngineWatch | undefined;
   const closePage = async () => {
     reg.current = undefined;
     const p = page;
@@ -215,6 +217,8 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
     // so they don't fail against a closed page and get reported as errors.
     await p?.settle(2000);
     await p?.dispose();
+    engines?.dispose();
+    engines = undefined;
   };
 
   const booter: Booter = {
@@ -245,6 +249,8 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
         // debuff games stop their loop and wait for steps when opened this way.
         search: debuff ? { "debuff-scenario": "1" } : {},
       });
+      // Before the game's scripts run, so engines that announce themselves are seen.
+      engines = watchEngines(page.window as unknown as Window);
       // Fresh module instances for every game: the game's top-level code runs again in the new page.
       modules.clearCache();
       // The first game in a run also waits for Vite to pre-bundle the dependencies, which on a cold
@@ -284,6 +290,7 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
         window: w as unknown as Window,
         settle: (timeout?: number) => current.settle(timeout),
         loading: () => current.inflight > 0,
+        engine: () => engines?.info(),
         ...(hooks.onStep ? { onStep: hooks.onStep } : {}),
       };
       const limit = realNow() + (play.timeout ?? 10_000);

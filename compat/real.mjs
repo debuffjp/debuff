@@ -4,7 +4,7 @@
 // myaku then records each one for 3 s in your installed Chrome or Edge, with no change to the game.
 // Run `npm run compat` once first, so keiko and myaku are built and installed in compat/node_modules.
 import { execFileSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, readdirSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { runTests } from "keiko/runner";
 import { createServer } from "vite";
@@ -47,6 +47,7 @@ for (const name of names) {
     execFileSync(process.execPath, ["-e", `require("fs").writeFileSync(${JSON.stringify(stamp)}, "")`]);
   }
   // The tests are copied in fresh each run, so edits to compat/real/ are picked up.
+  rmSync(`${root}/tests`, { recursive: true, force: true });
   mkdirSync(`${root}/tests`, { recursive: true });
   for (const f of readdirSync(`${here}real/${name}`)) if (f.endsWith(".test.js")) cpSync(`${here}real/${name}/${f}`, `${root}/tests/${f}`);
 }

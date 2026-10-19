@@ -28,6 +28,7 @@ import { firstDifference, show } from "./values.js";
 export { mulberry32, sleep, VirtualClock } from "./clock.js";
 export { type Driver, type KeikoHooks, MissingHookError } from "./driver.js";
 export type { Duration } from "./duration.js";
+export type { EngineInfo, EngineTarget } from "./engines.js";
 export { ExpectationError, expect, type Matchers } from "./expect.js";
 export { type Condition, GameError, InvariantError, type ParamValue, Playtest, type ScenarioSource, TimeoutError } from "./playtest.js";
 export type { PlayOptions, TestOptions } from "./registry.js";

@@ -153,3 +153,31 @@ describe("Trace", () => {
     vexpect(() => new Trace(["a"], 0, "scene", STEP).min()).toThrow(/min\(\) needs numbers, but scene was a at step 0/);
   });
 });
+
+describe("keiko init", () => {
+  it("writes a first test for the engine it finds, and never overwrites one", async () => {
+    const { mkdtempSync, readFileSync, writeFileSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const { detectEngine, init } = await import("../src/init.js");
+    const root = mkdtempSync(join(tmpdir(), "keiko-init-"));
+    const log = console.log;
+    console.log = () => {};
+    try {
+      expect(init(root)).toBe(1); // no index.html
+      writeFileSync(join(root, "index.html"), '<script type="module" src="/src/main.js"></script>');
+      writeFileSync(join(root, "package.json"), JSON.stringify({ dependencies: { "pixi.js": "^8.0.0" } }));
+      expect(detectEngine(root)).toBe("pixi");
+      expect(init(root)).toBe(0);
+      const test = readFileSync(join(root, "tests", "smoke.test.js"), "utf8");
+      expect(test).toContain("g.engine?.scene !== undefined");
+      writeFileSync(join(root, "tests", "smoke.test.js"), "// mine");
+      expect(init(root)).toBe(0);
+      expect(readFileSync(join(root, "tests", "smoke.test.js"), "utf8")).toBe("// mine");
+      writeFileSync(join(root, "package.json"), JSON.stringify({ devDependencies: { "@debuffjp/cli": "^0.3.0", phaser: "^3" } }));
+      expect(detectEngine(root)).toBe("debuff");
+    } finally {
+      console.log = log;
+    }
+  });
+});
