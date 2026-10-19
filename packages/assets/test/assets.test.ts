@@ -107,3 +107,20 @@ describe("atlas frames", () => {
     expect(() => assets.image("hero")).toThrow(/packed into an atlas. Use assets.frame/);
   });
 });
+
+describe("cache busting", () => {
+  it("appends the content hash to asset URLs so redeploys don't mix cached files", async () => {
+    const fetch = stubFetch();
+    const assets = new Assets({
+      version: 1,
+      assets: {
+        cfg: { type: "json", src: "assets/cfg.json", hash: "abc123" },
+        raw: { type: "json", src: "assets/raw.json" },
+      },
+    });
+    expect(assets.url("cfg")).toBe("assets/cfg.json?v=abc123");
+    expect(assets.url("raw")).toBe("assets/raw.json");
+    await assets.load();
+    expect(fetch.mock.calls.map((c) => c[0]).sort()).toEqual(["assets/cfg.json?v=abc123", "assets/raw.json"]);
+  });
+});

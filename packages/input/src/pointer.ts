@@ -26,6 +26,8 @@ export class Pointer {
   private readonly toLogical: ToLogical;
 
   private readonly onDown = (e: PointerEvent) => {
+    // Only the main mouse button is "Pointer"; right/middle clicks stay free for the game to read.
+    if (e.pointerType === "mouse" && e.button) return;
     this.element.setPointerCapture?.(e.pointerId);
     const p = this.track(e);
     if (e.isPrimary) this.press(p.x, p.y);

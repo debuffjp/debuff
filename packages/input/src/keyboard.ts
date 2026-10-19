@@ -33,6 +33,8 @@ export class Keyboard {
     target.addEventListener("keydown", this.onDown);
     target.addEventListener("keyup", this.onUp);
     window.addEventListener("blur", this.onBlur);
+    // With an element target, keyup goes elsewhere once focus leaves it, so held keys would stick.
+    if (target !== window) target.addEventListener("focusout", this.onBlur);
   }
 
   /** Key is currently held. */
@@ -84,5 +86,6 @@ export class Keyboard {
     this.target.removeEventListener("keydown", this.onDown);
     this.target.removeEventListener("keyup", this.onUp);
     window.removeEventListener("blur", this.onBlur);
+    this.target.removeEventListener("focusout", this.onBlur);
   }
 }

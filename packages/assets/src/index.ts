@@ -13,6 +13,8 @@ export interface AssetEntry {
   /** Region of `src` holding this image when it was packed into an atlas. */
   rect?: { x: number; y: number; w: number; h: number };
   bytes?: number;
+  /** Content hash from the build; appended as `?v=` so a redeploy never mixes cached files. */
+  hash?: string;
 }
 
 export interface AssetManifest {
@@ -133,7 +135,8 @@ export class Assets {
    * Keep long tracks in a group you never `load()` (e.g. `assets/music/`) so they aren't fetched twice.
    */
   url(id: string): string {
-    return this.base + this.entry(id).src;
+    const e = this.entry(id);
+    return this.base + e.src + (e.hash ? `?v=${e.hash}` : "");
   }
 
   entry(id: string): AssetEntry {
@@ -148,7 +151,7 @@ export class Assets {
     const existing = this.pending.get(id);
     if (existing) return existing;
     const entry = this.entry(id);
-    const url = this.base + entry.src;
+    const url = this.url(id);
     let shared = this.byUrl.get(url);
     if (!shared) {
       shared = loadOne(entry.type, url);
