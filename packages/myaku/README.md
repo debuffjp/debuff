@@ -126,7 +126,7 @@ npx myaku record dist --seconds 20 --cpu 4 --p95 20 --hitches 6
 
 It's off by default. On the compat games, traced and plain runs had the same fps, p95 and myaku overhead, but a heavier game makes a bigger trace. The GPU process serves the whole browser and waits on the OS, so `gpu` also needs the game to have kept the GPU busy in the frames just before. A lone stall on an idle GPU (a blocked present, another app) stays `unknown`, and its summary says the GPU stalled. A GPU-bound game's first slow frame after light ones can stay `unknown` for the same reason. Chrome doesn't report GPU-side timings for a single page, so this is busy time in the GPU process, not GPU execution time. It's Chromium only, and nothing changes in the page: the in-page profiler is the same in every browser.
 
-Timings depend on the machine, so set budgets from runs on the same CI runner. It uses the Chrome or Edge you have installed (`MYAKU_BROWSER` to pick one).
+Timings depend on the machine, so set budgets from runs on the same CI runner. It uses the Chrome or Edge you have installed (`MYAKU_BROWSER` to pick one), driven by `playwright-core`, which only the CLI needs: install it with `npm install -D playwright-core`. It doesn't download any browsers.
 
 ## What it sees that the browser doesn't tell you
 
