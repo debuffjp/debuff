@@ -198,7 +198,16 @@ async function setup(): Promise<{ draw: Draw; sync: () => void | Promise<void> }
   // PixiJS v8, the most widely used web 2D renderer, with its standard and particle paths.
   const PIXI = await import("pixi.js");
   const app = new PIXI.Application();
-  await app.init({ canvas, width: WIDTH, height: HEIGHT, background: "#11140d", preference: "webgl", antialias: false, autoStart: false });
+  await app.init({
+    canvas,
+    width: WIDTH,
+    height: HEIGHT,
+    background: "#11140d",
+    preference: "webgl",
+    antialias: false,
+    autoStart: false,
+    roundPixels: true,
+  });
   const tex = PIXI.Texture.from(texture);
   tex.source.scaleMode = "nearest";
   if (renderer === "pixi-particle") {
@@ -305,4 +314,33 @@ async function measure(count: number, frames = 100): Promise<{ count: number; fr
   return { count, frameMs: at(total, 0.5), p95FrameMs: at(total, 0.95), submitMs: at(submit, 0.5) };
 }
 
-(window as unknown as { __bench: unknown }).__bench = { renderer, scene, measure, ready: true };
+/**
+ * Parity: on a fresh page, step the seeded scene `steps` times at `count` sprites, draw one frame and
+ * return its pixels (RGBA, top row first, base64). Every renderer draws the same scene, so comparing
+ * these proves nobody is skipping work (culling, dropped sprites, cheaper filtering).
+ */
+function snapshot(count: number, steps = 10): { width: number; height: number; rgba: string } {
+  if (bunnies.length) throw new Error("snapshot() needs a fresh page");
+  spawn(count);
+  for (let i = 0; i < steps; i++) step();
+  draw();
+  const w = canvas.width;
+  const h = canvas.height;
+  let out: Uint8Array;
+  const gl = canvas.getContext("webgl2");
+  if (gl) {
+    // Same task as the draw, so the drawing buffer hasn't been presented and cleared yet.
+    const raw = new Uint8Array(w * h * 4);
+    gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, raw);
+    out = new Uint8Array(raw.length);
+    for (let y = 0; y < h; y++) out.set(raw.subarray((h - 1 - y) * w * 4, (h - y) * w * 4), y * w * 4);
+  } else {
+    const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
+    out = new Uint8Array(ctx.getImageData(0, 0, w, h).data.buffer);
+  }
+  let bin = "";
+  for (let i = 0; i < out.length; i += 0x8000) bin += String.fromCharCode(...out.subarray(i, i + 0x8000));
+  return { width: w, height: h, rgba: btoa(bin) };
+}
+
+(window as unknown as { __bench: unknown }).__bench = { renderer, scene, measure, snapshot, ready: true };
