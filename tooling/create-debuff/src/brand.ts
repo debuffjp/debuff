@@ -58,13 +58,14 @@ export function badge(text = " debuff "): string {
 export type Mood = "idle" | "happy" | "oops";
 
 /**
- * buff, the debuff mascot, as pixel art. Each string is a pixel row:
- * L lime, H highlight, K ink, R red (oops), . transparent.
+ * buff, the debuff mascot, as pixel art in the squish style: one flat lime, dot eyes, stubby feet.
+ * Each string is a pixel row: L lime, K ink, R red (oops), . transparent. When things go well buff is
+ * squashed, a row shorter with its feet spread, as if it just landed a hop.
  */
 const BUFF: Record<Mood, string[]> = {
-  idle: [".LLLLLL.", "LHHHHHHL", "LLKLLKLL", "LLKLLKLL", "LLLLLLLL", ".LLLLLL."],
-  happy: [".LLLLLL.", "LHHHHHHL", "LKLKKLKL", "LLLLLLLL", "LLKKKKLL", ".LLLLLL."],
-  oops: [".LLLLLL.", "LHHHHHHL", "LRLLLLRL", "LLRLLRLL", "LLLKKLLL", ".LLLLLL."],
+  idle: [".LLLLLL.", "LLLLLLLL", "LLKLLKLL", "LLLLLLLL", "LLLLLLLL", ".LL..LL."],
+  happy: ["........", "LLLLLLLL", "LLKLLKLL", "LLLLLLLL", "LLLLLLLL", "LL....LL"],
+  oops: [".LLLLLL.", "LLLLLLLL", "LRLLLLRL", "LLRLLRLL", "LLLLLLLL", ".LL..LL."],
 };
 
 const PIXEL: Record<string, string | undefined> = { L: PALETTE.lime, H: PALETTE.limeSoft, K: PALETTE.ink, R: PALETTE.red };
