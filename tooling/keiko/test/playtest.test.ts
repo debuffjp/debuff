@@ -362,8 +362,10 @@ describe("test registration", () => {
   it("checks determinism by playing a script twice and diffing every step", async () => {
     let calls = 0;
     const randomness = [0, 0, 0.5];
+    const boots: unknown[] = [];
     reg.booter = {
-      boot: async (_o, hooks) => {
+      boot: async (o, hooks) => {
+        boots.push(o);
         const run = calls++;
         const options = run === 1 ? { random: () => randomness.shift() ?? 0 } : {};
         return new Playtest(debuffDriver(fakeHooks(options)), { root: ".", ...(hooks.onStep ? { onStep: hooks.onStep } : {}) });
@@ -378,6 +380,9 @@ describe("test registration", () => {
       /diverged at tick 3: state\.x was 6 in the first run and 6\.5 in the second/,
     );
     await expect(Promise.resolve().then(() => idle?.fn())).rejects.toThrow(/didn't play any steps/);
+    // The second run gets another seed and another date.
+    expect(boots[0]).toEqual({ seed: 1 });
+    expect(boots[1]).toEqual({ seed: 1 + 7919, epoch: Date.UTC(2027, 0, 2) });
   });
 
   it("blames a load, not game logic, when the runs diverge while the game was loading", async () => {

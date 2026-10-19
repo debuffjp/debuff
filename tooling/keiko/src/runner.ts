@@ -225,7 +225,13 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
       const html = readFileSync(htmlFile, "utf8");
       const scripts = pageScripts(html);
       if (!scripts.length) throw new Error(`play(): ${pagePath} has no <script type="module" src="…">, so there's no game to boot.`);
-      const clock = new VirtualClock({ ...(play.seed === undefined ? {} : { seed: play.seed }), ...(play.fps ? { fps: play.fps } : {}) });
+      // `epoch` isn't public: test.deterministic moves the date for its second run.
+      const { epoch } = play as PlayOptions & { epoch?: number };
+      const clock = new VirtualClock({
+        ...(play.seed === undefined ? {} : { seed: play.seed }),
+        ...(play.fps ? { fps: play.fps } : {}),
+        ...(epoch === undefined ? {} : { epoch }),
+      });
       page = openPage({
         origin,
         path: `/${pagePath.replace(/(^|\/)index\.html$/, "$1")}`,

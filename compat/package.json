@@ -1,0 +1,16 @@
+{
+  "name": "debuff-compat",
+  "private": true,
+  "type": "module",
+  "description": "Local engine compatibility suite for keiko and myaku. Not a workspace and not run in CI: `npm run compat` from the repo root.",
+  "dependencies": {
+    "excalibur": "0.32.0",
+    "kaplay": "3001.0.19",
+    "keiko": "file:../tooling/keiko",
+    "myaku": "file:../packages/myaku",
+    "phaser": "4.2.1",
+    "phaser3": "npm:phaser@3.90.0",
+    "pixi.js": "8.22.0",
+    "three": "0.186.1"
+  }
+}

@@ -65,14 +65,50 @@ cli
     if (!o.json) header("build", "shipping only what you use");
     const s = o.json ? undefined : p.spinner();
     s?.start("Bundling");
-    await build(await viteConfig(root, { logLevel: "error", build: { sourcemap: o.sourcemap ?? false } }));
+    const config = await loadConfig(root);
+    await build(await viteConfig(root, { logLevel: "error", build: { sourcemap: o.sourcemap ?? false } }, config));
     s?.stop("Bundled");
+    const { writeLaunchFiles } = await import("./launch.js");
+    for (const w of writeLaunchFiles(root, join(root, "dist"), config.launch)) {
+      if (o.json) console.error(`launch: ${w}`);
+      else p.log.warn(`launch: ${w}`);
+    }
     const code = report(root, o.json ?? false);
     if (code === 0) {
       const { reportBuild } = await import("./telemetry.js");
       await reportBuild(root, version, (text) => (o.json ? console.error(text) : console.log(pc.dim(text))));
     }
     return code;
+  });
+
+cli
+  .command("ship <target>", "Get dist/ ready for a store and check what it needs: itch, wavedash or press")
+  .option("--root <dir>", "Project root")
+  .option("--json", "Machine-readable output")
+  .action(async (target: string, o: Common) => {
+    const { ship, shipFailed, SHIP_TARGETS } = await import("./ship.js");
+    const known = SHIP_TARGETS.find((t) => t === target);
+    if (!known) {
+      console.error(`Unknown target "${target}": use ${SHIP_TARGETS.join(", ")}.`);
+      return 1;
+    }
+    const root = rootOf(o);
+    const result = ship(root, known, (await loadConfig(root)).launch);
+    const failed = shipFailed(result);
+    if (o.json) {
+      console.log(JSON.stringify({ ...result, ok: !failed }, null, 2));
+      return failed ? 1 : 0;
+    }
+    header(`ship ${target}`, "out the door");
+    for (const c of result.checks) {
+      if (c.ok) p.log.success(c.message);
+      else if (c.required === false) p.log.warn(c.message);
+      else p.log.error(c.message);
+    }
+    for (const f of result.outputs) p.log.message(sky(f));
+    if (!failed) for (const n of result.next) p.log.info(n);
+    finish(!failed, failed ? "not ready yet" : `ready for ${target}`);
+    return failed ? 1 : 0;
   });
 
 cli
