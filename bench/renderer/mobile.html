@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>spryte bench</title>
+    <style>
+      :root { color-scheme: dark; --bg: #0d1208; --fg: #e5e7eb; --dim: #8a9479; --lime: #cffb2d; }
+      body { margin: 0; padding: 16px; background: var(--bg); color: var(--fg); font: 14px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      h1 { font-size: 18px; margin: 0 0 4px; }
+      p { color: var(--dim); margin: 0 0 12px; }
+      label { display: block; margin: 8px 0; }
+      input[type="text"] { width: 100%; box-sizing: border-box; padding: 8px; background: #1a2210; color: var(--fg); border: 1px solid #333; }
+      button { padding: 10px 16px; margin: 8px 8px 8px 0; background: var(--lime); color: #111; border: 0; font: inherit; font-weight: 700; }
+      button:disabled { opacity: 0.4; }
+      #status { color: var(--lime); min-height: 1.4em; }
+      table { border-collapse: collapse; width: 100%; margin-top: 12px; font-size: 12px; }
+      th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid #2a3320; }
+      #stage { position: fixed; right: 8px; bottom: 8px; width: 240px; height: 135px; border: 1px solid #333; overflow: hidden; }
+      #stage iframe { width: 960px; height: 540px; border: 0; transform: scale(0.25); transform-origin: 0 0; }
+    </style>
+  </head>
+  <body>
+    <h1>spryte vs PixiJS: device benchmark</h1>
+    <p>Runs every renderer on this device in turn. Keep the screen on and this tab in front. Plug in if you can. It takes a few minutes.</p>
+    <label><input type="checkbox" id="quick" checked /> Quick (1 round; untick for 3)</label>
+    <label>Device and conditions (model, battery or plugged in, power saving):<input type="text" id="note" placeholder="e.g. iPhone 13, iOS 18, plugged in" /></label>
+    <button type="button" id="run">Run</button><button type="button" id="copy" disabled>Copy results</button>
+    <div id="status"></div>
+    <table id="results"></table>
+    <div id="stage"></div>
+    <script type="module" src="/src/mobile.ts"></script>
+  </body>
+</html>
