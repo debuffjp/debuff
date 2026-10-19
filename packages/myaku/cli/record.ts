@@ -94,7 +94,12 @@ export function inject(html: string, size: number): string {
 
 /** Chrome, Edge or Chromium through playwright-core (or the browser at MYAKU_BROWSER). */
 async function launch(headed: boolean): Promise<Browser> {
-  const { chromium } = await import("playwright-core");
+  let chromium: typeof import("playwright-core").chromium;
+  try {
+    ({ chromium } = await import("playwright-core"));
+  } catch {
+    throw new Error("myaku record needs playwright-core, which isn't installed. Run: npm install -D playwright-core");
+  }
   const executablePath = process.env.MYAKU_BROWSER;
   if (executablePath) return chromium.launch({ executablePath, headless: !headed });
   for (const channel of ["chrome", "msedge", "chromium"]) {
