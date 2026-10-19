@@ -1,6 +1,9 @@
 // Bunnymark: N textured sprites bouncing under gravity. Same simulation for every renderer;
-// only the drawing differs. ?renderer=canvas2d|debuff-webgl|debuff-2d|pixi-sprite|pixi-particle
+// only the drawing differs. ?renderer=canvas2d|spryte|debuff-webgl|debuff-2d|pixi-sprite|pixi-particle
+// ?scene=bunny (default: one texture, position only) or mixed (4 textures, rotation, scale, tint, alpha:
+// what real games do, and what breaks naive batching).
 import { Game } from "@debuffjp/core";
+import { createRenderer } from "spryte";
 
 const WIDTH = 960;
 const HEIGHT = 540;
@@ -15,6 +18,17 @@ interface Bunny {
 
 const params = new URLSearchParams(location.search);
 const renderer = params.get("renderer") ?? "canvas2d";
+const scene = params.get("scene") === "mixed" ? "mixed" : "bunny";
+const TINTS = [0xffffffff, 0xff8080ff, 0x80ff80ff, 0x8080ffff];
+/** Per-sprite look for the mixed scene, derived from the index so every renderer draws the same thing. */
+const look = (i: number, frame: number) => ({
+  texture: i & 3,
+  rotation: (i * 0.1 + frame * 0.02) % (Math.PI * 2),
+  scale: 0.75 + (i % 5) * 0.125,
+  tint: TINTS[(i >> 2) & 3] as number,
+  alpha: 0.5 + (i % 3) * 0.25,
+});
+let frameNo = 0;
 const canvas = document.querySelector("canvas") as HTMLCanvasElement;
 canvas.width = WIDTH;
 canvas.height = HEIGHT;
@@ -30,6 +44,7 @@ const spawn = (n: number) => {
   for (let i = 0; i < n; i++) bunnies.push({ x: rand() * WIDTH, y: rand() * HEIGHT * 0.5, vx: rand() * 10 - 5, vy: rand() * 10 - 5 });
 };
 const step = () => {
+  frameNo++;
   for (const b of bunnies) {
     b.x += b.vx;
     b.y += b.vy;
@@ -45,11 +60,11 @@ const step = () => {
   }
 };
 
-function makeTexture(): HTMLCanvasElement {
+function makeTexture(fill = "#cffb2d"): HTMLCanvasElement {
   const t = document.createElement("canvas");
   t.width = t.height = SIZE;
   const ctx = t.getContext("2d") as CanvasRenderingContext2D;
-  ctx.fillStyle = "#cffb2d";
+  ctx.fillStyle = fill;
   ctx.fillRect(2, 2, SIZE - 4, SIZE - 4);
   ctx.fillStyle = "#11140d";
   ctx.fillRect(5, 5, 2, 2);
@@ -61,6 +76,34 @@ type Draw = () => void;
 
 async function setup(): Promise<{ draw: Draw; sync: () => void | Promise<void> }> {
   const texture = makeTexture();
+  // Separate images, not an atlas: the mixed scene measures multi-texture batching.
+  const textures = [texture, makeTexture("#ff6b6b"), makeTexture("#6bc5ff"), makeTexture("#ffd36b")];
+  if (renderer === "spryte") {
+    // spryte on its own: createRenderer + draw.sprite, no game framework.
+    const draw = createRenderer(canvas, { backend: "webgl2", smooth: false });
+    draw.resize(WIDTH, HEIGHT);
+    const raw = draw.raw;
+    if (raw.kind !== "webgl2") throw new Error("spryte bench needs WebGL2");
+    const opts = { rotation: 0, scaleX: 1, scaleY: 1, tint: 0xffffffff as number, alpha: 1 };
+    return {
+      draw: () => {
+        draw.begin("#11140d", WIDTH, HEIGHT, 1);
+        if (scene === "bunny") for (const b of bunnies) draw.sprite(texture, b.x, b.y);
+        else
+          for (let i = 0; i < bunnies.length; i++) {
+            const b = bunnies[i] as Bunny;
+            const l = look(i, frameNo);
+            opts.rotation = l.rotation;
+            opts.scaleX = opts.scaleY = l.scale;
+            opts.tint = l.tint;
+            opts.alpha = l.alpha;
+            draw.sprite(textures[l.texture] as HTMLCanvasElement, b.x, b.y, opts);
+          }
+        draw.end();
+      },
+      sync: () => readPixel(raw.gl),
+    };
+  }
   if (renderer === "canvas2d") {
     const ctx = canvas.getContext("2d", { alpha: false }) as CanvasRenderingContext2D;
     ctx.imageSmoothingEnabled = false;
@@ -89,10 +132,23 @@ async function setup(): Promise<{ draw: Draw; sync: () => void | Promise<void> }
       .add({
         id: "bench",
         render: (draw) => {
-          for (const b of bunnies) draw.sprite(texture, b.x, b.y);
+          if (scene === "bunny") for (const b of bunnies) draw.sprite(texture, b.x, b.y);
+          else
+            for (let i = 0; i < bunnies.length; i++) {
+              const b = bunnies[i] as Bunny;
+              const l = look(i, frameNo);
+              draw.sprite(textures[l.texture] as HTMLCanvasElement, b.x, b.y, {
+                rotation: l.rotation,
+                scaleX: l.scale,
+                scaleY: l.scale,
+                tint: l.tint,
+                alpha: l.alpha,
+              });
+            }
         },
       })
       .go("bench");
+    await game.draw.ready;
     const raw = game.draw.raw;
     return {
       draw: () => game.redraw(),
@@ -127,13 +183,18 @@ async function setup(): Promise<{ draw: Draw; sync: () => void | Promise<void> }
       sync: () => readPixel((app.renderer as unknown as { gl: WebGL2RenderingContext }).gl),
     };
   }
+  const texs = textures.map((t) => {
+    const x = PIXI.Texture.from(t);
+    x.source.scaleMode = "nearest";
+    return x;
+  });
   const sprites: InstanceType<typeof PIXI.Sprite>[] = [];
   return {
     draw: () => {
       for (let i = 0; i < bunnies.length; i++) {
         let s = sprites[i];
         if (!s) {
-          s = new PIXI.Sprite(tex);
+          s = new PIXI.Sprite(scene === "mixed" ? texs[i & 3] : tex);
           s.anchor.set(0.5);
           sprites.push(s);
           app.stage.addChild(s);
@@ -141,6 +202,13 @@ async function setup(): Promise<{ draw: Draw; sync: () => void | Promise<void> }
         const b = bunnies[i] as Bunny;
         s.x = b.x;
         s.y = b.y;
+        if (scene === "mixed") {
+          const l = look(i, frameNo);
+          s.rotation = l.rotation;
+          s.scale.set(l.scale);
+          s.tint = l.tint >>> 8;
+          s.alpha = l.alpha;
+        }
       }
       app.render();
     },
@@ -187,4 +255,4 @@ async function measure(count: number, frames = 100): Promise<{ count: number; fr
   return { count, frameMs: at(total, 0.5), p95FrameMs: at(total, 0.95), submitMs: at(submit, 0.5) };
 }
 
-(window as unknown as { __bench: unknown }).__bench = { renderer, measure, ready: true };
+(window as unknown as { __bench: unknown }).__bench = { renderer, scene, measure, ready: true };
