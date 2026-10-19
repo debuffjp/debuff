@@ -1,5 +1,11 @@
 # spryte
 
+## 0.1.2
+
+### Patch Changes
+
+- 3a328dd: npm description and README lead with the measured result and link 2dbench.
+
 ## 0.1.1
 
 ### Patch Changes
