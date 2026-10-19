@@ -7,7 +7,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, join, relative, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import type { InlineConfig, ViteDevServer } from "vite";
 import type { ModuleRunner } from "vite/module-runner";
@@ -93,17 +93,21 @@ export function findTests(root: string, files: string[] = []): string[] {
     }
   };
   if (files.length) {
-    // Files run as given (in order); folders contribute the test files inside them.
+    // Files run as given (in order, each once); folders contribute the test files inside them.
     const given: string[] = [];
     for (const f of files) {
       const full = resolve(root, f);
+      const rel = relative(root, full);
+      if (rel === ".." || rel.startsWith("../") || rel.startsWith("..\\") || isAbsolute(rel)) {
+        throw new Error(`${f} is outside the project (${root}). keiko only runs test files inside the project root.`);
+      }
       if (existsSync(full) && statSync(full).isDirectory()) {
         const before = out.length;
         walk(full);
         given.push(...out.splice(before).sort());
-      } else given.push(relative(root, full).split("\\").join("/"));
+      } else given.push(rel.split("\\").join("/"));
     }
-    return given;
+    return [...new Set(given)];
   }
   walk(join(root, "tests"));
   walk(join(root, "src"));
@@ -141,9 +145,11 @@ export async function debuffViteConfig(root: string): Promise<InlineConfig> {
 /** The module scripts a page loads, in order: `<script type="module" src="/src/main.ts">`. */
 export function pageScripts(html: string): string[] {
   const scripts: string[] = [];
-  for (const tag of html.matchAll(/<script\b[^>]*>/gi)) {
+  // Commented-out tags don't load (an unclosed comment runs to the end of the file).
+  const live = html.replace(/<!--[\s\S]*?(?:-->|$)/g, "");
+  for (const tag of live.matchAll(/<script\b[^>]*>/gi)) {
     const attrs = tag[0];
-    if (!/\btype\s*=\s*["']?module/i.test(attrs)) continue;
+    if (!/\btype\s*=\s*(?:"module"|'module'|module(?=[\s/>]))/i.test(attrs)) continue;
     const src = /\bsrc\s*=\s*["']([^"']+)["']/i.exec(attrs)?.[1];
     if (src) scripts.push(src);
   }
@@ -234,7 +240,7 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
       alive();
       await closePage();
       alive();
-      const pagePath = play.page ?? "index.html";
+      const pagePath = (play.page ?? "index.html").split("\\").join("/");
       const htmlFile = join(root, pagePath);
       if (!existsSync(htmlFile)) throw new Error(`play(): no page at ${pagePath}. Pass { page: "…html" } relative to the project root.`);
       const html = readFileSync(htmlFile, "utf8");
@@ -500,12 +506,25 @@ export function firstOwnFrame(stack: string, root: string): string | undefined {
   const norm = (p: string) => p.split("\\").join("/");
   const base = `${norm(root)}/`;
   for (const line of stack.split("\n").slice(1)) {
-    const m = /\(?((?:file:\/\/\/?)?[A-Za-z]?:?[^():]*?):(\d+):(\d+)\)?\s*$/.exec(line.trim());
-    if (!m?.[1]) continue;
-    const file = norm(decodeURIComponent(m[1].replace(/^file:\/\/\/?/, "")));
+    const t = line.trim().replace(/^at\s+/, "");
+    const m = /:(\d+):(\d+)\)?$/.exec(t);
+    if (!m) continue;
+    let loc = t.slice(0, m.index);
+    // "fn (path:1:2)" names a function; the path follows the last " (" (paths may hold parentheses too).
+    if (t.endsWith(")")) {
+      const open = loc.indexOf(" (");
+      loc = open >= 0 ? loc.slice(open + 2) : loc.replace(/^\(/, "");
+    }
+    let raw = loc.replace(/^file:\/\/\/?/, "");
+    try {
+      raw = decodeURIComponent(raw);
+    } catch {
+      // Not URL-encoded after all.
+    }
+    const file = norm(raw);
     if (file.includes("/node_modules/") || file.toLowerCase().startsWith(SELF.toLowerCase())) continue;
     if (!file.toLowerCase().startsWith(base.toLowerCase())) continue;
-    return `${file.slice(base.length)}:${m[2]}:${m[3]}`;
+    return `${file.slice(base.length)}:${m[1]}:${m[2]}`;
   }
   return undefined;
 }

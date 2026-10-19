@@ -13,6 +13,9 @@ describe("durations", () => {
     vexpect(toSteps("250ms", STEP)).toBe(15);
     vexpect(toSteps(" .1s ", STEP)).toBe(6);
     vexpect(toSteps("0s", STEP)).toBe(0);
+    vexpect(toSteps("1e3ms", STEP)).toBe(60);
+    vexpect(toSteps("5e-1s", STEP)).toBe(30);
+    vexpect(toSteps("1.e1ms", STEP)).toBe(1);
   });
 
   it("rejects fractions of steps and unknown units, saying what to write instead", () => {
