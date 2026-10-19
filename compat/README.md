@@ -16,6 +16,6 @@ node compat/real.mjs               # after a first `npm run compat`
 node compat/real.mjs starshake     # one game
 ```
 
-This covers keiko's "Real games" table. It clones the open-source games at pinned commits into `compat/.real/` (gitignored), applies each `real/<game>/hook.patch` (the `window.__KEIKO__` hook, nothing else), installs them and runs the tests in `real/<game>/`. The first run takes a few minutes. Delete `compat/.real/` to start fresh.
+This covers keiko's "Real games" table. It clones the open-source games at pinned commits into `compat/.real/` (gitignored), applies each `real/<game>/hook.patch` (the `window.__KEIKO__` hook, nothing else), installs them and runs the tests in `real/<game>/`. myaku then records each game's opening screen for 3 s and checks the same things as above. The first run takes a few minutes. Delete `compat/.real/` to start fresh.
 
 To add an engine, copy a game folder, pin the engine in `package.json` and add a row to both READMEs' tables. If a check fails, fix keiko or myaku, or correct the README. Don't loosen the check.

@@ -77,10 +77,12 @@ myaku adds `update` and `render` spans for the engine's own loop, so a slow fram
 | PixiJS 8 | Automatic, through Pixi's devtools hook | `update` (your ticker listeners), `render` |
 | three.js | Automatic, through three's devtools hook | `render` |
 | Phaser 3, or Phaser from a script tag | Automatic, through the global `Phaser` | `update`, `update:<scene key>`, `render` |
-| Phaser 4 (ES modules), or anything else | `adapt(profiler, game)` | Same as above |
+| Excalibur | Automatic, through Excalibur's devtools global | `update`, `render` |
+| KAPLAY | Automatic with its default globals; `adapt(profiler, k)` with `global: false` | `update`, `render` |
+| Phaser 4 (ES modules), or anything else | `adapt(profiler, game)` | Same as Phaser 3 |
 | debuff | `debuff dev` | `update`, `render` |
 
-Each row is checked against the real engine by the repo's local [`compat/`](https://github.com/debuffjp/debuff/tree/main/compat) suite (`npm run compat`).
+Each row is checked against the real engine by the repo's local [`compat/`](https://github.com/debuffjp/debuff/tree/main/compat) suite (`npm run compat`). `node compat/real.mjs` also records four open-source games, two Phaser 3 and two PixiJS 8 (see keiko's [real games](https://github.com/debuffjp/debuff/tree/main/tooling/keiko#real-games)), and checks they report frames, draws and these spans with no change to the game.
 
 ```ts
 import { adapt, myaku } from "myaku";

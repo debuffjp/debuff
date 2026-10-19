@@ -30,7 +30,7 @@ function timeMethod(profiler: Profiler, obj: Obj, name: string, span: string | (
 }
 
 /** The engine `target` looks like, if any. */
-export type EngineKind = "phaser" | "pixi" | "three";
+export type EngineKind = "phaser" | "pixi" | "three" | "kaplay" | "excalibur";
 
 function kindOf(target: unknown): EngineKind | undefined {
   if (!target || typeof target !== "object") return undefined;
@@ -39,13 +39,16 @@ function kindOf(target: unknown): EngineKind | undefined {
   if (scene && typeof scene.update === "function" && typeof scene.render === "function" && "renderer" in t) return "phaser";
   if (t.ticker && t.renderer && typeof (t.renderer as Obj).render === "function" && "stage" in t) return "pixi";
   if (t.isWebGLRenderer || t.isWebGPURenderer) return "three";
+  if (typeof t.getTreeRoot === "function" && typeof t.loadSprite === "function") return "kaplay";
+  if (typeof t.on === "function" && "currentScene" in t && "graphicsContext" in t) return "excalibur";
   return undefined;
 }
 
 const sceneKey = (sys: Obj) => ((sys.settings as Obj | undefined)?.key as string | undefined) ?? "scene";
 
 /**
- * Add engine spans for a game object: a Phaser `Game`, a PixiJS `Application` or a three.js renderer.
+ * Add engine spans for a game object: a Phaser `Game`, a PixiJS `Application`, a three.js renderer,
+ * a KAPLAY context (what `kaplay()` returns) or an Excalibur `Engine`.
  * Returns the engine it recognised, or `undefined` (nothing changed).
  *
  * ```ts
@@ -79,6 +82,24 @@ export function adapt(profiler: Profiler, target: unknown): EngineKind | undefin
     adaptPixiApp(profiler, t);
   } else if (kind === "three") {
     timeMethod(profiler, t, "render", "render");
+  } else if (kind === "kaplay") {
+    // The tree root updates every object (and the game's onUpdate handlers), then draws them.
+    const root = (t.getTreeRoot as () => Obj)();
+    timeMethod(profiler, root, "update", "update");
+    timeMethod(profiler, root, "draw", "render");
+  } else if (kind === "excalibur" && !t[PATCHED]) {
+    t[PATCHED] = true;
+    // The engine's own events bracket its update and draw.
+    const on = (t.on as (name: string, fn: () => void) => unknown).bind(t);
+    const bracket = (pre: string, post: string, span: string) => {
+      let start = 0;
+      on(pre, () => {
+        start = performance.now();
+      });
+      on(post, () => profiler.addSpan(span, performance.now() - start));
+    };
+    bracket("preupdate", "postupdate", "update");
+    bracket("predraw", "postdraw", "render");
   }
   return kind;
 }
@@ -104,7 +125,8 @@ function adaptPixiApp(profiler: Profiler, app: Obj): void {
 
 /**
  * Find engines as they start, where they announce themselves: PixiJS 8 (`__PIXI_APP_INIT__`), three.js
- * (`__THREE_DEVTOOLS__`) and a global `Phaser` (Phaser 3, or any script-tag build). Returns a function
+ * (`__THREE_DEVTOOLS__`), Excalibur (`___EXCALIBUR_DEVTOOL`), a global `Phaser` (Phaser 3, or any
+ * script-tag build) and KAPLAY's globals. Returns a function
  * that stops watching. Already-patched objects stay patched (the spans just stop mattering).
  */
 export function watchEngines(profiler: Profiler): () => void {
@@ -115,7 +137,11 @@ export function watchEngines(profiler: Profiler): () => void {
   const previousPixi = g.__PIXI_APP_INIT__ as Fn | undefined;
   const pixiHook = (app: unknown, version: unknown) => {
     previousPixi?.(app, version);
+    // Pixi calls this from one of its init plugins, and the ticker plugin may not have run yet:
+    // finish once init's plugins have all run (they run synchronously, one after another).
+    const a = app as Obj | undefined;
     if (kindOf(app) === "pixi") adaptPixiApp(profiler, app as Obj);
+    else if (a?.renderer && "stage" in a) queueMicrotask(() => kindOf(app) === "pixi" && adaptPixiApp(profiler, a));
   };
   g.__PIXI_APP_INIT__ = pixiHook;
   undo.push(() => {
@@ -138,6 +164,24 @@ export function watchEngines(profiler: Profiler): () => void {
     });
   }
 
+  // Excalibur: each Engine stores itself in this global as it's constructed (for its devtools).
+  const exKey = "___EXCALIBUR_DEVTOOL";
+  if (!Object.getOwnPropertyDescriptor(g, exKey)?.set) {
+    let engine = g[exKey];
+    if (engine !== undefined) adapt(profiler, engine);
+    Object.defineProperty(g, exKey, {
+      configurable: true,
+      get: () => engine,
+      set: (value) => {
+        engine = value;
+        adapt(profiler, value);
+      },
+    });
+    undo.push(() => {
+      Object.defineProperty(g, exKey, { configurable: true, writable: true, value: engine });
+    });
+  }
+
   // Phaser with a global: patch the prototypes, so every game and scene is covered.
   const patchPhaser = () => {
     const scenes = (g.Phaser as Obj | undefined)?.Scenes as Obj | undefined;
@@ -149,11 +193,17 @@ export function watchEngines(profiler: Profiler): () => void {
     timeMethod(profiler, systems, "step", (self) => `update:${sceneKey(self)}`);
     return true;
   };
-  if (!patchPhaser() && typeof window !== "undefined") {
-    // Phaser loads after myaku: look again on the first frames, until it appears or a few seconds pass.
+  // KAPLAY with its globals (the default): `getTreeRoot` and friends appear on window.
+  const patchKaplay = () => typeof g.getTreeRoot === "function" && adapt(profiler, g) === "kaplay";
+  let phaser = patchPhaser();
+  let kaplay = patchKaplay();
+  if (!(phaser && kaplay) && typeof window !== "undefined") {
+    // Engines that load after myaku: look again on the first frames, until they appear or a few seconds pass.
     let tries = 0;
     const unsubscribe = profiler.subscribe(() => {
-      if (patchPhaser() || ++tries > 600) unsubscribe();
+      phaser ||= patchPhaser();
+      kaplay ||= patchKaplay();
+      if ((phaser && kaplay) || ++tries > 600) unsubscribe();
     });
     undo.push(unsubscribe);
   }

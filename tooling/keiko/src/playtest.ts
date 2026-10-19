@@ -79,6 +79,7 @@ export class Playtest<S = any> {
   /** The game's page, for reading anything the game keeps in globals or the DOM. */
   readonly window: Window;
   private readonly onStep: ((state: unknown, tick: number, loading: boolean) => void) | undefined;
+  private lastTap: { x: number; y: number; state: string | undefined } | undefined;
   private loadedSinceStep = false;
   private readonly root: string;
   private readonly settler: ((timeout?: number) => Promise<boolean>) | undefined;
@@ -188,7 +189,7 @@ export class Playtest<S = any> {
         const what = options.message ?? (condition.toString().length < 120 ? condition.toString() : "the condition");
         const hint = this.loading()
           ? " The game was still loading something; if it loads as you play, use `await game.eventually(…)`, which waits for loads between steps."
-          : "";
+          : this.tapHint();
         throw new TimeoutError(
           `${what} didn't hold within ${describeSteps(limit, this.stepSeconds)}.${hint} Last state: ${show(this.state, 400)}`,
         );
@@ -240,11 +241,21 @@ export class Playtest<S = any> {
       if (steps >= limit) {
         const what = options.message ?? (condition.toString().length < 120 ? condition.toString() : "the condition");
         throw new TimeoutError(
-          `${what} didn't hold within ${describeSteps(limit, this.stepSeconds)}. Last state: ${show(this.state, 400)}`,
+          `${what} didn't hold within ${describeSteps(limit, this.stepSeconds)}.${this.tapHint()} Last state: ${show(this.state, 400)}`,
         );
       }
       this.advance(1);
     }
+  }
+
+  /** When the state hasn't changed since the last pointer tap, the tap probably didn't land. */
+  private tapHint(): string {
+    const tap = this.lastTap;
+    if (tap?.state === undefined || snapshot(this.state) !== tap.state) return "";
+    return (
+      ` Nothing in the state changed after tap(${tap.x}, ${tap.y}), so it may have missed, or the target wasn't taking input yet ` +
+      "(still animating in, or disabled during a transition). Wait for it to be ready before tapping."
+    );
   }
 
   /**
@@ -355,6 +366,7 @@ export class Playtest<S = any> {
     if (typeof a === "string") return this.press(a).wait(1).release(a);
     this.guard(() => this.driver.tap(a, y ?? 0));
     this.notify();
+    this.lastTap = { x: a, y: y ?? 0, state: snapshot(this.state) };
     return this;
   }
 
@@ -563,4 +575,12 @@ function compare(actual: unknown, c: Comparison): string | undefined {
   if (c.lte !== undefined && !(actual <= c.lte)) return `expected <= ${c.lte}, got ${actual}`;
   if (c.approx && !(Math.abs(actual - c.approx[0]) <= c.approx[1])) return `expected ${c.approx[0]} ± ${c.approx[1]}, got ${actual}`;
   return undefined;
+}
+
+function snapshot(value: unknown): string | undefined {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return undefined;
+  }
 }
