@@ -103,6 +103,80 @@ describe("engine adapters", () => {
     delete g.__PIXI_APP_INIT__;
   });
 
+  it("times a KAPLAY context's tree update and draw, and an Excalibur engine's through its events", () => {
+    performance.now = () => now;
+    const p = new Profiler({ global: false });
+    const root = { update: busy(3), draw: busy(2) };
+    const k = { getTreeRoot: () => root, loadSprite: () => {} };
+    expect(adapt(p, k)).toBe("kaplay");
+    const handlers: Record<string, (() => void)[]> = {};
+    const engine = {
+      currentScene: {},
+      graphicsContext: {},
+      on: (name: string, fn: () => void) => {
+        handlers[name] = [...(handlers[name] ?? []), fn];
+      },
+    };
+    expect(adapt(p, engine)).toBe("excalibur");
+    adapt(p, engine); // idempotent
+    const emit = (name: string) => {
+      for (const fn of handlers[name] ?? []) fn();
+    };
+    const spans = spansAfter(p, () => {
+      root.update();
+      root.draw();
+      emit("preupdate");
+      now += 4;
+      emit("postupdate");
+      emit("predraw");
+      now += 1;
+      emit("postdraw");
+    });
+    expect(spans).toEqual({ update: 7, render: 3 });
+  });
+
+  it("finds Excalibur through its devtools global, and KAPLAY through its globals", () => {
+    performance.now = () => now;
+    const p = myaku({ global: true });
+    const handlers: Record<string, (() => void)[]> = {};
+    const engine = {
+      currentScene: {},
+      graphicsContext: {},
+      on: (n: string, fn: () => void) => {
+        handlers[n] = [...(handlers[n] ?? []), fn];
+      },
+    };
+    g.___EXCALIBUR_DEVTOOL = engine;
+    expect(g.___EXCALIBUR_DEVTOOL).toBe(engine);
+    expect(handlers.preupdate).toHaveLength(1);
+    const root = { update: busy(3), draw: busy(2) };
+    g.getTreeRoot = () => root;
+    g.loadSprite = () => {};
+    for (const fn of (p as unknown as { listeners: Set<(p: Profiler) => void> }).listeners) fn(p);
+    const spans = spansAfter(p, () => {
+      root.update();
+      root.draw();
+    });
+    expect(spans).toEqual({ update: 3, render: 2 });
+    p.stop();
+    expect(g.___EXCALIBUR_DEVTOOL).toBe(engine);
+    delete g.___EXCALIBUR_DEVTOOL;
+    delete g.getTreeRoot;
+    delete g.loadSprite;
+  });
+
+  it("finishes a PixiJS app whose ticker is set up after the devtools hook runs", async () => {
+    performance.now = () => now;
+    const p = myaku({ global: true });
+    const app: Obj = { stage: {}, renderer: { render: busy(2) } };
+    (g.__PIXI_APP_INIT__ as (app: unknown, v: string) => void)(app, "8.14.1");
+    app.ticker = { add: () => {} };
+    await Promise.resolve();
+    const spans = spansAfter(p, () => (app.renderer as { render: () => void }).render());
+    expect(spans).toEqual({ render: 2 });
+    p.stop();
+  });
+
   it("ignores objects that aren't engines, and can be turned off", () => {
     const p = new Profiler({ global: false });
     expect(adapt(p, {})).toBeUndefined();

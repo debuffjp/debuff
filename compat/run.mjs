@@ -16,6 +16,8 @@ const spans = {
   phaser4: ["update", "update:level", "render"],
   phaser3: ["update", "update:level", "render"],
   pixi: ["update", "render"],
+  excalibur: ["update", "render"],
+  kaplay: ["update", "render"],
   three: ["render"],
 };
 

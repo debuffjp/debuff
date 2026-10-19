@@ -244,6 +244,15 @@ describe("Playtest", () => {
     expect(() => g.until(() => false, { within: 1 })).toThrow(/use `await game.eventually/);
   });
 
+  it("hints that a tap missed when nothing changed after it", async () => {
+    const g = game();
+    g.tap(5, 6);
+    expect(() => g.until(() => false, { within: 2 })).toThrow(/Nothing in the state changed after tap\(5, 6\)/);
+    await expect(g.eventually(() => false, { within: 2 })).rejects.toThrow(/after tap\(5, 6\)/);
+    g.press("ArrowRight");
+    expect(() => g.until(() => false, { within: 2 })).not.toThrow(/after tap/);
+  });
+
   it("explains a settle that times out", async () => {
     const g = new Playtest<FakeState>(debuffDriver(fakeHooks()), { root: ".", settle: async () => false });
     await expect(g.settle(5)).rejects.toThrow(/still had requests in flight after 5 ms/);
