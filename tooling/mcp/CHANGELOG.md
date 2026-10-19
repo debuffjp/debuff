@@ -1,5 +1,17 @@
 # @debuffjp/mcp
 
+## 0.9.2
+
+### Patch Changes
+
+- Updated dependencies [c2a9cfa]
+- Updated dependencies [7c2ee14]
+- Updated dependencies [cc424e9]
+- Updated dependencies [1754dac]
+- Updated dependencies [97deedd]
+  - @debuffjp/cli@0.9.2
+  - keiko@0.5.1
+
 ## 0.9.1
 
 ### Patch Changes

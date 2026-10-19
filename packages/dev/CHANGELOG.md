@@ -1,5 +1,15 @@
 # @debuffjp/dev
 
+## 0.9.2
+
+### Patch Changes
+
+- cc424e9: Gamepad input is now recorded, so rewind, the reload that keeps your place, and replays saved as scenarios reproduce pad sessions. Scenarios gain a `pad` step.
+- Updated dependencies [f29a0f0]
+- Updated dependencies [f739c4a]
+- Updated dependencies [d224bda]
+  - myaku@0.5.0
+
 ## 0.9.1
 
 ### Patch Changes

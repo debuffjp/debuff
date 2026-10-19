@@ -1,5 +1,12 @@
 # keiko
 
+## 0.5.1
+
+### Patch Changes
+
+- 1754dac: `-t/--filter` no longer hides test files that fail to load, and a filter that matches no tests now fails. A test that times out can no longer close the next test's page when it calls `play()` late.
+- 97deedd: Commented-out scripts are no longer booted, failures keep their file and line under paths with parentheses, test files outside the project get a clear error, duplicates run once, durations like `1e3ms` work, and `page` accepts backslashes. Needs Node 22.4 or later.
+
 ## 0.5.0
 
 ### Minor Changes
