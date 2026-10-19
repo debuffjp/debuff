@@ -12,9 +12,9 @@ import { build, preview } from "vite";
 const root = dirname(fileURLToPath(import.meta.url));
 const ALL = ["canvas2d", "spryte", "spryte-bulk", "debuff-2d", "debuff-webgl", "pixi-sprite", "pixi-particle"];
 // Positional, since npm swallows unknown --flags: `npm run bench:renderer -- mixed spryte`.
-const scene = process.argv.includes("mixed") ? "mixed" : "bunny";
+const scene = ["mixed", "particles"].find((s) => process.argv.includes(s)) ?? "bunny";
 // The mixed scene needs rotation, scale, tint and alpha per sprite, which these can't do.
-const MIXED_OK = ["spryte", "debuff-webgl", "pixi-sprite"];
+const SCENE_OK = { bunny: ALL, mixed: ["spryte", "debuff-webgl", "pixi-sprite"], particles: ["spryte-bulk", "pixi-particle"] };
 const renderers = process.argv.slice(2).filter((a) => ALL.includes(a));
 const COUNTS = [1_000, 2_000, 5_000, 10_000, 20_000, 50_000, 100_000, 200_000, 400_000, 800_000, 1_600_000];
 const FRAME_BUDGET_MS = 1000 / 60; // full CPU+GPU frame must fit a 60 Hz frame
@@ -28,7 +28,7 @@ const browser = await chromium.launch({ channel: process.env.DEBUFF_BROWSER_CHAN
 const results = [];
 let gpu = "unknown";
 try {
-  for (const renderer of (renderers.length ? renderers : ALL).filter((r) => scene === "bunny" || MIXED_OK.includes(r))) {
+  for (const renderer of (renderers.length ? renderers : ALL).filter((r) => SCENE_OK[scene].includes(r))) {
     const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
     await page.goto(`${base}?renderer=${renderer}&scene=${scene}`);
     await page.waitForFunction(() => window.__bench?.ready === true, undefined, { timeout: 30_000 });
