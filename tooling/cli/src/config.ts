@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { AtlasOptions } from "./assets/atlas.js";
+import type { LaunchConfig } from "./launch.js";
 import { TOOLING_API_VERSION, type ToolingPlugin } from "./plugin.js";
 
 /** Contents of `debuff.config.ts`. */
@@ -18,6 +19,11 @@ export interface DebuffConfig {
      */
     viewport?: [number, number];
   };
+  /**
+   * Launch metadata: `debuff build` turns it into link-preview tags, a web app manifest and a preview
+   * image, and `debuff ship` uses it for store checks and the press kit. Defaults come from package.json.
+   */
+  launch?: LaunchConfig;
 }
 
 export interface ResolvedConfig {
@@ -28,6 +34,7 @@ export interface ResolvedConfig {
   atlas: AtlasOptions | false;
   /** `scenarios.viewport`, when set. */
   viewport?: [number, number];
+  launch: LaunchConfig;
 }
 
 /** Identity helper that gives `debuff.config.ts` full type checking and editor completion. */
@@ -42,7 +49,7 @@ const NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 /** Load and validate `debuff.config.*` from `root`. A missing file is a valid empty config. */
 export async function loadConfig(root: string): Promise<ResolvedConfig> {
   const file = CONFIG_FILES.map((f) => join(root, f)).find((f) => existsSync(f));
-  if (!file) return { root, file: undefined, plugins: [], atlas: {} };
+  if (!file) return { root, file: undefined, plugins: [], atlas: {}, launch: {} };
   // Vite's module runner transpiles TypeScript without a separate loader dependency.
   const { runnerImport } = await import("vite");
   // runnerImport sets process.env.NODE_ENV to "development" for the whole process. Put it back, or a
@@ -64,6 +71,7 @@ export async function loadConfig(root: string): Promise<ResolvedConfig> {
     file,
     plugins: validatePlugins(config.plugins ?? [], file),
     atlas: config.assets?.atlas ?? {},
+    launch: config.launch ?? {},
     ...(viewport ? { viewport } : {}),
   };
 }

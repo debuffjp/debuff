@@ -164,10 +164,10 @@ export const test: TestApi = Object.assign((name: string, fn: TestFn, options?: 
     add(
       name,
       async () => {
-        const record = async (seed: number) => {
+        const record = async (seed: number, epoch?: number) => {
           const states: { tick: number; state: unknown; loading: boolean }[] = [];
           const game = await bootGame(
-            { ...options.play, seed },
+            { ...options.play, seed, ...(epoch === undefined ? {} : { epoch }) },
             { onStep: (state, tick, loading) => states.push({ tick, state, loading }) },
           );
           await script(game);
@@ -175,7 +175,8 @@ export const test: TestApi = Object.assign((name: string, fn: TestFn, options?: 
         };
         const seed = options.play?.seed ?? 1;
         const a = await record(seed);
-        const b = await record(options.sameSeed ? seed : seed + 7919);
+        // A different date too (a year and a day later), so logic seeded from the clock is caught.
+        const b = await record(options.sameSeed ? seed : seed + 7919, options.sameSeed ? undefined : Date.UTC(2027, 0, 2));
         const n = Math.min(a.length, b.length);
         for (let i = 0; i < n; i++) {
           const path = firstDifference(a[i]?.state, b[i]?.state);

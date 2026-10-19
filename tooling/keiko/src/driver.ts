@@ -204,6 +204,8 @@ export function genericDriver(window: Window & { __KEIKO__?: KeikoHooks }, clock
 function domInput(window: Window) {
   const held = new Set<string>();
   let last = { x: 0, y: 0 };
+  let moved = false;
+  let pressed = false;
   // Keys go where a player's would: the focused element, or the game's canvas (players click the game first).
   // They bubble up to document and window, so listeners anywhere hear them.
   const target = () => {
@@ -232,8 +234,12 @@ function domInput(window: Window) {
       target().dispatchEvent(event);
     },
     pointer(kind: "down" | "move" | "up", x = last.x, y = last.y) {
+      // A real pointer moves to where it presses, and engines like KAPLAY only track position on moves.
+      if (kind === "down" && (!moved || x !== last.x || y !== last.y)) this.pointer("move", x, y);
+      moved = true;
       last = { x, y };
-      const init = { clientX: x, clientY: y, button: 0, buttons: kind === "up" ? 0 : 1, bubbles: true, cancelable: true, composed: true };
+      if (kind !== "move") pressed = kind === "down";
+      const init = { clientX: x, clientY: y, button: 0, buttons: pressed ? 1 : 0, bubbles: true, cancelable: true, composed: true };
       const el = canvas();
       const PointerCtor = W.PointerEvent ?? W.MouseEvent;
       // The page doesn't scroll and the canvas sits at the origin, so every position field is the same point.
