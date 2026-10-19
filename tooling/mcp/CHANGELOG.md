@@ -1,5 +1,14 @@
 # @debuffjp/mcp
 
+## 0.8.0
+
+### Patch Changes
+
+- Updated dependencies [0f12c4b]
+- Updated dependencies [77fe8c6]
+- Updated dependencies [5504289]
+  - @debuffjp/cli@0.8.0
+
 ## 0.7.1
 
 ### Patch Changes
