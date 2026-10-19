@@ -108,7 +108,7 @@ API debt to settle before 1.0: `begin`, `end`, `resize`, `dispose` and `renderSc
   - `draw.sprites()` bulk path: about 3× ParticleContainer at 200k.
   - With per-copy scale, rotation and colour: about 4× ParticleContainer with every dynamic property on.
   - A `sprite()` loop is about 4× PixiJS `Sprite`.
-  - About 10× less JS at startup (8.4 vs 87.8 kB brotli).
+  - About 9× less JS at startup (10.1 vs 87.8 kB brotli, `bench/size`).
 - **New features:**
   - Render targets (`createTarget`, `into`).
   - Custom shaders (`createShader`, `withShader`, with errors mapped to your line numbers).

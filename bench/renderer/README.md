@@ -16,16 +16,16 @@ PARITY_DUMP=1 npm run bench:renderer -- particles          # write the parity fr
 | Scene | What every sprite does | Renderers |
 | --- | --- | --- |
 | `bunny` | One texture, position only | `canvas2d`, `spryte`, `spryte-bulk`, `debuff-2d`, `debuff-webgl`, `pixi-sprite`, `pixi-particle` |
-| `mixed` | 4 separate textures, rotation, scale, tint, alpha | `spryte`, `debuff-webgl`, `pixi-sprite` |
+| `mixed` | 4 separate textures; rotation, scale, tint and alpha, all changing over time | `spryte`, `debuff-webgl`, `pixi-sprite` |
 | `particles` | One texture; position, scale, rotation, tint and alpha all changing every frame | `spryte-bulk`, `pixi-particle` (every dynamic property on) |
 
 Like for like: `spryte` (`draw.sprite`, one call per sprite) pairs with `pixi-sprite` (`Sprite`). `spryte-bulk` (`draw.sprites`) pairs with `pixi-particle` (`ParticleContainer`). All use nearest filtering, no antialiasing, and whole-pixel rounding (PixiJS with `roundPixels: true`).
 
 ## Method
 
-1. **Parity.** On a fresh page, each renderer draws the same seeded frame (2,000 sprites after 10 steps). Its pixels are compared with the reference renderer's. **Coverage** (drawn area relative to the reference) shows whether a renderer skips or culls work. **Differing pixels** (any channel off by more than 8 levels) are mostly sprite edges where rounding rules differ.
-2. **Timing.** Each count runs 20 warm-up frames and 100 measured frames. A frame is timed from simulation to GPU completion, forced by a 1-pixel readback, so vsync and rAF pacing can't hide cost. Counts climb a ladder (1k, 2k, 5k, 10k, … 1.6M) until the median frame exceeds 16.7 ms.
-3. **Rounds.** The whole ladder repeats for several rounds, with the renderer order rotated each round so heat and ordering spread evenly. Reported: the median across rounds, with min–max. "Max at 60 fps" is the largest count whose median fits 16.7 ms in every round.
+1. **Parity gate.** On fresh pages, each renderer draws the same seeded frame at 2,000 and at 50,000 sprites, which is compared with the reference renderer's. **Coverage** (drawn area relative to the reference) shows skipped or culled work. **Inside-sprite differences** count pixels that differ (any channel by more than 8 levels) where the 3×3 neighbourhood is one flat colour in both frames, so edges, where rounding rules differ, don't count but a wrong tint, alpha or texture does. The run fails if coverage leaves 99.5–100.5% or inside-sprite differences exceed 0.5%. Validation: a deliberately wrong PixiJS tint raised inside-sprite differences from 0% to 22%.
+2. **Timing.** Each count runs 20 warm-up frames and 100 measured frames. A frame is timed from simulation to GPU completion, forced by a 1-pixel readback, so vsync and rAF pacing can't hide cost. Counts climb a ladder (1k, 2k, 5k, 10k, … 1.6M). Once a median frame exceeds 16.7 ms, only the published counts (10k, 50k, 200k) are still measured, so every renderer has them in every round.
+3. **Rounds.** The whole ladder repeats for several rounds, with the renderer order rotated each round so heat and ordering spread evenly. Reported: the median across rounds, with min–max. "Max at 60 fps" is the largest ladder step measured in every round whose median frame is at most 16.7 ms (steps are up to 2× apart, so it's a lower bound).
 4. **Environment.** Saved with every result: GPU, Chrome version, CPU, OS, memory, power source and plan (detected on Windows), the PixiJS version, the spryte version and commit, and `BENCH_NOTE`.
 
 Results go to `results/<date>-<platform>-<scene>.json`. Commit results from new devices: phones and integrated GPUs especially.

@@ -29,7 +29,14 @@ const renderers = (chosen.length ? chosen : ALL).filter((r) => SCENES[scene].ren
 const rounds = Number(process.argv.find((a) => a.startsWith("rounds="))?.slice(7) ?? 3);
 const COUNTS = [1_000, 2_000, 5_000, 10_000, 20_000, 50_000, 100_000, 200_000, 400_000, 800_000, 1_600_000];
 const FRAME_BUDGET_MS = 1000 / 60; // the full CPU+GPU frame must fit a 60 Hz frame
-const PARITY_COUNT = 2_000;
+// Parity at a sparse count (coverage is meaningful) and a dense one (nobody skips work at scale).
+const PARITY_COUNTS = [2_000, 50_000];
+// The run fails if a renderer's drawn area drifts this far from the reference, or differs inside sprites.
+const COVERAGE_RANGE = [99.5, 100.5];
+const MAX_INTERIOR_PERCENT = 0.5;
+// Every renderer is measured at these counts in every round, even past the 60 fps budget, so published cells
+// never come from a different number of rounds.
+const PUBLISHED = [10_000, 50_000, 200_000];
 // Channel difference that counts as a different pixel: tint maths may round 1–2 levels differently.
 const PARITY_TOLERANCE = 8;
 
@@ -60,6 +67,54 @@ await build({ root, logLevel: "error" });
 const server = await preview({ root, preview: { port: 0 }, logLevel: "error" });
 const base = server.resolvedUrls.local[0];
 const browser = await chromium.launch({ channel: process.env.DEBUFF_BROWSER_CHANNEL ?? "chrome" });
+
+/**
+ * Compare a renderer's frame with the reference's. Coverage: drawn area relative to the reference (skipped or
+ * culled sprites show here). Interior: differing pixels whose 3×3 neighbourhood is flat (one colour) in both
+ * frames. Any edge, even a sprite over another sprite, breaks flatness, so rounding rules that move edges
+ * don't count; a wrong tint, alpha or texture inside a sprite does.
+ */
+function compare(ref, px) {
+  const W = 960;
+  const H = 540;
+  const flat = (b, x, y) => {
+    const c = (y * W + x) * 4;
+    for (let dy = -1; dy <= 1; dy++)
+      for (let dx = -1; dx <= 1; dx++) {
+        const j = ((y + dy) * W + x + dx) * 4;
+        if (Math.max(Math.abs(b[j] - b[c]), Math.abs(b[j + 1] - b[c + 1]), Math.abs(b[j + 2] - b[c + 2])) > PARITY_TOLERANCE) return false;
+      }
+    return true;
+  };
+  let differ = 0;
+  let drawn = 0;
+  let own = 0;
+  let refOwn = 0;
+  let interior = 0;
+  for (let i = 0; i < ref.length; i += 4) {
+    // Background is #11140d; count pixels either renderer drew on.
+    const bgA = ref[i] === 0x11 && ref[i + 1] === 0x14 && ref[i + 2] === 0x0d;
+    const bgB = px[i] === 0x11 && px[i + 1] === 0x14 && px[i + 2] === 0x0d;
+    if (!bgB) own++;
+    if (!bgA) refOwn++;
+    if (bgA && bgB) continue;
+    drawn++;
+    if (Math.max(Math.abs(ref[i] - px[i]), Math.abs(ref[i + 1] - px[i + 1]), Math.abs(ref[i + 2] - px[i + 2])) > PARITY_TOLERANCE) {
+      differ++;
+      const x = (i / 4) % W;
+      const y = (i / 4 / W) | 0;
+      if (x > 0 && y > 0 && x < W - 1 && y < H - 1 && flat(ref, x, y) && flat(px, x, y)) interior++;
+    }
+  }
+  const pct = (n, d) => (d ? +((100 * n) / d).toFixed(2) : 0);
+  return {
+    drawnPixels: drawn,
+    differingPixels: differ,
+    differingPercent: pct(differ, drawn),
+    coveragePercent: refOwn ? +((100 * own) / refOwn).toFixed(1) : 0,
+    interiorDifferingPercent: pct(interior, drawn),
+  };
+}
 
 async function dump(renderer, px, ref) {
   const dir = join(root, "results", "parity");
@@ -101,62 +156,65 @@ let gpu = "unknown";
 const parity = {};
 const samples = Object.fromEntries(renderers.map((r) => [r, {}]));
 try {
-  // 1. Parity: every renderer draws the same seeded frame; compare each to the reference.
+  // 1. Parity: every renderer draws the same seeded frames; compare each to the reference.
   const snaps = {};
   for (const renderer of renderers) {
-    const page = await open(renderer);
-    if (gpu === "unknown")
-      gpu = await page.evaluate(() => {
-        const gl = document.createElement("canvas").getContext("webgl2");
-        const ext = gl?.getExtension("WEBGL_debug_renderer_info");
-        return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : "unknown";
-      });
-    const snap = await page.evaluate((n) => window.__bench.snapshot(n), PARITY_COUNT);
-    snaps[renderer] = Buffer.from(snap.rgba, "base64");
-    await page.close();
-  }
-  const ref = snaps[SCENES[scene].reference] ?? snaps[renderers[0]];
-  for (const renderer of renderers) {
-    const px = snaps[renderer];
-    let differ = 0;
-    let drawn = 0;
-    // Coverage: pixels this renderer drew vs the reference. Skipped or culled sprites would show here.
-    let own = 0;
-    let refOwn = 0;
-    for (let i = 0; i < ref.length; i += 4) {
-      // Background is #11140d; count pixels either renderer drew on.
-      const bgA = ref[i] === 0x11 && ref[i + 1] === 0x14 && ref[i + 2] === 0x0d;
-      const bgB = px[i] === 0x11 && px[i + 1] === 0x14 && px[i + 2] === 0x0d;
-      if (!bgB) own++;
-      if (!bgA) refOwn++;
-      if (bgA && bgB) continue;
-      drawn++;
-      if (Math.max(Math.abs(ref[i] - px[i]), Math.abs(ref[i + 1] - px[i + 1]), Math.abs(ref[i + 2] - px[i + 2])) > PARITY_TOLERANCE)
-        differ++;
+    snaps[renderer] = {};
+    for (const count of PARITY_COUNTS) {
+      // A fresh page per snapshot: the scene is seeded from the start.
+      const page = await open(renderer);
+      if (gpu === "unknown")
+        gpu = await page.evaluate(() => {
+          const gl = document.createElement("canvas").getContext("webgl2");
+          const ext = gl?.getExtension("WEBGL_debug_renderer_info");
+          return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : "unknown";
+        });
+      const snap = await page.evaluate((n) => window.__bench.snapshot(n), count);
+      snaps[renderer][count] = Buffer.from(snap.rgba, "base64");
+      await page.close();
     }
-    parity[renderer] = {
-      drawnPixels: drawn,
-      differingPixels: differ,
-      differingPercent: drawn ? +((100 * differ) / drawn).toFixed(2) : 0,
-      coveragePercent: refOwn ? +((100 * own) / refOwn).toFixed(1) : 0,
-    };
-    // PARITY_DUMP=1 writes the frames as PNGs (and a diff in red) to results/parity/ for a look.
-    if (process.env.PARITY_DUMP) await dump(renderer, px, ref);
-    console.log(
-      `parity ${renderer.padEnd(14)} ${parity[renderer].differingPercent}% of ${drawn} drawn pixels differ from ${SCENES[scene].reference}, coverage ${parity[renderer].coveragePercent}%`,
-    );
   }
+  const reference = SCENES[scene].reference in snaps ? SCENES[scene].reference : renderers[0];
+  const failures = [];
+  for (const renderer of renderers) {
+    parity[renderer] = {};
+    for (const count of PARITY_COUNTS) {
+      const ref = snaps[reference][count];
+      const px = snaps[renderer][count];
+      const p = compare(ref, px);
+      parity[renderer][count] = p;
+      // PARITY_DUMP=1 writes the frames as PNGs (and a diff in red) to results/parity/ for a look.
+      if (process.env.PARITY_DUMP) await dump(`${renderer}-${count}`, px, ref);
+      const ok =
+        p.coveragePercent >= COVERAGE_RANGE[0] &&
+        p.coveragePercent <= COVERAGE_RANGE[1] &&
+        p.interiorDifferingPercent <= MAX_INTERIOR_PERCENT;
+      if (!ok) failures.push(`${renderer} at ${count}`);
+      console.log(
+        `parity ${ok ? "ok  " : "FAIL"} ${renderer.padEnd(14)} ${String(count).padStart(6)}: coverage ${p.coveragePercent}%, ${p.differingPercent}% of drawn pixels differ (${p.interiorDifferingPercent}% inside sprites)`,
+      );
+    }
+  }
+  if (failures.length)
+    throw new Error(`Parity failed (${failures.join(", ")}): renderers don't draw the same scene, so timings aren't comparable.`);
 
   // 2. Timing: rounds interleave renderers in a rotating order, so heat and ordering spread evenly.
+  const lastPublished = Math.max(...PUBLISHED);
   for (let round = 0; round < rounds; round++) {
     const order = renderers.map((_, i) => renderers[(i + round) % renderers.length]);
     for (const renderer of order) {
       const page = await open(renderer);
+      let over = false;
       for (const count of COUNTS) {
+        // Past the 60 fps budget, only the published counts are still measured, so every round has them.
+        if (over && (count > lastPublished || !PUBLISHED.includes(count))) {
+          if (count > lastPublished) break;
+          continue;
+        }
         const r = await page.evaluate((n) => window.__bench.measure(n), count);
         samples[renderer][count] ??= [];
         samples[renderer][count].push(r);
-        if (r.frameMs > FRAME_BUDGET_MS) break;
+        if (r.frameMs > FRAME_BUDGET_MS) over = true;
       }
       await page.close();
       console.log(`  round ${round + 1}/${rounds} ${renderer} done`);
@@ -213,7 +271,13 @@ const report = {
     framesPerCount: 100,
     warmupFrames: 20,
     timing: "simulation through GPU completion (1-pixel readback); median per count per round, then median across rounds",
-    parity: { count: PARITY_COUNT, tolerance: PARITY_TOLERANCE, reference: SCENES[scene].reference },
+    parity: {
+      counts: PARITY_COUNTS,
+      tolerance: PARITY_TOLERANCE,
+      reference: SCENES[scene].reference,
+      gate: { coveragePercent: COVERAGE_RANGE, maxInteriorDifferingPercent: MAX_INTERIOR_PERCENT },
+    },
+    publishedCounts: PUBLISHED,
   },
   results,
 };
@@ -233,6 +297,6 @@ console.log(`| Renderer | Max @60fps | ${show.map((n) => `${n / 1000}k`).join(" 
 console.log(`| --- | --- | ${show.map(() => "---").join(" | ")} | --- |`);
 for (const r of results)
   console.log(
-    `| ${r.renderer} | ${r.maxAt60fps.toLocaleString("en")} | ${show.map((n) => cell(r, n)).join(" | ")} | ${r.parity.coveragePercent}% coverage, ${r.parity.differingPercent}% px differ |`,
+    `| ${r.renderer} | ${r.maxAt60fps.toLocaleString("en")} | ${show.map((n) => cell(r, n)).join(" | ")} | ${PARITY_COUNTS.map((n) => `${n / 1000}k: ${r.parity[n].coveragePercent}% coverage, ${r.parity[n].interiorDifferingPercent}% inside`).join("; ")} |`,
   );
 console.log(`\nSaved ${file}`);

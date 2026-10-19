@@ -21,13 +21,17 @@ const renderer = params.get("renderer") ?? "canvas2d";
 // particles: one texture, per-sprite position, scale, rotation, tint and alpha: ParticleContainer's best case.
 const scene = (["mixed", "particles"] as const).find((s) => s === params.get("scene")) ?? "bunny";
 const TINTS = [0xffffffff, 0xff8080ff, 0x80ff80ff, 0x8080ffff];
-/** Per-sprite look for the mixed scene, derived from the index so every renderer draws the same thing. */
+/**
+ * Per-sprite look for the mixed and particles scenes, from the index and frame so every renderer draws the
+ * same thing. Every property changes over time (scale every 4 frames, alpha every 2, tint every 8, rotation
+ * every frame), so "dynamic" is honest: a renderer can't win by caching values that never change.
+ */
 const look = (i: number, frame: number) => ({
   texture: i & 3,
   rotation: (i * 0.1 + frame * 0.02) % (Math.PI * 2),
-  scale: 0.75 + (i % 5) * 0.125,
-  tint: TINTS[(i >> 2) & 3] as number,
-  alpha: 0.5 + (i % 3) * 0.25,
+  scale: 0.75 + ((i + (frame >> 2)) % 5) * 0.125,
+  tint: TINTS[((i >> 2) + (frame >> 3)) & 3] as number,
+  alpha: 0.5 + ((i + (frame >> 1)) % 3) * 0.25,
 });
 let frameNo = 0;
 const canvas = document.querySelector("canvas") as HTMLCanvasElement;
