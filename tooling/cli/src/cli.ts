@@ -141,7 +141,7 @@ cli
       p.log.step("Starting dev server and browser");
     }
     const root = rootOf(o);
-    const { plugins } = await loadConfig(root);
+    const { plugins, viewport } = await loadConfig(root);
     // Write the scenario schema including plugin steps, so editors and agents can validate them.
     const { scenarioSchema } = await import("./scenario/index.js");
     mkdirSync(join(root, ".debuff"), { recursive: true });
@@ -150,7 +150,14 @@ cli
       `${JSON.stringify(scenarioSchema(plugins), null, 2)}
 `,
     );
-    const reports = await runScenarios({ root, files, plugins, update: o.update ?? false, strict: o.strict ?? false });
+    const reports = await runScenarios({
+      root,
+      files,
+      plugins,
+      update: o.update ?? false,
+      strict: o.strict ?? false,
+      ...(viewport ? { viewport } : {}),
+    });
     finished = true;
     const failed = reports.filter((r) => !r.ok).length;
     if (o.json) console.log(JSON.stringify(reports, null, 2));

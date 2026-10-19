@@ -12,6 +12,8 @@ export interface Scenario {
   page?: string;
   /** Run with the browser asking for reduced motion (`prefers-reduced-motion: reduce`). */
   reducedMotion?: boolean;
+  /** Browser viewport `[width, height]` for this scenario. Default: the project's `scenarios.viewport`, else 960×540. */
+  viewport?: [number, number];
   steps: Step[];
 }
 
@@ -94,6 +96,8 @@ export interface RunOptions {
   root: string;
   /** Scenario files relative to root. Default: every `scenarios/*.json`. */
   files: string[];
+  /** Default viewport `[width, height]` (the config's `scenarios.viewport`). Default 960×540. */
+  viewport?: [number, number];
   /** Overwrite baselines with new captures. */
   update: boolean;
   /** Fail when a baseline is missing instead of recording it. */

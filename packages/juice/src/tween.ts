@@ -72,9 +72,25 @@ export class Tweens {
     };
   }
 
-  /** Cancel all tweens on a target. */
-  kill(target: object): void {
-    for (const a of this.active) if (a.target === target) a.done = true;
+  /**
+   * Cancel tweens on a target: all of them, or only the given properties, so other tweens on the same object
+   * keep running (squash a sprite without stopping its move).
+   */
+  kill(target: object, props?: readonly string[]): void {
+    for (const a of this.active) {
+      if (a.target !== target || a.done) continue;
+      if (!props) {
+        a.done = true;
+        continue;
+      }
+      for (const key of props) delete a.to[key];
+      if (Object.keys(a.to).length === 0) a.done = true;
+    }
+  }
+
+  /** True while a tween (or one on `prop`) is running or waiting on its delay for this target. */
+  has(target: object, prop?: string): boolean {
+    return this.active.some((a) => a.target === target && !a.done && (prop === undefined || prop in a.to));
   }
 
   get count(): number {

@@ -2,7 +2,7 @@ import { Audio } from "@debuffjp/audio";
 import { type Draw, Game, type Scene, Storage } from "@debuffjp/core";
 import { devOverlay, devTools } from "@debuffjp/dev";
 import { Input } from "@debuffjp/input";
-import { Particles, Tweens } from "@debuffjp/juice";
+import { Particles, squash, Tweens } from "@debuffjp/juice";
 import { adjacent, type Board, collapse, EMPTY, fill, findMatches, findMove, fromRows, swap, swapMatches, toRows } from "./board";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game");
@@ -61,8 +61,6 @@ interface Piece {
   scaleY: number;
   /** Desyncs each piece's idle jiggle. */
   phase: number;
-  /** Mid-animation (popping in, popping out): the idle jiggle leaves its scale alone. */
-  busy: boolean;
 }
 
 type Phase = "idle" | "swap" | "unswap" | "pop" | "fall" | "over";
@@ -81,16 +79,6 @@ let cursor = 27;
 let pressAt: { x: number; y: number; cell: number } | undefined;
 const popups: { text: string; x: number; y: number; t: number }[] = [];
 
-/**
- * Squash a piece and let it spring back. Only scale is tweened, so a move already under way keeps going
- * (juice's `squash()` kills every tween on its target, which would stop the piece mid-swap).
- */
-function jelly(p: Piece, amount: number, duration: number) {
-  p.scaleX = 1 + amount;
-  p.scaleY = 1 - amount;
-  tweens.to(p, { scaleX: 1, scaleY: 1 }, { duration, ease: "outElastic" });
-}
-
 const piece = (colour: number, x: number, y: number): Piece => ({
   colour,
   x,
@@ -98,7 +86,6 @@ const piece = (colour: number, x: number, y: number): Piece => ({
   scaleX: 1,
   scaleY: 1,
   phase: game.random.next() * 6.28,
-  busy: false,
 });
 const cellAt = (px: number, py: number) => {
   const x = Math.floor((px - BOARD_X) / CELL),
@@ -125,12 +112,7 @@ function newRound() {
     if (!p) continue;
     p.scaleX = 0;
     p.scaleY = 0;
-    p.busy = true;
-    tweens.to(
-      p,
-      { scaleX: 1, scaleY: 1 },
-      { duration: 0.35, delay: (p.x + p.y) * 0.035, ease: "outBack", onComplete: () => (p.busy = false) },
-    );
+    tweens.to(p, { scaleX: 1, scaleY: 1 }, { duration: 0.35, delay: (p.x + p.y) * 0.035, ease: "outBack" });
   }
 }
 
@@ -146,8 +128,8 @@ function trySwap(a: number, b: number) {
     pb = pieces[b]!;
   tweens.to(pa, { x: pb.x, y: pb.y }, { duration: feel.values.swap, ease: "inOutQuad" });
   tweens.to(pb, { x: pa.x, y: pa.y }, { duration: feel.values.swap, ease: "inOutQuad" });
-  jelly(pa, 0.25, 0.3);
-  jelly(pb, 0.25, 0.3);
+  squash(tweens, pa, 0.25, 0.3);
+  squash(tweens, pb, 0.25, 0.3);
   audio.synth({ freq: 380, freqEnd: 520, decay: 0.06 });
 }
 
@@ -165,7 +147,7 @@ function finishSwap() {
     for (const i of [a, b]) {
       const p = pieces[i]!;
       tweens.to(p, { x: i % W, y: Math.floor(i / W) }, { duration: feel.values.swap * 1.6, ease: "outBack" });
-      jelly(p, -0.2, 0.35);
+      squash(tweens, p, -0.2, 0.35);
     }
     audio.synth({ freq: 220, freqEnd: 160, decay: 0.12 });
     game.emit("nomatch");
@@ -188,7 +170,6 @@ function startPop() {
     sy = 0;
   for (const i of popping) {
     const p = pieces[i]!;
-    p.busy = true;
     sx += p.x;
     sy += p.y;
     // Swell, then shrink to nothing.
@@ -230,7 +211,7 @@ function finishPop() {
     const toY = Math.floor(f.to / W),
       duration = Math.sqrt(toY - f.fromY) * feel.values.fall * 2.2;
     longest = Math.max(longest, duration);
-    tweens.to(p, { y: toY }, { duration, ease: "inQuad", onComplete: () => jelly(p, 0.22, 0.3) });
+    tweens.to(p, { y: toY }, { duration, ease: "inQuad", onComplete: () => squash(tweens, p, 0.22, 0.3) });
   }
   pieces = moved;
   phase = "fall";
@@ -397,12 +378,12 @@ const play: Scene = {
       else if (phase === "pop") finishPop();
       else if (phase === "fall") finishFall();
     }
-    // Idle jiggle: every piece breathes a little, out of step with its neighbours. Tweens run after this, so a
-    // piece that's squashing or popping shows its tween instead.
+    // Idle jiggle: every piece breathes a little, out of step with its neighbours.
     const wob = game.reducedMotion ? 0 : feel.values.wobble;
     const t = game.clock.time;
     for (const p of pieces) {
-      if (!p || p.busy) continue;
+      // A piece that's squashing, popping in or popping out shows its tween instead.
+      if (!p || tweens.has(p, "scaleX")) continue;
       const s = Math.sin(t * 3 + p.phase) * wob;
       p.scaleX = 1 + s;
       p.scaleY = 1 - s;

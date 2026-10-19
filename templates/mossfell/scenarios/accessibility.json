@@ -1,0 +1,15 @@
+{
+  "$schema": "../node_modules/@debuffjp/cli/schema/scenario.schema.json",
+  "steps": [
+    { "wait": 20 },
+    { "contrast": [0, 2, 256, 12] },
+    { "set": { "enemies.slimeSpeed": 0, "enemies.mothSpeed": 0 } },
+    { "press": "ArrowRight" },
+    { "flashes": 300 },
+    { "release": "ArrowRight" },
+    { "command": "warp", "args": ["hollow"] },
+    { "press": "ArrowLeft" },
+    { "flashes": 240 },
+    { "release": "ArrowLeft" }
+  ]
+}

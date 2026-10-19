@@ -140,8 +140,15 @@ export function createServer(options: ServerOptions): McpServer {
     },
     safely(async ({ root: r, files, update }) => {
       const dir = rootOf(r);
-      const { plugins } = await loadConfig(dir);
-      const reports = await runScenarios({ root: dir, files: files ?? [], plugins, update: update ?? false, strict: false });
+      const { plugins, viewport } = await loadConfig(dir);
+      const reports = await runScenarios({
+        root: dir,
+        files: files ?? [],
+        plugins,
+        update: update ?? false,
+        strict: false,
+        ...(viewport ? { viewport } : {}),
+      });
       return json({ passed: reports.filter((x) => x.ok).length, total: reports.length, reports });
     }),
   );
