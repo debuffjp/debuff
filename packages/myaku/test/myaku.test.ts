@@ -130,6 +130,24 @@ describe("Profiler", () => {
     expect(JSON.parse(JSON.stringify(report))).toEqual(report);
   });
 
+  it("counts a frame whose own code overran as a hitch, even when the next timestamp is on time", () => {
+    const p = myaku();
+    let n = 0;
+    loop(() => {
+      n++;
+      now += n === 40 ? 31 : 2; // 31 ms of game code in one frame
+    });
+    let t = 0;
+    for (let i = 0; i < 60; i++) {
+      t += 1000 / 60; // Chrome keeps stamping frames on the grid
+      tick(t);
+    }
+    const hitches = p.hitches();
+    expect(hitches).toHaveLength(1);
+    expect(hitches[0]?.intervalMs).toBeCloseTo(31);
+    expect(hitches[0]?.cause).toBe("script");
+  });
+
   it("times named spans and restores everything on stop", () => {
     const p = new Profiler({ budgetMs: 20 });
     loop(() => {
