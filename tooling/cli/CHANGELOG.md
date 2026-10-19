@@ -1,5 +1,19 @@
 # @debuffjp/cli
 
+## 0.8.0
+
+### Minor Changes
+
+- 0f12c4b: `debuff build` registers the project anonymously with debuff.jp (a random project id, the package name and the CLI version; nothing about code, paths or players), so we can find games made with debuff. A one-time notice says so. Turn it off with `debuff telemetry off` or `DEBUFF_TELEMETRY=0`; it is off in CI. Details: https://debuff.jp/docs/telemetry
+- 5504289: - **juice:** `squash()` only replaces scale tweens, so a move or fade already running on the same object keeps going (it used to stop every tween on its target). `tweens.kill(target, props?)` can stop just some properties, and `tweens.has(target, prop?)` says whether something is still animating.
+  - **Scenarios and fuzz:** set the browser viewport with `scenarios: { viewport: [360, 640] }` in `debuff.config.ts`, or `"viewport"` in a scenario file, so portrait games are tested at their own shape instead of shrunk into 960×540.
+
+### Patch Changes
+
+- 77fe8c6: Fix: a project with a `debuff.config.ts` built in development mode (loading the config through Vite set `NODE_ENV=development`), so `debuff build` failed its dev-leak check or, worse, could ship the dev tools. Loading the config now leaves `NODE_ENV` as it was.
+- Updated dependencies [2a1f9d3]
+  - create-debuff@0.8.0
+
 ## 0.7.1
 
 ### Patch Changes

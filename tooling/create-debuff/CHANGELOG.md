@@ -1,5 +1,11 @@
 # create-debuff
 
+## 0.8.0
+
+### Minor Changes
+
+- 2a1f9d3: New template: **squish**, a squishy match-3 for touch and mouse (swaps, cascades, combos, squash-and-stretch juice, drawn in code with no art files). `npm create debuff@latest my-game -- --template squish`.
+
 ## 0.7.1
 
 No changes in this release.
