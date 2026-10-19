@@ -174,3 +174,35 @@ describe("Gamepads.fed", () => {
     expect([pads.connected, pads.down("PadA")]).toEqual([true, true]);
   });
 });
+
+describe("input regressions", () => {
+  it("ignores non-primary mouse buttons for Pointer", () => {
+    const h = host();
+    const input = new Input(h, { bindings: { tap: ["Pointer"] } });
+    const ev = (type: string, button: number) =>
+      new PointerEvent(type, { isPrimary: true, pointerId: 1, pointerType: "mouse", button, cancelable: true });
+    h.canvas.dispatchEvent(ev("pointerdown", 2));
+    h.canvas.dispatchEvent(ev("pointerdown", 1));
+    expect(input.down("tap")).toBe(false);
+    h.canvas.dispatchEvent(ev("pointerdown", 0));
+    expect(input.down("tap")).toBe(true);
+    h.canvas.dispatchEvent(ev("pointerup", 0));
+    expect(input.down("tap")).toBe(false);
+    input.dispose();
+  });
+
+  it("releases keys held on an element target when focus leaves it", () => {
+    const el = document.createElement("div");
+    document.body.append(el);
+    const k = new Keyboard(el);
+    el.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyD" }));
+    expect(k.down("KeyD")).toBe(true);
+    el.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+    expect(k.down("KeyD")).toBe(false);
+    expect(k.released("KeyD")).toBe(true);
+    k.dispose();
+    el.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyD" }));
+    expect(k.down("KeyD")).toBe(false);
+    el.remove();
+  });
+});
