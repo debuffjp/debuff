@@ -1,5 +1,11 @@
 import type { Game, ParamValue } from "@debuffjp/core";
-import type { DrivableInput } from "./index.js";
+import type { DrivableInput, DrivablePadState } from "./index.js";
+
+/** Gamepad state for one poll: pressed standard-mapping button indices and left stick axes (full floats). */
+export interface PadStep {
+  buttons: number[];
+  axes: number[];
+}
 
 /** A scenario step, as `debuff scenario` runs it (kept structural so `dev` doesn't depend on the CLI). */
 export type ReplayStep =
@@ -9,6 +15,8 @@ export type ReplayStep =
   | { pointerDown: [number, number] }
   | { pointerMove: [number, number] }
   | { pointerUp: true }
+  /** The gamepad state from this tick's poll on (`null` = disconnected). Only changes are recorded. */
+  | { pad: PadStep | null }
   | { set: Record<string, ParamValue> }
   | { command: string; args?: unknown[] };
 
@@ -85,6 +93,24 @@ export class InputRecording {
       pointerDown = false;
       return { pointerUp: true };
     });
+    const pads = input.pads;
+    if (pads) {
+      const sample = pads.sample;
+      let last = "null";
+      pads.sample = () => {
+        const state = sample.call(pads);
+        const step = state ? toPadStep(state) : null;
+        const key = JSON.stringify(step);
+        if (key !== last) {
+          last = key;
+          this.add({ pad: step });
+        }
+        return state;
+      };
+      this.restore.push(() => {
+        pads.sample = sample;
+      });
+    }
     this.restore.push(game.params.onChange((c) => this.add({ set: { [`${c.group}.${c.key}`]: c.value } })));
   }
 
@@ -135,6 +161,18 @@ export class InputRecording {
 }
 
 const round = (n: number) => Math.round(n * 100) / 100;
+
+const toPadStep = (s: DrivablePadState): PadStep => ({
+  buttons: s.buttons.flatMap((b, i) => (b.pressed ? [i] : [])),
+  // Full floats: the deadzone and analog speed depend on exact values.
+  axes: [s.axes[0] ?? 0, s.axes[1] ?? 0],
+});
+
+export const toPadState = (s: PadStep | null): DrivablePadState | null =>
+  s && {
+    buttons: Array.from({ length: Math.max(17, ...s.buttons.map((i) => i + 1)) }, (_, i) => ({ pressed: s.buttons.includes(i) })),
+    axes: s.axes,
+  };
 
 /** What a rewind carries across the page reload (sessionStorage, this tab only). */
 export interface RewindRequest {
@@ -190,6 +228,8 @@ export interface ReplayTarget {
 export function fastForward({ game, input, command }: ReplayTarget, steps: ReplayStep[], toTick: number): void {
   const held = new Set<string>();
   let pointerHeld = false;
+  // Recordings start with no pad (only changes are recorded): don't let a real one leak in.
+  if (input.pads) input.pads.fed = null;
   for (const step of steps) {
     if (game.clock.tick >= toTick) break;
     if ("wait" in step) game.step(Math.min(step.wait, toTick - game.clock.tick), false);
@@ -206,6 +246,8 @@ export function fastForward({ game, input, command }: ReplayTarget, steps: Repla
     else if ("pointerUp" in step) {
       pointerHeld = false;
       input.pointer.release();
+    } else if ("pad" in step) {
+      if (input.pads) input.pads.fed = toPadState(step.pad);
     } else if ("set" in step)
       for (const [path, value] of Object.entries(step.set)) {
         const [group = "", key = ""] = path.split(".");
@@ -217,6 +259,8 @@ export function fastForward({ game, input, command }: ReplayTarget, steps: Repla
   // Nobody is physically holding these any more: let go, or they'd stay stuck down.
   for (const code of held) input.keys.release(code);
   if (pointerHeld) input.pointer.release();
+  // Hand the pads back to the real Gamepad API.
+  if (input.pads) input.pads.fed = undefined;
   // The replay took real time: restart the loop's clock so the next frame doesn't try to catch up on it.
   if (game.isRunning) {
     game.stop();

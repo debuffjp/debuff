@@ -1,13 +1,27 @@
 import type { Game, ParamDescription, ParamValue, Plugin } from "@debuffjp/core";
 import type { Report } from "myaku";
 import type { ExplainedError } from "./explain.js";
-import { type Replay, takeRewind } from "./replay.js";
+import { type PadStep, type Replay, takeRewind, toPadState } from "./replay.js";
 import { DevSession, type FrameSample, type GameEventRecord, type Note } from "./session.js";
 
 /** The parts of `@debuffjp/input`'s `Input` the hooks drive. Structural, so `dev` does not depend on `input`. */
 export interface DrivableInput {
   keys: { press(code: string): void; release(code: string): void };
   pointer: { press(x: number, y: number): void; move(x: number, y: number): void; release(): void };
+  /** Gamepads (`@debuffjp/input`'s `Gamepads`): recorded per poll, and fed back on replay. */
+  pads?: DrivablePads;
+}
+
+/** The raw pad state a poll reads (matches `@debuffjp/input`'s `PadState`); `null` = no pad. */
+export interface DrivablePadState {
+  buttons: readonly { pressed: boolean }[];
+  axes: readonly number[];
+}
+
+export interface DrivablePads {
+  /** Overrides the Gamepad API when set. */
+  fed: DrivablePadState | null | undefined;
+  sample(): DrivablePadState | null;
 }
 
 export interface DevState {
@@ -57,6 +71,8 @@ export interface DevHooks {
   pointerDown(x: number, y: number): void;
   pointerMove(x: number, y: number): void;
   pointerUp(): void;
+  /** Feed gamepad state (pressed standard-mapping button indices, left stick axes); `null` = no pad, `undefined` = real pads again. */
+  pad(state: PadStep | null | undefined): void;
   params(): Record<string, ParamDescription>;
   setParam(group: string, key: string, value: ParamValue): void;
   /** The latest `n` frame breakdowns (update/render ms, steps, quads, draw calls, long tasks), oldest first. */
@@ -224,6 +240,11 @@ function createHooks(game: Game, session: DevSession, options: DevHooksOptions, 
     pointerDown: (x, y) => input().pointer.press(x, y),
     pointerMove: (x, y) => input().pointer.move(x, y),
     pointerUp: () => input().pointer.release(),
+    pad(state) {
+      const pads = input().pads;
+      if (!pads) throw new Error("exposeDevHooks: this input has no gamepads");
+      pads.fed = state === undefined ? undefined : toPadState(state);
+    },
     params: () => game.params.describe(),
     setParam: (group, key, value) => session.setParam(group, key, value, who()),
     frames: (n = 60) => session.recorder.recent(n),
@@ -294,7 +315,7 @@ function linkAgent(game: Game, session: DevSession, options: DevHooksOptions, er
 
 export { type ErrorKind, type ExplainedError, explainError, type SourceLocation } from "./explain.js";
 export { type DevOverlayOptions, devOverlay } from "./overlay.js";
-export { InputRecording, type Replay, type ReplayStep } from "./replay.js";
+export { InputRecording, type PadStep, type Replay, type ReplayStep } from "./replay.js";
 export {
   type Activity,
   DevSession,

@@ -25,6 +25,12 @@ export const PAD_BUTTONS = {
 export type PadButton = keyof typeof PAD_BUTTONS;
 export type PadStick = "PadStickUp" | "PadStickDown" | "PadStickLeft" | "PadStickRight";
 
+/** The parts of a `Gamepad` that `Gamepads` reads; `null` means no pad is connected. */
+export interface PadState {
+  buttons: readonly { pressed: boolean }[];
+  axes: readonly number[];
+}
+
 /** Polls the first connected standard gamepad. The Gamepad API is poll-based, so call `poll()` once per step. */
 export class Gamepads {
   /** Stick deflection needed to count as a direction. */
@@ -35,11 +41,19 @@ export class Gamepads {
   stickX = 0;
   stickY = 0;
   connected = false;
+  /** When set, `poll()` reads this instead of the Gamepad API (replays, tests). `null` = no pad. */
+  fed: PadState | null | undefined;
+
+  /** The raw pad state the next `poll()` uses: `fed`, else the first connected gamepad. */
+  sample(): PadState | null {
+    if (this.fed !== undefined) return this.fed;
+    return (typeof navigator !== "undefined" && navigator.getGamepads && navigator.getGamepads().find((p) => p?.connected)) || null;
+  }
 
   poll(): void {
     [this.previous, this.current] = [this.current, this.previous];
     this.current.clear();
-    const pad = typeof navigator !== "undefined" && navigator.getGamepads ? navigator.getGamepads().find((p) => p?.connected) : undefined;
+    const pad = this.sample();
     this.connected = Boolean(pad);
     this.stickX = 0;
     this.stickY = 0;
