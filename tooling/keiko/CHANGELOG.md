@@ -1,5 +1,17 @@
 # keiko
 
+## 0.5.0
+
+### Minor Changes
+
+- cfa9fff: Start testing an existing game in a minute. `npx keiko init` writes a first test for the engine your project uses and prints a starter `window.__KEIKO__` hook. `game.engine` reads the active scene and the pressable, on-screen objects straight from Phaser 3 or PixiJS 8, with no hook. `await game.tapWhenReady(find)` waits for a button to appear and stop moving before tapping it.
+
+### Patch Changes
+
+- d4a6c44: Clearer failures: a `test.deterministic` divergence between runs with different seeds suggests `{ sameSeed: true }` when the game takes its randomness from `Math.random()`, and an `until()` or `eventually()` that times out with the state unchanged since the last pointer `tap()` says the tap may have missed or landed before its target took input.
+- a9b440f: The first game in a run gets 60 s to load instead of 10 s, so a cold Vite dependency pre-bundle no longer fails it.
+- a761975: keiko: `new Date()` and `Date()` now run on the virtual clock, not just `Date.now()`. `test.deterministic` now gives its second run a different date as well as a different seed, as documented. A pointer press at a new position now moves the pointer there first, as in a browser, so engines that only track the position on moves (KAPLAY) see the right spot. myaku: corrections to the README. Both packages are now checked against real Phaser 3 and 4, PixiJS, KAPLAY, Excalibur and three.js with a local suite (`npm run compat`).
+
 ## 0.4.1
 
 ### Patch Changes
