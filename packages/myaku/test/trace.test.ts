@@ -88,7 +88,7 @@ describe("myaku record --trace", () => {
 
   it("confirms hitches the screen saw, flags ones it didn't, and finds gaps myaku missed", () => {
     const seen = verdict(10, 195, 45, "script");
-    const unseen = verdict(20, 266.7, 30, "script");
+    const unseen = verdict(20, 250, 30, "script");
     const { report: r } = analyze(report([seen, unseen]), [seen, unseen], frames(), 100);
     expect(r.trace.presented).toBe(7);
     expect(r.trace.dropped).toBe(1);
@@ -132,9 +132,12 @@ describe("myaku record --trace", () => {
     expect(r.trace.reclassified).toBe(0);
   });
 
+  // A canvas GPU task well before any hitch: proof this platform's canvas task names are recognised.
+  const canvasSeen: TraceEvent = { ...gpuTask(110, 1), name: "WebGL" };
+
   it("turns unknown into compositor when drawing was slow but the GPU idle", () => {
     const h = verdict(10, 195, 45, "unknown");
-    const { hitches } = analyze(report([h]), [h], frames({ draw: 20 }), 100);
+    const { hitches } = analyze(report([h]), [h], [...frames({ draw: 20 }), canvasSeen], 100);
     expect(hitches[0]?.cause).toBe("compositor");
   });
 
@@ -148,7 +151,38 @@ describe("myaku record --trace", () => {
 
   it("lets the trace correct a throttled guess", () => {
     const h = verdict(10, 195, 45, "throttled");
-    expect(analyze(report([h]), [h], frames({ draw: 20 }), 100).hitches[0]?.cause).toBe("compositor");
+    expect(analyze(report([h]), [h], [...frames({ draw: 20 }), canvasSeen], 100).hitches[0]?.cause).toBe("compositor");
+  });
+
+  it("never blames the compositor when no canvas GPU tasks were recognised on this platform", () => {
+    const h = verdict(10, 195, 45, "unknown");
+    // GPU-bound game, but its tasks have names myaku doesn't know (not Windows): canvasMs reads 0.
+    const load = Array.from({ length: 10 }, (_, i) => gpuTask(195 - 167 + i * 16.7, 10));
+    const { hitches, report: r } = analyze(report([h]), [h], [...frames({ draw: 20 }), ...load, gpuTask(196, 44)], 100);
+    expect(hitches[0]?.cause).toBe("gpu");
+    expect(r.trace.notes.join(" ")).toMatch(/compositor/);
+    // Slow draw stage with an idle GPU: nothing to go on, so it stays unknown.
+    expect(analyze(report([h]), [h], frames({ draw: 20 }), 100).hitches[0]?.cause).toBe("unknown");
+  });
+
+  it("doesn't call hitches unseen when the trace has no presented frames", () => {
+    const h = verdict(10, 195, 45, "script");
+    const ev = [...base, ...pipeline("0xd", 180, 200, "STATE_DROPPED")];
+    const t = analyze(report([h]), [h], ev, 100).report.trace;
+    expect(t.confirmed).toBe(0);
+    expect(t.unconfirmed).toBe(0);
+    expect(t.uncovered).toBe(1);
+    expect(t.notes.join(" ")).toMatch(/no presented frames.*can't say/);
+  });
+
+  it("doesn't judge hitches after the trace ended", () => {
+    const inside = verdict(20, 250, 30, "script");
+    // The trace's last pipeline ends at 283.3 ms (buffer full); this hitch is long after.
+    const after = verdict(30, 5000, 40, "script");
+    const t = analyze(report([inside, after]), [inside, after], frames(), 100).report.trace;
+    expect(t.unconfirmed).toBe(1);
+    expect(t.uncovered).toBe(1);
+    expect(t.notes.join(" ")).toMatch(/after the trace ended/);
   });
 
   it("reads the display's refresh interval from the pipeline spacing", () => {

@@ -129,7 +129,7 @@ function format(r: Awaited<ReturnType<typeof record>>, budgets: Budget[]): strin
     const t = r.trace;
     lines.push(
       `${bold("shown")}    p50 ${ms(t.presentedMs.p50)} · p95 ${ms(t.presentedMs.p95)} · p99 ${ms(t.presentedMs.p99)} · max ${ms(t.presentedMs.max)}${dim(` · ${t.presented} presented, ${t.dropped} dropped`)}`,
-      `${bold("trace")}    ${t.confirmed} hitches confirmed, ${t.unconfirmed} not seen on screen, ${t.missed.length} missed by myaku${t.reclassified ? `, ${t.reclassified} unknown → gpu/compositor` : ""}${dim(` · GPU ${ms(t.gpuMsPerFrame)}/frame`)}`,
+      `${bold("trace")}    ${t.confirmed} hitches confirmed, ${t.unconfirmed} not seen on screen, ${t.uncovered ? `${t.uncovered} not covered by the trace, ` : ""}${t.missed.length} missed by myaku${t.reclassified ? `, ${t.reclassified} unknown → gpu/compositor` : ""}${dim(` · GPU ${ms(t.gpuMsPerFrame)}/frame`)}`,
     );
     for (const n of t.notes) lines.push(red(`⚠ ${n}`));
   }

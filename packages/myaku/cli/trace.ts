@@ -47,6 +47,11 @@ export interface TraceSummary {
   confirmed: number;
   /** myaku hitches where every display refresh still got a new frame: the player didn't see them. */
   unconfirmed: number;
+  /**
+   * myaku hitches the trace can't judge: it had no presented frames at all, or the hitch came after
+   * the trace ended (Chrome's trace buffer fills on long runs). Neither confirmed nor unconfirmed.
+   */
+  uncovered: number;
   /** Presentation gaps longer than the hitch threshold that myaku's hitch list doesn't cover. */
   missed: { at: number; ms: number }[];
   /** `unknown` verdicts the trace turned into `gpu` or `compositor`. */
@@ -153,6 +158,7 @@ export function analyze(
         presentedMs: { p50: 0, p95: 0, p99: 0, max: 0 },
         confirmed: 0,
         unconfirmed: 0,
+        uncovered: hitches.length,
         missed: [],
         reclassified: 0,
         gpuMsPerFrame: 0,
@@ -187,7 +193,12 @@ export function analyze(
     gaps.push({ start: a, end: b, ms: (b - a) / 1000 });
   }
   const dropped = all.filter((p) => p.state === "STATE_DROPPED" && !p.forked).length;
-  if (!shown.length) notes.push("The trace showed no presented frames: this Chromium may not report its frame pipeline.");
+  if (!shown.length)
+    notes.push(
+      "The trace showed no presented frames (this Chromium may not report its frame pipeline), so it can't say whether the player saw any hitch.",
+    );
+  // The trace only speaks for the time it covers: Chrome's buffer can fill and stop recording early.
+  const coveredEnd = all.length ? Math.max(...all.map((p) => p.end)) : -Infinity;
 
   const gpu = threadOf(events, "CrGpuMain");
   const gpuBusy = gpu ? busy(events, gpu.pid, gpu.tid) : [];
@@ -195,10 +206,14 @@ export function analyze(
   // GPU-bound canvas waits). Names from Chrome on Windows; elsewhere this may find none.
   const canvasBusy = gpu ? busy(events, gpu.pid, gpu.tid, CANVAS_TASK) : [];
   if (!gpu) notes.push("The trace had no GPU process thread, so GPU time couldn't be measured.");
+  // The compositor verdict needs to tell the canvas's GPU work from the compositor's. Those task names
+  // are only known for some platforms; without seeing any, a GPU-bound canvas would look like the compositor.
+  const canvasKnown = canvasBusy.length > 0;
 
   const threshold = report.budgetMs;
   let confirmed = 0;
   let unconfirmed = 0;
+  let uncovered = 0;
   let reclassified = 0;
   const upgraded = hitches.map((h) => {
     const a = toTrace(h.at);
@@ -207,7 +222,9 @@ export function analyze(
     // on the display up to two refreshes later, through the pipeline.
     const slack = report.budgetMs * 2 * 1000;
     const seen = gaps.some((g) => g.ms > threshold && g.end > a && g.start < b + slack);
+    // Only judge a hitch inside the span the trace covers: otherwise "not seen" is a guess.
     if (seen) confirmed++;
+    else if (!shown.length || b > coveredEnd) uncovered++;
     else unconfirmed++;
     // `throttled` is the page's guess from slow idle frames, which a GPU-bound game also makes.
     if (h.cause !== "unknown" && h.cause !== "throttled") return h;
@@ -219,7 +236,7 @@ export function analyze(
     // Chrome's compositor waits on the canvas's GPU work too, so a slow draw stage alone could be either.
     // It's the compositor's own cost when most of the GPU time wasn't the game's canvas.
     const canvasMs = overlap(canvasBusy, a, b + slack) / 1000;
-    if (drawMs >= h.budgetMs * 0.5 && canvasMs <= gpuMs * 0.5) {
+    if (canvasKnown && drawMs >= h.budgetMs * 0.5 && canvasMs <= gpuMs * 0.5) {
       reclassified++;
       return {
         ...h,
@@ -267,6 +284,15 @@ export function analyze(
   const causes: Report["causes"] = {};
   for (const h of upgraded) causes[h.cause] = (causes[h.cause] ?? 0) + 1;
 
+  if (shown.length && uncovered)
+    notes.push(
+      `${uncovered} hitch${uncovered === 1 ? "" : "es"} came after the trace ended (Chrome's trace buffer may have filled), so the trace can't say whether the player saw ${uncovered === 1 ? "it" : "them"}.`,
+    );
+  if (gpu && !canvasKnown && hitches.some((h) => h.cause === "unknown" || h.cause === "throttled"))
+    notes.push(
+      "The trace showed no GPU tasks recognisable as the game's canvas on this platform, so no hitch was blamed on the compositor.",
+    );
+
   const sorted = gaps.map((g) => g.ms).sort((x, y) => x - y);
   const gpuTotal = overlap(gpuBusy, from, times.at(-1) ?? from) / 1000;
   return {
@@ -280,6 +306,7 @@ export function analyze(
         presentedMs: { p50: pct(sorted, 0.5), p95: pct(sorted, 0.95), p99: pct(sorted, 0.99), max: round(sorted.at(-1) ?? 0) },
         confirmed,
         unconfirmed,
+        uncovered,
         missed,
         reclassified,
         gpuMsPerFrame: times.length ? round(gpuTotal / times.length) : 0,

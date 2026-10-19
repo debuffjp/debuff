@@ -157,8 +157,13 @@ export async function record(options: RecordOptions): Promise<Report & { trace?:
       cdp.on("Tracing.dataCollected", (e) => {
         for (const v of e.value) events.push(v as unknown as TraceEvent);
       });
-      traced = new Promise((done) => cdp.once("Tracing.tracingComplete", done));
-      await cdp.send("Tracing.start", { transferMode: "ReportEvents", traceConfig: { includedCategories: TRACE_CATEGORIES } });
+      traced = new Promise((done) => cdp.once("Tracing.tracingComplete", (e) => done(e.dataLossOccurred)));
+      // A bigger buffer than Chrome's default so long runs aren't cut short; analyze() still only
+      // judges hitches inside the span the trace covers.
+      await cdp.send("Tracing.start", {
+        transferMode: "ReportEvents",
+        traceConfig: { includedCategories: TRACE_CATEGORIES, recordMode: "recordUntilFull", traceBufferSizeInKb: 200_000 },
+      });
     }
     // Start the report from here: drop warm-up frames by restarting the profiler's buffer.
     const startedAt = await page.evaluate((mark) => {
@@ -178,7 +183,7 @@ export async function record(options: RecordOptions): Promise<Report & { trace?:
     let { report, hitches } = await read();
     if (!cdp || !traced) return report;
     await cdp.send("Tracing.end");
-    await traced;
+    const dataLoss = (await traced) === true;
     // A game that never reaches the display's rate (GPU- or compositor-bound throughout) makes the
     // page measure a slower display. The trace knows the real one, so judge hitches by that.
     const vsync = vsyncMs(events);
@@ -191,6 +196,7 @@ export async function record(options: RecordOptions): Promise<Report & { trace?:
     if (options.traceFile) writeFileSync(options.traceFile, JSON.stringify({ traceEvents: events }));
     const result = analyze(report, hitches, events, startedAt).report;
     if (budgetNote) result.trace.notes.unshift(budgetNote);
+    if (dataLoss) result.trace.notes.push("Chrome's trace buffer filled during the run, so part of it wasn't recorded.");
     return result;
   } finally {
     await browser.close();
