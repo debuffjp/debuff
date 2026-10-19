@@ -1,4 +1,4 @@
-import type { Draw } from "@debuffjp/sprig";
+import type { Draw } from "spryte";
 import type { Scene } from "./scene.js";
 
 export type Unsubscribe = () => void;

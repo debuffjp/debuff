@@ -1,4 +1,4 @@
-import type { Draw } from "@debuffjp/sprig";
+import type { Draw } from "spryte";
 import type { Game } from "./game.js";
 
 /** A scene owns a slice of game state. Lifecycle: enter → (update/render)* → exit. */

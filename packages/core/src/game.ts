@@ -1,4 +1,4 @@
-import { createRenderer, type Draw } from "@debuffjp/sprig";
+import { createRenderer, type Draw } from "spryte";
 import { Camera } from "./camera.js";
 import { FixedClock, type FixedClockOptions } from "./clock.js";
 import { type GameErrorContext, Hooks } from "./hooks.js";

@@ -1,5 +1,5 @@
-// sprig on its own: no game framework, just a canvas, a renderer and a frame loop.
-import { createRenderer } from "@debuffjp/sprig";
+// spryte on its own: no game framework, just a canvas, a renderer and a frame loop.
+import { createRenderer } from "spryte";
 
 const canvas = document.querySelector("canvas") as HTMLCanvasElement;
 const draw = createRenderer(canvas);

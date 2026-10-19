@@ -1,4 +1,4 @@
-# sprig: renderer audit and extraction plan
+# spryte: renderer audit and extraction plan
 
 Date: 2026-10-19. Baseline commit: `aa9f80f`. Everything here was read from source or run; anything not run is marked **not verified**.
 
@@ -24,14 +24,14 @@ Renderer setup (`createBackend`, the `PENDING` placeholder) was in `core/src/gam
 
 **Benchmarks:** `bench/renderer` is a bunnymark against PixiJS v8 `Sprite` and `ParticleContainer`. There is one result, from 2026-10-16 (Windows, Chrome, RTX 5060 Laptop). ADR 0007 has the numbers and caveats. It covers sprite throughput only, on one machine. I did not re-run it for this audit.
 
-## 2. Boundary: what's in sprig, what stays in debuff
+## 2. Boundary: what's in spryte, what stays in debuff
 
-**In sprig:** `backend`, `webgl2`, `canvas2d`, `draw`, `color`, `bitmap-font`, plus a new `createRenderer()`.
+**In spryte:** `backend`, `webgl2`, `canvas2d`, `draw`, `color`, `bitmap-font`, plus a new `createRenderer()`.
 
 **Stays in debuff:**
-- debuff sans: the brand font. sprig's default font is now `draw.font` (default `"16px sans-serif"`), and `Game` sets it to `debuffSans`.
-- `Camera`: it has game behaviour (shake through `Random`, interpolation with the fixed clock). sprig's `withCamera` already takes any `{ view(): Matrix }`.
-- `Sprite`, animation, `Game`'s DPR/CSS scaling policy, the frame loop, splash, juice, tilemap, ui. These are framework concerns that draw through sprig.
+- debuff sans: the brand font. spryte's default font is now `draw.font` (default `"16px sans-serif"`), and `Game` sets it to `debuffSans`.
+- `Camera`: it has game behaviour (shake through `Random`, interpolation with the fixed clock). spryte's `withCamera` already takes any `{ view(): Matrix }`.
+- `Sprite`, animation, `Game`'s DPR/CSS scaling policy, the frame loop, splash, juice, tilemap, ui. These are framework concerns that draw through spryte.
 
 **Dependencies to remove:** none in source. `import.meta.env` is only used by `Game`. The one coupling was the default font, which is now injectable.
 
@@ -59,9 +59,9 @@ The draw order and output of `rect/circle/line/sprite/text/clip/blend/withCamera
 | Two diverging copies | The files were moved with `git mv`, not copied. Core has no renderer source left, only re-exports. |
 | Breaking games' imports | Core re-exports the same names and types, so no game code changes. |
 | Bundle size grows from the package split | Same modules, `sideEffects: false`, so tree-shaking is unchanged. Template brotli size is reported from `npm run check`. |
-| Core's "no dependencies" claim | Core now depends on `@debuffjp/sprig`, which is pinned in the fixed changeset group. Core's README needs updating. |
-| Name collision | **"Sprig" is already an established JS game engine (Hack Club Sprig).** Unscoped `sprig` on npm is unlikely to be free. Scoping it as `@debuffjp/sprig` avoids the npm clash, not the brand confusion. **This decision is open.** |
-| Losing history when moving to its own repo | Use `git subtree split --prefix packages/sprig` (or `git filter-repo`). The `git mv` keeps the files' history followable. |
+| Core's "no dependencies" claim | Core now depends on `spryte`, pinned to an exact version (0.1.0). spryte versions independently of debuff's fixed `@debuffjp/*` group. Core's README needs updating. |
+| Name collision | The working name "Sprig" clashed with Hack Club Sprig (npm `sprig`). **Decided 2026-10-19: spryte**, unscoped `spryte` (free on npm at that date, not yet claimed). |
+| Losing history when moving to its own repo | Use `git subtree split --prefix packages/spryte` (or `git filter-repo`). The `git mv` keeps the files' history followable. |
 
 ## 6. Package and API
 
@@ -92,7 +92,7 @@ API debt to settle before 1.0: `begin`, `end`, `resize`, `dispose` and `renderSc
 
 ## 8. Plan, by priority
 
-1. **Done in this change:** a `packages/sprig` workspace package as the canonical source, `createRenderer`, an injectable default font, core re-exports, tests moved, a standalone example, and a README.
+1. **Done in this change:** a `packages/spryte` workspace package as the canonical source, `createRenderer`, an injectable default font, core re-exports, tests moved, a standalone example, and a README.
 2. Decide the name and repo (see section 5), then `git subtree split` into its own repo with CI, and have debuff pin the published version.
 3. Correctness fixes, each with a test: UV precision, filtering re-uploads (samplers), complete `dispose`.
 4. WebGL2 unit coverage: a headless-GL or Playwright pixel test for the backend, so it stops depending only on game scenarios.
@@ -106,6 +106,6 @@ Not ready for a standalone release. The code is production-proven inside debuff,
 
 ## 10. Open decisions (need the maintainer)
 
-- **The name**, given Hack Club Sprig.
-- Repo home (`debuffjp/sprig`?) and whether sprig versions independently of debuff's fixed group.
-- Whether debuff sans should ship with sprig as an optional export. It's MIT and pixel-art friendly, but it's the brand font.
+- Claim the `spryte` npm name (publish a placeholder or the first beta) before someone else does.
+- Repo home (`debuffjp/spryte`?).
+- Whether debuff sans should ship with spryte as an optional export. It's MIT and pixel-art friendly, but it's the brand font.

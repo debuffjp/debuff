@@ -1,4 +1,4 @@
-// The renderer lives in @debuffjp/sprig; re-exported so games keep importing it from core.
+// The renderer lives in spryte; re-exported so games keep importing it from core.
 export {
   BitmapFont,
   type BitmapFontOptions,
@@ -14,7 +14,7 @@ export {
   type TextDrawOptions,
   type TextureSource,
   toRGBA,
-} from "@debuffjp/sprig";
+} from "spryte";
 export { Camera, type CameraOptions } from "./camera.js";
 export { FixedClock, type FixedClockOptions } from "./clock.js";
 export { Game, type GameOptions, type ScaleMode } from "./game.js";
