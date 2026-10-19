@@ -1,5 +1,5 @@
 import { Audio } from "@debuffjp/audio";
-import { approach, clamp, Game, lerp, type Scene, Storage } from "@debuffjp/core";
+import { approach, clamp, type Draw, Game, lerp, type Scene, Storage } from "@debuffjp/core";
 import { devOverlay, devTools } from "@debuffjp/dev";
 import { Input } from "@debuffjp/input";
 import { Particles, squash, Tweens } from "@debuffjp/juice";
@@ -28,7 +28,24 @@ const tuning = game.params.define("player", {
 });
 
 // prevX is where buff was a step ago: render blends toward x so motion stays smooth on fast displays.
-const player = { x: 160, prevX: 160, y: 120, vx: 0, scaleX: 1, scaleY: 1 };
+// hop is how high buff is off the floor, for the little jump on each pop.
+const player = { x: 160, prevX: 160, y: 132, vx: 0, scaleX: 1, scaleY: 1, hop: 0 };
+
+const INK = "#11140d";
+const LIME = "#cffb2d";
+
+/** A rectangle with round corners, from rects and circles. */
+function roundRect(draw: Draw, x: number, y: number, w: number, h: number, r: number, colour: string) {
+  draw.rect(x + r, y, w - 2 * r, h, colour);
+  draw.rect(x, y + r, w, h - 2 * r, colour);
+  for (const [cx, cy] of [
+    [x + r, y + r],
+    [x + w - r, y + r],
+    [x + r, y + h - r],
+    [x + w - r, y + h - r],
+  ] as const)
+    draw.circle(cx, cy, r, colour);
+}
 
 const play: Scene = {
   id: "play",
@@ -43,9 +60,29 @@ const play: Scene = {
     if (input.pressed("pop")) {
       save.set("pops", save.get("pops") + 1);
       squash(tweens, player, 0.35);
-      particles.emit({ x: player.x, y: player.y - 8, count: 16, colors: ["#cffb2d", "#f3fecb"], gravity: 200 });
+      // A little hop: up fast, down with a bounce. squash() only touches scale, so both play together.
+      tweens.to(
+        player,
+        { hop: 14 },
+        { duration: 0.12, ease: "outQuad", onComplete: () => tweens.to(player, { hop: 0 }, { duration: 0.3, ease: "outBounce" }) },
+      );
+      particles.emit({
+        x: player.x,
+        y: player.y - 14,
+        count: 16,
+        colors: [LIME, "#38bdf8", "#f472b6"],
+        shape: "circle",
+        size: [3, 6],
+        gravity: 300,
+      });
       game.camera.shake(0.3);
       audio.synth({ freq: 660, freqEnd: 220, decay: 0.15 });
+    }
+    // Idle jiggle: buff breathes a little while nothing else is squashing it.
+    if (!tweens.has(player, "scaleX") && !game.reducedMotion) {
+      const s = Math.sin(game.clock.time * 3) * 0.04;
+      player.scaleX = 1 + s;
+      player.scaleY = 1 - s;
     }
     tweens.update(dt);
     particles.update(dt);
@@ -53,16 +90,26 @@ const play: Scene = {
 
   render(draw, alpha) {
     draw.withCamera(game.camera, () => {
-      // buff, the debuff mascot: a lime block with eyes, squashing from its feet.
+      // The floor: a soft rounded slab.
+      roundRect(draw, 6, player.y, game.width - 12, 30, 10, "#1b2014");
+
+      // buff, the debuff mascot: a flat jelly block with pill eyes, squashing and stretching from its feet.
       draw.push();
-      draw.translate(lerp(player.prevX, player.x, alpha), player.y);
+      draw.translate(lerp(player.prevX, player.x, alpha), player.y - player.hop);
       draw.scale(player.scaleX, player.scaleY);
-      draw.rect(-8, -16, 16, 16, "#cffb2d");
-      draw.rect(-5, -12, 3, 4, "#11140d");
-      draw.rect(2, -12, 3, 4, "#11140d");
+      roundRect(draw, -11, -4, 8, 5, 2.5, LIME); // feet
+      roundRect(draw, 3, -4, 8, 5, 2.5, LIME);
+      roundRect(draw, -14, -27, 28, 25, 9, LIME);
+      roundRect(draw, -8, -20, 5, 8, 2.5, INK); // pill eyes, like the brand buff
+      roundRect(draw, 3, -20, 5, 8, 2.5, INK);
       draw.pop();
       particles.draw(draw);
     });
+    // debuff sans, the built-in pixel font, at 2x.
+    draw.push();
+    draw.scale(2);
+    draw.text(`pops ${save.get("pops")}`, 6, 5, { color: "#d3dcc2" });
+    draw.pop();
   },
 
   // Snapshot for scenarios and agents (dev only).

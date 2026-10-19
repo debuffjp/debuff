@@ -15,6 +15,25 @@ function chamferedRect(draw: DrawLike, x: number, y: number, w: number, h: numbe
   }
 }
 
+/** A filled box with round corners of radius `r` (stepped corners when `draw` has no `circle`). */
+function roundedRect(draw: DrawLike, x: number, y: number, w: number, h: number, r: number, color: string | number): void {
+  const rad = Math.max(0, Math.min(r, w / 2, h / 2));
+  if (rad < 1 || !draw.circle) {
+    chamferedRect(draw, x, y, w, h, rad, color);
+    return;
+  }
+  draw.rect(x + rad, y, w - rad * 2, h, color);
+  draw.rect(x, y + rad, rad, h - rad * 2, color);
+  draw.rect(x + w - rad, y + rad, rad, h - rad * 2, color);
+  for (const [cx, cy] of [
+    [x + rad, y + rad],
+    [x + w - rad, y + rad],
+    [x + rad, y + h - rad],
+    [x + w - rad, y + h - rad],
+  ] as const)
+    draw.circle(cx, cy, rad, color);
+}
+
 /**
  * A framed box: each colour in `borders` is a 1px ring, outermost first, then `fill` inside.
  * `chamfer` cuts every corner by that many pixels.
@@ -29,14 +48,19 @@ export function panel(
   borders: readonly (string | number)[],
   fill?: string | number,
   chamfer = 0,
+  radius = 0,
 ): void {
+  const box = (bx: number, by: number, bw: number, bh: number, c: string | number, r: number) => {
+    if (radius > 0) roundedRect(draw, bx, by, bw, bh, r, c);
+    else chamferedRect(draw, bx, by, bw, bh, chamfer, c);
+  };
   let i = 0;
   for (const c of borders) {
     if (w - i * 2 <= 0 || h - i * 2 <= 0) return;
-    chamferedRect(draw, x + i, y + i, w - i * 2, h - i * 2, chamfer, c);
+    box(x + i, y + i, w - i * 2, h - i * 2, c, radius - i);
     i++;
   }
-  if (fill !== undefined && w - i * 2 > 0 && h - i * 2 > 0) chamferedRect(draw, x + i, y + i, w - i * 2, h - i * 2, chamfer, fill);
+  if (fill !== undefined && w - i * 2 > 0 && h - i * 2 > 0) box(x + i, y + i, w - i * 2, h - i * 2, fill, radius - i);
 }
 
 export interface FrameStyle {
@@ -48,6 +72,8 @@ export interface FrameStyle {
   padding?: number;
   /** Cut each corner by this many pixels. Default 0 (square). */
   chamfer?: number;
+  /** Round each corner with this radius (wins over `chamfer`). Default 0, or 10 for debuff's own look. */
+  radius?: number;
   /** A hard drop shadow in this colour, offset down-right by `shadowOffset`. Default none. */
   shadow?: string | number;
   /** Default 1. */
@@ -55,16 +81,20 @@ export interface FrameStyle {
 }
 
 /**
- * debuff's own look, if you want it: a lime-edged, chamfered dark panel with a hard ink shadow.
- * Spread it into any `FrameStyle` or menu panel style: `menu.drawPanel(draw, cx, cy, { ...debuffFrame, title: "paused" })`.
+ * debuff's own look ("squish"): a soft, round-cornered dark panel, no outlines. It's also what you get when
+ * a style sets neither `borders` nor `fill`. Spread it into any `FrameStyle` or menu panel style:
+ * `menu.drawPanel(draw, cx, cy, { ...debuffFrame, title: "paused" })`.
  */
 export const debuffFrame = {
-  borders: ["#cffb2d", "#0e1209", "#3d4d22"],
-  fill: "#151a0e",
-  chamfer: 2,
-  shadow: "#050604",
-  shadowOffset: 1,
+  borders: [],
+  fill: "#1b2014",
+  radius: 10,
+  padding: 10,
 } as const satisfies FrameStyle;
+
+/** A style that sets no frame of its own gets debuff's look; one that sets borders or a fill keeps exactly what it set. */
+export const frameDefaults = (style: FrameStyle): FrameStyle =>
+  style.borders === undefined && style.fill === undefined ? { ...debuffFrame, ...style } : style;
 
 /**
  * Draw a panel that fits content of `w`×`h` centred on (cx, cy), snapped to whole pixels.
@@ -78,6 +108,7 @@ export function panelAround(
   h: number,
   style: FrameStyle = {},
 ): { x: number; y: number } {
+  style = frameDefaults(style);
   const borders = style.borders ?? ["#ddd"];
   const inset = borders.length + (style.padding ?? 6);
   const outerW = Math.ceil(w) + inset * 2;
@@ -85,11 +116,12 @@ export function panelAround(
   const x = Math.round(cx - outerW / 2);
   const y = Math.round(cy - outerH / 2);
   const chamfer = style.chamfer ?? 0;
+  const radius = style.radius ?? 0;
   if (style.shadow !== undefined) {
     const o = style.shadowOffset ?? 1;
-    chamferedRect(draw, x + o, y + o, outerW, outerH, chamfer, style.shadow);
+    panel(draw, x + o, y + o, outerW, outerH, [], style.shadow, chamfer, radius);
   }
-  panel(draw, x, y, outerW, outerH, borders, style.fill ?? "#222", chamfer);
+  panel(draw, x, y, outerW, outerH, borders, style.fill ?? "#222", chamfer, radius);
   return { x: x + inset, y: y + inset };
 }
 
