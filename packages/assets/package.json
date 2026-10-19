@@ -1,6 +1,6 @@
 {
   "name": "@debuffjp/assets",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "description": "Manifest-driven asset loader with preload groups for debuff",
   "keywords": [
     "game",
