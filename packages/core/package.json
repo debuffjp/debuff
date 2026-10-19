@@ -1,6 +1,6 @@
 {
   "name": "@debuffjp/core",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "description": "Game loop, fixed-step clock, scenes, camera, sprites and typed creative parameters for debuff",
   "keywords": [
     "game",
@@ -46,6 +46,6 @@
     "access": "public"
   },
   "dependencies": {
-    "spryte": "0.1.1"
+    "spryte": "0.1.2"
   }
 }
