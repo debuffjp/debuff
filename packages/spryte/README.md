@@ -1,15 +1,15 @@
-# @debuffjp/sprig
+# spryte
 
 A small, fast 2D renderer for the web. Immediate-mode drawing (sprites, rects, circles, lines, text, clips, blend modes) batched onto WebGL2 with instancing, with an automatic Canvas 2D fallback. No dependencies, no scene graph, no game framework.
 
-sprig is the renderer inside [debuff](https://debuff.jp), extracted so it can be used on its own. **Status: early.** The API is what debuff games already use, but it's pre-1.0 and may change.
+spryte is the renderer inside [debuff](https://debuff.jp), extracted so it can be used on its own. **Status: early.** The API is what debuff games already use, but it's pre-1.0 and may change.
 
 ```bash
-npm install @debuffjp/sprig
+npm install spryte
 ```
 
 ```ts
-import { createRenderer } from "@debuffjp/sprig";
+import { createRenderer } from "spryte";
 
 const draw = createRenderer(canvas, { smooth: false }); // smooth: false for pixel art
 canvas.width = 640;

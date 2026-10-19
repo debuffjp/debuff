@@ -1,6 +1,6 @@
 {
-  "name": "@debuffjp/sprig",
-  "version": "0.8.0",
+  "name": "spryte",
+  "version": "0.1.0",
   "description": "Small, fast 2D renderer for the web: batched WebGL2 sprites, shapes and text, with an automatic Canvas 2D fallback",
   "keywords": [
     "2d",
@@ -20,7 +20,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/debuffjp/debuff.git",
-    "directory": "packages/sprig"
+    "directory": "packages/spryte"
   },
   "type": "module",
   "sideEffects": false,

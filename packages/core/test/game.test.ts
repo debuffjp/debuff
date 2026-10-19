@@ -30,7 +30,7 @@ function recorder(id = "s") {
 }
 
 describe("Game", () => {
-  it("renders through sprig with debuff sans as the default font", () => {
+  it("renders through spryte with debuff sans as the default font", () => {
     const { game } = makeGame();
     expect(game.draw.font).toBe(debuffSans);
     expect(game.draw.measure("hi")).toEqual(debuffSans().measure("hi"));

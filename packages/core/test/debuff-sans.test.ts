@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { Canvas2DBackend } from "../../sprig/src/canvas2d.js";
-import { Draw } from "../../sprig/src/draw.js";
+import { Canvas2DBackend } from "../../spryte/src/canvas2d.js";
+import { Draw } from "../../spryte/src/draw.js";
 import { debuffSans } from "../src/render/debuff-sans.js";
 import { DEBUFF_SANS, DEBUFF_SANS_EXTRAS } from "../src/render/debuff-sans-data.js";
 

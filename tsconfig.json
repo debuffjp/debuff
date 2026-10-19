@@ -2,7 +2,7 @@
   "files": [],
   "references": [
     {
-      "path": "packages/sprig"
+      "path": "packages/spryte"
     },
     {
       "path": "packages/core"

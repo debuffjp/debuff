@@ -1,4 +1,4 @@
-import { BitmapFont, type Frame } from "@debuffjp/sprig";
+import { BitmapFont, type Frame } from "spryte";
 import { DEBUFF_SANS, DEBUFF_SANS_EXTRAS } from "./debuff-sans-data.js";
 
 const W = 6;

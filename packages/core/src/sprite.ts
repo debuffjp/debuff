@@ -1,4 +1,4 @@
-import type { Color, Draw, Frame, TextureSource } from "@debuffjp/sprig";
+import type { Color, Draw, Frame, TextureSource } from "spryte";
 
 export type { Frame };
 

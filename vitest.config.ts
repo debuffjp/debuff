@@ -27,7 +27,7 @@ export default defineConfig({
         // Drives a real browser; covered end to end by the MCP server test (`fuzz` tool).
         "tooling/cli/src/fuzz.ts",
         "tooling/mcp/src/session.ts",
-        "packages/sprig/src/webgl2.ts",
+        "packages/spryte/src/webgl2.ts",
       ],
       reporter: ["text-summary", "html"],
       // Floor, not target: raise as coverage grows. Scenario runner and CLI entry are covered end-to-end by `npm run test:scenarios`.
