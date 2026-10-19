@@ -68,7 +68,7 @@ const BUFF: Record<Mood, string[]> = {
   oops: [".LLLLLL.", "LLLLLLLL", "LRLLLLRL", "LLRLLRLL", "LLLLLLLL", ".LL..LL."],
 };
 
-const PIXEL: Record<string, string | undefined> = { L: PALETTE.lime, H: PALETTE.limeSoft, K: PALETTE.ink, R: PALETTE.red };
+const PIXEL: Record<string, string | undefined> = { L: PALETTE.lime, K: PALETTE.ink, R: PALETTE.red };
 
 /**
  * buff rendered with half-block characters: two pixel rows per text line (3 lines tall).

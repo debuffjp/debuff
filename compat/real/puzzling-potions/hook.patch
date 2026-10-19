@@ -1,0 +1,29 @@
+diff --git a/puzzling-potions/src/main.ts b/puzzling-potions/src/main.ts
+index 6be42eb..0ab77a9 100644
+--- a/puzzling-potions/src/main.ts
++++ b/puzzling-potions/src/main.ts
+@@ -92,3 +92,24 @@ async function init() {
+ 
+ // Init everything
+ init();
++
++if (import.meta.env.DEV) {
++    const page = (b?: { x: number; y: number; width: number; height: number }) => {
++        if (!b) return undefined;
++        const toPage = app.canvas.clientWidth / app.renderer.width;
++        return { x: Math.round((b.x + b.width / 2) * toPage), y: Math.round((b.y + b.height / 2) * toPage) };
++    };
++    (window as any).__KEIKO__ = {
++        scene: () => navigation.currentScreen?.constructor.name,
++        state: () => {
++            const screen = navigation.currentScreen as any;
++            if (!screen) return undefined;
++            const board = screen.match3?.board;
++            return {
++                screen: screen.constructor.name,
++                playButton: page(screen.playButton?.getBounds()),
++                board: board && { rows: board.rows, columns: board.columns, pieces: board.pieces.length },
++            };
++        },
++    };
++}
