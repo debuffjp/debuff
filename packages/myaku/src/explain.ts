@@ -18,6 +18,10 @@ export type Cause =
   | "hidden"
   /** The browser slowed frames down (an occluded or background window, power saving) while the game sat idle. */
   | "throttled"
+  /** The GPU was busy drawing the frame. Only `myaku record --trace` (Chromium's trace) can tell. */
+  | "gpu"
+  /** Chrome's compositor took long drawing the page. Only `myaku record --trace` can tell. */
+  | "compositor"
   /** The game's code was quick; the time went somewhere the browser doesn't report (GPU, compositor, other tabs). */
   | "unknown";
 

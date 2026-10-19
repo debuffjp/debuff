@@ -38,6 +38,8 @@ DevTools profile pages. myaku profiles games:
 | `layout` | Style and layout work | Long Animation Frames |
 | `throttled` | The browser slowed frames (hidden window, power saving) | A run of slow frames with the game idle |
 | `hidden` | The tab was in the background | `visibilitychange` |
+| `gpu` | The GPU was busy drawing the frame | Only with `myaku record --trace`: Chrome's GPU process was busy, or the swap waited |
+| `compositor` | Chrome's compositor took long drawing the page, with the GPU mostly idle | Only with `myaku record --trace` |
 | `unknown` | Your code was quick; the time went elsewhere (GPU, compositor) | Says so, with low confidence, rather than guessing |
 
 Each verdict has a `confidence` (`high`, `medium` or `low`). Low confidence means "a lead, not an answer".
@@ -109,8 +111,19 @@ npx myaku record dist --seconds 20 --cpu 4 --p95 20 --hitches 6
 - **`--play file.mjs`:** a module whose default export, `async (page) => {}`, plays the game with Playwright's `page` (press keys, click Play). Without it, myaku records whatever the game does by itself.
 - **`--cpu 4`:** slow the CPU down, like a mid-range phone.
 - **Budgets:** `--p95 <ms>`, `--p99 <ms>`, `--hitches <per minute>`. Exit code 1 when one is over, 2 on errors.
+- **`--trace`:** check hitches against the frames Chrome actually presented, and name `gpu` and `compositor` causes. See [below](#--trace-what-reached-the-screen).
 - **`--json`, `--out report.json`:** the full report and budget results, for CI artifacts and agents.
 - **`--warmup <s>`** (default 1), **`--viewport 1280x720`**, **`--headed`:** settle time before recording, window size, and showing the browser.
+
+### `--trace`: what reached the screen
+
+`--trace` also records a Chrome trace while it plays (the frame pipeline and the GPU process) and checks myaku against it:
+
+- **Presented frames.** `trace.presentedMs` is the time between frames the display actually showed, next to the rAF-based `intervalMs`, with counts of presented and dropped frames.
+- **Hitch check.** Each hitch is `confirmed` (the screen went a refresh without a new frame) or `unconfirmed` (rAF was late but every refresh still got a frame). `trace.missed` lists screen gaps myaku's hitch list doesn't cover.
+- **GPU and compositor causes.** An `unknown` verdict becomes `gpu` when the GPU process was busy through the hitch or the swap waited, or `compositor` when Chrome's compositor drew slowly with the GPU idle.
+
+It's off by default. On the compat games, traced and plain runs had the same fps, p95 and myaku overhead, but a heavier game makes a bigger trace. `gpu` means Chrome's GPU process was busy, which can include work for other tabs or the browser itself, so a lone `gpu` hitch on a light game is a lead, not an answer. It's Chromium only, and nothing changes in the page: the in-page profiler is the same in every browser.
 
 Timings depend on the machine, so set budgets from runs on the same CI runner. It uses the Chrome or Edge you have installed (`MYAKU_BROWSER` to pick one).
 
@@ -147,7 +160,7 @@ Capture works everywhere. Script attribution (`script` with a location, and `lay
 - **Engine loops hide your code.** When an engine owns the loop, attribution names the engine's file. The [engine spans](#engines) say whether update or render took the time, and in Phaser which scene. Add `profiler.span()` around your own systems to go further.
 - **Contexts created before myaku starts aren't counted.** Import `myaku/auto` first.
 - **`myaku record` needs Chromium** (Chrome or Edge).
-- **No GPU timing yet.** "GPU bound" shows as `unknown` with a draw-call hint.
+- **GPU timing needs `myaku record --trace`.** In the page, "GPU bound" shows as `unknown` with a draw-call hint.
 
 ## With debuff
 
