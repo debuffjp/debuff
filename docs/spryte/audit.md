@@ -98,7 +98,7 @@ API debt to settle before 1.0: `begin`, `end`, `resize`, `dispose` and `renderSc
 2. Decide the name and repo (see section 5), then `git subtree split` into its own repo with CI, and have debuff pin the published version.
 3. ~~Correctness fixes~~ done. Next: verify `highp` on real iOS and Android devices.
 4. ~~WebGL2 unit coverage~~ done with a fake GL. Still to do: a pixel-level browser test inside spryte itself, so it doesn't depend on debuff's game scenarios.
-5. Benchmark suite beyond bunnymark (tilemap world, particles, text-heavy UI, create/destroy churn), run on at least one iPhone and one mid-range Android, with the methodology published.
+5. ~~A spryte entry and a mixed scene in the PixiJS benchmark~~ done (see `packages/spryte/docs/benchmarks.md`). Still to do: a benchmark suite beyond these two scenes (tilemap world, particles, text-heavy UI, create/destroy churn), run on at least one iPhone and one mid-range Android, with the methodology published.
 6. Public lifecycle API cleanup (section 6), then API docs.
 7. Render targets and a minimal custom-shader hook, only once a real game needs them.
 
