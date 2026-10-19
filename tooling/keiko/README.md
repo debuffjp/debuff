@@ -37,14 +37,16 @@ Each has a small game in [`compat/`](https://github.com/debuffjp/debuff/tree/mai
 
 ### Real games
 
-keiko was also run by hand against open-source games it had never seen. Each needed only a `window.__KEIKO__` hook added. These runs aren't in `compat/` yet.
+keiko also plays open-source games it was never written for. Each needs only a small `window.__KEIKO__` hook added. To reproduce these rows, run `npm run compat` once, then `node compat/real.mjs` from the repo root. It clones each game at a pinned commit, applies the hook from [`compat/real/<game>/hook.patch`](https://github.com/debuffjp/debuff/tree/main/compat/real) and runs the tests next to it. It runs locally only, not in CI.
 
 | Game | Engine | Tests | Deterministic |
 | --- | --- | --- | --- |
-| [Runner](https://github.com/phaserjs/phaser-by-example) | Phaser 3 | score, jump, game over | ✔ |
-| [Starshake](https://github.com/phaserjs/phaser-by-example) | Phaser 3 | start, move, shoot | ✔ |
-| [Puzzling Potions](https://github.com/pixijs/open-games) | PixiJS 8 | Play opens a full board | ✔ |
-| [Bubbo Bubbo](https://github.com/pixijs/open-games) | PixiJS 8 | Play reaches the game | ✘ (see [limits](#known-limits)) |
+| [Runner](https://github.com/phaserjs/phaser-by-example) | Phaser 3 | score, jump, game over ([tests](https://github.com/debuffjp/debuff/tree/main/compat/real/runner)) | ✔ (same seed) |
+| [Starshake](https://github.com/phaserjs/phaser-by-example) | Phaser 3 | start, move, shoot ([tests](https://github.com/debuffjp/debuff/tree/main/compat/real/starshake)) | ✔ (same seed) |
+| [Puzzling Potions](https://github.com/pixijs/open-games) | PixiJS 8 | Play opens a full board ([tests](https://github.com/debuffjp/debuff/tree/main/compat/real/puzzling-potions)) | ✔ (same seed) |
+| [Bubbo Bubbo](https://github.com/pixijs/open-games) | PixiJS 8 | Play reaches the game ([tests](https://github.com/debuffjp/debuff/tree/main/compat/real/bubbo-bubbo)) | ✘ (see [limits](#known-limits)) |
+
+"Same seed" means two runs with the same `Math.random()` seed match step for step (`sameSeed: true`). These games call `Math.random()` for spawns and boards, so a different seed plays a different game, as it should.
 
 If your engine trips over the headless page, please [open an issue](https://github.com/debuffjp/debuff/issues) with a minimal game.
 
@@ -129,7 +131,7 @@ Boots a fresh game and returns a [`Playtest`](#playtest). Calling it again repla
 | `page` | `"index.html"` | Page to boot, relative to the project root |
 | `params` | | Params to set before the first step: `{ "player.speed": 200 }` |
 | `ready` | once the scripts and their first loads finish (debuff: once a scene is active) | When the game counts as ready, e.g. `(g) => g.scene === "level-1"`. keiko plays frames while it waits |
-| `timeout` | `10000` | Milliseconds of real time to wait for `ready` |
+| `timeout` | `10000` | Milliseconds of real time to wait for the scripts to load, then for `ready`. Without it, the first game in a run gets 60000 to load, since it also waits for Vite to pre-bundle dependencies |
 | `seed` | `1` | Seed for `Math.random()` |
 | `fps` | `60` | Frames per second of the virtual clock |
 | `webgl` | `true` (debuff: `false`) | Offer WebGL. `false` makes engines fall back to Canvas 2D |

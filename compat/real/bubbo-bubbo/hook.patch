@@ -1,0 +1,24 @@
+diff --git a/bubbo-bubbo/src/main.ts b/bubbo-bubbo/src/main.ts
+index 0cae08c..39f0fc1 100644
+--- a/bubbo-bubbo/src/main.ts
++++ b/bubbo-bubbo/src/main.ts
+@@ -104,3 +104,19 @@ async function init() {
+ 
+ // Init everything
+ init();
++
++if (import.meta.env.DEV) {
++    const page = (b?: { x: number; y: number; width: number; height: number }) => {
++        if (!b) return undefined;
++        const toPage = app.canvas.clientWidth / app.renderer.width;
++        return { x: Math.round((b.x + b.width / 2) * toPage), y: Math.round((b.y + b.height / 2) * toPage) };
++    };
++    (window as any).__KEIKO__ = {
++        scene: () => (navigation as any).currentScreen?.constructor.name,
++        state: () => {
++            const screen = (navigation as any).currentScreen;
++            if (!screen) return undefined;
++            return { screen: screen.constructor.name, playButton: page(screen._playBtn?.getBounds()) };
++        },
++    };
++}
