@@ -259,6 +259,11 @@ export class Profiler {
         "No canvas context seen, so draws, uploads and compiles aren't counted. The game created its context before myaku loaded: load myaku first.",
       );
     }
+    if (this.fixedBudget === undefined && this.displayMs === undefined && this.total > 60) {
+      out.push(
+        `The game never ran faster than ~30 fps, so myaku couldn't measure the display's refresh rate and judges hitches against a default ${Math.round(this.budgetMs)} ms budget. Pass budgetMs to set it.`,
+      );
+    }
     if (this.spansDropped) {
       out.push(`More than ${MAX_SPANS} span names: the rest are added up under "other".`);
     }
@@ -570,18 +575,20 @@ export class Profiler {
       stallMs += Math.min(s.end, end) - Math.max(s.start, start);
       for (const sc of s.scripts) {
         if (sc.end <= start || sc.start >= end) continue;
+        // Only the part of the script inside this frame counts, as with stallMs.
+        const ms = Math.min(sc.end, end) - Math.max(sc.start, start);
         if (this.ownUrl && sc.source.split("?")[0] === this.ownUrl.split("?")[0]) {
           // Our rAF wrapper: the work was the game's slowest frame callback this frame.
           const slow = this.slow[(this.head - 1 - (this.total - 1 - frame.index) + this.size) % this.size];
           scripts.push({
-            ms: sc.ms,
+            ms,
             source: slow?.site?.url ?? "",
             fn: slow?.name || slow?.site?.fn || "",
             char: -1,
             ...(slow?.site ? { line: slow.site.line } : {}),
             invoker: "FrameRequestCallback",
           });
-        } else scripts.push({ ms: sc.ms, source: sc.source, fn: sc.fn, char: sc.char, invoker: sc.invoker });
+        } else scripts.push({ ms, source: sc.source, fn: sc.fn, char: sc.char, invoker: sc.invoker });
       }
     }
     scripts.sort((a, b) => b.ms - a.ms);

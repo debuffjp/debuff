@@ -4,7 +4,7 @@
  */
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
-import { extname, join, normalize, resolve } from "node:path";
+import { extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Report, Verdict } from "myaku";
 import type { Browser, CDPSession, Page } from "playwright-core";
@@ -68,7 +68,7 @@ async function serve(dir: string): Promise<{ url: string; server: Server }> {
   const server = createServer((req, res) => {
     const path = decodeURIComponent(new URL(req.url ?? "/", "http://x").pathname);
     let file = normalize(join(root, path));
-    if (!file.startsWith(root)) {
+    if (file !== root && !file.startsWith(root + sep)) {
       res.writeHead(403).end();
       return;
     }
@@ -178,9 +178,11 @@ export async function record(options: RecordOptions): Promise<Report & { trace?:
       page.evaluate((budget) => {
         const m = (window as unknown as { __MYAKU__: { report(): unknown; hitches(): unknown; budgetMs: number | undefined } }).__MYAKU__;
         if (budget !== undefined) m.budgetMs = budget;
-        return { report: m.report(), hitches: m.hitches() };
-      }, budgetMs) as Promise<{ report: Report; hitches: Verdict[] }>;
-    let { report, hitches } = await read();
+        return { report: m.report(), hitches: m.hitches(), now: performance.now() };
+      }, budgetMs) as Promise<{ report: Report; hitches: Verdict[]; now: number }>;
+    const first = await read();
+    let { report, hitches } = first;
+    const endedAt = first.now;
     if (!cdp || !traced) return report;
     await cdp.send("Tracing.end");
     const dataLoss = (await traced) === true;
@@ -189,12 +191,14 @@ export async function record(options: RecordOptions): Promise<Report & { trace?:
     const vsync = vsyncMs(events);
     const pageVsync = report.displayIntervalMs;
     let budgetNote: string | undefined;
-    if (vsync && pageVsync && vsync < pageVsync * 0.8) {
+    if (vsync && (!pageVsync || vsync < pageVsync * 0.8)) {
       ({ report, hitches } = await read(vsync * 1.5));
-      budgetNote = `The game never reached the display's rate, so myaku measured a ${Math.round(1000 / pageVsync)} Hz display; Chrome presented at ${Math.round(1000 / vsync)} Hz, so the budget comes from that.`;
+      budgetNote = pageVsync
+        ? `The game never reached the display's rate, so myaku measured a ${Math.round(1000 / pageVsync)} Hz display; Chrome presented at ${Math.round(1000 / vsync)} Hz, so the budget comes from that.`
+        : `The game never ran fast enough for myaku to measure the display; Chrome presented at ${Math.round(1000 / vsync)} Hz, so the budget comes from that.`;
     }
     if (options.traceFile) writeFileSync(options.traceFile, JSON.stringify({ traceEvents: events }));
-    const result = analyze(report, hitches, events, startedAt).report;
+    const result = analyze(report, hitches, events, startedAt, endedAt).report;
     if (budgetNote) result.trace.notes.unshift(budgetNote);
     if (dataLoss) result.trace.notes.push("Chrome's trace buffer filled during the run, so part of it wasn't recorded.");
     return result;

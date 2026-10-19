@@ -16,6 +16,11 @@ export interface Report {
   cpuMs: { p50: number; p95: number; max: number };
   hitches: number;
   hitchesPerMinute: number;
+  /**
+   * Slow frames left out of the interval, fps, seconds and hitch numbers because the browser paused or
+   * throttled frames (hidden tab, occluded window), not the game. Counted under `causes` all the same.
+   */
+  paused: { hiddenFrames: number; hiddenMs: number; throttledFrames: number; throttledMs: number };
   /** How many hitches each cause explains. */
   causes: Partial<Record<Cause, number>>;
   /** The worst hitches, slowest first (up to 10). */
@@ -37,7 +42,13 @@ export function summarize(
   meta: { budgetMs: number; displayIntervalMs: number | undefined; overheadMs: number; support: Report["support"]; warnings: string[] },
 ): Report {
   // Start-up frames (scripts still compiling, assets decoding) aren't play; leave them out.
-  const timed = frames.filter((f) => f.index >= WARMUP_FRAMES);
+  // Frames the browser paused or throttled say nothing about the game: keep them out of what players feel.
+  const pausedVerdicts = hitches.filter((h) => h.cause === "hidden" || h.cause === "throttled");
+  const pausedIdx = new Set(pausedVerdicts.map((h) => h.frame));
+  const sum = (cause: Cause) => pausedVerdicts.filter((h) => h.cause === cause).reduce((s, h) => s + h.intervalMs, 0);
+  const count = (cause: Cause) => pausedVerdicts.filter((h) => h.cause === cause).length;
+  const played = hitches.filter((h) => !pausedIdx.has(h.frame));
+  const timed = frames.filter((f) => f.index >= WARMUP_FRAMES && !pausedIdx.has(f.index));
   const intervals = timed.map((f) => f.intervalMs).sort((a, b) => a - b);
   const cpu = timed.map((f) => f.cpuMs).sort((a, b) => a - b);
   const seconds = intervals.reduce((s, v) => s + v, 0) / 1000;
@@ -55,10 +66,16 @@ export function summarize(
     displayIntervalMs: meta.displayIntervalMs === undefined ? undefined : round(meta.displayIntervalMs),
     intervalMs: { p50: pct(intervals, 0.5), p95: pct(intervals, 0.95), p99: pct(intervals, 0.99), max: round(intervals.at(-1) ?? 0) },
     cpuMs: { p50: pct(cpu, 0.5), p95: pct(cpu, 0.95), max: round(cpu.at(-1) ?? 0) },
-    hitches: hitches.length,
-    hitchesPerMinute: seconds > 0 ? round((hitches.length / seconds) * 60) : 0,
+    hitches: played.length,
+    hitchesPerMinute: seconds > 0 ? round((played.length / seconds) * 60) : 0,
+    paused: {
+      hiddenFrames: count("hidden"),
+      hiddenMs: round(sum("hidden")),
+      throttledFrames: count("throttled"),
+      throttledMs: round(sum("throttled")),
+    },
     causes,
-    worst: [...hitches].sort((a, b) => b.intervalMs - a.intervalMs).slice(0, 10),
+    worst: [...played].sort((a, b) => b.intervalMs - a.intervalMs).slice(0, 10),
     spans,
     perFrame: { draws: avg((f) => f.draws), uploads: avg((f) => f.uploads), uploadBytes: avg((f) => f.uploadBytes) },
     overheadMs: round(meta.overheadMs, 3),
@@ -69,7 +86,9 @@ export function summarize(
 
 function pct(sorted: number[], p: number): number {
   if (!sorted.length) return 0;
-  return round(sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))] ?? 0);
+  // Nearest rank: the smallest value with at least p of the values at or below it.
+  const i = Math.min(sorted.length - 1, Math.max(0, Math.ceil(sorted.length * p) - 1));
+  return round(sorted[i] ?? 0);
 }
 
 function round(v: number, digits = 2): number {
