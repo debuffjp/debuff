@@ -95,4 +95,16 @@ describe("aseprite importer", () => {
   it("is a valid tooling plugin", () => {
     expect(validatePlugins([aseprite()])).toHaveLength(1);
   });
+
+  it("does not cache a failed import, so fixing the tool takes effect without touching the file", async () => {
+    const root = project({ "assets/hero.aseprite": "ase" });
+    const broken = () => {
+      throw new Error("not installed");
+    };
+    const first = await compileAssets(root, { plugins: [aseprite({ exec: broken })], atlas: false });
+    expect(first.manifest.assets.hero).toBeUndefined();
+    expect(first.warnings.join()).toContain("Aseprite failed");
+    const second = await compileAssets(root, { plugins: [aseprite({ exec: fakeAseprite(1, 8, 8).exec })], atlas: false });
+    expect(second.manifest.assets.hero).toMatchObject({ src: "assets/hero.png" });
+  });
 });

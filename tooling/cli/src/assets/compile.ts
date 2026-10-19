@@ -156,7 +156,10 @@ async function runImporter(importer: AssetImporter, file: SourceFile, root: stri
   if (!result || typeof result !== "object" || typeof result.assets !== "object") {
     throw new Error(`importer "${importer.name}" returned an invalid result (expected { assets: {...} })`);
   }
-  if (cacheable && cacheDir) {
+  // A result with warnings and no assets is a failure (missing tool, bad env), which can be fixed
+  // without touching the file, so it must be retried next time instead of being replayed from cache.
+  const failed = Object.keys(result.assets).length === 0 && (result.warnings?.length ?? 0) > 0;
+  if (cacheable && cacheDir && !failed) {
     mkdirSync(cacheDir, { recursive: true });
     writeFileSync(cacheFile, JSON.stringify(result));
   }
@@ -206,6 +209,8 @@ function packAtlases(
     const w = png.readUInt32BE(16);
     const h = png.readUInt32BE(20);
     if (w > maxSize / 2 || h > maxSize / 2) continue;
+    // Ungrouped images and an `assets/default/` folder share the "default" atlas on purpose: the runtime's
+    // `load()` treats a missing group as "default", so they are the same preload group.
     const group = entry.group ?? "default";
     groups.set(group, [...(groups.get(group) ?? []), { id, png }]);
   }

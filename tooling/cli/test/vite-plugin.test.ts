@@ -44,9 +44,10 @@ describe("debuff Vite plugin", () => {
     const root = project({ "assets/hero.png": "png", "assets/level2/boss.png": "png" });
     const plugin = corePlugin(root);
     const tags = (await plugin.transformIndexHtml()) as { attrs: Record<string, string> }[];
-    expect(tags.map((t) => [t.attrs.href, t.attrs.as])).toEqual([
+    expect(tags.map((t) => [t.attrs.href?.replace(/\?v=[\w-]+$/, "?v=#"), t.attrs.as])).toEqual([
       ["assets/manifest.json", "fetch"],
-      ["assets/hero.png", "image"],
+      // Versioned like the runtime's fetch URL, so the preload is reused.
+      ["assets/hero.png?v=#", "image"],
     ]);
   });
 
@@ -89,6 +90,30 @@ describe("debuff Vite plugin", () => {
     expect((await request("/assets/secret.psd")).statusCode).toBe(404);
     expect((await request("/assets/../package.json")).statusCode).toBe(404);
     expect((await request("/src/main.ts")).passed).toBe(true);
+    // A malformed escape is a 400, not a thrown error that hangs the request.
+    const bad = await request("/assets/%E0%A4%A");
+    expect(bad.statusCode).toBe(400);
+    expect(String(bad.body)).toContain("[debuff]");
+  });
+
+  it("recompiles only for files inside assets/, not sibling folders like assets-src/", () => {
+    const root = project({ "assets/hero.png": "png" });
+    const plugin = corePlugin(root);
+    const handlers: Record<string, (file: string) => void> = {};
+    const server = {
+      watcher: { add: vi.fn(), on: (ev: string, fn: (file: string) => void) => (handlers[ev] = fn) },
+      ws: { send: vi.fn() },
+      middlewares: { use: vi.fn() },
+    };
+    plugin.configureServer(server);
+    const sent = server.ws.send;
+    handlers.change?.(join(root, "assets-src", "hero.png"));
+    handlers.change?.(`${root.replaceAll("\\", "/")}/assets-src/hero.png`);
+    return new Promise<void>((done) => setTimeout(done, 50)).then(async () => {
+      expect(sent).not.toHaveBeenCalled();
+      handlers.change?.(`${root.replaceAll("\\", "/")}/assets/hero.png`);
+      await vi.waitFor(() => expect(sent).toHaveBeenCalledWith({ type: "full-reload" }));
+    });
   });
 });
 
