@@ -1,5 +1,6 @@
 import { Game } from "@debuffjp/core";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { Gamepads } from "../../input/src/gamepad.js";
 import { DevSession, type DrivableInput, InputRecording, type Replay } from "../src/index.js";
 import { fastForward, type RewindRequest, storeRewind, takeRewind } from "../src/replay.js";
 
@@ -178,5 +179,78 @@ describe("state-preserving reload", () => {
     expect(second.sim.x).toBe(30); // the replay let go of ArrowRight: nobody is holding it now
     expect(b.activity.at(-1)?.action).toBe("kept your place");
     b.release();
+  });
+});
+
+/** A game driven only by a gamepad, polled after each update like `@debuffjp/input` does. */
+function makePadSim() {
+  const canvas = document.createElement("canvas");
+  const ctx = new Proxy({}, { get: (_t, k) => (k === "canvas" ? canvas : () => undefined), set: () => true });
+  vi.spyOn(canvas, "getContext").mockImplementation(((type: string) =>
+    type === "2d" ? ctx : null) as unknown as typeof canvas.getContext);
+  const game = new Game({ canvas, width: 100, height: 100, scale: "none" });
+  const pads = new Gamepads();
+  const input: DrivableInput = { keys: { press() {}, release() {} }, pointer: { press() {}, move() {}, release() {} }, pads };
+  const sim = { x: 0, y: 0, jumps: 0, trace: [] as string[] };
+  game.hooks.afterUpdate(() => pads.poll());
+  game
+    .add({
+      id: "play",
+      update() {
+        sim.x += pads.stickX;
+        sim.y += pads.stickY;
+        if (pads.pressed("PadA")) sim.jumps++;
+        sim.trace.push(`${pads.connected}:${pads.down("PadA")}:${pads.stickX}`);
+      },
+    })
+    .go("play");
+  return { game, input, pads, sim };
+}
+
+describe("gamepad replay", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("records pad state per poll and replays it exactly", () => {
+    const pad = { connected: true, buttons: [{ pressed: false }], axes: [0, 0] };
+    let pads: (typeof pad | null)[] = [];
+    vi.stubGlobal("navigator", { getGamepads: () => pads });
+    const live = makePadSim();
+    const rec = new InputRecording(live.game, live.input);
+    live.game.step(3);
+    pads = [pad];
+    live.game.step(2);
+    pad.axes = [-0.7312345678, 0.4567891234];
+    live.game.step(4);
+    pad.buttons = [{ pressed: true }];
+    live.game.step(1);
+    pad.buttons = [{ pressed: false }];
+    pad.axes = [0.1, 0];
+    live.game.step(3);
+    pad.buttons = [{ pressed: true }];
+    live.game.step(2);
+    pads = [];
+    live.game.step(2);
+    const replay = rec.toReplay();
+    expect(replay.steps).toContainEqual({ pad: { buttons: [], axes: [-0.7312345678, 0.4567891234] } });
+    expect(replay.steps.filter((s) => "pad" in s)).toHaveLength(6);
+    expect(JSON.parse(JSON.stringify(replay))).toEqual(replay); // survives sessionStorage / scenario files
+
+    // Another real pad is plugged in during the replay: it must not leak into the replayed session.
+    pads = [{ connected: true, buttons: [{ pressed: true }], axes: [1, 1] }];
+    const again = makePadSim();
+    const rec2 = new InputRecording(again.game, again.input);
+    fastForward({ game: again.game, input: again.input, command: () => undefined }, replay.steps, replay.ticks);
+    expect(again.sim).toEqual(live.sim);
+    expect(again.sim.jumps).toBe(2);
+    expect(rec2.toReplay().steps).toEqual(replay.steps); // the new page keeps the same timeline
+    expect(again.pads.fed).toBeUndefined(); // the real pad takes over afterwards
+  });
+
+  it("still loads replays recorded before pads were recorded", () => {
+    vi.stubGlobal("navigator", { getGamepads: () => [] });
+    const sim = makePadSim();
+    fastForward({ game: sim.game, input: sim.input, command: () => undefined }, [{ wait: 5 }, { press: "Space" }, { wait: 5 }], 10);
+    expect(sim.game.clock.tick).toBe(10);
+    expect(sim.sim.x).toBe(0);
   });
 });

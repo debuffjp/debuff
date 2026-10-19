@@ -158,3 +158,19 @@ describe("Input with a class host", () => {
     input.dispose();
   });
 });
+
+describe("Gamepads.fed", () => {
+  it("reads fed state instead of the Gamepad API, and goes back when cleared", () => {
+    vi.stubGlobal("navigator", { getGamepads: () => [{ connected: true, buttons: [{ pressed: true }], axes: [0, 0] }] });
+    const pads = new Gamepads();
+    pads.fed = { buttons: [{ pressed: false }, { pressed: true }], axes: [-0.75, 0] };
+    pads.poll();
+    expect([pads.down("PadA"), pads.down("PadB"), pads.down("PadStickLeft"), pads.stickX]).toEqual([false, true, true, -0.75]);
+    pads.fed = null;
+    pads.poll();
+    expect([pads.connected, pads.down("PadB")]).toEqual([false, false]);
+    pads.fed = undefined;
+    pads.poll();
+    expect([pads.connected, pads.down("PadA")]).toEqual([true, true]);
+  });
+});

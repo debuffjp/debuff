@@ -74,6 +74,28 @@
         { "type": "object", "required": ["pointerUp"], "additionalProperties": false, "properties": { "pointerUp": { "const": true } } },
         {
           "type": "object",
+          "required": ["pad"],
+          "additionalProperties": false,
+          "properties": {
+            "pad": {
+              "description": "Gamepad state from this step on (null = disconnected): pressed standard-mapping button indices and left stick axes.",
+              "oneOf": [
+                { "type": "null" },
+                {
+                  "type": "object",
+                  "required": ["buttons", "axes"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "buttons": { "type": "array", "items": { "type": "integer", "minimum": 0 } },
+                    "axes": { "type": "array", "items": { "type": "number" }, "maxItems": 2 }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
           "required": ["set"],
           "additionalProperties": false,
           "properties": {

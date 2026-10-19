@@ -179,6 +179,7 @@ async function runStep(step: Step, call: Call, capture: Capture, until: Until, s
   else if ("pointerDown" in step) await call("pointerDown", ...step.pointerDown);
   else if ("pointerMove" in step) await call("pointerMove", ...step.pointerMove);
   else if ("pointerUp" in step) await call("pointerUp");
+  else if ("pad" in step) await call("pad", step.pad);
   else if ("command" in step) await call("command", step.command, ...(step.args ?? []));
   else if ("set" in step) {
     for (const [path, value] of Object.entries(step.set)) {
