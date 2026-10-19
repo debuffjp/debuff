@@ -18,7 +18,7 @@ export function toSteps(duration: Duration, stepSeconds: number): number {
     }
     return duration;
   }
-  const match = /^\s*(\d+(?:\.\d+)?|\.\d+)\s*(ms|s)\s*$/.exec(duration);
+  const match = /^\s*((?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s*(ms|s)\s*$/.exec(duration);
   if (!match)
     throw new TypeError(`Can't read the duration "${duration}". Use a step count (30), seconds ("0.5s") or milliseconds ("250ms").`);
   const seconds = Number(match[1]) / (match[2] === "ms" ? 1000 : 1);

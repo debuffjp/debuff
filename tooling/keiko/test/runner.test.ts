@@ -155,6 +155,11 @@ describe("discovery", () => {
       expect(findTests(root)).toEqual(["src/c.test.js", "tests/a.test.ts", "tests/deep/b.test.mjs"]);
       expect(findTests(root, ["./other/d.test.ts"])).toEqual(["other/d.test.ts"]);
       expect(findTests(root, ["tests", "src/c.test.js"])).toEqual(["tests/a.test.ts", "tests/deep/b.test.mjs", "src/c.test.js"]);
+      // Listed twice (or also inside a listed folder): runs once.
+      expect(findTests(root, ["tests/a.test.ts", "./tests/a.test.ts", "tests"])).toEqual(["tests/a.test.ts", "tests/deep/b.test.mjs"]);
+      expect(() => findTests(root, ["../x.test.ts"])).toThrow(/outside the project/);
+      expect(() => findTests(root, [join(tmpdir(), "elsewhere.test.ts")])).toThrow(/outside the project/);
+      if (process.platform === "win32") expect(() => findTests(root, ["Z:\\x.test.ts"])).toThrow(/outside the project/);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -164,6 +169,24 @@ describe("discovery", () => {
     const html = `<script src="/legacy.js"></script><script type="module" src="/src/a.ts"></script>
       <script type=module src='/src/b.ts'></script><script type="module">inline()</script>`;
     expect(pageScripts(html)).toEqual(["/src/a.ts", "/src/b.ts"]);
+  });
+
+  it("skips commented-out scripts and types that only start with module", () => {
+    const html = `<!-- <script type="module" src="/src/old.ts"></script> -->
+      <script type="module-shim" src="/src/shim.ts"></script><script type=modulex src="/src/x.ts"></script>
+      <script type="module" src="/src/main.ts"></script><!-- unclosed <script type="module" src="/src/late.ts">`;
+    expect(pageScripts(html)).toEqual(["/src/main.ts"]);
+  });
+
+  it("finds own frames in paths with parentheses, spaces and URL encoding", () => {
+    const win = process.platform === "win32";
+    const root = win ? "C:\\Program Files (x86)\\My Games (old)" : "/Program Files (x86)/My Games (old)";
+    const fwd = root.split("\\").join("/");
+    const own = `${fwd}/tests/a.test.ts`;
+    expect(firstOwnFrame(`Error: x\n    at eval (${own}:12:7)`, root)).toBe("tests/a.test.ts:12:7");
+    expect(firstOwnFrame(`Error: x\n    at ${own}:3:4`, root)).toBe("tests/a.test.ts:3:4");
+    const url = `file://${win ? "/" : ""}${encodeURI(own).replace(/\(/g, "%28").replace(/\)/g, "%29")}`;
+    expect(firstOwnFrame(`Error: x\n    at async fn (${url}:5:6)`, root)).toBe("tests/a.test.ts:5:6");
   });
 
   it("points at the first stack frame in the project", () => {
