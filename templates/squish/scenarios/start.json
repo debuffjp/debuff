@@ -1,0 +1,9 @@
+{
+  "$schema": "../node_modules/@debuffjp/cli/schema/scenario.schema.json",
+  "steps": [
+    { "flashes": 60 },
+    { "expect": { "scene": { "eq": "play" }, "state.phase": { "eq": "idle" }, "state.moves": { "eq": 25 } } },
+    { "capture": "board" },
+    { "contrast": [60, 95, 240, 24] }
+  ]
+}

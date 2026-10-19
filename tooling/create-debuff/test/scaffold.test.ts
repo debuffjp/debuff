@@ -66,7 +66,7 @@ describe("official templates", () => {
   });
 
   it("lists bundled and official templates, and resolves locally in a repo checkout", () => {
-    expect(listTemplates().map((t) => t.id)).toEqual(expect.arrayContaining(["basic", "platformer", "mossfell"]));
+    expect(listTemplates().map((t) => t.id)).toEqual(expect.arrayContaining(["basic", "platformer", "mossfell", "squish"]));
     expect(resolveTemplate("platformer").kind).toBe("local");
     expect(resolveTemplate("github:me/x")).toEqual({ kind: "remote", source: "github:me/x" });
   });

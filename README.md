@@ -25,7 +25,7 @@ npm install
 npm run dev
 ```
 
-Open the URL it prints, then press <kbd>`</kbd> in the game for the dev panel. Edit `src/main.ts` and the game reloads. For a tilemap platformer instead of the minimal starter, add `-- --template platformer` to the first command, or `-- --template mossfell` for a top-down adventure. pnpm, Yarn and Bun work too (`pnpm create debuff`, and so on).
+Open the URL it prints, then press <kbd>`</kbd> in the game for the dev panel. Edit `src/main.ts` and the game reloads. For a tilemap platformer instead of the minimal starter, add `-- --template platformer` to the first command, `-- --template mossfell` for a top-down adventure, or `-- --template squish` for a squishy match-3 that plays well on phones. pnpm, Yarn and Bun work too (`pnpm create debuff`, and so on).
 
 New projects include a `.mcp.json`, so a coding agent like Claude Code can play and inspect the game you have open. See the [agent guide](https://debuff.jp/docs/agents).
 

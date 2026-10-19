@@ -13,6 +13,7 @@ Ask the human what they want to make if it isn't clear, then pick the closest st
 
 - `platformer`: runs and jumps through a Tiled level, with collision, coins and tunable movement
 - `mossfell`: top-down action-adventure with screen-by-screen rooms, sword combat, hearts, enemies and a locked door
+- `squish`: squishy match-3 for touch and mouse, with swaps, cascades, combos and squash-and-stretch juice, drawn in code
 - `basic`: one scene and a moving character, the smallest start
 
 ```bash

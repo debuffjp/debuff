@@ -24,4 +24,11 @@ export const OFFICIAL_TEMPLATES: readonly OfficialTemplate[] = [
       "Top-down action-adventure: screen-by-screen scrolling, sword combat, hearts, enemies, a key and locked door, a small dungeon",
     source: "github:debuffjp/debuff/templates/mossfell",
   },
+  {
+    id: "squish",
+    title: "Squish",
+    description:
+      "Squishy match-3 for touch and mouse: swap jelly blobs, cascades and combos, squash-and-stretch juice, drawn in code with no art files",
+    source: "github:debuffjp/debuff/templates/squish",
+  },
 ];
