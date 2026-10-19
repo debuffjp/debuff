@@ -25,7 +25,11 @@ async function fakePage(base: string, answer: (method: string, args: unknown[]) 
         if (!block.startsWith("event: command")) continue;
         const { id, method, args } = JSON.parse(block.slice(block.indexOf("data: ") + 6));
         const body = method === "boom" ? { id, ok: false, error: "nope" } : { id, ok: true, result: answer(method, args) };
-        await fetch(new URL(AGENT_PATHS.result, base), { method: "POST", body: JSON.stringify(body) });
+        await fetch(new URL(AGENT_PATHS.result, base), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
       }
     }
   })();
