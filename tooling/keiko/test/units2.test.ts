@@ -115,8 +115,14 @@ describe("VirtualClock", () => {
     clock.advance(6);
     expect(performance.now()).toBeCloseTo(100);
     expect(Date.now()).toBe(1100);
+    expect(new Date().getTime()).toBe(1100);
+    expect(new Date(5).getTime()).toBe(5);
+    expect(new Date() instanceof Date).toBe(true);
+    expect(Date()).toBe(new Date(1100).toString());
+    expect(Date.UTC(2026, 0, 1)).toBe(1767225600000);
     expect(Math.random()).toBe(mulberry32(9)());
     clock.uninstall();
+    expect(new Date().getTime()).toBeGreaterThan(1100);
     expect(Math.random).toBe(random);
     expect(Date.now()).toBeGreaterThan(1100);
   });
