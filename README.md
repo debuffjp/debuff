@@ -12,7 +12,7 @@ debuff is an open-source toolkit for 2D browser games that handles the basics fo
 - **Room to grow.** Small (the starter ships at about 19 kB) and fast: its renderer, [spryte](packages/spryte), draws moving sprites 2–4× faster than the most popular 2D web renderer, at a ninth of its size: 800,000 at 60 fps on our test laptop, against 200,000 ([benchmarks](https://debuff.jp/benchmarks), [run them yourself](https://debuffjp.github.io/2dbench/mobile.html)), so the engine doesn't hold your idea back.
 - **Agents help if you want them, you decide.** Coding agents can play the game you have open, read what's happening and check their changes. Creative calls stay with you.
 
-> **Status: 0.5, early development.** APIs will change, and feedback from real games shapes them.
+> **Status: 0.9, early development.** APIs will change, and feedback from real games shapes them.
 
 ## Try it
 
