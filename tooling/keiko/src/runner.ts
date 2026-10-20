@@ -515,7 +515,8 @@ export function firstOwnFrame(stack: string, root: string): string | undefined {
       const open = loc.indexOf(" (");
       loc = open >= 0 ? loc.slice(open + 2) : loc.replace(/^\(/, "");
     }
-    let raw = loc.replace(/^file:\/\/\/?/, "");
+    // file:///C:/x on Windows, file:///home/x elsewhere: keep the POSIX root slash, drop it before a drive letter.
+    let raw = loc.replace(/^file:\/\//, "").replace(/^\/([A-Za-z]:)/, "$1");
     try {
       raw = decodeURIComponent(raw);
     } catch {
