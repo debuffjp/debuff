@@ -1,5 +1,9 @@
 # @debuffjp/juice
 
+## 0.9.4
+
+No changes in this release.
+
 ## 0.9.3
 
 No changes in this release.

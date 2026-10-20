@@ -1,5 +1,15 @@
 # @debuffjp/core
 
+## 0.9.4
+
+### Patch Changes
+
+- Updated dependencies [68dec64]
+- Updated dependencies [3d1f9e2]
+- Updated dependencies [1ca1155]
+- Updated dependencies [6bc9e5d]
+  - spryte@0.2.0
+
 ## 0.9.3
 
 ### Patch Changes
