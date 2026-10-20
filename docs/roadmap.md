@@ -42,6 +42,13 @@ Proposals, ordered by leverage. Each builds on something debuff already has (a f
 - [ ] **Scenario recording from live play.** Play a sequence, save it as a scenario with captures.
 - [ ] **Change reports.** For any change (yours or an agent's): files, params, size delta, before and after captures.
 
+## spryte
+
+spryte stays immediate mode: no scene graph, nothing retained between frames. Where people need more than drawing, we build approaches designed for that model, opt-in and tree-shakeable, rather than porting retained-mode systems.
+
+- [ ] **Interaction and hit-testing.** An opt-in `draw.pick(x, y)`: tag what you draw with an `id`, and spryte returns the topmost tagged sprite under a point from the last frame, respecting transforms and clips. Untagged drawing costs nothing. Dispatch (hover, press, drag) stays with the app, or with debuff's input layer. Until then, keep your objects' bounds and test the pointer against them, topmost first.
+- [ ] Driven by launch feedback: features people ask for, non-game examples (data viz, generative art, maps), and migration help from other renderers.
+
 ## Later: performance and reach
 
 - [ ] OffscreenCanvas and worker rendering experiment
