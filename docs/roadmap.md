@@ -49,6 +49,24 @@ spryte stays immediate mode: no scene graph, nothing retained between frames. Wh
 - [ ] **Interaction and hit-testing.** An opt-in `draw.pick(x, y)`: tag what you draw with an `id`, and spryte returns the topmost tagged sprite under a point from the last frame, respecting transforms and clips. Untagged drawing costs nothing. Dispatch (hover, press, drag) stays with the app, or with debuff's input layer. Until then, keep your objects' bounds and test the pointer against them, topmost first.
 - [ ] Driven by launch feedback: features people ask for, non-game examples (data viz, generative art, maps), and migration help from other renderers.
 
+### Gaps against PixiJS
+
+What stops spryte replacing PixiJS's renderer in a typical game today, as of 0.2.1. Each item gets an immediate-mode design (opt-in, tree-shakeable, no retained objects), pixel-checked tests, and a 2dbench scene where it touches performance. Order follows demand.
+
+- [ ] **Interaction.** `draw.pick` (above).
+- [ ] **Vector shapes.** Today: filled `rect`, `circle` and `line`. Missing: polygons, paths and curves, strokes, rounded rectangles (PixiJS `Graphics`).
+- [ ] **Blend modes.** Today: `normal` and `add`. Missing: multiply, screen and the rest of PixiJS's common set.
+- [ ] **Masks.** Today: rectangular `clip`. Missing: masking by a sprite or shape.
+- [ ] **Filters.** Today: custom fragment shaders over render targets. Missing: ready-made effects (blur, glow, colour matrix, displacement) and a simple way to chain them.
+- [ ] **Text layout.** Today: CSS and bitmap fonts, `align`, `baseline`, line breaks and `measure`. Missing: word wrap to a width, and mixed styles in one string.
+- [ ] **Sprite variants.** Nine-slice (UI panels), tiling sprites, meshes and ropes.
+- [ ] **Sheets and animation.** Loading texture atlases (Aseprite and TexturePacker JSON) into frames, and a small frame-animation helper. debuff's asset pipeline covers this for debuff games; standalone spryte users write their own today.
+- [ ] **Accessibility.** A pattern or helper for exposing canvas content to screen readers (PixiJS has an accessibility plugin).
+- [ ] **Migration tooling.** More of the [migration guide](https://debuff.jp/spryte/migrating-from-pixijs) as runnable examples, and side-by-side ports of common PixiJS examples.
+- [ ] **WebGPU backend.** Only if it beats WebGL2 on 2dbench; PixiJS's WebGPU renderer is slower than its WebGL one there today.
+
+Not planned, by design: a scene graph or display-object tree, nested containers with inherited transforms, and an event system that hangs handlers on retained objects. Those are what make per-sprite cost high; spryte's answer is the immediate-mode equivalents above.
+
 ## Later: performance and reach
 
 - [ ] OffscreenCanvas and worker rendering experiment
