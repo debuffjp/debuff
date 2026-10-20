@@ -136,13 +136,19 @@ for (const backend of ["webgl2", "2d"] as const) {
   const color = Uint32Array.from({ length: n }, (_, i) => [0xffffffff, 0xff8080ff, 0x80ff80c0, 0x8080ff80][i % 4] as number);
   const hex = (c: number) => `#${c.toString(16).padStart(8, "0")}`;
   // Copy 0 has rotation 0 at a half-pixel position, so it also checks per-copy pixel snapping.
+  // Rotated copies: sprite() takes cos/sin on the CPU, sprites() in the shader. A GPU's sin/cos can differ from
+  // Math's in the last bits (SwiftShader does), flipping a few edge pixels, so WebGL2 allows 8 of ~4,000–7,000.
+  // Canvas 2D gets the same values on both paths and stays exact, which still catches real bugs (a snapping
+  // bug showed on both backends).
+  const ROTATED_EDGE = 8;
   const variants: [string, { scale?: Float32Array; rotation?: Float32Array; color?: Uint32Array }, number][] = [
     ["scale + colour (snapped)", { scale, color }, 0],
     ["scale + rotation + colour", { scale, rotation, color }, 0],
     ["rotation only", { rotation }, 0],
   ];
   for (const backend of ["webgl2", "2d"] as const)
-    for (const [name, each, tolerance] of variants) {
+    for (const [name, each, exact] of variants) {
+      const tolerance = backend === "webgl2" && each.rotation ? Math.max(exact, ROTATED_EDGE) : exact;
       const loop = await render((draw) => {
         for (let i = 0; i < n; i++)
           draw.sprite(img, pos[i * 2] as number, pos[i * 2 + 1] as number, {
