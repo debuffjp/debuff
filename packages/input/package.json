@@ -1,6 +1,6 @@
 {
   "name": "@debuffjp/input",
-  "version": "0.9.3",
+  "version": "0.9.4",
   "description": "Action-based keyboard, pointer and gamepad input for debuff",
   "keywords": [
     "game",
