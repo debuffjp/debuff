@@ -2,7 +2,7 @@ import type { Game, ParamDescription, ParamValue, Plugin } from "@debuffjp/core"
 import type { Report } from "myaku";
 import type { ExplainedError } from "./explain.js";
 import { type PadStep, type Replay, takeRewind, toPadState } from "./replay.js";
-import { DevSession, type FrameSample, type GameEventRecord, type Note } from "./session.js";
+import { DevSession, type FrameSample, type GameEventRecord, type Note, type TypeDiagnostic } from "./session.js";
 
 /** The parts of `@debuffjp/input`'s `Input` the hooks drive. Structural, so `dev` does not depend on `input`. */
 export interface DrivableInput {
@@ -106,6 +106,11 @@ export interface DevHooks {
    * "debuff-bug", "outside"), `where` points at the game's source, `hint` suggests a next step. Repeats are counted.
    */
   errors(): ExplainedError[];
+  /**
+   * Type errors from the dev server's last type-check (`typecheck: true` in debuff.config), replaced on
+   * every check after a save. Empty when type-checking is off or the code type-checks.
+   */
+  typeErrors(): TypeDiagnostic[];
   /** PNG data URL of the current frame. */
   capture(): string;
   /**
@@ -263,6 +268,7 @@ function createHooks(game: Game, session: DevSession, options: DevHooksOptions, 
     },
     notes: () => session.notes.map((n) => ({ ...n })),
     errors: () => errors.map((e) => ({ ...e })),
+    typeErrors: () => session.typeErrors.map((e) => ({ ...e })),
     commands: () => Object.keys(options.commands ?? {}),
     command: (name, ...args) => {
       const fn = options.commands?.[name];
@@ -327,6 +333,7 @@ export {
   HITCH,
   type Note,
   summarize,
+  type TypeDiagnostic,
 } from "./session.js";
 
 let sampler: CanvasRenderingContext2D | null | undefined;

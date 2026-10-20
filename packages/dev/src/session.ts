@@ -12,6 +12,23 @@ export interface GameEventRecord {
 }
 
 /** One recorded frame. Times are milliseconds. */
+/** A type error from the dev server's checker (`typecheck` in debuff.config). `file` is relative to the project. */
+export interface TypeDiagnostic {
+  file: string;
+  line: number;
+  column: number;
+  /** The TypeScript error code, e.g. 2322. */
+  code: number;
+  message: string;
+}
+
+declare global {
+  interface Window {
+    /** The dev server's latest type-check result, set by the `debuff dev` client. */
+    __DEBUFF_TYPES__?: { diagnostics: TypeDiagnostic[] };
+  }
+}
+
 export interface FrameSample {
   tick: number;
   scene: string | undefined;
@@ -223,6 +240,9 @@ export class DevSession {
   private timeline: { replay: Replay; tick: number; events: number } | undefined;
   /** Uncaught errors, unhandled rejections and loop errors, explained and de-duplicated (max 50). */
   readonly errors: ExplainedError[] = [];
+  /** Type errors from the dev server's last check, replaced on every check. Empty when type-checking is off. */
+  typeErrors: TypeDiagnostic[] = [];
+  private readonly onTypes = (e: Event) => this.setTypeErrors((e as CustomEvent<{ diagnostics: TypeDiagnostic[] }>).detail);
   /** The error object the loop just reported, so its rethrow isn't counted twice. */
   private lastLoopError: unknown;
   private readonly errorKeys = new WeakMap<ExplainedError, string>();
@@ -280,6 +300,13 @@ export class DevSession {
     });
     addEventListener("error", this.onError);
     addEventListener("unhandledrejection", this.onRejection);
+    addEventListener("debuff:types", this.onTypes);
+    if (typeof window !== "undefined" && window.__DEBUFF_TYPES__) this.setTypeErrors(window.__DEBUFF_TYPES__);
+  }
+
+  private setTypeErrors(result: { diagnostics?: TypeDiagnostic[] } | undefined): void {
+    this.typeErrors = Array.isArray(result?.diagnostics) ? result.diagnostics : [];
+    this.changed();
   }
 
   /** The session for `game`, created on first use. Call `release()` when done. */
@@ -303,6 +330,7 @@ export class DevSession {
     this.unsubscribeLoopError();
     this.unsubscribeEvents();
     removeEventListener("unhandledrejection", this.onRejection);
+    removeEventListener("debuff:types", this.onTypes);
     sessions.delete(this.game);
   }
 

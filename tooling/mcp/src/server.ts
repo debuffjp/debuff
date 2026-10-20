@@ -1,6 +1,16 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
-import { buildReport, compileAssets, findUnused, inspectProject, loadConfig, runFuzz, runScenarios, viteConfig } from "@debuffjp/cli";
+import {
+  buildReport,
+  compileAssets,
+  findUnused,
+  inspectProject,
+  loadConfig,
+  runFuzz,
+  runScenarios,
+  typecheck,
+  viteConfig,
+} from "@debuffjp/cli";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { registerPrompts } from "./prompts.js";
@@ -80,6 +90,19 @@ export function createServer(options: ServerOptions): McpServer {
       const { manifest, importedBy, outputs, warnings } = await compileAssets(dir, { plugins, atlas });
       return json({ assets: manifest.assets, importedBy, generated: [...outputs.keys()], warnings, unused: findUnused(dir, manifest) });
     }),
+  );
+
+  server.registerTool(
+    "typecheck",
+    {
+      title: "Type-check",
+      annotations: { readOnlyHint: true },
+      description:
+        "Type-check the project with its own tsc (no emit, no browser needed). Returns diagnostics: file (relative to the root), " +
+        "line, column, TypeScript code and message. Run it after editing code; vite doesn't type-check, so the game can run with type errors.",
+      inputSchema: root,
+    },
+    safely(async ({ root: r }) => json(await typecheck(rootOf(r)))),
   );
 
   server.registerTool(
@@ -403,7 +426,7 @@ export function createServer(options: ServerOptions): McpServer {
       description:
         "Runtime errors since the game started, explained: kind (your-code, debuff-usage, debuff-bug, outside), where (source file:line, " +
         "source-mapped), a hint, the loop phase and tick, and a repeat count. A loop error stops the game; fix it, then game_pause false to resume. " +
-        "For debuff-bug, tell the human and share reportUrl rather than working around it.",
+        "For debuff-bug, tell the human and share reportUrl rather than working around it. Type errors aren't runtime errors: use typecheck.",
       inputSchema: {},
       annotations: { readOnlyHint: true },
     },

@@ -1,7 +1,7 @@
 import type { Game, NumberParamSpec, ParamSpec, ParamValue, Plugin } from "@debuffjp/core";
 import { type ExplainedError, loc } from "./explain.js";
 import { applyKit, fillRange, proc } from "./kit.js";
-import { DevSession, diagnose, type FrameSample, HITCH, summarize } from "./session.js";
+import { DevSession, diagnose, type FrameSample, HITCH, summarize, type TypeDiagnostic } from "./session.js";
 
 export interface DevOverlayOptions {
   /** Key (KeyboardEvent.code) that toggles the overlay. Default "Backquote". */
@@ -55,6 +55,7 @@ class Overlay {
   private readonly label: HTMLElement;
   private readonly agentBadge: HTMLElement;
   private readonly errorBadge: HTMLButtonElement;
+  private readonly typeBadge: HTMLButtonElement;
   private readonly mascot: Buff;
   private readonly collapseButton: HTMLButtonElement;
   private readonly pauseButton: HTMLButtonElement;
@@ -104,11 +105,17 @@ class Overlay {
     });
     Object.assign(this.errorBadge.style, { color: OVER_BUDGET, padding: "0 5px" });
     this.errorBadge.hidden = true;
+    this.typeBadge = button("", () => {
+      this.setCollapsed(false);
+      this.showTab("log");
+    });
+    Object.assign(this.typeBadge.style, { color: AMBER, padding: "0 5px" });
+    this.typeBadge.hidden = true;
     this.label = chip("", LIME);
     Object.assign(this.label.style, { marginLeft: "auto", fontVariantNumeric: "tabular-nums" });
     this.collapseButton = button("", () => this.setCollapsed(!this.collapsed));
     Object.assign(this.collapseButton.style, { padding: "0 6px", minWidth: "22px" });
-    header.append(this.mascot.root, this.agentBadge, this.errorBadge, this.label, this.collapseButton);
+    header.append(this.mascot.root, this.agentBadge, this.errorBadge, this.typeBadge, this.label, this.collapseButton);
     // Double-click the header bar to collapse or expand, like a window title bar.
     header.addEventListener("dblclick", (e) => {
       if (!(e.target instanceof HTMLButtonElement)) this.setCollapsed(!this.collapsed);
@@ -479,11 +486,17 @@ class Overlay {
     this.errorBadge.hidden = errors.length === 0;
     this.errorBadge.textContent = `${errors.length} error${errors.length === 1 ? "" : "s"}`;
     this.errorBadge.title = "Show errors in the log tab";
+    const types = session.typeErrors;
+    this.typeBadge.hidden = types.length === 0;
+    this.typeBadge.textContent = `${types.length} type error${types.length === 1 ? "" : "s"}`;
+    this.typeBadge.title = "Type errors from the dev server's check; the game still runs. Show them in the log tab";
     this.errorsBox.replaceChildren(
       ...errors
         .slice(-5)
         .reverse()
         .map((e) => errorCard(e, () => this.session.clearErrors())),
+      ...types.slice(0, 5).map(typeCard),
+      ...(types.length > 5 ? [hint(`+${types.length - 5} more type errors: run tsc to see them all`)] : []),
     );
 
     // Activity log, newest first.
@@ -750,6 +763,28 @@ const KIND: Record<ExplainedError["kind"], [string, string]> = {
 };
 
 /** One error, explained: whose problem it is, where to look (click to open in your editor), what to try. */
+function editorLink(where: string): HTMLElement {
+  // Vite's dev server opens files in your editor at this endpoint.
+  const link = el("a", { href: `/__open-in-editor?file=${encodeURIComponent(where)}`, title: "Open in your editor" }, `→ ${where}`);
+  Object.assign(link.style, { color: SKY, textDecoration: "none", display: "block" });
+  link.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    void fetch(link.getAttribute("href") ?? "");
+  });
+  return link;
+}
+
+function typeCard(d: TypeDiagnostic): HTMLElement {
+  const card = el("div", { "data-error-kind": "type", class: "dk-card" });
+  card.style.setProperty("--c", AMBER);
+  const head = row();
+  head.append(chip("type error", AMBER), hint(`TS${d.code}`));
+  const msg = el("div", {}, d.message);
+  Object.assign(msg.style, { color: "#fde68a", margin: "3px 0", overflowWrap: "anywhere", whiteSpace: "pre-wrap" });
+  card.append(head, msg, editorLink(`${d.file}:${d.line}:${d.column}`));
+  return card;
+}
+
 function errorCard(e: ExplainedError, clear: () => void): HTMLElement {
   const [label, color] = KIND[e.kind];
   const card = el("div", { "data-error-kind": e.kind, class: "dk-card" });
@@ -762,18 +797,8 @@ function errorCard(e: ExplainedError, clear: () => void): HTMLElement {
   Object.assign(msg.style, { color: "#fecaca", margin: "3px 0", overflowWrap: "anywhere" });
   card.append(head, msg);
   if (e.where) {
-    const where = loc(e.where);
-    // Vite's dev server opens files in your editor at this endpoint.
-    const link = el(
-      "a",
-      { href: `/__open-in-editor?file=${encodeURIComponent(where)}`, title: "Open in your editor" },
-      `→ ${where}${e.where.fn ? ` (${e.where.fn})` : ""}`,
-    );
-    Object.assign(link.style, { color: SKY, textDecoration: "none", display: "block" });
-    link.addEventListener("click", (ev) => {
-      ev.preventDefault();
-      void fetch(link.getAttribute("href") ?? "");
-    });
+    const link = editorLink(loc(e.where));
+    if (e.where.fn) link.textContent += ` (${e.where.fn})`;
     card.append(link);
   }
   const tip = el("div", {}, e.hint);

@@ -9,5 +9,6 @@ export { TOOLING_API_VERSION } from "./plugin.js";
 export { type BuildReport, buildReport, DEV_TOKENS, type FileReport, formatReport } from "./report.js";
 export * from "./scenario/index.js";
 export { SHIP_TARGETS, type ShipCheck, type ShipResult, type ShipTarget, ship, shipFailed, zip } from "./ship.js";
+export { parseTscOutput, type TypeCheckResult, type TypeDiagnostic, typecheck } from "./typecheck.js";
 export { createDevServer, viteConfig } from "./vite.js";
 export { ASSETS_DIR, type DebuffViteOptions, debuff } from "./vite-plugin.js";
