@@ -5,6 +5,7 @@ import { attachAgentLink } from "./agent-link.js";
 import type { AtlasOptions } from "./assets/atlas.js";
 import { type CompileResult, compileAssets } from "./assets/compile.js";
 import type { ToolingPlugin } from "./plugin.js";
+import { createTypeChecker } from "./typecheck.js";
 
 export const ASSETS_DIR = "assets";
 const URL_PREFIX = `/${ASSETS_DIR}/`;
@@ -22,6 +23,12 @@ const RELOAD_CLIENT_CODE = `if (import.meta.hot) {
       console.warn("[debuff] couldn't keep your place across the reload", err);
     }
   });
+  // Type errors from the dev server's checker, for the dev tools overlay (\`typecheck\` in debuff.config).
+  import.meta.hot.on("debuff:types", (result) => {
+    window.__DEBUFF_TYPES__ = result;
+    dispatchEvent(new CustomEvent("debuff:types", { detail: result }));
+  });
+  import.meta.hot.send("debuff:types-request");
 }
 `;
 
@@ -47,6 +54,8 @@ export interface DebuffViteOptions {
   atlas?: AtlasOptions | false;
   /** Relay agent commands to the game open in the browser (`debuff dev` turns this on). Default false. */
   agentLink?: boolean;
+  /** Type-check with the project's `tsc` while serving and show type errors in the dev tools. Default false. */
+  typecheck?: boolean;
 }
 
 /**
@@ -109,6 +118,28 @@ export function debuff(options: DebuffViteOptions = {}): PluginOption[] {
       server.watcher.on("unlink", onChange);
       server.watcher.on("change", onChange);
       if (options.agentLink) attachAgentLink(server, root);
+      if (options.typecheck) {
+        let shown = -1;
+        const checker = createTypeChecker(root, (r) => {
+          if (!r.ok) return console.warn(`[debuff] type-checking is off: ${r.reason}`);
+          server.ws.send({ type: "custom", event: "debuff:types", data: r });
+          const n = r.diagnostics.length;
+          if (n !== shown)
+            console.log(n ? `[debuff] ${n} type error${n === 1 ? "" : "s"} (${r.ms} ms)` : `[debuff] no type errors (${r.ms} ms)`);
+          shown = n;
+        });
+        const onSource = (file: string) => {
+          const f = file.replaceAll("\\", "/");
+          if (/\.(m|c)?tsx?$/.test(f) && !f.includes("/node_modules/")) checker.schedule();
+          else if (f.endsWith("/tsconfig.json")) checker.schedule();
+        };
+        for (const e of ["add", "unlink", "change"] as const) server.watcher.on(e, onSource);
+        server.ws.on("debuff:types-request", (_data, client) => {
+          if (checker.latest?.ok) client.send("debuff:types", checker.latest);
+        });
+        server.httpServer?.once("close", () => checker.dispose());
+        checker.schedule();
+      }
       server.middlewares.use((req, res, next) => {
         const url = req.url?.split("?")[0];
         if (!url?.startsWith(URL_PREFIX)) return next();

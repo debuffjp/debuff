@@ -35,6 +35,10 @@ describe("debuff MCP server", () => {
     expect(tools.every((t) => t.description && t.inputSchema)).toBe(true);
   });
 
+  it("type-checks the project without a browser", async () => {
+    expect(await data("typecheck")).toMatchObject({ ok: true, diagnostics: [] });
+  });
+
   it("offers workflow prompts that fill in their arguments", async () => {
     const { prompts } = await client.listPrompts();
     expect(prompts.map((p) => p.name)).toEqual(["playtest", "fix-errors", "tune-feel", "add-mechanic", "explain-stutter"]);

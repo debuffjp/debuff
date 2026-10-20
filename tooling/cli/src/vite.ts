@@ -19,7 +19,12 @@ export async function viteConfig(
     root,
     // Relative asset URLs, so a build works from any folder (itch.io, GitHub Pages, a /play/ subpath).
     ...(hasViteConfig ? {} : { configFile: false, base: "./" }),
-    plugins: debuff({ plugins: resolved.plugins, atlas: resolved.atlas, agentLink: link.agentLink ?? false }),
+    plugins: debuff({
+      plugins: resolved.plugins,
+      atlas: resolved.atlas,
+      agentLink: link.agentLink ?? false,
+      typecheck: resolved.typecheck,
+    }),
     ...extra,
   };
 }

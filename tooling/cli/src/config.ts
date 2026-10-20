@@ -24,6 +24,11 @@ export interface DebuffConfig {
    * image, and `debuff ship` uses it for store checks and the press kit. Defaults come from package.json.
    */
   launch?: LaunchConfig;
+  /**
+   * Type-check with the project's `tsc` while `debuff dev` runs and show type errors in the dev tools
+   * overlay and to agents (`game_errors`). Default false.
+   */
+  typecheck?: boolean;
 }
 
 export interface ResolvedConfig {
@@ -35,6 +40,7 @@ export interface ResolvedConfig {
   /** `scenarios.viewport`, when set. */
   viewport?: [number, number];
   launch: LaunchConfig;
+  typecheck: boolean;
 }
 
 /** Identity helper that gives `debuff.config.ts` full type checking and editor completion. */
@@ -49,7 +55,7 @@ const NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 /** Load and validate `debuff.config.*` from `root`. A missing file is a valid empty config. */
 export async function loadConfig(root: string): Promise<ResolvedConfig> {
   const file = CONFIG_FILES.map((f) => join(root, f)).find((f) => existsSync(f));
-  if (!file) return { root, file: undefined, plugins: [], atlas: {}, launch: {} };
+  if (!file) return { root, file: undefined, plugins: [], atlas: {}, launch: {}, typecheck: false };
   // Vite's module runner transpiles TypeScript without a separate loader dependency.
   const { runnerImport } = await import("vite");
   // runnerImport sets process.env.NODE_ENV to "development" for the whole process. Put it back, or a
@@ -72,6 +78,7 @@ export async function loadConfig(root: string): Promise<ResolvedConfig> {
     plugins: validatePlugins(config.plugins ?? [], file),
     atlas: config.assets?.atlas ?? {},
     launch: config.launch ?? {},
+    typecheck: config.typecheck === true,
     ...(viewport ? { viewport } : {}),
   };
 }

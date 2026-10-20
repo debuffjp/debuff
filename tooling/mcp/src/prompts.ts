@@ -44,7 +44,7 @@ ${RULES}`),
    kind "debuff-bug": don't patch around it. Tell the human and share reportUrl.
    kind "outside": usually a browser extension. Mention it and move on.
 3. Write a logic test in tests/ that reproduces it (play(), then the inputs and steps that caused it; game.replay(file) if you have a replay or fuzz finding), and run_tests to watch it fail.
-4. Fix, run_tests until it passes, and keep the test. Then run \`npm test\` and \`npm run build\`, and report what you changed and how you verified it.
+4. Fix, run_tests until it passes, and keep the test. Then call typecheck and fix any type errors, run \`npm test\` and \`npm run build\`, and report what you changed and how you verified it.
 
 ${RULES}`),
   );
