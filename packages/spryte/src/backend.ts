@@ -92,6 +92,8 @@ export interface Backend {
   setTarget(target: RenderTarget | null, clear: number | null, width: number, height: number): void;
   /** Draw subsequent quads with a custom fragment effect (null: the default). */
   setShader(shader: Shader | null): void;
+  /** Canvas 2D only: a CSS filter (`"none"` to clear) for subsequent draws. Its presence selects CSS filters in `draw.filter`. */
+  setFilter?(css: string): void;
   /** Free a target's GPU or canvas storage. */
   disposeTarget(target: RenderTarget): void;
   /** Restrict drawing to a rectangle in backing-store pixels (top-left origin), or remove the clip. */

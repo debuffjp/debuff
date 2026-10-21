@@ -2,6 +2,7 @@ import type { Backend, BlendMode, ClipRect, Matrix, RawContext, TextureSource } 
 import type { BitmapFont } from "./bitmap-font.js";
 import { type Color, toRGBA } from "./color.js";
 import type { SpritesEach } from "./copies.js";
+import type { Filter } from "./filters.js";
 import { Shader } from "./shader.js";
 import { RenderTarget } from "./target.js";
 
@@ -249,47 +250,82 @@ export class Draw {
    * ```
    */
   mask(shape: () => void, fn: () => void): void {
-    const outer = this.target;
-    const lw = outer ? outer.width : this.viewW;
-    const lh = outer ? outer.height : this.viewH;
-    const pw = outer ? outer.width : this.backingW || Math.round(this.viewW * this.renderScale);
-    const ph = outer ? outer.height : this.backingH || Math.round(this.viewH * this.renderScale);
-    const level = this.maskDepth++;
-    const content = this.maskTarget(level * 2, pw, ph);
-    const cover = this.maskTarget(level * 2 + 1, pw, ph);
-    const blend = this.blendMode;
-    const alpha = this.alpha;
-    const clip = this.clips.at(-1) ?? null;
-    const pass = (into: RenderTarget, draw: () => void) => {
-      this.target = into;
-      this.backend.setTarget(into, 0, lw, lh);
-      // Targets match the destination's pixels, so clips carry over as they are.
-      if (clip) this.backend.setClip(clip);
-      this.blend("normal");
-      try {
-        draw();
-      } finally {
-        if (clip) this.backend.setClip(null);
-      }
-    };
+    const o = this.offscreen();
+    const content = o.a;
     try {
-      pass(content, fn);
+      this.pass(o, content, fn, true);
       this.alpha = 1;
-      pass(cover, shape);
+      this.pass(o, o.b, shape, true);
       // Keep content where the shape drew: one quad over the whole target, so both backends agree.
-      this.target = content;
-      this.backend.setTarget(content, null, lw, lh);
-      this.backend.setBlend("mask");
-      this.whole(cover, lw, lh);
+      this.pass(
+        o,
+        content,
+        () => {
+          this.backend.setBlend("mask");
+          this.whole(o.b, o.lw, o.lh);
+        },
+        false,
+      );
     } finally {
-      this.target = outer;
-      this.backend.setTarget(outer, null, lw, lh);
-      if (clip) this.backend.setClip(clip);
-      this.maskDepth--;
-      this.alpha = alpha;
-      this.blend(blend);
+      this.restore(o);
     }
-    this.whole(content, lw, lh);
+    this.whole(content, o.lw, o.lh);
+  }
+
+  /**
+   * Run `fn` and draw the result through `filters`, in order: `blur()`, `grayscale()`, `colorMatrix()` and
+   * the rest from spryte. Same units, transform and clips as outside; nests with masks and targets. Each
+   * filter pass is an offscreen pass the size of the destination, so filter groups, not single sprites.
+   *
+   * ```ts
+   * import { blur, grayscale } from "spryte";
+   * draw.filter([grayscale()], () => drawWorld(draw)); // paused
+   * draw.blend("add");
+   * draw.filter([blur(4)], () => drawLights(draw)); // glow: a blurred copy added under the sharp one
+   * draw.blend("normal");
+   * drawLights(draw);
+   * ```
+   */
+  filter(filters: readonly Filter[], fn: () => void): void {
+    if (filters.length === 0) {
+      fn();
+      return;
+    }
+    const o = this.offscreen();
+    let result = o.a;
+    let css = "";
+    try {
+      this.pass(o, o.a, fn, true);
+      const scale = o.pw / o.lw;
+      if (this.backend.setFilter) {
+        // Canvas 2D: the browser's own filters, applied as the result is drawn.
+        css = filters
+          .map((f) => f.css(scale) ?? "")
+          .join(" ")
+          .trim();
+      } else {
+        // Ping-pong between the two targets, one pass at a time.
+        for (const f of filters)
+          for (const p of f.passes) {
+            const from = result;
+            result = from === o.a ? o.b : o.a;
+            this.pass(
+              o,
+              result,
+              () => {
+                for (const [name, value] of p.uniforms(1 / o.pw, 1 / o.ph, scale)) p.shader.set(name, value);
+                this.whole(from, o.lw, o.lh, p.shader);
+              },
+              true,
+            );
+          }
+      }
+    } finally {
+      this.restore(o);
+    }
+    if (css) this.backend.setFilter?.(css);
+    this.whole(result, o.lw, o.lh);
+    if (css) this.backend.setFilter?.("none");
   }
 
   rect(x: number, y: number, w: number, h: number, color: Color): void {
@@ -803,10 +839,56 @@ export class Draw {
     return fresh;
   }
 
-  /** Draw a mask target over the whole destination, 1:1 and untransformed, with no custom shader. */
-  private whole(t: RenderTarget, lw: number, lh: number): void {
-    const shader = this.shader;
-    if (shader) this.backend.setShader(null);
+  /** The destination's size and two pooled targets matching its pixels, for one level of mask or filter. */
+  private offscreen() {
+    const outer = this.target;
+    const lw = outer ? outer.width : this.viewW;
+    const lh = outer ? outer.height : this.viewH;
+    const pw = outer ? outer.width : this.backingW || Math.round(this.viewW * this.renderScale);
+    const ph = outer ? outer.height : this.backingH || Math.round(this.viewH * this.renderScale);
+    const level = this.maskDepth++;
+    return {
+      outer,
+      lw,
+      lh,
+      pw,
+      ph,
+      level,
+      a: this.maskTarget(level * 2, pw, ph),
+      b: this.maskTarget(level * 2 + 1, pw, ph),
+      blend: this.blendMode,
+      alpha: this.alpha,
+      clip: this.clips.at(-1) ?? null,
+    };
+  }
+
+  /** Draw `fn` into `into` (cleared when `clear`), in the outer units and clip, starting from normal blending. */
+  private pass(o: ReturnType<Draw["offscreen"]>, into: RenderTarget, fn: () => void, clear: boolean): void {
+    this.target = into;
+    this.backend.setTarget(into, clear ? 0 : null, o.lw, o.lh);
+    // Targets match the destination's pixels, so clips carry over as they are.
+    if (o.clip) this.backend.setClip(o.clip);
+    this.blend("normal");
+    try {
+      fn();
+    } finally {
+      if (o.clip) this.backend.setClip(null);
+    }
+  }
+
+  private restore(o: ReturnType<Draw["offscreen"]>): void {
+    this.target = o.outer;
+    this.backend.setTarget(o.outer, null, o.lw, o.lh);
+    if (o.clip) this.backend.setClip(o.clip);
+    this.maskDepth--;
+    this.alpha = o.alpha;
+    this.blend(o.blend);
+  }
+
+  /** Draw a pooled target over the whole destination, 1:1 and untransformed, through `shader` (default none). */
+  private whole(t: RenderTarget, lw: number, lh: number, shader: Shader | null = null): void {
+    const outer = this.shader;
+    if (outer !== shader) this.backend.setShader(shader);
     const t0 = this.tmp;
     t0[0] = lw;
     t0[1] = 0;
@@ -816,7 +898,7 @@ export class Draw {
     t0[5] = 0;
     this.quads++;
     this.backend.quad(t0, t, 0, 0, t.width, t.height, WHITE, 0, false);
-    if (shader) this.backend.setShader(shader);
+    if (outer !== shader) this.backend.setShader(outer);
   }
 
   private points = new Float32Array(64);

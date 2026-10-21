@@ -1,5 +1,17 @@
 // Pixel checks that need a real GPU. Each check draws the same scene two ways and compares every pixel.
-import { createRenderer, type Draw } from "../src/index.js";
+import {
+  blur,
+  brightness,
+  contrast,
+  createRenderer,
+  type Draw,
+  type Filter,
+  grayscale,
+  hueRotate,
+  invert,
+  saturate,
+  sepia,
+} from "../src/index.js";
 
 const W = 160;
 const H = 120;
@@ -583,6 +595,49 @@ for (const backend of ["webgl2", "2d"] as const) {
     if (d > 48) off++;
   }
   check("soft, nested and in-target masks: WebGL2 matches Canvas 2D", off < 80, `${off} px off by > 48`);
+}
+
+// filter(): WebGL2's passes match the browser's CSS filters on Canvas 2D.
+{
+  const content = (draw: Draw) => {
+    draw.rect(10, 10, 30, 20, "#e23");
+    draw.rect(40, 10, 30, 20, "#2a6cff");
+    draw.circle(40, 40, 14, "#cffb2d");
+    for (let i = 0; i < 20; i++) draw.sprite(img, pos[i * 2] as number, pos[i * 2 + 1] as number);
+  };
+  const cases: [string, Filter[], number][] = [
+    ["grayscale", [grayscale()], 3],
+    ["sepia", [sepia(0.7)], 3],
+    ["saturate", [saturate(1.8)], 3],
+    ["hueRotate", [hueRotate(2)], 3],
+    ["brightness, contrast", [brightness(1.3), contrast(0.6)], 3],
+    ["invert", [invert()], 3],
+    ["blur", [blur(2)], 8],
+    ["blur then grayscale", [blur(1.5), grayscale(0.5)], 8],
+  ];
+  for (const [name, filters, tolerance] of cases) {
+    const scene = (draw: Draw) => {
+      draw.rect(0, 0, 80, 60, "#203040");
+      draw.filter(filters, () => content(draw));
+    };
+    const gl2 = await render(scene, "webgl2");
+    const c2d = await render(scene, "2d");
+    let worst = 0;
+    let off = 0;
+    for (let i = 0; i < gl2.length; i++) {
+      if (i % 4 === 3) continue;
+      const d = Math.abs((gl2[i] as number) - (c2d[i] as number));
+      worst = Math.max(worst, d);
+      if (d > tolerance) off++;
+    }
+    check(`filter ${name}: WebGL2 matches Canvas 2D`, off < 60, `max error ${worst}, ${off} channels over ${tolerance}`);
+    // And it did something: a matching pair of unfiltered frames would pass the check above too.
+    const plain = await render((draw: Draw) => {
+      draw.rect(0, 0, 80, 60, "#203040");
+      content(draw);
+    });
+    check(`filter ${name}: changes the image`, diff(gl2, plain) > 500, `${diff(gl2, plain)} px changed`);
+  }
 }
 
 (window as unknown as { __checks: unknown }).__checks = results;

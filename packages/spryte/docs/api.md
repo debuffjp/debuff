@@ -53,6 +53,7 @@ draw.dispose();                           // frees GPU objects and listeners; th
 | `withCamera(camera, fn)` | Applies `camera.view()` (any `{ view(): Matrix }`) for the draws inside `fn`. |
 | `blend(mode)` | `"normal"`, `"add"` (glow), `"multiply"` (shadows, tinted light), `"screen"` (soft lightening) or `"erase"` (cut alpha out, e.g. holes in a render target). Pixel-identical on WebGL2 and Canvas 2D over opaque pixels. |
 | `mask(shape, fn)` | Keep what `fn` draws only where `shape` draws (soft edges use the shape's alpha). Same units, transform and clips as outside; nests; works inside `into()`. Two offscreen passes at the destination's size, so mask groups, not single sprites. |
+| `filter(filters, fn)` | Draw `fn` through filters in order: `blur(radius)`, `grayscale()`, `sepia()`, `saturate()`, `hueRotate()`, `brightness()`, `contrast()`, `invert()` (all on both backends, matching CSS filters) and `colorMatrix(m)` (WebGL2 only). Glow: blur an additive copy, then draw the sharp one. |
 | `alpha` | Global alpha multiplier. |
 | `smooth` | Default filtering. |
 | `font` | Default font: a CSS string, a `BitmapFont`, or a function returning one (evaluated lazily). |

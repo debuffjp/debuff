@@ -10,6 +10,18 @@ export {
   type TextDrawOptions,
   type TiledDrawOptions,
 } from "./draw.js";
+export {
+  blur,
+  brightness,
+  colorMatrix,
+  contrast,
+  type Filter,
+  grayscale,
+  hueRotate,
+  invert,
+  saturate,
+  sepia,
+} from "./filters.js";
 export { createRenderer, type RendererOptions } from "./renderer.js";
 export { Shader, type UniformValue } from "./shader.js";
 export { RenderTarget } from "./target.js";
