@@ -5,7 +5,7 @@ live with Web Audio. There are no audio files to download, the engine is about 2
 engine (or none).
 
 ```ts
-import { Player, type Song } from "plonk";
+import { Player, type Song } from "plonkjs";
 
 const theme: Song = {
   bpm: 112,

@@ -13,11 +13,11 @@ Docs: https://debuff.jp/plonk/ · Notation: https://debuff.jp/plonk/songs · Pla
 ## Set up
 
 ```bash
-npm install plonk
+npm install plonkjs
 ```
 
 ```ts
-import { Player, type Song } from "plonk";
+import { Player, type Song } from "plonkjs";
 const player = new Player(); // or new Player({ context, destination }) to share an engine's audio context and bus
 player.play(song, { fade: 1 });
 ```
@@ -78,7 +78,7 @@ Quantize celebrations and stingers; never the player's own taps (feedback must b
 In a browser (it renders offline, faster than real time):
 
 ```ts
-import { mix } from "plonk";
+import { mix } from "plonkjs";
 const report = await mix(song, 20);
 // report.song.lufs (aim for about -16), report.song.clipped (must be 0), report.song.bands (low/mid/high shares),
 // report.tracks[name].belowMix (LU under the mix: lead and bass 0-5, pads 3-8, drums 10-15),
@@ -91,7 +91,7 @@ person to listen: numbers can't judge a melody.
 ## Check a song without hearing it
 
 ```ts
-import { notes, parse } from "plonk";
+import { notes, parse } from "plonkjs";
 parse("C5 . E5 G5"); // throws on an unreadable step, naming it
 notes(song, 0, 64); // every note in steps [0, 64): { time, instrument, freq, duration, velocity }
 ```
