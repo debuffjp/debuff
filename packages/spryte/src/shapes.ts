@@ -20,6 +20,9 @@ export class ShapeBuffer {
   private ys = new Float64Array(64);
   private nx = new Float64Array(64);
   private ny = new Float64Array(64);
+  /** The inner ring of a fill. */
+  private ix = new Float64Array(64);
+  private iy = new Float64Array(64);
 
   /** Fill (`width` 0) or stroke `n` points. `aa` is one device pixel in the points' units; `color` is RGBA bytes in memory order. */
   add(m: Matrix, points: ArrayLike<number>, n: number, closed: boolean, width: number, color: number, aa: number): void {
@@ -38,6 +41,8 @@ export class ShapeBuffer {
       this.ys = new Float64Array(size);
       this.nx = new Float64Array(size);
       this.ny = new Float64Array(size);
+      this.ix = new Float64Array(size);
+      this.iy = new Float64Array(size);
     }
     let k = 0;
     for (let i = 0; i < n; i++) {
@@ -112,8 +117,7 @@ export class ShapeBuffer {
     this.normals(n, true);
     const h = aa / 2;
     // Inner ring (coverage 1) a half pixel in, outer (0) a half pixel out.
-    const ix = new Float64Array(n);
-    const iy = new Float64Array(n);
+    const { ix, iy } = this;
     for (let i = 0; i < n; i++) {
       ix[i] = (xs[i] as number) + (nx[i] as number) * h;
       iy[i] = (ys[i] as number) + (ny[i] as number) * h;
@@ -241,12 +245,17 @@ export class ShapeBuffer {
   }
 }
 
+/** Reused by `earClip`, so filling shapes every frame doesn't allocate. */
+const INDICES: number[] = [];
+
 /**
  * Triangulate a simple polygon wound so its interior is on the left (positive signed area in y-down space).
  * O(n²), fine for UI and debug shapes. Self-intersecting input still produces triangles, just not exact ones.
  */
 export function earClip(xs: ArrayLike<number>, ys: ArrayLike<number>, n: number, tri: (a: number, b: number, c: number) => void): void {
-  const idx = Array.from({ length: n }, (_, i) => i);
+  const idx = INDICES;
+  idx.length = 0;
+  for (let k = 0; k < n; k++) idx.push(k);
   let guard = 0;
   let i = 0;
   while (idx.length > 3 && guard < idx.length) {
