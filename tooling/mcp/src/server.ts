@@ -248,17 +248,19 @@ export function createServer(options: ServerOptions): McpServer {
         ...(mode ? { mode } : {}),
         ...(viewport ? { width: viewport[0], height: viewport[1] } : {}),
       });
-      const state = await session.call(
-        reducedMotion === undefined ? "state" : "reducedMotion",
-        ...(reducedMotion === undefined ? [] : [reducedMotion]),
-      );
+      const warnings: string[] = [];
+      if (viewport && session.mode === "live") warnings.push("viewport only applies to headless mode; the human's tab keeps its size");
+      if (reducedMotion !== undefined) {
+        // An older @debuffjp/dev has no reducedMotion hook: keep the session and say so, rather than failing the start.
+        await session.call("reducedMotion", reducedMotion).catch((err: unknown) => {
+          warnings.push(`reducedMotion not applied: ${err instanceof Error ? err.message : String(err)}`);
+        });
+      }
       return json({
         mode: session.mode,
         url: session.url,
-        ...(viewport && session.mode === "live"
-          ? { warning: "viewport only applies to headless mode; the human's tab keeps its size" }
-          : {}),
-        state,
+        ...(warnings.length ? { warnings } : {}),
+        state: await session.call("state"),
       });
     }),
   );
