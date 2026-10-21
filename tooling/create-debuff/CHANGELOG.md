@@ -1,5 +1,11 @@
 # create-debuff
 
+## 0.10.0
+
+### Minor Changes
+
+- 698f6f0: The basic template turns on `typecheck` in its `debuff.config.ts`, so new games see type errors in the dev overlay.
+
 ## 0.9.5
 
 No changes in this release.
