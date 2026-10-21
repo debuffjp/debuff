@@ -114,6 +114,7 @@ describe("debuff MCP server", () => {
   it("starts at a viewport with reduced motion forced, and saves captures", { timeout: 60_000 }, async () => {
     const started = await data("game_start", { mode: "headless", viewport: [390, 844], reducedMotion: true });
     expect(started.state).toMatchObject({ reducedMotion: true, reducedMotionForced: true });
+    expect(started.state.width).toBeGreaterThan(0);
     const shot = await call("game_capture", { path: ".debuff/test-capture.png" });
     expect(JSON.parse(shot.content[1]?.text ?? "{}")).toEqual({ saved: ".debuff/test-capture.png" });
     const file = join(template, ".debuff/test-capture.png");
