@@ -32,6 +32,9 @@
       "path": "packages/dev"
     },
     {
+      "path": "packages/plonk"
+    },
+    {
       "path": "packages/myaku"
     },
     {

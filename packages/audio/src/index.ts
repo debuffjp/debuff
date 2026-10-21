@@ -71,6 +71,14 @@ export class Audio {
     addEventListener("keydown", unlock);
   }
 
+  /**
+   * A bus's gain node, to plug other audio in (a music generator such as plonk: `new Player({ context: audio.ctx,
+   * destination: audio.bus("music") })`), so it shares the game's volume and mute.
+   */
+  bus(name: Bus): GainNode {
+    return this.buses[name];
+  }
+
   get unlocked(): boolean {
     return this.ctx.state === "running";
   }
