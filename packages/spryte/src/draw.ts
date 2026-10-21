@@ -75,7 +75,8 @@ export class Draw {
   private viewH = 1;
   private readonly tmp: Matrix = [1, 0, 0, 1, 0, 0];
   private readonly textCache = new TextCache();
-  private circleTexture: HTMLCanvasElement | OffscreenCanvas | undefined;
+  /** Antialiased white circles, 64, 256 and 1024px across, each made on first use. */
+  private readonly circleTextures: (HTMLCanvasElement | OffscreenCanvas | undefined)[] = [];
 
   private backingW = 0;
   private backingH = 0;
@@ -226,9 +227,13 @@ export class Draw {
   /** Filled circle (antialiased). */
   circle(x: number, y: number, radius: number, color: Color): void {
     this.local(x - radius, y - radius, radius * 2, radius * 2);
-    const tex = this.circle64();
+    // Pick the texture closest to the circle's size on screen: magnified, a small one blurs; shrunk a lot, a big
+    // one (no mipmaps) gets jaggy.
+    const m = this.m;
+    const device = radius * Math.hypot(m[0], m[1]) * (this.backingW ? this.backingW / this.viewW : 1);
+    const size = device <= 40 ? 64 : device <= 160 ? 256 : 1024;
     this.quads++;
-    this.backend.quad(this.tmp, tex, 0, 0, 64, 64, this.withAlpha(toRGBA(color), 1), 0, true);
+    this.backend.quad(this.tmp, this.circleTexture(size), 0, 0, size, size, this.withAlpha(toRGBA(color), 1), 0, true);
   }
 
   line(x1: number, y1: number, x2: number, y2: number, width: number, color: Color): void {
@@ -611,19 +616,21 @@ export class Draw {
     return ((rgba & 0xffffff00) | Math.max(0, Math.min(255, a))) >>> 0;
   }
 
-  private circle64(): HTMLCanvasElement | OffscreenCanvas {
-    if (!this.circleTexture) {
-      const c = makeCanvas(64, 64);
+  private circleTexture(size: 64 | 256 | 1024): HTMLCanvasElement | OffscreenCanvas {
+    const slot = size === 64 ? 0 : size === 256 ? 1 : 2;
+    let c = this.circleTextures[slot];
+    if (!c) {
+      c = makeCanvas(size, size);
       const ctx = c.getContext("2d") as CanvasRenderingContext2D | null;
       if (ctx) {
         ctx.fillStyle = "#fff";
         ctx.beginPath();
-        ctx.arc(32, 32, 31.5, 0, Math.PI * 2);
+        ctx.arc(size / 2, size / 2, size / 2 - 0.5, 0, Math.PI * 2);
         ctx.fill();
       }
-      this.circleTexture = c;
+      this.circleTextures[slot] = c;
     }
-    return this.circleTexture;
+    return c;
   }
 }
 
