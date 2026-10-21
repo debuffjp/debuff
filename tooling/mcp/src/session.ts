@@ -80,7 +80,7 @@ export class LiveSession implements GameSession {
       body: JSON.stringify({ method, args }),
     });
     const body = (await res.json()) as { ok: true; result: R } | { ok: false; error: string };
-    if (!body.ok) throw new Error(body.error);
+    if (!body.ok) throw new Error(outdated(body.error));
     return body.result;
   }
 
@@ -146,4 +146,11 @@ export class HeadlessSession implements GameSession {
     await this.browser.close();
     await this.server.close();
   }
+}
+
+/** Pages running an older @debuffjp/dev answer new methods with a bare "Unknown dev hook"; say what to do. */
+function outdated(error: string): string {
+  return /^Unknown dev hook "[^"]*"$/.test(error)
+    ? `${error}: the game's @debuffjp/dev is older than this tool. Update it (npm i -D @debuffjp/dev@latest).`
+    : error;
 }
