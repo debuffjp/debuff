@@ -54,7 +54,7 @@ spryte stays immediate mode: no scene graph, nothing retained between frames. Wh
 What stops spryte replacing PixiJS's renderer in a typical game today, as of 0.2.1. Each item gets an immediate-mode design (opt-in, tree-shakeable, no retained objects), pixel-checked tests, and a 2dbench scene where it touches performance. Order follows demand.
 
 - [ ] **Interaction.** `draw.pick` (above).
-- [x] **Optional features stay out of the core.** Shapes, masks, filters, `nineSlice` and `tiled` are imported functions taking the `Draw`, so startup stays at 11.2 kB unless they're used.
+- [x] **Optional features stay out of the core.** Shapes, masks, filters, `nineSlice` and `tiled` are imported functions taking the `Draw`, so startup stays at 11.3 kB unless they're used.
 - [x] **Vector shapes.** `polygon`, `polyline`, `roundRect` and `ring`, antialiased on WebGL2 by a one-pixel feather (no MSAA). Curves are points you compute; holes aren't supported.
 - [x] **Blend modes.** `normal`, `add`, `multiply`, `screen` and `erase`, one `blendFunc` each.
 - [x] **Masks.** `mask(draw, shape, fn)`: mask by anything you can draw, soft edges included.

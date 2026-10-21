@@ -1,5 +1,5 @@
 {
-  "date": "2026-10-21T07:33:39.174Z",
+  "date": "2026-10-21T08:02:04.543Z",
   "method": "Vite production build of apps/<name> (one rotated sprite), JS only, brotli quality 11",
   "versions": {
     "spryte": "0.2.3",
@@ -8,8 +8,8 @@
   },
   "results": {
     "spryte": {
-      "startupBrotliBytes": 11423,
-      "totalBrotliBytes": 13128,
+      "startupBrotliBytes": 11589,
+      "totalBrotliBytes": 13295,
       "files": 2
     },
     "pixi": {
