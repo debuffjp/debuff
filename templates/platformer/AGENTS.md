@@ -10,7 +10,8 @@ This is a 2D browser game made with **debuff** (https://debuff.jp). These notes 
 | `npx debuff test` | Runs the logic tests in `tests/`: the real game in Node, no browser, in milliseconds. Run it after every change. `-t <text>` runs matching tests; `--json` for tools |
 | `npm test` | Logic tests, then `scenarios/*.json` in a headless browser with screenshot comparison |
 | `npx debuff fuzz` | Plays the game with random input for a few minutes. Each crash, stuck state or back-and-forth loop is saved as a scenario in `.debuff/fuzz/` that replays it exactly |
-| `npm run build` | Type-checks, builds to `dist/` and prints a size report. Fails if dev-only code leaks |
+| `npm run build` | Type-checks, builds to `dist/` and prints a size report. Fails if dev-only code leaks, or if a change would break players' saves (`saves.json`) |
+| `npx debuff build --accept-saves` | Accept a change to the game's saves. **Only after the human has approved it**: players with an old save lose what no longer fits, unless `new Storage(key, defaults, { version, migrate })` carries it over |
 | `npm run assets` | Regenerates the asset manifest and lists unused assets |
 | `npx debuff inspect` | Project summary as JSON: packages, plugins, assets, last build size |
 | `npx debuff scenario --update` | Accept new screenshot baselines. **Only after the human has approved the visual change** |

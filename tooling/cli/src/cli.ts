@@ -8,7 +8,8 @@ import { Cli } from "./commands.js";
 import { loadConfig } from "./config.js";
 import { inspectProject } from "./inspect.js";
 import type { ToolingPlugin } from "./plugin.js";
-import { buildReport, formatReport } from "./report.js";
+import { type BuildReport, buildReport, formatReport } from "./report.js";
+import { checkSaves, type SaveCheck } from "./saves.js";
 import { createDevServer, viteConfig } from "./vite.js";
 
 const cli = new Cli("debuff");
@@ -59,7 +60,8 @@ cli
   .option("--root <dir>", "Project root")
   .option("--json", "Machine-readable report")
   .option("--sourcemap", "Emit source maps")
-  .action(async (o: Common & { sourcemap?: boolean }) => {
+  .option("--accept-saves", "Accept changes to the game's saves and update saves.json")
+  .action(async (o: Common & { sourcemap?: boolean; acceptSaves?: boolean }) => {
     const root = rootOf(o);
     const { build } = await import("vite");
     if (!o.json) header("build", "shipping only what you use");
@@ -73,7 +75,7 @@ cli
       if (o.json) console.error(`launch: ${w}`);
       else p.log.warn(`launch: ${w}`);
     }
-    const code = report(root, o.json ?? false);
+    const code = report(root, o.json ?? false, o.acceptSaves ?? false);
     if (code === 0) {
       const { reportBuild } = await import("./telemetry.js");
       await reportBuild(root, version, (text) => (o.json ? console.error(text) : console.log(pc.dim(text))));
@@ -312,14 +314,20 @@ cli
     return 0;
   });
 
-function report(root: string, json: boolean): number {
-  const r = buildReport(join(root, "dist"));
+function report(root: string, json: boolean, acceptSaves = false): number {
+  const r: BuildReport & { saves?: SaveCheck } = buildReport(join(root, "dist"));
+  const saves = checkSaves(root, { accept: acceptSaves });
+  if (saves) r.saves = saves;
+  const saveErrors = saves?.issues.filter((i) => i.level === "error") ?? [];
   writeFileSync(join(root, "dist", "debuff-report.json"), `${JSON.stringify(r, null, 2)}\n`);
   if (json) console.log(JSON.stringify(r, null, 2));
   else {
     console.log(formatReport(r));
+    if (saves) printSaves(saves);
     const kb = (n: number) => `${(n / 1024).toFixed(1)} kB`;
     if (r.leaks.length) finish(false, "dev-only code leaked into the build", amber(r.leaks.map((l) => l.path).join(", ")));
+    else if (saveErrors.length)
+      finish(false, "this build would break players' saves", "fix it, or run `debuff build --accept-saves` if that's intended");
     else
       finish(
         true,
@@ -329,7 +337,21 @@ function report(root: string, json: boolean): number {
         }`,
       );
   }
-  return r.leaks.length ? 1 : 0;
+  return r.leaks.length || saveErrors.length ? 1 : 0;
+}
+
+/** Saves the build found and what changed since saves.json (ADR 0014). Notes only show when something changed. */
+function printSaves(c: SaveCheck): void {
+  const keys = c.saves.map((s) => s.key).join(", ");
+  if (c.accepted) console.log(pc.dim(`saves: ${keys || "none"} recorded in saves.json`));
+  for (const i of c.issues) {
+    const text = `save ${i.key}: ${i.message}`;
+    if (i.level === "error") p.log.error(text);
+    else if (i.level === "warning") p.log.warn(text);
+    else console.log(pc.dim(text));
+  }
+  for (const u of c.unchecked) console.log(pc.dim(`save not checked in ${u.file}: ${u.reason}`));
+  if (!c.accepted && !c.issues.length && c.saves.length) console.log(pc.dim(`saves: ${keys} unchanged`));
 }
 
 cli.version(version);

@@ -40,4 +40,4 @@ export type { Scene } from "./scene.js";
 export type { SplashOptions } from "./splash.js";
 export { type AnimationClip, type Origin, originOffset, Sprite, type SpriteOptions, sliceGrid } from "./sprite.js";
 export { FrameStats } from "./stats.js";
-export { Storage } from "./storage.js";
+export { Storage, type StorageOptions } from "./storage.js";
