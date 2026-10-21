@@ -16,12 +16,15 @@ function recorder() {
   const quads: Quad[] = [];
   const blends: string[] = [];
   const clips: (ClipRect | null)[] = [];
+  const paths: { m: Matrix; points: number[]; closed: boolean; width: number; color: number }[] = [];
   const backend: Backend = {
     kind: "2d",
     raw: { kind: "2d", ctx: {} as CanvasRenderingContext2D },
     begin: () => {},
     quad: (m, src, sx, sy, sw, sh, color, flash, smooth) =>
       quads.push({ m: [...m] as Matrix, src, uv: [sx, sy, sw, sh], color, flash, smooth }),
+    path: (m, points, n, closed, width, color) =>
+      paths.push({ m: [...m] as Matrix, points: Array.from(points).slice(0, n * 2), closed, width, color }),
     setBlend: (mode) => blends.push(mode),
     setClip: (rect) => clips.push(rect),
     end: () => {},
@@ -36,7 +39,7 @@ function recorder() {
     if (!q) throw new Error(`no quad ${i}`);
     return q;
   };
-  return { draw, quads, quad, blends, clips };
+  return { draw, quads, quad, blends, clips, paths };
 }
 
 /** Where the unit square's corner (u, v) lands. */
@@ -249,5 +252,31 @@ describe("text cache", () => {
     const last = updates.slice(-4000).map((u) => `${String(pages.size && [...pages].indexOf(u.dst))}:${u.x}:${u.y}`);
     expect(new Set(last).size).toBe(last.length);
     expect(quads.length).toBe(160000);
+  });
+});
+
+describe("shapes", () => {
+  it("sends polygons, polylines, round rects and rings as paths", () => {
+    const { draw, paths } = recorder();
+    draw.polygon([0, 0, 10, 0, 5, 8], "#f00");
+    draw.polyline([0, 0, 10, 10], 2, "#0f0");
+    draw.roundRect(0, 0, 40, 20, 5, "#00f", 1);
+    draw.ring(50, 50, 10, 2, "#fff");
+    draw.polyline([0, 0, 1, 1], 0, "#fff"); // zero width draws nothing
+    expect(paths.map((p) => [p.closed, p.width])).toEqual([
+      [true, 0],
+      [false, 2],
+      [true, 1],
+      [true, 2],
+    ]);
+    expect(paths[0]?.points).toEqual([0, 0, 10, 0, 5, 8]);
+    // Every round-rect point stays inside the rect.
+    const rr = paths[2]?.points ?? [];
+    for (let i = 0; i < rr.length; i += 2) {
+      expect(rr[i]).toBeGreaterThanOrEqual(-1e-6);
+      expect(rr[i]).toBeLessThanOrEqual(40 + 1e-6);
+      expect(rr[i + 1]).toBeGreaterThanOrEqual(-1e-6);
+      expect(rr[i + 1]).toBeLessThanOrEqual(20 + 1e-6);
+    }
   });
 });

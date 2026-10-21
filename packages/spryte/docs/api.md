@@ -31,6 +31,10 @@ draw.dispose();                           // frees GPU objects and listeners; th
 | `rect(x, y, w, h, color)` | Filled rectangle. |
 | `circle(x, y, r, color)` | Filled, antialiased circle. |
 | `line(x1, y1, x2, y2, width, color)` | Drawn as a rotated rectangle. |
+| `polygon(points, color, count?)` | Filled, antialiased polygon through `[x0, y0, x1, y1, …]`. Concave is fine; it shouldn't cross itself. |
+| `polyline(points, width, color, closed?, count?)` | Antialiased line through the points, mitred joins, flat ends. Lines under a pixel fade rather than vanish. |
+| `roundRect(x, y, w, h, radius, color, lineWidth?)` | Rounded rectangle, filled or (with `lineWidth`) outlined. |
+| `ring(x, y, radius, width, color)` | Circle outline. |
 | `sprite(frameOrImage, x, y, options?)` | Image or `Frame` (`{ image, x, y, w, h }`), anchored at `origin` (default centre). Options: `origin`, `scaleX`, `scaleY`, `rotation` (radians), `flipX`, `flipY`, `alpha`, `tint`, `flash` (0–1 toward white), `smooth`. **Doesn't allocate:** reuse one options object in hot loops. |
 | `sprites(frame, positions, count?, options?, each?)` | One frame at many positions: particles, bullets, swarms. `positions` is x, y pairs. On WebGL2, a reused `Float32Array` is uploaded to the GPU as is, with **no JavaScript work per copy**. Other array types are copied into a staging array first, and inside `withShader` and on the Canvas 2D fallback each copy is drawn as its own quad. `options` apply to every copy. `each` adds per-copy values: `scale` (Float32Array), `rotation` (Float32Array, radians) and `color` (Uint32Array of `0xRRGGBBAA`, multiplied with the tint). These are uploaded as is too. `count` is clamped to the shortest array, and a `NaN` or negative count draws nothing. The output is pixel-identical to a `sprite()` loop with the same values, including pixel snapping (checked on a real GPU by `npm run test:browser`). It's one draw call on WebGL2 and breaks the current batch. |
 | `text(text, x, y, options?)` | `font` (CSS string or `BitmapFont`), `color`, `align`, `baseline`, `alpha`. CSS text is rasterised once and cached (LRU, 256 entries). |

@@ -121,6 +121,29 @@ export class Canvas2DBackend implements Backend {
     }
   }
 
+  path(m: Matrix, points: ArrayLike<number>, n: number, closed: boolean, width: number, color: number): void {
+    if (n < 2) return;
+    const ctx = this.ctx;
+    const s = this.scale;
+    ctx.setTransform(m[0] * s, m[1] * s, m[2] * s, m[3] * s, m[4] * s, m[5] * s);
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.moveTo(points[0] as number, points[1] as number);
+    for (let i = 1; i < n; i++) ctx.lineTo(points[i * 2] as number, points[i * 2 + 1] as number);
+    if (closed || width === 0) ctx.closePath();
+    if (width === 0) {
+      ctx.fillStyle = rgbaToCss(color);
+      ctx.fill();
+    } else {
+      ctx.strokeStyle = rgbaToCss(color);
+      ctx.lineWidth = width;
+      ctx.lineJoin = "miter";
+      ctx.miterLimit = 4;
+      ctx.lineCap = "butt";
+      ctx.stroke();
+    }
+  }
+
   setBlend(mode: BlendMode): void {
     this.blendMode = mode;
     this.ctx.globalCompositeOperation = COMPOSITE[mode];

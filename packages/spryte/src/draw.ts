@@ -248,6 +248,52 @@ export class Draw {
     this.pop();
   }
 
+  /**
+   * Filled polygon through `points` (x0, y0, x1, y1, …), antialiased. Concave is fine; it closes itself and
+   * shouldn't cross itself. `count` defaults to every pair in `points`.
+   */
+  polygon(points: ArrayLike<number>, color: Color, count = points.length >> 1): void {
+    this.path(points, count, true, 0, color);
+  }
+
+  /** Line through `points` (x0, y0, x1, y1, …), `width` wide, with mitred joins and flat ends. `closed` joins the last point to the first. */
+  polyline(points: ArrayLike<number>, width: number, color: Color, closed = false, count = points.length >> 1): void {
+    if (width > 0) this.path(points, count, closed, width, color);
+  }
+
+  /** Rectangle with rounded corners: filled, or outlined when `lineWidth` is given (the outline is centred on the edge). */
+  roundRect(x: number, y: number, w: number, h: number, radius: number, color: Color, lineWidth?: number): void {
+    const r = Math.max(0, Math.min(radius, w / 2, h / 2));
+    const steps = r > 0 ? this.arcSteps(r, Math.PI / 2) : 0;
+    const pts = this.scratch((steps + 1) * 4);
+    let k = 0;
+    const corner = (cx: number, cy: number, from: number) => {
+      for (let i = 0; i <= steps; i++) {
+        const a = from + (i / Math.max(steps, 1)) * (Math.PI / 2);
+        pts[k++] = cx + Math.cos(a) * r;
+        pts[k++] = cy + Math.sin(a) * r;
+      }
+    };
+    corner(x + w - r, y + r, -Math.PI / 2);
+    corner(x + w - r, y + h - r, 0);
+    corner(x + r, y + h - r, Math.PI / 2);
+    corner(x + r, y + r, Math.PI);
+    this.path(pts, k >> 1, true, lineWidth ?? 0, color);
+  }
+
+  /** Circle outline, `width` wide, centred on `radius`. */
+  ring(x: number, y: number, radius: number, width: number, color: Color): void {
+    if (radius <= 0 || width <= 0) return;
+    const steps = this.arcSteps(radius, Math.PI * 2);
+    const pts = this.scratch(steps * 2);
+    for (let i = 0; i < steps; i++) {
+      const a = (i / steps) * Math.PI * 2;
+      pts[i * 2] = x + Math.cos(a) * radius;
+      pts[i * 2 + 1] = y + Math.sin(a) * radius;
+    }
+    this.path(pts, steps, true, width, color);
+  }
+
   /** Draw an image frame (or a whole image) at `x, y`, anchored by `origin`. Allocation-free hot path. */
   sprite(frame: Frame | TextureSource, x: number, y: number, o: SpriteDrawOptions = NO_OPTIONS): void {
     const f = this.place(frame, x, y, o);
@@ -582,6 +628,28 @@ export class Draw {
 
   // ---- internals ---------------------------------------------------------------------------
 
+  private path(points: ArrayLike<number>, n: number, closed: boolean, width: number, color: Color): void {
+    if (n < 2) return;
+    const m = this.m;
+    // One device pixel in local units, for the WebGL2 edge feather.
+    const aa = 1 / (this.renderScale * Math.sqrt(Math.abs(m[0] * m[3] - m[1] * m[2])) || 1);
+    this.quads++;
+    this.backend.path(m, points, n, closed, width, this.withAlpha(toRGBA(color), 1), aa);
+  }
+
+  /** Segments for an arc of `radius` spanning `angle`: about one per 4 device pixels of arc, at least 2. */
+  private arcSteps(radius: number, angle: number): number {
+    const m = this.m;
+    const device = radius * Math.hypot(m[0], m[1]) * this.renderScale;
+    return Math.max(2, Math.min(256, Math.ceil((device * angle) / 4)));
+  }
+
+  private points = new Float32Array(64);
+  private scratch(n: number): Float32Array {
+    if (this.points.length < n) this.points = new Float32Array(2 ** Math.ceil(Math.log2(n)));
+    return this.points;
+  }
+
   /** tmp = current matrix × (translate(x, y) · scale(w, h)): maps the unit square to the rect. */
   private local(x: number, y: number, w: number, h: number): void {
     const m = this.m;
@@ -646,6 +714,7 @@ function disposed(was: Backend): Backend {
     raw: was.raw,
     begin: fail,
     quad: fail,
+    path: fail,
     quads: fail,
     copies: fail,
     setBlend: fail,

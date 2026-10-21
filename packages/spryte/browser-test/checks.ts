@@ -480,4 +480,45 @@ for (const backend of ["webgl2", "2d"] as const) {
   check("blend modes: WebGL2 matches Canvas 2D", worst <= 2, `max channel error ${worst}`);
 }
 
+// Shapes: WebGL2's tessellation matches Canvas 2D's rasteriser away from edges, and edges stay close.
+{
+  const scene = (draw: Draw) => {
+    draw.polygon([10, 10, 70, 14, 40, 30, 66, 54, 12, 50], "#cffb2d");
+    draw.roundRect(84, 8, 64, 40, 12, "#e23");
+    draw.roundRect(84, 60, 64, 40, 10, "#fff", 4);
+    draw.ring(40, 84, 22, 5, "#40c0ff");
+    draw.polyline([8, 112, 40, 100, 72, 112], 3, "#ffd36b");
+    draw.push();
+    draw.translate(120, 80);
+    draw.rotate(0.4);
+    draw.polygon([-10, -10, 10, -10, 10, 10, -10, 10], "#f0f8");
+    draw.pop();
+  };
+  for (const scale of [1, 2]) {
+    const gl2 = await render(scene, "webgl2", scale);
+    const c2d = await render(scene, "2d", scale);
+    let interior = 0;
+    let edge = 0;
+    for (let i = 0; i < gl2.length; i += 4) {
+      const d = Math.max(...[0, 1, 2].map((k) => Math.abs((gl2[i + k] as number) - (c2d[i + k] as number))));
+      // Interior: the 3×3 neighbourhood is one colour in the Canvas 2D frame.
+      const x = (i / 4) % W;
+      const y = Math.floor(i / 4 / W);
+      let flat = x > 0 && y > 0 && x < W - 1 && y < H - 1;
+      for (let dy = -1; flat && dy <= 1; dy++)
+        for (let dx = -1; flat && dx <= 1; dx++) {
+          const j = i + (dy * W + dx) * 4;
+          if (c2d[j] !== c2d[i] || c2d[j + 1] !== c2d[i + 1] || c2d[j + 2] !== c2d[i + 2]) flat = false;
+        }
+      if (flat) interior = Math.max(interior, d);
+      else edge += d > 48 ? 1 : 0;
+    }
+    check(
+      `shapes: WebGL2 matches Canvas 2D (scale ${scale})`,
+      interior <= 2 && edge < 40 * scale,
+      `interior max error ${interior}, ${edge} edge px off by > 48, ${gl2.filter((v, k) => k % 4 === 1 && v !== 0x20).length} px drawn`,
+    );
+  }
+}
+
 (window as unknown as { __checks: unknown }).__checks = results;

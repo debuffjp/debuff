@@ -77,6 +77,11 @@ export interface Backend {
   ): void;
   /** Copies of one frame with per-copy scale, rotation or colour (`draw.sprites` with `each`). */
   copies(spec: CopySpec): void;
+  /**
+   * Fill (`width` 0) or stroke a path of `n` points (x0, y0, x1, y1, …) in the units `m` maps to logical space.
+   * `aa` is one device pixel in those units, for edge antialiasing where the backend does its own.
+   */
+  path(m: Matrix, points: ArrayLike<number>, n: number, closed: boolean, width: number, color: number, aa: number): void;
   setBlend(mode: BlendMode): void;
   /**
    * Send drawing to `target` (null: the canvas). `clear` (0xRRGGBBAA) clears it first; null keeps what's there.
