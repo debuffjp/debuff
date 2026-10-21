@@ -14,6 +14,8 @@ export interface HookArgs {
   error: [error: unknown, context: GameErrorContext];
   /** Something meaningful happened in the game (`game.emit`). */
   gameEvent: [name: string, detail: unknown];
+  /** The logical size changed (only in `scale: "expand"`). */
+  resize: [width: number, height: number];
 }
 
 /** Where a loop error happened. */
@@ -43,6 +45,7 @@ export class Hooks {
     sceneChange: new Set(),
     error: new Set(),
     gameEvent: new Set(),
+    resize: new Set(),
   };
 
   beforeUpdate(fn: (dt: number) => void): Unsubscribe {
@@ -73,6 +76,11 @@ export class Hooks {
   /** The game called `game.emit(name, detail)`. */
   gameEvent(fn: (name: string, detail: unknown) => void): Unsubscribe {
     return this.on("gameEvent", fn);
+  }
+
+  /** The logical size changed: `scale: "expand"` grew or shrank the game to fit its container. Lay out again. */
+  resize(fn: (width: number, height: number) => void): Unsubscribe {
+    return this.on("resize", fn);
   }
 
   /** Number of listeners per hook, for inspection. */

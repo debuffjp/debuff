@@ -18,13 +18,16 @@ const REDUCED_SHAKE = 0.25;
  * How the logical resolution maps onto the page:
  * - `fit`: scale to fill the container, preserving aspect ratio (letterboxed).
  * - `integer`: like `fit` but only whole-number scales, for crisp pixel art.
+ * - `expand`: like `fit`, but instead of letterboxing, the logical size grows along the spare axis to fill the
+ *   container. `width`/`height` are the minimum; `game.width`/`game.height` change on resize (see `hooks.resize`),
+ *   so lay out from them each frame. For responsive games: portrait on phones, landscape on desktop.
  * - `none`: canvas stays at its logical size in CSS pixels.
  */
-export type ScaleMode = "fit" | "integer" | "none";
+export type ScaleMode = "fit" | "integer" | "expand" | "none";
 
 export interface GameOptions {
   canvas: HTMLCanvasElement;
-  /** Logical resolution. Game code always works in these units. */
+  /** Logical resolution. Game code always works in these units. With `scale: "expand"` it's the minimum size. */
   width: number;
   height: number;
   /** Default "fit". */
@@ -64,8 +67,14 @@ export class Game {
   readonly canvas: HTMLCanvasElement;
   /** Immediate-mode drawing API, passed to `Scene.render` and render hooks. */
   readonly draw: Draw;
-  readonly width: number;
-  readonly height: number;
+  /** Logical width. Fixed, except in `scale: "expand"`, where it grows to fill the container (never below the minimum). */
+  get width(): number {
+    return this.logicalW;
+  }
+  /** Logical height. Fixed, except in `scale: "expand"` (see `width`). */
+  get height(): number {
+    return this.logicalH;
+  }
   readonly clock: FixedClock;
   readonly random: Random;
   readonly params = new ParamRegistry();
@@ -98,6 +107,10 @@ export class Game {
   /** Current backing-store pixels per logical unit (CSS scale × devicePixelRatio). */
   renderScale = 1;
 
+  private logicalW: number;
+  private logicalH: number;
+  private readonly minW: number;
+  private readonly minH: number;
   private freezeTime = 0;
   private motionReduced = false;
   private motionQuery: MediaQueryList | undefined;
@@ -129,8 +142,8 @@ export class Game {
 
   constructor(options: GameOptions) {
     this.canvas = options.canvas;
-    this.width = options.width;
-    this.height = options.height;
+    this.minW = this.logicalW = options.width;
+    this.minH = this.logicalH = options.height;
     this.scaleMode = options.scale ?? "fit";
     this.pixelArt = options.pixelArt ?? false;
     this.clock = new FixedClock(options.clock);
@@ -334,7 +347,8 @@ export class Game {
     if (this.scaleMode !== "none" && this.container) {
       const { clientWidth: cw, clientHeight: ch } = this.container;
       if (cw > 0 && ch > 0) {
-        css = Math.min(cw / this.width, ch / this.height);
+        css = Math.min(cw / this.minW, ch / this.minH);
+        if (this.scaleMode === "expand") this.setLogical(Math.max(this.minW, Math.round(cw / css)), Math.max(this.minH, Math.round(ch / css)));
         // Integer mode snaps in device pixels so each logical pixel maps to whole device pixels.
         if (this.scaleMode === "integer") css = Math.max(1, Math.floor(css * dpr)) / dpr;
       }
@@ -353,6 +367,21 @@ export class Game {
     // Resizing resets context state, so reapply.
     this.draw.resize(backingW, backingH);
     if (!this.running) this.render(0);
+  }
+
+  /** Change the logical size (expand mode): the camera follows, staying centred if it was. */
+  private setLogical(w: number, h: number): void {
+    if (w === this.logicalW && h === this.logicalH) return;
+    const centred = this.camera.x === this.logicalW / 2 && this.camera.y === this.logicalH / 2;
+    this.logicalW = w;
+    this.logicalH = h;
+    this.camera.width = w;
+    this.camera.height = h;
+    if (centred) {
+      this.camera.x = w / 2;
+      this.camera.y = h / 2;
+    }
+    this.hooks.emit("resize", w, h);
   }
 
   /** Convert client (event) coordinates to logical game coordinates. Bound, so it can be passed around (e.g. to `Input`). */

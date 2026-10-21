@@ -37,8 +37,9 @@ export class Camera {
   private offsetX = 0;
   private offsetY = 0;
   private target: { x: number; y: number } | undefined;
-  readonly width: number;
-  readonly height: number;
+  /** The view size in logical units. The game keeps it equal to its own size (it changes in `scale: "expand"`). */
+  width: number;
+  height: number;
   bounds: CameraOptions["bounds"];
 
   constructor(options: CameraOptions) {
