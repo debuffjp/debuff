@@ -587,6 +587,20 @@ export class WebGL2Backend implements Backend {
     // The viewport is set from drawingBufferWidth/Height at the start of each frame.
   }
 
+  update(dst: TextureSource, x: number, y: number, from: HTMLCanvasElement | OffscreenCanvas, w: number, h: number): void {
+    // Not uploaded yet: its first use uploads the whole image, which already has this region.
+    const cached = this.textures.get(dst);
+    if (!cached) return;
+    // Quads already queued this frame read other regions of the texture, so there's no need to flush first.
+    const gl = this.gl;
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, cached.tex);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+    if (from.width === w && from.height === h) gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, gl.RGBA, gl.UNSIGNED_BYTE, from);
+    else gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, from);
+    // Unit 0 is now bound to this texture; the next flush rebinds whatever the batch needs.
+  }
+
   invalidate(src: TextureSource): void {
     // A target's texture is its contents: there is nothing to re-upload.
     if (src instanceof RenderTarget) return;
