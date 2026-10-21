@@ -63,6 +63,19 @@ From [`bench/size`](https://github.com/debuffjp/debuff/tree/main/bench/size) (co
 
 The PixiJS "all JS" figure includes lazy chunks from `Application` and `Assets` that an app built without them avoids. A hand-minimised PixiJS app (a bare `WebGLRenderer`, no `Application` or `Assets`) measured about 90 kB in total, so the comparison that holds up is startup: **about 8×**. Shapes, masks, filters, `nineSlice` and `tiled` are imported functions, so they add nothing here unless an app uses them.
 
+## Against Phaser 4
+
+Same laptop and harness, 2026-10-21, 5 rounds, spryte 0.2.1, Phaser 4.2.1. Raw data: [`results/community/2026-10-21-rtx-5060-laptop-phaser-*.json`](https://github.com/debuffjp/2dbench/tree/main/results/community).
+
+| Workload, 50k sprites | spryte | Phaser 4 | spryte is |
+| --- | --- | --- | --- |
+| Bunnymark: `draw.sprite` against `Image` | **4.8 ms** | 15.0 ms | **3.1× faster** |
+| Mixed, 4 textures, everything changing | **7.4 ms** | 20.0 ms | **2.7× faster** |
+| Particles, one call per sprite | **6.9 ms** | 19.9 ms | **2.9× faster** |
+| Particles, bulk: `draw.sprites` against `SpriteGPULayer` | **1.9 ms** | 9.5 ms | **5.0× faster** |
+
+Phaser 4 renders through WebGL1 and is driven with `game.step()`, as a game would be. `SpriteGPULayer` is built for members that rarely change; it's Phaser's only bulk path with per-sprite rotation, scale and tint, so moving particles use it against its design. Phaser's startup JS is 276.6 kB (one prebuilt bundle that can't be tree-shaken). Parity passed with 0% interior difference in every scene. Write-up: [spryte vs Phaser](https://debuff.jp/blog/spryte-vs-phaser).
+
 ## Checked for fairness
 
 A review set out to show the comparison favoured spryte. In the dynamic scenes every property (scale, tint, alpha, rotation) changes over time, so no library can skip work by caching, and PixiJS keeps them dynamic, as it should. Also checked and found fair:
