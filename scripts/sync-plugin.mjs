@@ -57,6 +57,10 @@ write(`${plugin}/.codex-plugin/plugin.json`, codex);
 const openai = read(`${openaiPlugin}/plugin.json`);
 openai.version = manifest.version;
 write(`${openaiPlugin}/plugin.json`, openai);
+// The ChatGPT app (hosted MCP only) versions with the plugin.
+const openaiApp = read("plugins/openai/debuff-app/plugin.json");
+openaiApp.version = manifest.version;
+write("plugins/openai/debuff-app/plugin.json", openaiApp);
 
 const mcpb = read("tooling/mcp/mcpb/manifest.json");
 mcpb.version = version;
