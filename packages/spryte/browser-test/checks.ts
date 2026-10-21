@@ -6,11 +6,19 @@ import {
   createRenderer,
   type Draw,
   type Filter,
+  filter,
   grayscale,
   hueRotate,
   invert,
+  mask,
+  nineSlice,
+  polygon,
+  polyline,
+  ring,
+  roundRect,
   saturate,
   sepia,
+  tiled,
 } from "../src/index.js";
 
 const W = 160;
@@ -495,15 +503,15 @@ for (const backend of ["webgl2", "2d"] as const) {
 // Shapes: WebGL2's tessellation matches Canvas 2D's rasteriser away from edges, and edges stay close.
 {
   const scene = (draw: Draw) => {
-    draw.polygon([10, 10, 70, 14, 40, 30, 66, 54, 12, 50], "#cffb2d");
-    draw.roundRect(84, 8, 64, 40, 12, "#e23");
-    draw.roundRect(84, 60, 64, 40, 10, "#fff", 4);
-    draw.ring(40, 84, 22, 5, "#40c0ff");
-    draw.polyline([8, 112, 40, 100, 72, 112], 3, "#ffd36b");
+    polygon(draw, [10, 10, 70, 14, 40, 30, 66, 54, 12, 50], "#cffb2d");
+    roundRect(draw, 84, 8, 64, 40, 12, "#e23");
+    roundRect(draw, 84, 60, 64, 40, 10, "#fff", 4);
+    ring(draw, 40, 84, 22, 5, "#40c0ff");
+    polyline(draw, [8, 112, 40, 100, 72, 112], 3, "#ffd36b");
     draw.push();
     draw.translate(120, 80);
     draw.rotate(0.4);
-    draw.polygon([-10, -10, 10, -10, 10, 10, -10, 10], "#f0f8");
+    polygon(draw, [-10, -10, 10, -10, 10, 10, -10, 10], "#f0f8");
     draw.pop();
   };
   for (const scale of [1, 2]) {
@@ -540,11 +548,11 @@ for (const backend of ["webgl2", "2d"] as const) {
     draw.clip(5, 7, 61, 45, () => {
       for (let y = 7 - 3; y < 52; y += 4) for (let x = 5 - 2; x < 66; x += 6) draw.sprite(tile, x, y, { origin: [0, 0] });
     });
-  const tiledScene = (draw: Draw) => draw.tiled(tile, 5, 7, 61, 45, { offsetX: 2, offsetY: 3 });
+  const tiledScene = (draw: Draw) => tiled(draw, tile, 5, 7, 61, 45, { offsetX: 2, offsetY: 3 });
   record("tiled() == clipped sprite() grid (webgl2)", await render(tiledScene), await render(byHand));
   const panel = (draw: Draw) => {
-    draw.nineSlice(img, 4, 4, 60, 30, 2);
-    draw.nineSlice(img, 4, 40, 70, 16, [1, 1, 3, 2], { tint: "#8cf" });
+    nineSlice(draw, img, 4, 4, 60, 30, 2);
+    nineSlice(draw, img, 4, 40, 70, 16, [1, 1, 3, 2], { tint: "#8cf" });
   };
   record("nineSlice(): WebGL2 == Canvas 2D", await render(panel, "webgl2"), await render(panel, "2d"));
 }
@@ -558,7 +566,8 @@ for (const backend of ["webgl2", "2d"] as const) {
   };
   const clipped = (draw: Draw) => draw.clip(10, 8, 50, 30, () => content(draw));
   const masked = (draw: Draw) =>
-    draw.mask(
+    mask(
+      draw,
       () => draw.rect(10, 8, 50, 30, "#fff"),
       () => content(draw),
     );
@@ -566,20 +575,23 @@ for (const backend of ["webgl2", "2d"] as const) {
     record(`mask(rect) == clip(rect) (${backend})`, await render(masked, backend), await render(clipped, backend));
   const soft = (draw: Draw) => {
     draw.rect(0, 0, 80, 60, "#a33");
-    draw.mask(
+    mask(
+      draw,
       () => {
         draw.circle(40, 30, 22, "#fff8");
-        draw.polygon([4, 4, 30, 4, 4, 30], "#fff");
+        polygon(draw, [4, 4, 30, 4, 4, 30], "#fff");
       },
       () =>
-        draw.mask(
+        mask(
+          draw,
           () => draw.rect(0, 0, 60, 60, "#fff"),
           () => content(draw),
         ),
     );
     const t = draw.createTarget(40, 30);
     draw.into(t, () =>
-      draw.mask(
+      mask(
+        draw,
         () => draw.circle(20, 15, 12, "#fff"),
         () => draw.rect(0, 0, 40, 30, "#cffb2d"),
       ),
@@ -618,7 +630,7 @@ for (const backend of ["webgl2", "2d"] as const) {
   for (const [name, filters, tolerance] of cases) {
     const scene = (draw: Draw) => {
       draw.rect(0, 0, 80, 60, "#203040");
-      draw.filter(filters, () => content(draw));
+      filter(draw, filters, () => content(draw));
     };
     const gl2 = await render(scene, "webgl2");
     const c2d = await render(scene, "2d");

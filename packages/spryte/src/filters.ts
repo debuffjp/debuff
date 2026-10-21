@@ -1,7 +1,66 @@
+import type { Draw } from "./draw.js";
+import { offscreen, pass, restore, whole } from "./offscreen.js";
 import { Shader, type UniformValue } from "./shader.js";
 
 /**
- * A ready-made effect for `draw.filter(filters, fn)`. Make them with `blur()`, `colorMatrix()`, `grayscale()`
+ * Run `fn` and draw the result through `filters`, in order. Same units, transform and clips as outside;
+ * nests with masks and targets. Each filter pass is an offscreen pass the size of the destination, so filter
+ * groups, not single sprites.
+ *
+ * ```ts
+ * import { blur, filter, grayscale } from "spryte";
+ * filter(draw, [grayscale()], () => drawWorld(draw)); // paused
+ * draw.blend("add");
+ * filter(draw, [blur(4)], () => drawLights(draw)); // glow: a blurred copy added under the sharp one
+ * draw.blend("normal");
+ * drawLights(draw);
+ * ```
+ */
+export function filter(draw: Draw, filters: readonly Filter[], fn: () => void): void {
+  if (filters.length === 0) {
+    fn();
+    return;
+  }
+  const o = offscreen(draw);
+  let result = o.a;
+  let css = "";
+  try {
+    pass(draw, o, o.a, fn, true);
+    const scale = o.pw / o.lw;
+    if (draw.backend.setFilter) {
+      // Canvas 2D: the browser's own filters, applied as the result is drawn.
+      css = filters
+        .map((f) => f.css(scale) ?? "")
+        .join(" ")
+        .trim();
+    } else {
+      // Ping-pong between the two targets, one pass at a time.
+      for (const f of filters)
+        for (const p of f.passes) {
+          const from = result;
+          result = from === o.a ? o.b : o.a;
+          pass(
+            draw,
+            o,
+            result,
+            () => {
+              for (const [name, value] of p.uniforms(1 / o.pw, 1 / o.ph, scale)) p.shader.set(name, value);
+              whole(draw, from, o, p.shader);
+            },
+            true,
+          );
+        }
+    }
+  } finally {
+    restore(draw, o);
+  }
+  if (css) draw.backend.setFilter?.(css);
+  whole(draw, result, o);
+  if (css) draw.backend.setFilter?.("none");
+}
+
+/**
+ * A ready-made effect for `filter(draw, filters, fn)`. Make them with `blur()`, `colorMatrix()`, `grayscale()`
  * and friends; they're plain values, cheap to create every frame.
  */
 export interface Filter {

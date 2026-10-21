@@ -2,7 +2,6 @@ import type { Backend, BlendMode, ClipRect, Matrix, RawContext, TextureSource } 
 import type { BitmapFont } from "./bitmap-font.js";
 import { type Color, toRGBA } from "./color.js";
 import type { SpritesEach } from "./copies.js";
-import type { Filter } from "./filters.js";
 import { Shader } from "./shader.js";
 import { RenderTarget } from "./target.js";
 
@@ -43,26 +42,6 @@ export interface TextDrawOptions {
   alpha?: number;
 }
 
-/** Options for `draw.nineSlice` and `draw.tiled`. */
-export interface PanelDrawOptions {
-  /** Multiplied with the global alpha. */
-  alpha?: number;
-  /** Colour multiplier. Default white. */
-  tint?: Color;
-  /** 0..1 mix toward white. */
-  flash?: number;
-  /** Linear filtering. Default: the renderer's setting. */
-  smooth?: boolean;
-}
-
-export interface TiledDrawOptions extends PanelDrawOptions {
-  /** Scroll the pattern, in source pixels before `scale` (wraps). */
-  offsetX?: number;
-  offsetY?: number;
-  /** Tile size multiplier. Default 1. */
-  scale?: number;
-}
-
 const NO_OPTIONS: SpriteDrawOptions = Object.freeze({});
 const WHITE = 0xffffffff;
 
@@ -83,28 +62,39 @@ export class Draw {
   /** Preallocated transform stack: push/pop copy six numbers and never allocate. */
   private readonly stack: Matrix[] = [];
   private depth = 0;
-  private readonly m: Matrix = [1, 0, 0, 1, 0, 0];
+  /** @internal */
+  readonly m: Matrix = [1, 0, 0, 1, 0, 0];
   private readonly frames = new WeakMap<TextureSource, Frame>();
   private lastImage: TextureSource | null = null;
   private lastFrame: Frame | undefined;
-  private readonly clips: ClipRect[] = [];
-  private shader: Shader | null = null;
+  /** @internal */
+  readonly clips: ClipRect[] = [];
+  /** @internal */
+  shader: Shader | null = null;
   /** The render target being drawn into, or null for the canvas. */
-  private target: RenderTarget | null = null;
+  /** @internal */
+  target: RenderTarget | null = null;
   /** The canvas's logical size this frame, to switch back to after `into()`. */
-  private viewW = 1;
-  private viewH = 1;
-  private readonly tmp: Matrix = [1, 0, 0, 1, 0, 0];
+  /** @internal */
+  viewW = 1;
+  /** @internal */
+  viewH = 1;
+  /** @internal */
+  readonly tmp: Matrix = [1, 0, 0, 1, 0, 0];
   private readonly textCache = new TextCache();
   /** Antialiased white circles, 64, 256 and 1024px across, each made on first use. */
   private readonly circleTextures: (HTMLCanvasElement | OffscreenCanvas | undefined)[] = [];
 
-  private backingW = 0;
-  private backingH = 0;
+  /** @internal */
+
+  backingW = 0;
+  /** @internal */
+  backingH = 0;
 
   /** @internal */
   constructor(
-    private backend: Backend,
+    /** @internal */
+    public backend: Backend,
     /** Default filtering for images (false for pixel art). */
     public smooth: boolean,
   ) {}
@@ -240,94 +230,6 @@ export class Draw {
     this.backend.setBlend(mode);
   }
 
-  /**
-   * Run `fn`, keeping what it draws only where `shape` draws: a sprite (soft, using its alpha), shapes, text,
-   * anything. Same units, transform and clips as outside. Nests. Costs two offscreen passes the size of the
-   * destination, so mask a group of things at once rather than each sprite.
-   *
-   * ```ts
-   * draw.mask(() => draw.circle(px, py, 40, "#fff"), () => drawLevel(draw)); // spotlight
-   * ```
-   */
-  mask(shape: () => void, fn: () => void): void {
-    const o = this.offscreen();
-    const content = o.a;
-    try {
-      this.pass(o, content, fn, true);
-      this.alpha = 1;
-      this.pass(o, o.b, shape, true);
-      // Keep content where the shape drew: one quad over the whole target, so both backends agree.
-      this.pass(
-        o,
-        content,
-        () => {
-          this.backend.setBlend("mask");
-          this.whole(o.b, o.lw, o.lh);
-        },
-        false,
-      );
-    } finally {
-      this.restore(o);
-    }
-    this.whole(content, o.lw, o.lh);
-  }
-
-  /**
-   * Run `fn` and draw the result through `filters`, in order: `blur()`, `grayscale()`, `colorMatrix()` and
-   * the rest from spryte. Same units, transform and clips as outside; nests with masks and targets. Each
-   * filter pass is an offscreen pass the size of the destination, so filter groups, not single sprites.
-   *
-   * ```ts
-   * import { blur, grayscale } from "spryte";
-   * draw.filter([grayscale()], () => drawWorld(draw)); // paused
-   * draw.blend("add");
-   * draw.filter([blur(4)], () => drawLights(draw)); // glow: a blurred copy added under the sharp one
-   * draw.blend("normal");
-   * drawLights(draw);
-   * ```
-   */
-  filter(filters: readonly Filter[], fn: () => void): void {
-    if (filters.length === 0) {
-      fn();
-      return;
-    }
-    const o = this.offscreen();
-    let result = o.a;
-    let css = "";
-    try {
-      this.pass(o, o.a, fn, true);
-      const scale = o.pw / o.lw;
-      if (this.backend.setFilter) {
-        // Canvas 2D: the browser's own filters, applied as the result is drawn.
-        css = filters
-          .map((f) => f.css(scale) ?? "")
-          .join(" ")
-          .trim();
-      } else {
-        // Ping-pong between the two targets, one pass at a time.
-        for (const f of filters)
-          for (const p of f.passes) {
-            const from = result;
-            result = from === o.a ? o.b : o.a;
-            this.pass(
-              o,
-              result,
-              () => {
-                for (const [name, value] of p.uniforms(1 / o.pw, 1 / o.ph, scale)) p.shader.set(name, value);
-                this.whole(from, o.lw, o.lh, p.shader);
-              },
-              true,
-            );
-          }
-      }
-    } finally {
-      this.restore(o);
-    }
-    if (css) this.backend.setFilter?.(css);
-    this.whole(result, o.lw, o.lh);
-    if (css) this.backend.setFilter?.("none");
-  }
-
   rect(x: number, y: number, w: number, h: number, color: Color): void {
     this.local(x, y, w, h);
     this.quads++;
@@ -356,126 +258,6 @@ export class Draw {
     this.rotate(Math.atan2(dy, dx));
     this.rect(0, -width / 2, len, width, color);
     this.pop();
-  }
-
-  /**
-   * Stretch a frame over a `w × h` box at `x, y` (top-left) without stretching its corners: the classic UI panel.
-   * `insets` are the corner sizes in source pixels, one number or `[left, top, right, bottom]`. Edges stretch,
-   * the centre fills, and corners shrink evenly if the box is smaller than they are. Nine quads, any backend.
-   * For pixel art, keep the box on whole units.
-   */
-  nineSlice(
-    frame: Frame | TextureSource,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    insets: number | readonly [number, number, number, number],
-    o: PanelDrawOptions = NO_OPTIONS,
-  ): void {
-    const f = "image" in frame ? frame : this.wholeImage(frame);
-    const [l, t, r, b] = typeof insets === "number" ? [insets, insets, insets, insets] : insets;
-    // Corners keep their size unless they don't fit.
-    const kx = Math.min(1, w / Math.max(l + r, 1e-9));
-    const ky = Math.min(1, h / Math.max(t + b, 1e-9));
-    const xs = [x, x + l * kx, x + w - r * kx, x + w];
-    const ys = [y, y + t * ky, y + h - b * ky, y + h];
-    const us = [f.x, f.x + l, f.x + f.w - r, f.x + f.w];
-    const vs = [f.y, f.y + t, f.y + f.h - b, f.y + f.h];
-    const color = this.spriteColor(o);
-    const smooth = o.smooth ?? this.smooth;
-    for (let j = 0; j < 3; j++)
-      for (let i = 0; i < 3; i++) {
-        const pw = (xs[i + 1] as number) - (xs[i] as number);
-        const ph = (ys[j + 1] as number) - (ys[j] as number);
-        const sw = (us[i + 1] as number) - (us[i] as number);
-        const sh = (vs[j + 1] as number) - (vs[j] as number);
-        if (pw <= 0 || ph <= 0 || sw <= 0 || sh <= 0) continue;
-        this.local(xs[i] as number, ys[j] as number, pw, ph);
-        if (!smooth) this.snapEdges();
-        this.quads++;
-        this.backend.quad(this.tmp, f.image, us[i] as number, vs[j] as number, sw, sh, color, o.flash ?? 0, smooth);
-      }
-  }
-
-  /**
-   * Fill a `w × h` box at `x, y` (top-left) with a frame repeated edge to edge: scrolling backgrounds, floors,
-   * water. `offsetX/offsetY` scroll the pattern. Works on frames inside an atlas (no texture wrapping), one
-   * quad per visible tile, on any backend.
-   */
-  tiled(frame: Frame | TextureSource, x: number, y: number, w: number, h: number, o: TiledDrawOptions = NO_OPTIONS): void {
-    const f = "image" in frame ? frame : this.wholeImage(frame);
-    const k = o.scale ?? 1;
-    const tw = f.w * k;
-    const th = f.h * k;
-    if (!(tw > 0 && th > 0 && w > 0 && h > 0)) return;
-    const color = this.spriteColor(o);
-    const smooth = o.smooth ?? this.smooth;
-    const flash = o.flash ?? 0;
-    const tiles = (Math.ceil(w / tw) + 1) * (Math.ceil(h / th) + 1);
-    if (tiles > 1_000_000) throw new Error(`spryte: tiled() would draw ${tiles} tiles; use a larger frame or scale`);
-    const ox = ((((o.offsetX ?? 0) * k) % tw) + tw) % tw;
-    const oy = ((((o.offsetY ?? 0) * k) % th) + th) % th;
-    for (let ty = y - oy; ty < y + h; ty += th) {
-      const y0 = Math.max(ty, y);
-      const y1 = Math.min(ty + th, y + h);
-      if (y1 <= y0) continue;
-      for (let tx = x - ox; tx < x + w; tx += tw) {
-        const x0 = Math.max(tx, x);
-        const x1 = Math.min(tx + tw, x + w);
-        if (x1 <= x0) continue;
-        this.local(x0, y0, x1 - x0, y1 - y0);
-        if (!smooth) this.snapEdges();
-        this.quads++;
-        this.backend.quad(this.tmp, f.image, f.x + (x0 - tx) / k, f.y + (y0 - ty) / k, (x1 - x0) / k, (y1 - y0) / k, color, flash, smooth);
-      }
-    }
-  }
-
-  /**
-   * Filled polygon through `points` (x0, y0, x1, y1, …), antialiased. Concave is fine; it closes itself and
-   * shouldn't cross itself. `count` defaults to every pair in `points`.
-   */
-  polygon(points: ArrayLike<number>, color: Color, count = points.length >> 1): void {
-    this.path(points, count, true, 0, color);
-  }
-
-  /** Line through `points` (x0, y0, x1, y1, …), `width` wide, with mitred joins and flat ends. `closed` joins the last point to the first. */
-  polyline(points: ArrayLike<number>, width: number, color: Color, closed = false, count = points.length >> 1): void {
-    if (width > 0) this.path(points, count, closed, width, color);
-  }
-
-  /** Rectangle with rounded corners: filled, or outlined when `lineWidth` is given (the outline is centred on the edge). */
-  roundRect(x: number, y: number, w: number, h: number, radius: number, color: Color, lineWidth?: number): void {
-    const r = Math.max(0, Math.min(radius, w / 2, h / 2));
-    const steps = r > 0 ? this.arcSteps(r, Math.PI / 2) : 0;
-    const pts = this.scratch((steps + 1) * 4);
-    let k = 0;
-    const corner = (cx: number, cy: number, from: number) => {
-      for (let i = 0; i <= steps; i++) {
-        const a = from + (i / Math.max(steps, 1)) * (Math.PI / 2);
-        pts[k++] = cx + Math.cos(a) * r;
-        pts[k++] = cy + Math.sin(a) * r;
-      }
-    };
-    corner(x + w - r, y + r, -Math.PI / 2);
-    corner(x + w - r, y + h - r, 0);
-    corner(x + r, y + h - r, Math.PI / 2);
-    corner(x + r, y + r, Math.PI);
-    this.path(pts, k >> 1, true, lineWidth ?? 0, color);
-  }
-
-  /** Circle outline, `width` wide, centred on `radius`. */
-  ring(x: number, y: number, radius: number, width: number, color: Color): void {
-    if (radius <= 0 || width <= 0) return;
-    const steps = this.arcSteps(radius, Math.PI * 2);
-    const pts = this.scratch(steps * 2);
-    for (let i = 0; i < steps; i++) {
-      const a = (i / steps) * Math.PI * 2;
-      pts[i * 2] = x + Math.cos(a) * radius;
-      pts[i * 2 + 1] = y + Math.sin(a) * radius;
-    }
-    this.path(pts, steps, true, width, color);
   }
 
   /** Draw an image frame (or a whole image) at `x, y`, anchored by `origin`. Allocation-free hot path. */
@@ -604,7 +386,9 @@ export class Draw {
     return f;
   }
 
-  private spriteColor(o: SpriteDrawOptions): number {
+  /** @internal */
+
+  spriteColor(o: SpriteDrawOptions): number {
     const tint = o.tint === undefined ? WHITE : toRGBA(o.tint);
     const alpha = o.alpha ?? 1;
     return alpha === 1 && this.alpha === 1 ? tint : this.withAlpha(tint, alpha);
@@ -813,121 +597,15 @@ export class Draw {
 
   // ---- internals ---------------------------------------------------------------------------
 
-  private path(points: ArrayLike<number>, n: number, closed: boolean, width: number, color: Color): void {
-    if (n < 2) return;
-    const m = this.m;
-    // One device pixel in local units, for the WebGL2 edge feather.
-    const aa = 1 / (this.renderScale * Math.sqrt(Math.abs(m[0] * m[3] - m[1] * m[2])) || 1);
-    this.quads++;
-    this.backend.path(m, points, n, closed, width, this.withAlpha(toRGBA(color), 1), aa);
-  }
+  /** @internal */
 
-  /** Segments for an arc of `radius` spanning `angle`: about one per 4 device pixels of arc, at least 2. */
-  private arcSteps(radius: number, angle: number): number {
-    const m = this.m;
-    const device = radius * Math.hypot(m[0], m[1]) * this.renderScale;
-    return Math.max(2, Math.min(256, Math.ceil((device * angle) / 4)));
-  }
-
-  private blendMode: BlendMode = "normal";
-  private maskDepth = 0;
-  /** Two offscreen targets per level of mask nesting, kept between frames and remade when the size changes. */
-  private readonly maskTargets: RenderTarget[] = [];
-
-  private maskTarget(i: number, w: number, h: number): RenderTarget {
-    const t = this.maskTargets[i];
-    if (t && t.width === w && t.height === h) return t;
-    if (t) this.backend.disposeTarget(t);
-    const fresh = new RenderTarget(w, h);
-    this.maskTargets[i] = fresh;
-    return fresh;
-  }
-
-  /** The destination's size and two pooled targets matching its pixels, for one level of mask or filter. */
-  private offscreen() {
-    const outer = this.target;
-    const lw = outer ? outer.width : this.viewW;
-    const lh = outer ? outer.height : this.viewH;
-    const pw = outer ? outer.width : this.backingW || Math.round(this.viewW * this.renderScale);
-    const ph = outer ? outer.height : this.backingH || Math.round(this.viewH * this.renderScale);
-    const level = this.maskDepth++;
-    return {
-      outer,
-      lw,
-      lh,
-      pw,
-      ph,
-      level,
-      a: this.maskTarget(level * 2, pw, ph),
-      b: this.maskTarget(level * 2 + 1, pw, ph),
-      blend: this.blendMode,
-      alpha: this.alpha,
-      clip: this.clips.at(-1) ?? null,
-    };
-  }
-
-  /** Draw `fn` into `into` (cleared when `clear`), in the outer units and clip, starting from normal blending. */
-  private pass(o: ReturnType<Draw["offscreen"]>, into: RenderTarget, fn: () => void, clear: boolean): void {
-    this.target = into;
-    this.backend.setTarget(into, clear ? 0 : null, o.lw, o.lh);
-    // Targets match the destination's pixels, so clips carry over as they are.
-    if (o.clip) this.backend.setClip(o.clip);
-    this.blend("normal");
-    try {
-      fn();
-    } finally {
-      if (o.clip) this.backend.setClip(null);
-    }
-  }
-
-  private restore(o: ReturnType<Draw["offscreen"]>): void {
-    this.target = o.outer;
-    this.backend.setTarget(o.outer, null, o.lw, o.lh);
-    if (o.clip) this.backend.setClip(o.clip);
-    this.maskDepth--;
-    this.alpha = o.alpha;
-    this.blend(o.blend);
-  }
-
-  /** Draw a pooled target over the whole destination, 1:1 and untransformed, through `shader` (default none). */
-  private whole(t: RenderTarget, lw: number, lh: number, shader: Shader | null = null): void {
-    const outer = this.shader;
-    if (outer !== shader) this.backend.setShader(shader);
-    const t0 = this.tmp;
-    t0[0] = lw;
-    t0[1] = 0;
-    t0[2] = 0;
-    t0[3] = lh;
-    t0[4] = 0;
-    t0[5] = 0;
-    this.quads++;
-    this.backend.quad(t0, t, 0, 0, t.width, t.height, WHITE, 0, false);
-    if (outer !== shader) this.backend.setShader(outer);
-  }
-
-  private points = new Float32Array(64);
-  private scratch(n: number): Float32Array {
-    if (this.points.length < n) this.points = new Float32Array(2 ** Math.ceil(Math.log2(n)));
-    return this.points;
-  }
-
-  /**
-   * Pixel art: put an unrotated quad's edges on whole units, like `sprite()`. Neighbouring quads share edges,
-   * so they round the same way and never gap or overlap.
-   */
-  private snapEdges(): void {
-    const t = this.tmp;
-    if (t[1] !== 0 || t[2] !== 0) return;
-    const x0 = Math.round(t[4]);
-    const y0 = Math.round(t[5]);
-    t[0] = Math.round(t[4] + t[0]) - x0;
-    t[3] = Math.round(t[5] + t[3]) - y0;
-    t[4] = x0;
-    t[5] = y0;
-  }
+  blendMode: BlendMode = "normal";
+  /** @internal */
+  maskDepth = 0;
 
   /** tmp = current matrix × (translate(x, y) · scale(w, h)): maps the unit square to the rect. */
-  private local(x: number, y: number, w: number, h: number): void {
+  /** @internal */
+  local(x: number, y: number, w: number, h: number): void {
     const m = this.m;
     const t = this.tmp;
     t[0] = m[0] * w;
@@ -938,7 +616,9 @@ export class Draw {
     t[5] = m[1] * x + m[3] * y + m[5];
   }
 
-  private wholeImage(image: TextureSource): Frame {
+  /** @internal */
+
+  wholeImage(image: TextureSource): Frame {
     // Loops usually draw one image many times in a row; skip the WeakMap for repeats.
     if (image === this.lastImage && this.lastFrame) return this.lastFrame;
     let f = this.frames.get(image);
@@ -955,7 +635,9 @@ export class Draw {
     return typeof this.font === "function" ? this.font() : this.font;
   }
 
-  private withAlpha(rgba: number, alpha: number): number {
+  /** @internal */
+
+  withAlpha(rgba: number, alpha: number): number {
     const a = Math.round((rgba & 0xff) * alpha * this.alpha);
     return ((rgba & 0xffffff00) | Math.max(0, Math.min(255, a))) >>> 0;
   }

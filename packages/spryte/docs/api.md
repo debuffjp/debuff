@@ -31,12 +31,6 @@ draw.dispose();                           // frees GPU objects and listeners; th
 | `rect(x, y, w, h, color)` | Filled rectangle. |
 | `circle(x, y, r, color)` | Filled, antialiased circle. |
 | `line(x1, y1, x2, y2, width, color)` | Drawn as a rotated rectangle. |
-| `polygon(points, color, count?)` | Filled, antialiased polygon through `[x0, y0, x1, y1, …]`. Concave is fine; it shouldn't cross itself. |
-| `polyline(points, width, color, closed?, count?)` | Antialiased line through the points, mitred joins, flat ends. Lines under a pixel fade rather than vanish. |
-| `roundRect(x, y, w, h, radius, color, lineWidth?)` | Rounded rectangle, filled or (with `lineWidth`) outlined. |
-| `ring(x, y, radius, width, color)` | Circle outline. |
-| `nineSlice(frame, x, y, w, h, insets, options?)` | UI panel: corners keep their size (`insets` in source pixels, one number or `[l, t, r, b]`), edges and centre stretch. Nine quads. Options: `tint`, `alpha`, `flash`, `smooth`. |
-| `tiled(frame, x, y, w, h, options?)` | Fill a box with a repeating frame (works inside atlases). Options add `offsetX`, `offsetY` (scroll, wraps) and `scale`. One quad per visible tile. |
 | `sprite(frameOrImage, x, y, options?)` | Image or `Frame` (`{ image, x, y, w, h }`), anchored at `origin` (default centre). Options: `origin`, `scaleX`, `scaleY`, `rotation` (radians), `flipX`, `flipY`, `alpha`, `tint`, `flash` (0–1 toward white), `smooth`. **Doesn't allocate:** reuse one options object in hot loops. |
 | `sprites(frame, positions, count?, options?, each?)` | One frame at many positions: particles, bullets, swarms. `positions` is x, y pairs. On WebGL2, a reused `Float32Array` is uploaded to the GPU as is, with **no JavaScript work per copy**. Other array types are copied into a staging array first, and inside `withShader` and on the Canvas 2D fallback each copy is drawn as its own quad. `options` apply to every copy. `each` adds per-copy values: `scale` (Float32Array), `rotation` (Float32Array, radians) and `color` (Uint32Array of `0xRRGGBBAA`, multiplied with the tint). These are uploaded as is too. `count` is clamped to the shortest array, and a `NaN` or negative count draws nothing. The output is pixel-identical to a `sprite()` loop with the same values, including pixel snapping (checked on a real GPU by `npm run test:browser`). It's one draw call on WebGL2 and breaks the current batch. |
 | `text(text, x, y, options?)` | `font` (CSS string or `BitmapFont`), `color`, `align`, `baseline`, `alpha`. CSS text is rasterised once and cached (LRU, 256 entries). |
@@ -52,12 +46,30 @@ draw.dispose();                           // frees GPU objects and listeners; th
 | `clip(x, y, w, h, fn)` | Draws inside `fn` are clipped to the rectangle's screen bounds. Nested clips intersect. |
 | `withCamera(camera, fn)` | Applies `camera.view()` (any `{ view(): Matrix }`) for the draws inside `fn`. |
 | `blend(mode)` | `"normal"`, `"add"` (glow), `"multiply"` (shadows, tinted light), `"screen"` (soft lightening) or `"erase"` (cut alpha out, e.g. holes in a render target). Pixel-identical on WebGL2 and Canvas 2D over opaque pixels. |
-| `mask(shape, fn)` | Keep what `fn` draws only where `shape` draws (soft edges use the shape's alpha). Same units, transform and clips as outside; nests; works inside `into()`. Two offscreen passes at the destination's size, so mask groups, not single sprites. |
-| `filter(filters, fn)` | Draw `fn` through filters in order: `blur(radius)`, `grayscale()`, `sepia()`, `saturate()`, `hueRotate()`, `brightness()`, `contrast()`, `invert()` (all on both backends, matching CSS filters) and `colorMatrix(m)` (WebGL2 only). Glow: blur an additive copy, then draw the sharp one. |
 | `alpha` | Global alpha multiplier. |
 | `smooth` | Default filtering. |
 | `font` | Default font: a CSS string, a `BitmapFont`, or a function returning one (evaluated lazily). |
 | `invalidate(image)` | Re-upload an image whose pixels changed. |
+
+### Optional features
+
+Imported functions that take the `Draw`, so an app only ships the ones it uses (startup stays at spryte's core size otherwise):
+
+```ts
+import { blur, filter, mask, nineSlice, roundRect } from "spryte";
+roundRect(draw, 8, 8, 120, 40, 6, "#222c");
+```
+
+| Function | Notes |
+| --- | --- |
+| `polygon(draw, points, color, count?)` | Filled, antialiased polygon through `[x0, y0, x1, y1, …]`. Concave is fine; it shouldn't cross itself. |
+| `polyline(draw, points, width, color, closed?, count?)` | Antialiased line through the points, mitred joins, flat ends. Lines under a pixel fade rather than vanish. |
+| `roundRect(draw, x, y, w, h, radius, color, lineWidth?)` | Rounded rectangle, filled or (with `lineWidth`) outlined. |
+| `ring(draw, x, y, radius, width, color)` | Circle outline. |
+| `nineSlice(draw, frame, x, y, w, h, insets, options?)` | UI panel: corners keep their size (`insets` in source pixels, one number or `[l, t, r, b]`), edges and centre stretch. Nine quads. Options: `tint`, `alpha`, `flash`, `smooth`. |
+| `tiled(draw, frame, x, y, w, h, options?)` | Fill a box with a repeating frame (works inside atlases). Options add `offsetX`, `offsetY` (scroll, wraps) and `scale`. One quad per visible tile. |
+| `mask(draw, shape, fn)` | Keep what `fn` draws only where `shape` draws (soft edges use the shape's alpha). Same units, transform and clips as outside; nests; works inside `into()`. Two offscreen passes at the destination's size, so mask groups, not single sprites. |
+| `filter(draw, filters, fn)` | Draw `fn` through filters in order: `blur(radius)`, `grayscale()`, `sepia()`, `saturate()`, `hueRotate()`, `brightness()`, `contrast()`, `invert()` (all on both backends, matching CSS filters) and `colorMatrix(m)` (WebGL2 only). Glow: blur an additive copy, then draw the sharp one. |
 
 ## Render targets
 

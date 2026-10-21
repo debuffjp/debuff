@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Backend, ClipRect, Matrix, TextureSource } from "../src/backend.js";
 import { Draw } from "../src/draw.js";
-import { toRGBA } from "../src/index.js";
+import { mask, nineSlice, polygon, polyline, ring, roundRect, tiled, toRGBA } from "../src/index.js";
 
 interface Quad {
   m: Matrix;
@@ -262,11 +262,11 @@ describe("text cache", () => {
 describe("shapes", () => {
   it("sends polygons, polylines, round rects and rings as paths", () => {
     const { draw, paths } = recorder();
-    draw.polygon([0, 0, 10, 0, 5, 8], "#f00");
-    draw.polyline([0, 0, 10, 10], 2, "#0f0");
-    draw.roundRect(0, 0, 40, 20, 5, "#00f", 1);
-    draw.ring(50, 50, 10, 2, "#fff");
-    draw.polyline([0, 0, 1, 1], 0, "#fff"); // zero width draws nothing
+    polygon(draw, [0, 0, 10, 0, 5, 8], "#f00");
+    polyline(draw, [0, 0, 10, 10], 2, "#0f0");
+    roundRect(draw, 0, 0, 40, 20, 5, "#00f", 1);
+    ring(draw, 50, 50, 10, 2, "#fff");
+    polyline(draw, [0, 0, 1, 1], 0, "#fff"); // zero width draws nothing
     expect(paths.map((p) => [p.closed, p.width])).toEqual([
       [true, 0],
       [false, 2],
@@ -290,7 +290,7 @@ describe("nineSlice and tiled", () => {
 
   it("nineSlice keeps corners at source size and stretches the rest", () => {
     const { draw, quads } = recorder();
-    draw.nineSlice(image, 0, 0, 100, 50, 10);
+    nineSlice(draw, image, 0, 0, 100, 50, 10);
     expect(quads).toHaveLength(9);
     // Top-left corner: 10 × 10 from (0, 0); centre: 80 × 30 from the middle 10 × 10.
     expect(quads[0]?.m).toEqual([10, 0, 0, 10, 0, 0]);
@@ -301,7 +301,7 @@ describe("nineSlice and tiled", () => {
 
   it("nineSlice shrinks corners evenly when the box is too small", () => {
     const { draw, quads } = recorder();
-    draw.nineSlice(image, 0, 0, 10, 40, [10, 10, 10, 10]);
+    nineSlice(draw, image, 0, 0, 10, 40, [10, 10, 10, 10]);
     // Middle column collapses; corners are 5 wide.
     expect(quads).toHaveLength(6);
     expect(quads[0]?.m[0]).toBe(5);
@@ -310,7 +310,7 @@ describe("nineSlice and tiled", () => {
   it("puts pixel-art panels and tiles on whole units without gaps", () => {
     const { draw, quads } = recorder();
     draw.translate(0.4, 0.6);
-    draw.tiled({ image, x: 0, y: 0, w: 10, h: 10 }, 0, 0, 25, 10, { offsetX: 5 });
+    tiled(draw, { image, x: 0, y: 0, w: 10, h: 10 }, 0, 0, 25, 10, { offsetX: 5 });
     for (const q of quads) expect(Number.isInteger(q.m[4]) && Number.isInteger(q.m[0])).toBe(true);
     // Each tile starts where the last ended.
     for (let i = 1; i < quads.length; i++) expect(quads[i]?.m[4]).toBe((quads[i - 1]?.m[4] ?? 0) + (quads[i - 1]?.m[0] ?? 0));
@@ -318,12 +318,12 @@ describe("nineSlice and tiled", () => {
 
   it("refuses a tiling that would hang the tab", () => {
     const { draw } = recorder();
-    expect(() => draw.tiled({ image, x: 0, y: 0, w: 10, h: 10 }, 0, 0, 1000, 1000, { scale: 0.001 })).toThrow(/tiles/);
+    expect(() => tiled(draw, { image, x: 0, y: 0, w: 10, h: 10 }, 0, 0, 1000, 1000, { scale: 0.001 })).toThrow(/tiles/);
   });
 
   it("tiled repeats the frame, clipping and scrolling the edge tiles", () => {
     const { draw, quads } = recorder();
-    draw.tiled({ image, x: 0, y: 0, w: 10, h: 10 }, 0, 0, 25, 10, { offsetX: 5 });
+    tiled(draw, { image, x: 0, y: 0, w: 10, h: 10 }, 0, 0, 25, 10, { offsetX: 5 });
     // Tiles start 5 px early: [0,5) [5,15) [15,25).
     expect(quads.map((q) => [q.m[4], q.m[0], q.uv[0], q.uv[2]])).toEqual([
       [0, 5, 5, 5],
@@ -338,7 +338,8 @@ describe("mask", () => {
     const { draw, quads, blends, targets } = recorder();
     draw.blend("add");
     draw.alpha = 0.5;
-    draw.mask(
+    mask(
+      draw,
       () => draw.rect(0, 0, 10, 10, "#fff"),
       () => draw.rect(0, 0, 50, 50, "#f00"),
     );
