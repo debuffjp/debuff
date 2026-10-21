@@ -204,6 +204,10 @@ export class Canvas2DBackend implements Backend {
     }
   }
 
+  setFilter(css: string): void {
+    this.ctx.filter = css;
+  }
+
   setShader(shader: Shader | null): void {
     if (shader && !this.warnedShader) {
       this.warnedShader = true;
