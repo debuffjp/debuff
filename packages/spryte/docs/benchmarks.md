@@ -58,7 +58,7 @@ From [`bench/size`](https://github.com/debuffjp/debuff/tree/main/bench/size) (co
 
 | | JS at startup | All JS, including lazy chunks |
 | --- | --- | --- |
-| **spryte** main (2026-10-21) | **11.2 kB** | 12.8 kB (the lazy part is the Canvas 2D fallback) |
+| **spryte** main (2026-10-21) | **11.3 kB** | 13.0 kB (the lazy part is the Canvas 2D fallback) |
 | PixiJS 8.22 (`Application` + `Assets` + `Sprite`) | 87.8 kB | 152.0 kB |
 
 The PixiJS "all JS" figure includes lazy chunks from `Application` and `Assets` that an app built without them avoids. A hand-minimised PixiJS app (a bare `WebGLRenderer`, no `Application` or `Assets`) measured about 90 kB in total, so the comparison that holds up is startup: **about 8×**. Shapes, masks, filters, `nineSlice` and `tiled` are imported functions, so they add nothing here unless an app uses them.

@@ -49,7 +49,7 @@ Against PixiJS 8 on the same machine, assets and simulation, over 3–7 interlea
 
 | | spryte | PixiJS 8 | |
 | --- | --- | --- | --- |
-| JS at startup (brotli) | **11.2 kB** | 87.8 kB | ~8× smaller |
+| JS at startup (brotli) | **11.3 kB** | 87.8 kB | ~8× smaller |
 | 200k particles, per-particle scale, rotation, tint and alpha all changing | **5.8 ms** | 24.2 ms (`ParticleContainer`) | 4.2× faster |
 | 50k sprites with rotation, scale and tint, one call each | **7.8 ms** | 27.1 ms (`Sprite`) | 3.5× faster |
 | 200k sprites, position only, bulk | **2.8 ms** | 7.2 ms (`ParticleContainer`) | 2.6× faster |
