@@ -11,3 +11,4 @@ Agent tooling from building gloop:
 - dev: `state()` reports `reducedMotion` and `reducedMotionForced`; new `reducedMotion(value | null)` hook forces it.
 - core: `Random#state` gets and sets the generator's state, for undo and replays.
 - keiko: `toBeLessThan` / `toBeGreaterThan` matchers; docs say `-t` is a case-insensitive substring match and point async game logic at `run()` / `settle()` instead of `wait()`.
+- MCP: headless errors are now just the message (no `page.evaluate:` prefix or stack).
