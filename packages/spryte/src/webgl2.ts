@@ -1,7 +1,7 @@
 import type { Backend, BlendMode, ClipRect, Matrix, RawContext, TextureSource } from "./backend.js";
 import { type CopySpec, copyAt } from "./copies.js";
 import type { Shader } from "./shader.js";
-import { ShapeBuffer } from "./shapes.js";
+import type { ShapeBuffer } from "./shapes.js";
 import { RenderTarget } from "./target.js";
 
 /** Texture units sampled per batch. 8 is guaranteed on every WebGL2 implementation's fragment stage (min 16). */
@@ -117,7 +117,7 @@ void main() {
   outColor = vec4(mix(t.rgb, vec3(t.a), u_flash), t.a);
 }`;
 
-/** Tessellated shapes (`draw.polygon`, `polyline`, `roundRect`, `ring`): plain triangles with edge coverage. */
+/** Tessellated shapes (`polygon`, `polyline`, `roundRect`, `ring`): plain triangles with edge coverage. */
 const SHAPE_VERT = `#version 300 es
 layout(location=0) in vec2 a_pos;
 layout(location=1) in float a_cov;
@@ -234,8 +234,9 @@ export class WebGL2Backend implements Backend {
   private quadBuffer!: WebGLBuffer;
   private copyPipe!: CopyPipeline;
   private each!: EachPipeline;
-  private shapePipe!: ShapePipeline;
-  private readonly shapes = new ShapeBuffer();
+  /** Made on the first shape, so apps that draw none never build them. */
+  private shapePipe: ShapePipeline | undefined;
+  private shapes: ShapeBuffer | undefined;
   private stagingScale = new Float32Array(0);
   private stagingRot = new Float32Array(0);
   private staging = new Float32Array(0);
@@ -350,7 +351,7 @@ export class WebGL2Backend implements Backend {
     this.linear = sampler(gl, gl.LINEAR);
     this.copyPipe = this.copyPipeline(quad);
     this.each = this.eachPipeline(quad);
-    this.shapePipe = this.shapePipeline();
+    this.shapePipe = undefined;
     gl.useProgram(program);
     gl.bindVertexArray(this.vao);
   }
@@ -384,7 +385,7 @@ export class WebGL2Backend implements Backend {
     smooth: boolean,
   ): void {
     if (this.lost) return;
-    if (this.shapes.count > 0) this.flushShapes();
+    if (this.shapes && this.shapes.count > 0) this.flushShapes();
     // Fast path: consecutive draws from the same source skip the texture lookup.
     if (src !== null && src === this.target) throw new Error("spryte: can't draw a render target into itself");
     const t = src === null ? this.white : src === this.lastSrc && this.last ? this.last : this.texture(src);
@@ -660,9 +661,11 @@ export class WebGL2Backend implements Backend {
       gl.deleteProgram(this.each.program);
       gl.deleteVertexArray(this.each.vao);
       for (const b of this.each.buffers) gl.deleteBuffer(b);
-      gl.deleteProgram(this.shapePipe.program);
-      gl.deleteVertexArray(this.shapePipe.vao);
-      gl.deleteBuffer(this.shapePipe.buffer);
+      if (this.shapePipe) {
+        gl.deleteProgram(this.shapePipe.program);
+        gl.deleteVertexArray(this.shapePipe.vao);
+        gl.deleteBuffer(this.shapePipe.buffer);
+      }
     }
     this.textures.clear();
     this.targets.clear();
@@ -850,21 +853,32 @@ export class WebGL2Backend implements Backend {
     };
   }
 
-  path(m: Matrix, points: ArrayLike<number>, n: number, closed: boolean, width: number, color: number, aa: number): void {
+  path(
+    m: Matrix,
+    points: ArrayLike<number>,
+    n: number,
+    closed: boolean,
+    width: number,
+    color: number,
+    aa: number,
+    tessellator: new () => ShapeBuffer,
+  ): void {
     if (this.lost) return;
     // Shapes and sprites share one draw order: send queued sprites first.
     if (this.count > 0) this.flush();
+    this.shapes ??= new tessellator();
     this.shapes.add(m, points, n, closed, width, bytes(color), aa);
   }
 
   private flushShapes(): void {
     const s = this.shapes;
-    if (s.count === 0) return;
+    if (!s || s.count === 0) return;
     if (this.lost) {
       s.count = 0;
       return;
     }
     const gl = this.gl;
+    this.shapePipe ??= this.shapePipeline();
     const p = this.shapePipe;
     gl.useProgram(p.program);
     gl.bindVertexArray(p.vao);

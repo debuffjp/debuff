@@ -5,10 +5,8 @@ export type { SpritesEach } from "./copies.js";
 export {
   Draw,
   type Frame,
-  type PanelDrawOptions,
   type SpriteDrawOptions,
   type TextDrawOptions,
-  type TiledDrawOptions,
 } from "./draw.js";
 export {
   blur,
@@ -16,12 +14,16 @@ export {
   colorMatrix,
   contrast,
   type Filter,
+  filter,
   grayscale,
   hueRotate,
   invert,
   saturate,
   sepia,
 } from "./filters.js";
+export { mask } from "./mask.js";
+export { nineSlice, type PanelDrawOptions, type TiledDrawOptions, tiled } from "./panels.js";
 export { createRenderer, type RendererOptions } from "./renderer.js";
 export { Shader, type UniformValue } from "./shader.js";
+export { polygon, polyline, ring, roundRect } from "./shapes.js";
 export { RenderTarget } from "./target.js";

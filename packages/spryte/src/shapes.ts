@@ -1,4 +1,86 @@
 import type { Matrix } from "./backend.js";
+import { type Color, toRGBA } from "./color.js";
+import type { Draw } from "./draw.js";
+
+/**
+ * Filled polygon through `points` (x0, y0, x1, y1, …), antialiased. Concave is fine; it closes itself and
+ * shouldn't cross itself. `count` defaults to every pair in `points`.
+ *
+ * ```ts
+ * import { polygon } from "spryte";
+ * polygon(draw, [0, 0, 20, 0, 10, 16], "#cffb2d");
+ * ```
+ */
+export function polygon(draw: Draw, points: ArrayLike<number>, color: Color, count = points.length >> 1): void {
+  path(draw, points, count, true, 0, color);
+}
+
+/** Line through `points` (x0, y0, x1, y1, …), `width` wide, with mitred joins and flat ends. `closed` joins the last point to the first. */
+export function polyline(
+  draw: Draw,
+  points: ArrayLike<number>,
+  width: number,
+  color: Color,
+  closed = false,
+  count = points.length >> 1,
+): void {
+  if (width > 0) path(draw, points, count, closed, width, color);
+}
+
+/** Rectangle with rounded corners: filled, or outlined when `lineWidth` is given (the outline is centred on the edge). */
+export function roundRect(draw: Draw, x: number, y: number, w: number, h: number, radius: number, color: Color, lineWidth?: number): void {
+  const r = Math.max(0, Math.min(radius, w / 2, h / 2));
+  const steps = r > 0 ? arcSteps(draw, r, Math.PI / 2) : 0;
+  const pts = scratch((steps + 1) * 4);
+  let k = 0;
+  const corner = (cx: number, cy: number, from: number) => {
+    for (let i = 0; i <= steps; i++) {
+      const a = from + (i / Math.max(steps, 1)) * (Math.PI / 2);
+      pts[k++] = cx + Math.cos(a) * r;
+      pts[k++] = cy + Math.sin(a) * r;
+    }
+  };
+  corner(x + w - r, y + r, -Math.PI / 2);
+  corner(x + w - r, y + h - r, 0);
+  corner(x + r, y + h - r, Math.PI / 2);
+  corner(x + r, y + r, Math.PI);
+  path(draw, pts, k >> 1, true, lineWidth ?? 0, color);
+}
+
+/** Circle outline, `width` wide, centred on `radius`. */
+export function ring(draw: Draw, x: number, y: number, radius: number, width: number, color: Color): void {
+  if (radius <= 0 || width <= 0) return;
+  const steps = arcSteps(draw, radius, Math.PI * 2);
+  const pts = scratch(steps * 2);
+  for (let i = 0; i < steps; i++) {
+    const a = (i / steps) * Math.PI * 2;
+    pts[i * 2] = x + Math.cos(a) * radius;
+    pts[i * 2 + 1] = y + Math.sin(a) * radius;
+  }
+  path(draw, pts, steps, true, width, color);
+}
+
+function path(draw: Draw, points: ArrayLike<number>, n: number, closed: boolean, width: number, color: Color): void {
+  if (n < 2) return;
+  const m = draw.m;
+  // One device pixel in local units, for the WebGL2 edge feather.
+  const aa = 1 / (draw.renderScale * Math.sqrt(Math.abs(m[0] * m[3] - m[1] * m[2])) || 1);
+  draw.quads++;
+  draw.backend.path(m, points, n, closed, width, draw.withAlpha(toRGBA(color), 1), aa, ShapeBuffer);
+}
+
+/** Segments for an arc of `radius` spanning `angle`: about one per 4 device pixels of arc, at least 2. */
+function arcSteps(draw: Draw, radius: number, angle: number): number {
+  const m = draw.m;
+  const device = radius * Math.hypot(m[0], m[1]) * draw.renderScale;
+  return Math.max(2, Math.min(256, Math.ceil((device * angle) / 4)));
+}
+
+let points = new Float32Array(64);
+function scratch(n: number): Float32Array {
+  if (points.length < n) points = new Float32Array(2 ** Math.ceil(Math.log2(n)));
+  return points;
+}
 
 /** Longest miter, in half line widths, before it's cut short (Canvas 2D bevels past the same limit). */
 const MITER = 4;

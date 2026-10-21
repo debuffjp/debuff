@@ -54,10 +54,11 @@ spryte stays immediate mode: no scene graph, nothing retained between frames. Wh
 What stops spryte replacing PixiJS's renderer in a typical game today, as of 0.2.1. Each item gets an immediate-mode design (opt-in, tree-shakeable, no retained objects), pixel-checked tests, and a 2dbench scene where it touches performance. Order follows demand.
 
 - [ ] **Interaction.** `draw.pick` (above).
+- [x] **Optional features stay out of the core.** Shapes, masks, filters, `nineSlice` and `tiled` are imported functions taking the `Draw`, so startup stays at 11.2 kB unless they're used.
 - [x] **Vector shapes.** `polygon`, `polyline`, `roundRect` and `ring`, antialiased on WebGL2 by a one-pixel feather (no MSAA). Curves are points you compute; holes aren't supported.
 - [x] **Blend modes.** `normal`, `add`, `multiply`, `screen` and `erase`, one `blendFunc` each.
-- [x] **Masks.** `draw.mask(shape, fn)`: mask by anything you can draw, soft edges included.
-- [x] **Filters.** `draw.filter([blur(4), grayscale()], fn)` chains passes; colour filters match CSS on Canvas 2D. Glow is a recipe (additive blurred copy). Displacement stays a custom shader.
+- [x] **Masks.** `mask(draw, shape, fn)`: mask by anything you can draw, soft edges included.
+- [x] **Filters.** `filter(draw, [blur(4), grayscale()], fn)` chains passes; colour filters match CSS on Canvas 2D. Glow is a recipe (additive blurred copy). Displacement stays a custom shader.
 - [ ] **Text layout.** Today: CSS and bitmap fonts, `align`, `baseline`, line breaks and `measure`. Missing: word wrap to a width, and mixed styles in one string.
 - [x] **Sprite variants.** `nineSlice` (UI panels) and `tiled` (repeating fills that work inside atlases). Meshes and ropes are left out of scope.
 - [ ] **Sheets and animation.** Loading texture atlases (Aseprite and TexturePacker JSON) into frames, and a small frame-animation helper. debuff's asset pipeline covers this for debuff games; standalone spryte users write their own today.
