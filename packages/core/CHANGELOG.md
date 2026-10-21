@@ -1,5 +1,23 @@
 # @debuffjp/core
 
+## 0.12.0
+
+### Minor Changes
+
+- c6311a2: Agent tooling from building gloop:
+  
+  - MCP: new `game_command` tool runs a game's dev command by name with JSON args. `game_start` takes `viewport: [w, h]` (headless) and `reducedMotion` to force it on or off. `game_frames` takes `summary` (percentiles and the 3 slowest frames), `game_step` takes `quiet` (no inspect state), and `game_capture` takes `path` to save the PNG in the project. `game_profile` in headless mode now says profiling needs live mode instead of blaming requestAnimationFrame.
+  - dev: `state()` reports the logical `width`/`height`, and `reducedMotion` and `reducedMotionForced`; new `reducedMotion(value | null)` hook forces it.
+  - core: `Random#state` gets and sets the generator's state, for undo and replays.
+  - keiko: `toBeLessThan` / `toBeGreaterThan` matchers; docs say `-t` is a case-insensitive substring match and point async game logic at `run()` / `settle()` instead of `wait()`.
+  - MCP: headless errors are now just the message (no `page.evaluate:` prefix or stack).
+  - MCP, scenarios and dev: calling a hook an older `@debuffjp/dev` doesn't have now says to update it, instead of "is not a function".
+- 7a1135e: New `scale: "expand"` mode for responsive games. Like `fit`, but instead of letterboxing, the logical size grows along the spare axis to fill the container: `width`/`height` become the minimum, `game.width`/`game.height` follow the container, and `game.hooks.resize(fn)` fires when they change. One game can be portrait on phones and landscape on a desktop portal.
+
+### Patch Changes
+
+- c18bf4b: In dev builds, `Game` now warns when it starts with no active scene ("call `game.go(id)` first"), or when scenes were added but `game.start()` was never called, instead of silently drawing only the background. Dev-only checks are also written so bundlers fully drop them from production builds.
+
 ## 0.11.0
 
 ### Minor Changes
