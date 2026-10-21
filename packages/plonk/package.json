@@ -1,5 +1,5 @@
 {
-  "name": "plonk",
+  "name": "plonkjs",
   "version": "0.2.0",
   "description": "Game music made in code: songs as tiny data, synthesized live with Web Audio. No audio files, a few kB, any engine",
   "keywords": [
