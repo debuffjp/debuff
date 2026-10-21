@@ -540,7 +540,10 @@ export class Draw {
   /** @internal */
   renderScale = 1;
 
-  /** @internal */
+  /**
+   * Start a frame: clear to `clear`, at a logical size of `width × height` units with `scale` backing pixels per
+   * unit (2 on a 2× screen, or the canvas's pixel width / `width`). Resets the transform, alpha, blend and clips.
+   */
   begin(clear: Color, width: number, height: number, scale: number): void {
     this.textCache.frame++;
     this.renderScale = scale;
@@ -570,7 +573,7 @@ export class Draw {
     this.blend("normal");
   }
 
-  /** @internal */
+  /** Finish the frame: submits everything drawn since `begin()`. */
   end(): void {
     this.backend.end();
   }
@@ -581,7 +584,7 @@ export class Draw {
     this.backend = disposed(this.backend);
   }
 
-  /** @internal */
+  /** Tell spryte the canvas's backing size changed: call it with `canvas.width, canvas.height` after setting them. */
   resize(w: number, h: number): void {
     this.backingW = w;
     this.backingH = h;
