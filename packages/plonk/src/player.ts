@@ -113,6 +113,16 @@ export class Player {
     return this.timer !== undefined;
   }
 
+  /**
+   * Where the music is now, in steps (sixteenth notes) from the top of the song: fractional, counting up across
+   * loops, and following `tempo()`. -1 when nothing is playing. Read it each frame to move things in time with
+   * the music: `Math.floor(player.step) % 4 === 0` is the beat, `player.step % 16` the place in a bar.
+   */
+  get step(): number {
+    if (this.timer === undefined || !this.song) return -1;
+    return Math.max(0, (this.context.currentTime - this.origin) / (stepSeconds(this.song.bpm) / this.tempoScale));
+  }
+
   /** Play a song from the top (or `at` a step), looping. Replaces whatever was playing. */
   play(song: Song, options: PlayOptions = {}): void {
     this.stop();
