@@ -918,7 +918,12 @@ export class WebGL2Backend implements Backend {
 
   private applyBlend(): void {
     const gl = this.gl;
-    if (this.blend === "add") gl.blendFunc(gl.ONE, gl.ONE);
+    // Colours are premultiplied, so each mode is one blendFunc.
+    const b = this.blend;
+    if (b === "add") gl.blendFunc(gl.ONE, gl.ONE);
+    else if (b === "multiply") gl.blendFunc(gl.DST_COLOR, gl.ONE_MINUS_SRC_ALPHA);
+    else if (b === "screen") gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR);
+    else if (b === "erase") gl.blendFunc(gl.ZERO, gl.ONE_MINUS_SRC_ALPHA);
     else gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
   }
 }

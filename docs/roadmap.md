@@ -55,7 +55,7 @@ What stops spryte replacing PixiJS's renderer in a typical game today, as of 0.2
 
 - [ ] **Interaction.** `draw.pick` (above).
 - [ ] **Vector shapes.** Today: filled `rect`, `circle` and `line`. Missing: polygons, paths and curves, strokes, rounded rectangles (PixiJS `Graphics`).
-- [ ] **Blend modes.** Today: `normal` and `add`. Missing: multiply, screen and the rest of PixiJS's common set.
+- [x] **Blend modes.** `normal`, `add`, `multiply`, `screen` and `erase`, one `blendFunc` each.
 - [ ] **Masks.** Today: rectangular `clip`. Missing: masking by a sprite or shape.
 - [ ] **Filters.** Today: custom fragment shaders over render targets. Missing: ready-made effects (blur, glow, colour matrix, displacement) and a simple way to chain them.
 - [ ] **Text layout.** Today: CSS and bitmap fonts, `align`, `baseline`, line breaks and `measure`. Missing: word wrap to a width, and mixed styles in one string.

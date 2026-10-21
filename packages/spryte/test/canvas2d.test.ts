@@ -57,6 +57,19 @@ describe("Canvas2DBackend", () => {
   });
 });
 
+describe("Canvas2DBackend blend modes", () => {
+  it("maps each mode to its composite operation", () => {
+    const { ctx, raw } = recordingContext();
+    const draw = new Draw(new Canvas2DBackend(ctx), false);
+    const ops: string[] = [];
+    for (const mode of ["multiply", "screen", "erase", "normal"] as const) {
+      draw.blend(mode);
+      ops.push(raw.globalCompositeOperation as string);
+    }
+    expect(ops).toEqual(["multiply", "screen", "destination-out", "source-over"]);
+  });
+});
+
 describe("Canvas2DBackend clip", () => {
   it("clips with save/rect/clip and restores before changing", () => {
     const { ctx, calls } = recordingContext();

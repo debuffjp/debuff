@@ -123,7 +123,7 @@ export class Canvas2DBackend implements Backend {
 
   setBlend(mode: BlendMode): void {
     this.blendMode = mode;
-    this.ctx.globalCompositeOperation = mode === "add" ? "lighter" : "source-over";
+    this.ctx.globalCompositeOperation = COMPOSITE[mode];
   }
 
   setClip(rect: ClipRect | null): void {
@@ -271,3 +271,11 @@ function newSurface(w: number, h: number): Surface {
 function mixWhite(c: number, f: number): number {
   return Math.round(c + ((255 - c) * f) / 255);
 }
+
+const COMPOSITE: Record<BlendMode, GlobalCompositeOperation> = {
+  normal: "source-over",
+  add: "lighter",
+  multiply: "multiply",
+  screen: "screen",
+  erase: "destination-out",
+};
