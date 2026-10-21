@@ -161,7 +161,7 @@ export class Game {
     if (typeof matchMedia !== "undefined") this.watchDpr();
     if (typeof document !== "undefined") document.addEventListener("visibilitychange", this.onVisibility);
     const splash = options.splash ?? true;
-    if (splash && !isDev() && typeof addEventListener !== "undefined") {
+    if (splash && !(typeof import.meta.env !== "undefined" && import.meta.env.DEV === true) && typeof addEventListener !== "undefined") {
       this.splashTotal = this.splashLeft = (splash === true ? undefined : splash.duration) ?? 1.6;
       addEventListener("keydown", this.onSplashSkip);
       // A click or tap only skips: no links out, so games are safe on portals (Poki, CrazyGames) that forbid them.
@@ -222,7 +222,13 @@ export class Game {
     if (this.scenes.has(scene.id)) throw new Error(`Scene "${scene.id}" already added`);
     this.scenes.set(scene.id, scene);
     // A game with scenes that never starts draws nothing and reports nothing; say so in dev.
-    if (isDev() && this.scenes.size === 1 && typeof setTimeout !== "undefined") {
+    // Dev checks are written inline (not via a helper) so bundlers fold them to false and drop the code.
+    if (
+      typeof import.meta.env !== "undefined" &&
+      import.meta.env.DEV === true &&
+      this.scenes.size === 1 &&
+      typeof setTimeout !== "undefined"
+    ) {
       setTimeout(() => {
         // Tools that drive the game with step() never start it, but they do advance the clock.
         if (!this.wanted && this.clock.tick === 0)
@@ -247,7 +253,7 @@ export class Game {
   }
 
   start(): void {
-    if (isDev() && !this.active) {
+    if (typeof import.meta.env !== "undefined" && import.meta.env.DEV === true && !this.active) {
       console.warn(
         this.scenes.size
           ? `[debuff] game.start() with no active scene, so only the background draws. Call game.go(id) first. Added: ${this.sceneList()}`
@@ -430,9 +436,4 @@ export class Game {
     draw.end();
     this.phase = "idle";
   }
-}
-
-/** True under a bundler's dev mode (Vite: `import.meta.env.DEV`); false elsewhere. */
-function isDev(): boolean {
-  return import.meta.env?.DEV === true;
 }
