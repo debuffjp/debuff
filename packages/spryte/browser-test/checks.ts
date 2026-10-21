@@ -521,4 +521,20 @@ for (const backend of ["webgl2", "2d"] as const) {
   }
 }
 
+// tiled() == the same tiles drawn by hand under a clip; nineSlice() on WebGL2 == Canvas 2D.
+{
+  const tile = { image: img, x: 1, y: 1, w: 6, h: 4 };
+  const byHand = (draw: Draw) =>
+    draw.clip(5, 7, 61, 45, () => {
+      for (let y = 7 - 3; y < 52; y += 4) for (let x = 5 - 2; x < 66; x += 6) draw.sprite(tile, x, y, { origin: [0, 0] });
+    });
+  const tiledScene = (draw: Draw) => draw.tiled(tile, 5, 7, 61, 45, { offsetX: 2, offsetY: 3 });
+  record("tiled() == clipped sprite() grid (webgl2)", await render(tiledScene), await render(byHand));
+  const panel = (draw: Draw) => {
+    draw.nineSlice(img, 4, 4, 60, 30, 2);
+    draw.nineSlice(img, 4, 40, 70, 16, [1, 1, 3, 2], { tint: "#8cf" });
+  };
+  record("nineSlice(): WebGL2 == Canvas 2D", await render(panel, "webgl2"), await render(panel, "2d"));
+}
+
 (window as unknown as { __checks: unknown }).__checks = results;
