@@ -101,6 +101,31 @@ describe("Game", () => {
     expect(canvas.style.imageRendering).toBe("pixelated");
   });
 
+  it("expand mode grows the logical size along the spare axis, and follows the container", () => {
+    // 640x400 container, 320x180 minimum: scale 2 fits the width, so the height grows to 200.
+    const { game, canvas } = makeGame({ scale: "expand" });
+    expect([game.width, game.height]).toEqual([320, 200]);
+    expect(canvas.style.width).toBe("640px");
+    expect(canvas.style.height).toBe("400px");
+    expect([game.camera.width, game.camera.height, game.camera.y]).toEqual([320, 200, 100]);
+
+    // A portrait game in a landscape container widens instead.
+    const { canvas: c2 } = fakeCanvas();
+    const box = document.createElement("div");
+    let w = 1000;
+    Object.defineProperties(box, { clientWidth: { get: () => w }, clientHeight: { value: 640 } });
+    box.append(c2);
+    const portrait = new Game({ canvas: c2, width: 360, height: 640, scale: "expand" });
+    const sizes: number[][] = [];
+    portrait.hooks.resize((width, height) => sizes.push([width, height]));
+    expect([portrait.width, portrait.height]).toEqual([1000, 640]);
+    // Narrower than the minimum: it never shrinks below 360 wide, it scales down instead.
+    w = 180;
+    portrait.resize();
+    expect([portrait.width, portrait.height]).toEqual([360, 1280]);
+    expect(sizes).toEqual([[360, 1280]]);
+  });
+
   it("maps client coordinates to logical coordinates", () => {
     const { game, canvas } = makeGame();
     canvas.getBoundingClientRect = () => ({ left: 10, top: 20, width: 640, height: 360 }) as DOMRect;
