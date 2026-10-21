@@ -30,6 +30,7 @@ const theme: Song = {
 const player = new Player();
 player.play(theme, { fade: 1 });
 player.tempo(1.2); // hurry up: moves are running out
+const beat = Math.floor(player.step / 4); // where the music is, for animation in time with it
 player.layer("hat", 0); // drop the hats
 player.stop(1); // fade out over a second
 ```

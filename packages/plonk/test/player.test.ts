@@ -100,6 +100,29 @@ describe("Player", () => {
     player.stop();
   });
 
+  it("reports where the music is, in steps, through starts, jumps, tempo changes and stops", () => {
+    vi.useFakeTimers();
+    const { ctx, run } = fakeContext();
+    const player = new Player({ context: ctx });
+    expect(player.step).toBe(-1);
+    player.play(song);
+    run(1);
+    // 120 bpm: a step every 0.125 s, from just after the start (play() begins 50 ms ahead).
+    expect(player.step).toBeCloseTo((ctx.currentTime - 0.05) / 0.125, 5);
+    player.play(song, { at: 12 });
+    // Step 12 starts 50 ms from now.
+    expect(player.step).toBeCloseTo(12 - 0.05 / 0.125, 5);
+    run(0.5);
+    expect(player.step).toBeCloseTo(12 + (0.5 - 0.05) / 0.125, 0);
+    const before = player.step;
+    player.tempo(2);
+    run(0.5);
+    // Twice as fast: 0.5 s is now 8 steps, not 4, and nothing jumped at the switch.
+    expect(player.step - before).toBeCloseTo(8, 0);
+    player.stop();
+    expect(player.step).toBe(-1);
+  });
+
   it("speeds up without a jump", () => {
     vi.useFakeTimers();
     const { ctx, run } = fakeContext();
