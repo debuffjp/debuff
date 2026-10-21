@@ -537,4 +537,52 @@ for (const backend of ["webgl2", "2d"] as const) {
   record("nineSlice(): WebGL2 == Canvas 2D", await render(panel, "webgl2"), await render(panel, "2d"));
 }
 
+// mask(): a rectangle mask == clip(); a soft mask matches across backends; masks nest and work inside into().
+{
+  const content = (draw: Draw) => {
+    draw.rect(0, 0, 80, 60, "#334");
+    for (let i = 0; i < 20; i++) draw.sprite(img, pos[i * 2] as number, pos[i * 2 + 1] as number, { scaleX: 2, scaleY: 2 });
+    draw.text("mask", 20, 20, { color: "#fff" });
+  };
+  const clipped = (draw: Draw) => draw.clip(10, 8, 50, 30, () => content(draw));
+  const masked = (draw: Draw) =>
+    draw.mask(
+      () => draw.rect(10, 8, 50, 30, "#fff"),
+      () => content(draw),
+    );
+  for (const backend of ["webgl2", "2d"] as const)
+    record(`mask(rect) == clip(rect) (${backend})`, await render(masked, backend), await render(clipped, backend));
+  const soft = (draw: Draw) => {
+    draw.rect(0, 0, 80, 60, "#a33");
+    draw.mask(
+      () => {
+        draw.circle(40, 30, 22, "#fff8");
+        draw.polygon([4, 4, 30, 4, 4, 30], "#fff");
+      },
+      () =>
+        draw.mask(
+          () => draw.rect(0, 0, 60, 60, "#fff"),
+          () => content(draw),
+        ),
+    );
+    const t = draw.createTarget(40, 30);
+    draw.into(t, () =>
+      draw.mask(
+        () => draw.circle(20, 15, 12, "#fff"),
+        () => draw.rect(0, 0, 40, 30, "#cffb2d"),
+      ),
+    );
+    draw.sprite(t, 40, 30, { origin: [0, 0] });
+    draw.disposeTarget(t);
+  };
+  const gl2 = await render(soft, "webgl2");
+  const c2d = await render(soft, "2d");
+  let off = 0;
+  for (let i = 0; i < gl2.length; i += 4) {
+    const d = Math.max(...[0, 1, 2].map((k) => Math.abs((gl2[i + k] as number) - (c2d[i + k] as number))));
+    if (d > 48) off++;
+  }
+  check("soft, nested and in-target masks: WebGL2 matches Canvas 2D", off < 80, `${off} px off by > 48`);
+}
+
 (window as unknown as { __checks: unknown }).__checks = results;
