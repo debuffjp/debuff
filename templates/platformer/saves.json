@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "saves": [
+    {
+      "key": "debuff-platformer",
+      "file": "src/main.ts",
+      "fields": {
+        "best": "number",
+        "volume": "number"
+      }
+    }
+  ]
+}

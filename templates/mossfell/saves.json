@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "saves": [
+    {
+      "key": "debuff-mossfell",
+      "file": "src/main.ts",
+      "fields": {
+        "bestSeeds": "number",
+        "wins": "number"
+      }
+    }
+  ]
+}

@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import {
   buildReport,
+  checkSaves,
   compileAssets,
   findUnused,
   inspectProject,
@@ -111,14 +112,16 @@ export function createServer(options: ServerOptions): McpServer {
       title: "Production build",
       annotations: { readOnlyHint: false, destructiveHint: false },
       description:
-        "Build for production and return the size report (raw, gzip, brotli per file). `leaks` lists dev-only code found in the output; it must be empty.",
+        "Build for production and return the size report (raw, gzip, brotli per file). `leaks` lists dev-only code found in the output; it must be empty. " +
+        "`saves` compares the game's saves with saves.json: an error means players would lose saved progress. Don't accept save changes yourself; tell the human (they run `debuff build --accept-saves`).",
       inputSchema: root,
     },
     safely(async ({ root: r }) => {
       const dir = rootOf(r);
       const { build } = await import("vite");
       await build(await viteConfig(dir, { logLevel: "silent" }));
-      return json(buildReport(resolve(dir, "dist")));
+      const saves = checkSaves(dir);
+      return json({ ...buildReport(resolve(dir, "dist")), ...(saves ? { saves } : {}) });
     }),
   );
 

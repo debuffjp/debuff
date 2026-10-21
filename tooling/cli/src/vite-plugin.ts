@@ -1,10 +1,11 @@
 import { existsSync, readFileSync } from "node:fs";
-import { extname, join, resolve, sep } from "node:path";
+import { extname, join, relative, resolve, sep } from "node:path";
 import type { Plugin, PluginOption } from "vite";
 import { attachAgentLink } from "./agent-link.js";
 import type { AtlasOptions } from "./assets/atlas.js";
 import { type CompileResult, compileAssets } from "./assets/compile.js";
 import type { ToolingPlugin } from "./plugin.js";
+import { findSaves, type SavesFound, writeSavesFound } from "./saves.js";
 import { createTypeChecker } from "./typecheck.js";
 
 export const ASSETS_DIR = "assets";
@@ -90,6 +91,8 @@ export function debuff(options: DebuffViteOptions = {}): PluginOption[] {
   };
 
   let serving = false;
+  /** Saves per module in this build (ADR 0014); `debuff build` compares them with saves.json. */
+  const saves = new Map<string, SavesFound>();
   const core: Plugin = {
     name: "debuff",
     configResolved(config) {
@@ -104,6 +107,26 @@ export function debuff(options: DebuffViteOptions = {}): PluginOption[] {
     },
     buildStart() {
       compile();
+      saves.clear();
+    },
+    transform(code, id) {
+      if (serving || id.includes("/node_modules/") || !/\.[cm]?[jt]sx?$/.test(id.split("?")[0] ?? "")) return;
+      if (!code.includes("@debuffjp/core") || !code.includes("Storage")) return;
+      const file = relative(root, id.split("?")[0] ?? id).replaceAll("\\", "/");
+      try {
+        saves.set(id, findSaves(this.parse(code), file));
+      } catch {
+        // Not parseable as JavaScript here (another plugin's virtual module); nothing to record.
+      }
+    },
+    buildEnd() {
+      if (serving) return;
+      const all: SavesFound = { saves: [], unchecked: [] };
+      for (const f of saves.values()) {
+        all.saves.push(...f.saves);
+        all.unchecked.push(...f.unchecked);
+      }
+      writeSavesFound(root, all);
     },
     configureServer(server) {
       const dir = join(root, ASSETS_DIR);

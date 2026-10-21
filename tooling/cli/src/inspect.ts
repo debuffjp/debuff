@@ -33,6 +33,10 @@ export async function inspectProject(root: string) {
       warnings,
     },
     build: existsSync(dist) ? { totals: buildReport(dist).totals } : null,
+    /** The saves accepted in saves.json (ADR 0014): each key and its fields' JSON kinds. `debuff build` checks changes. */
+    saves: existsSync(join(root, "saves.json"))
+      ? (JSON.parse(readFileSync(join(root, "saves.json"), "utf8")) as { saves: unknown[] }).saves
+      : null,
     runtime: "Live params and scene state: window.__DEBUFF_DEV__ in the dev server, `debuff scenario`, or the debuff MCP game_* tools.",
   };
 }

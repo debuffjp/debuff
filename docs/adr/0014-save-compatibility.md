@@ -1,6 +1,6 @@
 # ADR 0014: Saves survive game updates, and the build says when they won't
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-10-21
 
 ## Context
@@ -42,4 +42,4 @@ All four templates use `Storage` with literal defaults (`new Storage("debuff-squ
 - A save change becomes a deliberate, reviewed step, like a screenshot baseline (3).
 - `saves.json` is a new committed file in every project; `create-debuff` templates ship one.
 - The build report schema gains `saves` (a minor, additive change under `docs/stability.md`).
-- Sizes: (1) and (2) add to `@debuffjp/core`; to be reported in the PR (budget: under 150 bytes brotli).
+- Sizes: (1) and (2) add 264 bytes brotli to a game that uses `Storage` (`templates/basic`, code at startup: 20,134 to 20,398 bytes). The first budget was 150 bytes; meeting it would have meant dropping the backup or migration.

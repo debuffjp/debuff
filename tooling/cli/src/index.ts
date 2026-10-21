@@ -7,6 +7,16 @@ export { baselineImages, type LaunchConfig, writeLaunchFiles } from "./launch.js
 export type * from "./plugin.js";
 export { TOOLING_API_VERSION } from "./plugin.js";
 export { type BuildReport, buildReport, DEV_TOKENS, type FileReport, formatReport } from "./report.js";
+export {
+  checkSaves,
+  compareSaves,
+  findSaves,
+  SAVES_FILE,
+  type SaveCheck,
+  type SaveInfo,
+  type SaveIssue,
+  type SavesFound,
+} from "./saves.js";
 export * from "./scenario/index.js";
 export { SHIP_TARGETS, type ShipCheck, type ShipResult, type ShipTarget, ship, shipFailed, zip } from "./ship.js";
 export { parseTscOutput, type TypeCheckResult, type TypeDiagnostic, typecheck } from "./typecheck.js";
