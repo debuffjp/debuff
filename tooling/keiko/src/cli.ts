@@ -13,7 +13,8 @@ Usage:
 Runs tests/**/*.test.ts (and src/**/*.test.ts) against your real game in Node, with no browser.
 
 Options:
-  -t, --filter <text>   Only run tests whose name contains this text
+  -t, --filter <text>   Only run tests whose full name contains this text
+                        (case-insensitive substring, not a regex)
       --root <dir>      Project root (default: the current folder)
       --json            Print a machine-readable report
       --debuff          Drive the game through debuff's dev hooks (default: detected)

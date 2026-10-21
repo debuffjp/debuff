@@ -34,6 +34,10 @@ export interface DevState {
   /** Who paused the game ("you", "agent", "spike"…), or null while running. */
   pausedBy: string | null;
   timeScale: number;
+  /** `game.reducedMotion`: when true, the game's own animations may be frozen or toned down. */
+  reducedMotion: boolean;
+  /** True when `reducedMotion(value)` forced it, rather than the player's OS setting or the game's option. */
+  reducedMotionForced: boolean;
   /** Active rendering backend. */
   renderer: "webgl2" | "2d";
   stats: ReturnType<Game["stats"]["summary"]>;
@@ -64,6 +68,8 @@ export interface DevHooks {
   resume(): DevState;
   /** Simulation speed multiplier (1 = normal). */
   speed(scale: number): void;
+  /** Force `game.reducedMotion` on or off; `null` restores what it was. Returns the new state. */
+  reducedMotion(value: boolean | null): DevState;
   press(code: string): void;
   release(code: string): void;
   /** Press and release the primary pointer at logical coordinates across one step. */
@@ -199,6 +205,7 @@ function createHooks(game: Game, session: DevSession, options: DevHooksOptions, 
     return options.input;
   };
 
+  let motionBefore: boolean | undefined;
   const state = (): DevState => ({
     scene: game.scene?.id,
     tick: game.clock.tick,
@@ -207,6 +214,8 @@ function createHooks(game: Game, session: DevSession, options: DevHooksOptions, 
     frozen: game.frozen,
     pausedBy: session.pausedBy ?? null,
     timeScale: game.timeScale,
+    reducedMotion: game.reducedMotion,
+    reducedMotionForced: motionBefore !== undefined,
     renderer: game.draw.kind,
     stats: game.stats.summary(),
     state: game.scene?.inspect?.(),
@@ -235,6 +244,16 @@ function createHooks(game: Game, session: DevSession, options: DevHooksOptions, 
       return state();
     },
     speed: (scale) => session.setSpeed(scale, who()),
+    reducedMotion(value) {
+      if (value === null) {
+        if (motionBefore !== undefined) game.reducedMotion = motionBefore;
+        motionBefore = undefined;
+      } else {
+        motionBefore ??= game.reducedMotion;
+        game.reducedMotion = value;
+      }
+      return state();
+    },
     press: (code) => input().keys.press(code),
     release: (code) => input().keys.release(code),
     tap(x, y) {

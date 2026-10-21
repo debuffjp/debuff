@@ -185,7 +185,13 @@ export class Playtest<S = any> {
 
   // ---- time ------------------------------------------------------------------------------------
 
-  /** Play for a while with the current input. `wait()` plays one step. */
+  /**
+   * Play for a while with the current input. `wait()` plays one step.
+   *
+   * `wait` is synchronous: game timers (`setTimeout`) fire on keiko's virtual clock as steps run, but
+   * promise callbacks the game awaits (an ad SDK stub, a fetch) only run between turns of the event loop.
+   * If the game's logic awaits anything, use `await game.run(duration)` instead, or `await game.settle()`.
+   */
   wait(duration: Duration = 1): this {
     this.advance(toSteps(duration, this.stepSeconds));
     return this;

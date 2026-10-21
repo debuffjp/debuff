@@ -79,4 +79,13 @@ describe("exposeDevHooks", () => {
     expect(game.params.group("player")?.get("speed")).toBe(4);
     expect(() => hooks.setParam("nope", "x", 1)).toThrow(/Known: player/);
   });
+
+  it("reports and forces reduced motion", () => {
+    const { hooks, game } = setup();
+    const before = game.reducedMotion;
+    expect(hooks.state()).toMatchObject({ reducedMotion: before, reducedMotionForced: false });
+    expect(hooks.reducedMotion(!before)).toMatchObject({ reducedMotion: !before, reducedMotionForced: true });
+    expect(game.reducedMotion).toBe(!before);
+    expect(hooks.reducedMotion(null)).toMatchObject({ reducedMotion: before, reducedMotionForced: false });
+  });
 });

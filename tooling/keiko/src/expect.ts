@@ -36,6 +36,10 @@ export interface Matchers<T> {
   toBeBelow(n: number): void;
   /** `actual >= n` */
   toBeAtLeast(n: number): void;
+  /** Alias of {@link Matchers.toBeBelow}, for those used to Jest/Vitest. */
+  toBeLessThan(n: number): void;
+  /** Alias of {@link Matchers.toBeAbove}, for those used to Jest/Vitest. */
+  toBeGreaterThan(n: number): void;
   /** `actual <= n` */
   toBeAtMost(n: number): void;
   /** `min <= actual <= max` */
@@ -98,6 +102,8 @@ function matchers<T>(actual: T, negated: boolean): Matchers<T> {
     },
     toBeAbove: (n) => check(number("toBeAbove") > n, `be above ${n}`, n),
     toBeBelow: (n) => check(number("toBeBelow") < n, `be below ${n}`, n),
+    toBeLessThan: (n) => check(number("toBeLessThan") < n, `be less than ${n}`, n),
+    toBeGreaterThan: (n) => check(number("toBeGreaterThan") > n, `be greater than ${n}`, n),
     toBeAtLeast: (n) => check(number("toBeAtLeast") >= n, `be at least ${n}`, n),
     toBeAtMost: (n) => check(number("toBeAtMost") <= n, `be at most ${n}`, n),
     toBeBetween(min, max) {

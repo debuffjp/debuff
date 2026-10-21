@@ -1,8 +1,12 @@
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createServer } from "../src/index.js";
+import { summarizeFrames } from "../src/server.js";
 
 const template = fileURLToPath(new URL("../../../templates/basic", import.meta.url));
 
@@ -83,6 +87,45 @@ describe("debuff MCP server", () => {
     expect(shot.content[0]?.data?.length).toBeGreaterThan(100);
 
     expect(await data("game_errors")).toEqual([]);
+
+    const quiet = await data("game_step", { steps: 1, quiet: true });
+    expect(quiet).toHaveProperty("tick");
+    expect(quiet).not.toHaveProperty("state");
+
+    const summary = await data("game_frames", { summary: true });
+    expect(summary).toMatchObject({ updateMs: { p50: expect.any(Number) }, drawCalls: { max: expect.any(Number) } });
+    expect(summary.worst.length).toBeLessThanOrEqual(3);
+
+    const unknown = await call("game_command", { name: "warp", args: [1] });
+    expect(unknown.isError).toBe(true);
+    expect(unknown.content[0]?.text).toMatch(/Unknown command "warp"/);
+
+    const profile = await call("game_profile");
+    expect(profile.isError).toBe(true);
+    expect(profile.content[0]?.text).toMatch(/live mode/);
+
+    const dir = mkdtempSync(join(tmpdir(), "debuff-capture-"));
+    const saved = await call("game_capture", { path: relative(template, join(dir, "shot.png")) });
+    expect(saved.isError).toBe(true); // outside the project root
+    rmSync(dir, { recursive: true, force: true });
     await data("game_stop");
+  });
+
+  it("starts at a viewport with reduced motion forced, and saves captures", { timeout: 60_000 }, async () => {
+    const started = await data("game_start", { mode: "headless", viewport: [390, 844], reducedMotion: true });
+    expect(started.state).toMatchObject({ reducedMotion: true, reducedMotionForced: true });
+    const shot = await call("game_capture", { path: ".debuff/test-capture.png" });
+    expect(JSON.parse(shot.content[1]?.text ?? "{}")).toEqual({ saved: ".debuff/test-capture.png" });
+    const file = join(template, ".debuff/test-capture.png");
+    expect(readFileSync(file).subarray(1, 4).toString()).toBe("PNG");
+    rmSync(file);
+    await data("game_stop");
+  });
+
+  it("summarizes frames", () => {
+    const frames = [1, 2, 3, 4].map((n) => ({ updateMs: n, renderMs: 1, quads: n * 10, drawCalls: 1 }));
+    const s = summarizeFrames(frames);
+    expect(s).toMatchObject({ count: 4, updateMs: { p50: 3, max: 4 }, quads: { max: 40 } });
+    expect(s.worst.map((f) => f.updateMs)).toEqual([4, 3, 2]);
   });
 });
