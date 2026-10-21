@@ -34,6 +34,9 @@ export interface DevState {
   /** Who paused the game ("you", "agent", "spike"…), or null while running. */
   pausedBy: string | null;
   timeScale: number;
+  /** Logical size (`game.width`/`game.height`); with `scale: "expand"` it follows the container. */
+  width: number;
+  height: number;
   /** `game.reducedMotion`: when true, the game's own animations may be frozen or toned down. */
   reducedMotion: boolean;
   /** True when `reducedMotion(value)` forced it, rather than the player's OS setting or the game's option. */
@@ -214,6 +217,8 @@ function createHooks(game: Game, session: DevSession, options: DevHooksOptions, 
     frozen: game.frozen,
     pausedBy: session.pausedBy ?? null,
     timeScale: game.timeScale,
+    width: game.width,
+    height: game.height,
     reducedMotion: game.reducedMotion,
     reducedMotionForced: motionBefore !== undefined,
     renderer: game.draw.kind,

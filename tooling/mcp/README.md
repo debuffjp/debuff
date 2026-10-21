@@ -50,7 +50,7 @@ For Claude Desktop, `mcpb/manifest.json` describes a desktop extension that asks
 | `game_rewind` | Live mode: take the human's game back (or forward) to a tick, paused, with its exact state then |
 | `game_replay` | Save the live session up to a tick (for example a note's) as a scenario in `.debuff/replays/` that reproduces it |
 | `game_input` | `press` / `release` keys; `tap`, `pointer_down`, `pointer_move`, `pointer_up` |
-| `game_state` | Scene, tick, renderer, frame stats, `reducedMotion`, your `inspect()` data |
+| `game_state` | Scene, tick, logical width/height, renderer, frame stats, `reducedMotion`, your `inspect()` data |
 | `game_command` | Run a command the game registered with `devTools({ commands })`, with JSON args |
 | `game_params` / `game_set_param` | Read and tune typed params (validated) |
 | `game_capture` | The current frame as a PNG image; `path` also saves it in the project (thumbnails, store art) |

@@ -84,6 +84,7 @@ describe("exposeDevHooks", () => {
     const { hooks, game } = setup();
     const before = game.reducedMotion;
     expect(hooks.state()).toMatchObject({ reducedMotion: before, reducedMotionForced: false });
+    expect(hooks.state()).toMatchObject({ width: game.width, height: game.height });
     expect(hooks.reducedMotion(!before)).toMatchObject({ reducedMotion: !before, reducedMotionForced: true });
     expect(game.reducedMotion).toBe(!before);
     expect(hooks.reducedMotion(null)).toMatchObject({ reducedMotion: before, reducedMotionForced: false });

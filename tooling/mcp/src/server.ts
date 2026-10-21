@@ -268,7 +268,7 @@ export function createServer(options: ServerOptions): McpServer {
     {
       title: "Game state",
       description:
-        "Current scene, tick, time, renderer, frame stats, the scene's inspect() data and plugin inspect data. " +
+        "Current scene, tick, time, logical width and height, renderer, frame stats, the scene's inspect() data and plugin inspect data. " +
         "reducedMotion true means the game may freeze or tone down its animations (reducedMotionForced: game_start forced it).",
       inputSchema: {},
       annotations: { readOnlyHint: true },
