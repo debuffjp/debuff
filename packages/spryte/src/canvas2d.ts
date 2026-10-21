@@ -23,6 +23,7 @@ export class Canvas2DBackend implements Backend {
   private readonly surfaces = new WeakMap<RenderTarget, Surface>();
   private target: RenderTarget | null = null;
   private warnedShader = false;
+  private warnedFilter = false;
   private scale = 1;
   private smoothing: boolean | undefined;
   private scratch: HTMLCanvasElement | OffscreenCanvas | undefined;
@@ -205,6 +206,13 @@ export class Canvas2DBackend implements Backend {
   }
 
   setFilter(css: string): void {
+    if (css !== "none" && !canvasFilters()) {
+      if (!this.warnedFilter) {
+        this.warnedFilter = true;
+        console.warn("spryte: this browser's Canvas 2D ignores ctx.filter, so filters draw unfiltered on the fallback");
+      }
+      return;
+    }
     this.ctx.filter = css;
   }
 
@@ -297,6 +305,29 @@ function newSurface(w: number, h: number): Surface {
 
 function mixWhite(c: number, f: number): number {
   return Math.round(c + ((255 - c) * f) / 255);
+}
+
+let filtersWork: boolean | undefined;
+
+/**
+ * Whether Canvas 2D applies `ctx.filter`. Some browsers accept the property and ignore it (Safari before 18), so
+ * this draws one red pixel through `grayscale(1)` and reads it back, once.
+ */
+export function canvasFilters(): boolean {
+  if (filtersWork === undefined) {
+    const c = typeof OffscreenCanvas === "function" ? new OffscreenCanvas(1, 1) : document.createElement("canvas");
+    const g = c.getContext("2d", { willReadFrequently: true }) as CanvasRenderingContext2D | null;
+    if (!g) {
+      filtersWork = false;
+      return false;
+    }
+    g.filter = "grayscale(1)";
+    g.fillStyle = "#f00";
+    g.fillRect(0, 0, 1, 1);
+    const [r, gr] = g.getImageData(0, 0, 1, 1).data;
+    filtersWork = r !== undefined && r === gr;
+  }
+  return filtersWork;
 }
 
 const COMPOSITE: Record<BlendMode | "mask", GlobalCompositeOperation> = {
