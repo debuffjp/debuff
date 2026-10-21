@@ -1,5 +1,28 @@
 // Pixel checks that need a real GPU. Each check draws the same scene two ways and compares every pixel.
-import { createRenderer, type Draw } from "../src/index.js";
+
+import { canvasFilters } from "../src/canvas2d.js";
+import {
+  blur,
+  brightness,
+  contrast,
+  createRenderer,
+  type Draw,
+  type Filter,
+  filter,
+  grayscale,
+  hueRotate,
+  invert,
+  mask,
+  nineSlice,
+  polygon,
+  polyline,
+  ring,
+  roundRect,
+  Shader,
+  saturate,
+  sepia,
+  tiled,
+} from "../src/index.js";
 
 const W = 160;
 const H = 120;
@@ -455,6 +478,244 @@ for (const backend of ["webgl2", "2d"] as const) {
     });
   };
   record("text atlas: region uploads == whole-page upload (webgl2)", await render(scene(true)), await render(scene(false)));
+}
+
+// Blend modes: WebGL2 matches Canvas 2D on the opaque canvas, for opaque and partly transparent drawing.
+{
+  const scene = (draw: Draw) => {
+    draw.rect(0, 0, 160, 60, "#80a0c0");
+    draw.rect(0, 60, 160, 60, "#e04020");
+    (["normal", "add", "multiply", "screen", "erase"] as const).forEach((mode, i) => {
+      draw.blend(mode);
+      draw.rect(4 + i * 30, 10, 24, 100, "#c8f040");
+      draw.rect(4 + i * 30, 40, 24, 40, "#2060ff80");
+    });
+    draw.blend("normal");
+  };
+  const gl2 = await render(scene, "webgl2", 1);
+  const c2d = await render(scene, "2d", 1);
+  const modes = ["normal", "add", "multiply", "screen", "erase"];
+  const worst = modes.map(() => 0);
+  for (let i = 0; i < gl2.length; i++) {
+    // Erase leaves the canvas see-through; compare colour only where something is left.
+    if (i % 4 !== 3 && ((gl2[i - (i % 4) + 3] as number) === 0 || (c2d[i - (i % 4) + 3] as number) === 0)) continue;
+    const column = Math.min(modes.length - 1, Math.floor((((i / 4) % W) - 2) / 30));
+    if (column >= 0) worst[column] = Math.max(worst[column] as number, Math.abs((gl2[i] as number) - (c2d[i] as number)));
+  }
+  // Erasing an opaque canvas shows whatever the browser composites under it (black in Chrome, not in WebKit), so
+  // erase is checked where it's meant to be used: in a render target, which is then drawn over a background.
+  worst[4] = 0;
+  const holes = (draw: Draw) => {
+    const t = draw.createTarget(80, 60);
+    draw.into(t, () => {
+      draw.rect(0, 0, 80, 60, "#c8f040");
+      draw.blend("erase");
+      draw.circle(40, 30, 18, "#fff");
+      draw.rect(4, 4, 30, 10, "#fff8");
+      draw.blend("normal"); // into() keeps the blend mode, by design
+    });
+    draw.rect(0, 0, 160, 120, "#2060ff");
+    draw.sprite(t, 0, 0, { origin: [0, 0], scaleX: 2, scaleY: 2 });
+    draw.disposeTarget(t);
+  };
+  const [eg, ec] = [await render(holes, "webgl2", 1), await render(holes, "2d", 1)];
+  for (let i = 0; i < eg.length; i++) worst[4] = Math.max(worst[4] as number, Math.abs((eg[i] as number) - (ec[i] as number)));
+  check(
+    "blend modes: WebGL2 matches Canvas 2D (erase in a render target)",
+    Math.max(...worst) <= 2,
+    `max channel error ${modes.map((m, k) => `${m} ${worst[k]}`).join(", ")}`,
+  );
+}
+
+// Shapes: WebGL2's tessellation matches Canvas 2D's rasteriser away from edges, and edges stay close.
+{
+  const scene = (draw: Draw) => {
+    polygon(draw, [10, 10, 70, 14, 40, 30, 66, 54, 12, 50], "#cffb2d");
+    roundRect(draw, 84, 8, 64, 40, 12, "#e23");
+    roundRect(draw, 84, 60, 64, 40, 10, "#fff", 4);
+    ring(draw, 40, 84, 22, 5, "#40c0ff");
+    polyline(draw, [8, 112, 40, 100, 72, 112], 3, "#ffd36b");
+    draw.push();
+    draw.translate(120, 80);
+    draw.rotate(0.4);
+    polygon(draw, [-10, -10, 10, -10, 10, 10, -10, 10], "#f0f8");
+    draw.pop();
+  };
+  for (const scale of [1, 2]) {
+    const gl2 = await render(scene, "webgl2", scale);
+    const c2d = await render(scene, "2d", scale);
+    let interior = 0;
+    let edge = 0;
+    for (let i = 0; i < gl2.length; i += 4) {
+      const d = Math.max(...[0, 1, 2].map((k) => Math.abs((gl2[i + k] as number) - (c2d[i + k] as number))));
+      // Interior: the 3×3 neighbourhood is one colour in the Canvas 2D frame.
+      const x = (i / 4) % W;
+      const y = Math.floor(i / 4 / W);
+      let flat = x > 0 && y > 0 && x < W - 1 && y < H - 1;
+      for (let dy = -1; flat && dy <= 1; dy++)
+        for (let dx = -1; flat && dx <= 1; dx++) {
+          const j = i + (dy * W + dx) * 4;
+          if (c2d[j] !== c2d[i] || c2d[j + 1] !== c2d[i + 1] || c2d[j + 2] !== c2d[i + 2]) flat = false;
+        }
+      if (flat) interior = Math.max(interior, d);
+      else edge += d > 48 ? 1 : 0;
+    }
+    check(
+      `shapes: WebGL2 matches Canvas 2D (scale ${scale})`,
+      interior <= 2 && edge < 40 * scale,
+      `interior max error ${interior}, ${edge} edge px off by > 48, ${gl2.filter((v, k) => k % 4 === 1 && v !== 0x20).length} px drawn`,
+    );
+  }
+}
+
+// tiled() == the same tiles drawn by hand under a clip; nineSlice() on WebGL2 == Canvas 2D.
+{
+  const tile = { image: img, x: 1, y: 1, w: 6, h: 4 };
+  const byHand = (draw: Draw) =>
+    draw.clip(5, 7, 61, 45, () => {
+      for (let y = 7 - 3; y < 52; y += 4) for (let x = 5 - 2; x < 66; x += 6) draw.sprite(tile, x, y, { origin: [0, 0] });
+    });
+  const tiledScene = (draw: Draw) => tiled(draw, tile, 5, 7, 61, 45, { offsetX: 2, offsetY: 3 });
+  record("tiled() == clipped sprite() grid (webgl2)", await render(tiledScene), await render(byHand));
+  const panel = (draw: Draw) => {
+    nineSlice(draw, img, 4, 4, 60, 30, 2);
+    nineSlice(draw, img, 4, 40, 70, 16, [1, 1, 3, 2], { tint: "#8cf" });
+  };
+  record("nineSlice(): WebGL2 == Canvas 2D", await render(panel, "webgl2"), await render(panel, "2d"));
+}
+
+// mask(): a rectangle mask == clip(); a soft mask matches across backends; masks nest and work inside into().
+{
+  const content = (draw: Draw) => {
+    draw.rect(0, 0, 80, 60, "#334");
+    for (let i = 0; i < 20; i++) draw.sprite(img, pos[i * 2] as number, pos[i * 2 + 1] as number, { scaleX: 2, scaleY: 2 });
+    draw.text("mask", 20, 20, { color: "#fff" });
+  };
+  const clipped = (draw: Draw) => draw.clip(10, 8, 50, 30, () => content(draw));
+  const masked = (draw: Draw) =>
+    mask(
+      draw,
+      () => draw.rect(10, 8, 50, 30, "#fff"),
+      () => content(draw),
+    );
+  for (const backend of ["webgl2", "2d"] as const)
+    record(`mask(rect) == clip(rect) (${backend})`, await render(masked, backend), await render(clipped, backend));
+  const soft = (draw: Draw) => {
+    draw.rect(0, 0, 80, 60, "#a33");
+    mask(
+      draw,
+      () => {
+        draw.circle(40, 30, 22, "#fff8");
+        polygon(draw, [4, 4, 30, 4, 4, 30], "#fff");
+      },
+      () =>
+        mask(
+          draw,
+          () => draw.rect(0, 0, 60, 60, "#fff"),
+          () => content(draw),
+        ),
+    );
+    const t = draw.createTarget(40, 30);
+    draw.into(t, () =>
+      mask(
+        draw,
+        () => draw.circle(20, 15, 12, "#fff"),
+        () => draw.rect(0, 0, 40, 30, "#cffb2d"),
+      ),
+    );
+    draw.sprite(t, 40, 30, { origin: [0, 0] });
+    draw.disposeTarget(t);
+  };
+  const gl2 = await render(soft, "webgl2");
+  const c2d = await render(soft, "2d");
+  let off = 0;
+  for (let i = 0; i < gl2.length; i += 4) {
+    const d = Math.max(...[0, 1, 2].map((k) => Math.abs((gl2[i + k] as number) - (c2d[i + k] as number))));
+    if (d > 48) off++;
+  }
+  check("soft, nested and in-target masks: WebGL2 matches Canvas 2D", off < 80, `${off} px off by > 48`);
+}
+
+// filter(): WebGL2's passes match the browser's CSS filters on Canvas 2D.
+{
+  const content = (draw: Draw) => {
+    draw.rect(10, 10, 30, 20, "#e23");
+    draw.rect(40, 10, 30, 20, "#2a6cff");
+    draw.circle(40, 40, 14, "#cffb2d");
+    for (let i = 0; i < 20; i++) draw.sprite(img, pos[i * 2] as number, pos[i * 2 + 1] as number);
+  };
+  const cases: [string, Filter[], number][] = [
+    ["grayscale", [grayscale()], 3],
+    ["sepia", [sepia(0.7)], 3],
+    ["saturate", [saturate(1.8)], 3],
+    ["hueRotate", [hueRotate(2)], 3],
+    ["brightness, contrast", [brightness(1.3), contrast(0.6)], 3],
+    ["invert", [invert()], 3],
+    ["blur", [blur(2)], 8],
+    ["blur then grayscale", [blur(1.5), grayscale(0.5)], 8],
+    ["large blur (30 device px)", [blur(15)], 8],
+  ];
+  // Firefox's own ctx.filter differs from the Filter Effects matrices by up to 16/255 on some pixels (measured
+  // 2026-10-21, Firefox 157); WebGL2 follows the spec, so the fallback gets that browser's tolerance.
+  const firefox = navigator.userAgent.includes("Firefox");
+  for (const [name, filters, base] of cases) {
+    const tolerance = firefox ? Math.max(base, 16) : base;
+    if (!canvasFilters()) {
+      check(`filter ${name}: Canvas 2D has no ctx.filter here, so it draws unfiltered (warned)`, true, "not supported");
+      continue;
+    }
+    const scene = (draw: Draw) => {
+      draw.rect(0, 0, 80, 60, "#203040");
+      filter(draw, filters, () => content(draw));
+    };
+    const gl2 = await render(scene, "webgl2");
+    const c2d = await render(scene, "2d");
+    let worst = 0;
+    let off = 0;
+    for (let i = 0; i < gl2.length; i++) {
+      if (i % 4 === 3) continue;
+      const d = Math.abs((gl2[i] as number) - (c2d[i] as number));
+      worst = Math.max(worst, d);
+      if (d > tolerance) off++;
+    }
+    check(`filter ${name}: WebGL2 matches Canvas 2D`, off < 60, `max error ${worst}, ${off} channels over ${tolerance}`);
+    // And it did something: a matching pair of unfiltered frames would pass the check above too.
+    const plain = await render((draw: Draw) => {
+      draw.rect(0, 0, 80, 60, "#203040");
+      content(draw);
+    });
+    check(`filter ${name}: changes the image`, diff(gl2, plain) > 500, `${diff(gl2, plain)} px changed`);
+  }
+}
+
+// Sprites that join a pending shape batch draw exactly what they draw in their own batches (an identity custom
+// shader keeps them out of the shape batch), with tint, flash, alpha, smoothing, several textures and order.
+{
+  const other = art();
+  const scene = (split: boolean) => (draw: Draw) => {
+    const body = () => {
+      for (let i = 0; i < 12; i++) {
+        const x = 4 + (i % 4) * 19;
+        const y = 4 + Math.floor(i / 4) * 18;
+        roundRect(draw, x, y, 16, 14, 4, i % 2 ? "#2a6cff" : "#e23");
+        draw.sprite(i % 3 ? img : other, x + 8, y + 7, {
+          tint: i % 2 ? "#fff" : "#8cf",
+          flash: i === 5 ? 0.4 : 0,
+          alpha: i === 7 ? 0.5 : 1,
+          smooth: i % 4 === 0,
+          rotation: i * 0.3,
+        });
+        ring(draw, x + 8, y + 7, 5, 1, "#ffd36b");
+      }
+    };
+    if (split) draw.withShader(identity, body);
+    else body();
+  };
+  const identity = new Shader("vec4 effect(vec4 color, vec2 uv) { return source(uv) * color; }");
+  const [joined, split] = [await render(scene(false)), await render(scene(true))];
+  let worst = 0;
+  for (let i = 0; i < joined.length; i++) worst = Math.max(worst, Math.abs((joined[i] as number) - (split[i] as number)));
+  check("sprites joining a shape batch == their own batches (webgl2)", worst <= 1, `max channel error ${worst}`);
 }
 
 (window as unknown as { __checks: unknown }).__checks = results;

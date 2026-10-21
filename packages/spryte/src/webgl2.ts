@@ -1,6 +1,7 @@
 import type { Backend, BlendMode, ClipRect, Matrix, RawContext, TextureSource } from "./backend.js";
 import { type CopySpec, copyAt } from "./copies.js";
 import type { Shader } from "./shader.js";
+import type { ShapeBuffer } from "./shapes.js";
 import { RenderTarget } from "./target.js";
 
 /** Texture units sampled per batch. 8 is guaranteed on every WebGL2 implementation's fragment stage (min 16). */
@@ -116,6 +117,35 @@ void main() {
   outColor = vec4(mix(t.rgb, vec3(t.a), u_flash), t.a);
 }`;
 
+/**
+ * Tessellated shapes (`polygon`, `polyline`, `roundRect`, `ring`) as indexed triangles with edge coverage.
+ * Sprites drawn while shapes are pending join the same batch as textured quads, so UI that alternates panels
+ * and icons stays one draw call. The fragment stage is the sprite program's.
+ */
+const SHAPE_VERT = `#version 300 es
+layout(location=0) in vec4 a_posuv;   // x, y, u, v
+layout(location=1) in vec4 a_color;   // normalised RGBA
+layout(location=2) in vec4 a_extra;   // coverage, flash, texture unit / 255 (255: none)
+uniform vec2 u_view;
+out highp vec2 v_uv;
+out vec4 v_color;
+out float v_flash;
+flat out int v_unit;
+void main() {
+  vec2 clip = a_posuv.xy / u_view * 2.0 - 1.0;
+  gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);
+  v_uv = a_posuv.zw;
+  v_color = vec4(a_color.rgb * a_color.a, a_color.a) * a_extra.x;
+  v_flash = a_extra.y;
+  v_unit = int(a_extra.z * 255.0 + 0.5);
+}`;
+
+interface ShapePipeline extends ProgramInfo {
+  vao: WebGLVertexArrayObject;
+  buffer: WebGLBuffer;
+  indices: WebGLBuffer;
+}
+
 interface EachPipeline extends ProgramInfo {
   vao: WebGLVertexArrayObject;
   /** Position, scale, rotation and colour buffers (attribute locations 1–4). */
@@ -209,6 +239,9 @@ export class WebGL2Backend implements Backend {
   private quadBuffer!: WebGLBuffer;
   private copyPipe!: CopyPipeline;
   private each!: EachPipeline;
+  /** Made on the first shape, so apps that draw none never build them. */
+  private shapePipe: ShapePipeline | undefined;
+  private shapes: ShapeBuffer | undefined;
   private stagingScale = new Float32Array(0);
   private stagingRot = new Float32Array(0);
   private staging = new Float32Array(0);
@@ -250,12 +283,12 @@ export class WebGL2Backend implements Backend {
   private lastSrc: TextureSource | null = null;
   private last: CachedTexture | undefined;
   private count = 0;
-  private blend: BlendMode = "normal";
+  private blend: BlendMode | "mask" = "normal";
   private submitted = 0;
 
   /** Draw calls this frame, counting the batch still pending (read before `end()` flushes it). */
   get drawCalls(): number {
-    return this.submitted + (this.count > 0 ? 1 : 0);
+    return this.submitted + (this.count > 0 || (this.shapes?.count ?? 0) > 0 ? 1 : 0);
   }
 
   constructor(gl: WebGL2RenderingContext) {
@@ -323,6 +356,7 @@ export class WebGL2Backend implements Backend {
     this.linear = sampler(gl, gl.LINEAR);
     this.copyPipe = this.copyPipeline(quad);
     this.each = this.eachPipeline(quad);
+    this.shapePipe = undefined;
     gl.useProgram(program);
     gl.bindVertexArray(this.vao);
   }
@@ -356,6 +390,8 @@ export class WebGL2Backend implements Backend {
     smooth: boolean,
   ): void {
     if (this.lost) return;
+    // Custom effects run in the sprite program, so they end a mixed shape batch.
+    if (this.shader && this.shapes && this.shapes.count > 0) this.flushShapes();
     // Fast path: consecutive draws from the same source skip the texture lookup.
     if (src !== null && src === this.target) throw new Error("spryte: can't draw a render target into itself");
     const t = src === null ? this.white : src === this.lastSrc && this.last ? this.last : this.texture(src);
@@ -383,6 +419,21 @@ export class WebGL2Backend implements Backend {
     }
     this.lastUnit = unit;
     this.lastSmooth = smooth;
+    const shapes = this.shapes;
+    if (shapes && shapes.count > 0 && !this.shader) {
+      // Shapes pending: join their batch instead of breaking it.
+      shapes.sprite(
+        m,
+        sx * t.iw,
+        t.v0 + sy * t.ih,
+        (sx + sw) * t.iw,
+        t.v0 + (sy + sh) * t.ih,
+        color === 0xffffffff ? color : bytes(color),
+        flash,
+        unit,
+      );
+      return;
+    }
     const f = this.count * (STRIDE / 4);
     const { f32 } = this;
     f32[f] = m[0];
@@ -398,10 +449,7 @@ export class WebGL2Backend implements Backend {
     f32[f + 10] = flash;
     f32[f + 11] = unit;
     // Bytes in memory must read R, G, B, A; Uint32 is little-endian.
-    this.u32[f + 12] =
-      color === 0xffffffff
-        ? color
-        : ((color & 0xff) << 24) | (((color >>> 8) & 0xff) << 16) | (((color >>> 16) & 0xff) << 8) | (color >>> 24);
+    this.u32[f + 12] = color === 0xffffffff ? color : bytes(color);
     this.count++;
   }
 
@@ -558,7 +606,7 @@ export class WebGL2Backend implements Backend {
     gl.enableVertexAttribArray(loc);
   }
 
-  setBlend(mode: BlendMode): void {
+  setBlend(mode: BlendMode | "mask"): void {
     if (mode === this.blend || this.lost) return;
     this.flush();
     this.blend = mode;
@@ -634,6 +682,12 @@ export class WebGL2Backend implements Backend {
       gl.deleteProgram(this.each.program);
       gl.deleteVertexArray(this.each.vao);
       for (const b of this.each.buffers) gl.deleteBuffer(b);
+      if (this.shapePipe) {
+        gl.deleteProgram(this.shapePipe.program);
+        gl.deleteVertexArray(this.shapePipe.vao);
+        gl.deleteBuffer(this.shapePipe.buffer);
+        gl.deleteBuffer(this.shapePipe.indices);
+      }
     }
     this.textures.clear();
     this.targets.clear();
@@ -821,7 +875,82 @@ export class WebGL2Backend implements Backend {
     };
   }
 
+  path(
+    m: Matrix,
+    points: ArrayLike<number>,
+    n: number,
+    closed: boolean,
+    width: number,
+    color: number,
+    aa: number,
+    tessellator: new () => ShapeBuffer,
+  ): void {
+    if (this.lost) return;
+    // Shapes and sprites share one draw order: send queued sprites first.
+    if (this.count > 0) this.flush();
+    this.shapes ??= new tessellator();
+    this.shapes.add(m, points, n, closed, width, bytes(color), aa);
+  }
+
+  private flushShapes(): void {
+    const s = this.shapes;
+    if (!s || s.count === 0) return;
+    if (this.lost) {
+      s.count = 0;
+      s.icount = 0;
+      return;
+    }
+    const gl = this.gl;
+    this.shapePipe ??= this.shapePipeline();
+    const p = this.shapePipe;
+    // Textures of sprites that joined the batch.
+    for (let i = 0; i < this.unitCount; i++) {
+      gl.activeTexture(gl.TEXTURE0 + i);
+      gl.bindTexture(gl.TEXTURE_2D, this.units[i] ?? null);
+      gl.bindSampler(i, this.unitSmooth[i] ? this.linear : this.nearest);
+    }
+    this.unitCount = 0;
+    gl.useProgram(p.program);
+    gl.bindVertexArray(p.vao);
+    this.syncView(p);
+    gl.bindBuffer(gl.ARRAY_BUFFER, p.buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, s.f32, gl.STREAM_DRAW, 0, s.count * 6);
+    // The index buffer is part of the shape VAO's state.
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, s.indices, gl.STREAM_DRAW, 0, s.icount);
+    gl.drawElements(gl.TRIANGLES, s.icount, gl.UNSIGNED_INT, 0);
+    this.submitted++;
+    s.count = 0;
+    s.icount = 0;
+    gl.useProgram(this.active.program);
+    gl.bindVertexArray(this.vao);
+  }
+
+  private shapePipeline(): ShapePipeline {
+    const gl = this.gl;
+    const program = link(gl, SHAPE_VERT, FRAG, "shape");
+    gl.useProgram(program);
+    gl.uniform1iv(
+      gl.getUniformLocation(program, "u_tex"),
+      Array.from({ length: UNITS }, (_, i) => i),
+    );
+    const vao = gl.createVertexArray();
+    const buffer = gl.createBuffer();
+    const indices = gl.createBuffer();
+    if (!buffer || !indices) throw new Error("WebGL2: could not create shape buffer");
+    gl.bindVertexArray(vao);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indices);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 24, 0);
+    gl.enableVertexAttribArray(1);
+    gl.vertexAttribPointer(1, 4, gl.UNSIGNED_BYTE, true, 24, 16);
+    gl.enableVertexAttribArray(2);
+    gl.vertexAttribPointer(2, 4, gl.UNSIGNED_BYTE, true, 24, 20);
+    return { program, view: gl.getUniformLocation(program, "u_view"), w: -1, h: -1, vao, buffer, indices };
+  }
+
   private flush(): void {
+    this.flushShapes();
     if (this.lost) {
       this.count = 0;
       this.unitCount = 0;
@@ -918,9 +1047,20 @@ export class WebGL2Backend implements Backend {
 
   private applyBlend(): void {
     const gl = this.gl;
-    if (this.blend === "add") gl.blendFunc(gl.ONE, gl.ONE);
+    // Colours are premultiplied, so each mode is one blendFunc.
+    const b = this.blend;
+    if (b === "add") gl.blendFunc(gl.ONE, gl.ONE);
+    else if (b === "multiply") gl.blendFunc(gl.DST_COLOR, gl.ONE_MINUS_SRC_ALPHA);
+    else if (b === "screen") gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR);
+    else if (b === "erase") gl.blendFunc(gl.ZERO, gl.ONE_MINUS_SRC_ALPHA);
+    else if (b === "mask") gl.blendFunc(gl.ZERO, gl.SRC_ALPHA);
     else gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
   }
+}
+
+/** 0xRRGGBBAA as a Uint32 whose little-endian bytes read R, G, B, A. */
+function bytes(color: number): number {
+  return ((color & 0xff) << 24) | (((color >>> 8) & 0xff) << 16) | (((color >>> 16) & 0xff) << 8) | (color >>> 24);
 }
 
 function sampler(gl: WebGL2RenderingContext, filter: number): WebGLSampler {

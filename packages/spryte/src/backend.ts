@@ -1,7 +1,13 @@
 /** 2D affine matrix `[a, b, c, d, e, f]`: x' = a·x + c·y + e, y' = b·x + d·y + f (Canvas order). */
 export type Matrix = [number, number, number, number, number, number];
 
-export type BlendMode = "normal" | "add";
+/**
+ * How drawing combines with what's underneath. `add` brightens (glows, fire), `multiply` darkens (shadows,
+ * tinted lighting), `screen` lightens softly, and `erase` cuts alpha out of what's there (holes in a render
+ * target, masks). On a see-through target `multiply` follows the GPU formula, which hides drawing over fully
+ * transparent pixels where Canvas 2D shows it.
+ */
+export type BlendMode = "normal" | "add" | "multiply" | "screen" | "erase";
 
 export interface ClipRect {
   x: number;
@@ -15,6 +21,7 @@ export type RawContext = { kind: "webgl2"; gl: WebGL2RenderingContext } | { kind
 
 import type { CopySpec } from "./copies.js";
 import type { Shader } from "./shader.js";
+import type { ShapeBuffer } from "./shapes.js";
 import type { RenderTarget } from "./target.js";
 
 /** Image sources the renderer can draw. Textures are cached per source object. */
@@ -71,14 +78,33 @@ export interface Backend {
   ): void;
   /** Copies of one frame with per-copy scale, rotation or colour (`draw.sprites` with `each`). */
   copies(spec: CopySpec): void;
-  setBlend(mode: BlendMode): void;
+  /**
+   * Fill (`width` 0) or stroke a path of `n` points (x0, y0, x1, y1, …) in the units `m` maps to logical space.
+   * `aa` is one device pixel in those units, for edge antialiasing where the backend does its own. The
+   * tessellator comes from the shape functions, so it's only in apps that draw shapes.
+   */
+  path(
+    m: Matrix,
+    points: ArrayLike<number>,
+    n: number,
+    closed: boolean,
+    width: number,
+    color: number,
+    aa: number,
+    tessellator: new () => ShapeBuffer,
+  ): void;
+  /** `mask` (internal, for `mask()`) keeps what's there in proportion to the source's alpha. */
+  setBlend(mode: BlendMode | "mask"): void;
   /**
    * Send drawing to `target` (null: the canvas). `clear` (0xRRGGBBAA) clears it first; null keeps what's there.
-   * `width, height` are the logical size of the destination (the target's pixel size, or the canvas's logical size).
+   * `width, height` are the logical size of the destination: the canvas's logical size, or for a target its pixel
+   * size (`into`) or the canvas's logical size again (`mask`, whose targets match the canvas's backing pixels).
    */
   setTarget(target: RenderTarget | null, clear: number | null, width: number, height: number): void;
   /** Draw subsequent quads with a custom fragment effect (null: the default). */
   setShader(shader: Shader | null): void;
+  /** Canvas 2D only: a CSS filter (`"none"` to clear) for subsequent draws. Its presence selects CSS filters in `filter()`. */
+  setFilter?(css: string): void;
   /** Free a target's GPU or canvas storage. */
   disposeTarget(target: RenderTarget): void;
   /** Restrict drawing to a rectangle in backing-store pixels (top-left origin), or remove the clip. */

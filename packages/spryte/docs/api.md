@@ -45,11 +45,31 @@ draw.dispose();                           // frees GPU objects and listeners; th
 | `push()`, `pop()`, `translate(x, y)`, `scale(x, y?)`, `rotate(rad)` | Transform stack. `begin()` resets it. |
 | `clip(x, y, w, h, fn)` | Draws inside `fn` are clipped to the rectangle's screen bounds. Nested clips intersect. |
 | `withCamera(camera, fn)` | Applies `camera.view()` (any `{ view(): Matrix }`) for the draws inside `fn`. |
-| `blend(mode)` | `"normal"` or `"add"`. |
+| `blend(mode)` | `"normal"`, `"add"` (glow), `"multiply"` (shadows, tinted light), `"screen"` (soft lightening) or `"erase"` (cut alpha out, e.g. holes in a render target). Pixel-identical on WebGL2 and Canvas 2D over opaque pixels. Erase in render targets or on a `transparent` canvas: what an erased opaque canvas shows is up to the browser. |
 | `alpha` | Global alpha multiplier. |
 | `smooth` | Default filtering. |
 | `font` | Default font: a CSS string, a `BitmapFont`, or a function returning one (evaluated lazily). |
 | `invalidate(image)` | Re-upload an image whose pixels changed. |
+
+### Optional features
+
+Imported functions that take the `Draw`, so an app only ships the ones it uses (startup stays at spryte's core size otherwise):
+
+```ts
+import { blur, filter, mask, nineSlice, roundRect } from "spryte";
+roundRect(draw, 8, 8, 120, 40, 6, "#222c");
+```
+
+| Function | Notes |
+| --- | --- |
+| `polygon(draw, points, color, count?)` | Filled, antialiased polygon through `[x0, y0, x1, y1, …]`. Concave is fine; it shouldn't cross itself. |
+| `polyline(draw, points, width, color, closed?, count?)` | Antialiased line through the points, mitred joins, flat ends. Lines under a pixel fade rather than vanish. |
+| `roundRect(draw, x, y, w, h, radius, color, lineWidth?)` | Rounded rectangle, filled or (with `lineWidth`) outlined. |
+| `ring(draw, x, y, radius, width, color)` | Circle outline. |
+| `nineSlice(draw, frame, x, y, w, h, insets, options?)` | UI panel: corners keep their size (`insets` in source pixels, one number or `[l, t, r, b]`), edges and centre stretch. Nine quads. Options: `tint`, `alpha`, `flash`, `smooth`. |
+| `tiled(draw, frame, x, y, w, h, options?)` | Fill a box with a repeating frame (works inside atlases). Options add `offsetX`, `offsetY` (scroll, wraps) and `scale`. One quad per visible tile. |
+| `mask(draw, shape, fn)` | Keep what `fn` draws only where `shape` draws (soft edges use the shape's alpha). Same units, transform and clips as outside; nests; works inside `into()`. Two offscreen passes at the destination's size, so mask groups, not single sprites. |
+| `filter(draw, filters, fn)` | Draw `fn` through filters in order: `blur(radius)`, `grayscale()`, `sepia()`, `saturate()`, `hueRotate()`, `brightness()`, `contrast()`, `invert()` (all on both backends, matching CSS filters) and `colorMatrix(m)` (WebGL2 only). Glow: blur an additive copy, then draw the sharp one. On the Canvas 2D fallback, filters use `ctx.filter`: browsers that ignore it (Safari before 18) draw unfiltered, with a warning. |
 
 ## Render targets
 
