@@ -12,3 +12,4 @@ Agent tooling from building gloop:
 - core: `Random#state` gets and sets the generator's state, for undo and replays.
 - keiko: `toBeLessThan` / `toBeGreaterThan` matchers; docs say `-t` is a case-insensitive substring match and point async game logic at `run()` / `settle()` instead of `wait()`.
 - MCP: headless errors are now just the message (no `page.evaluate:` prefix or stack).
+- MCP, scenarios and dev: calling a hook an older `@debuffjp/dev` doesn't have now says to update it, instead of "is not a function".

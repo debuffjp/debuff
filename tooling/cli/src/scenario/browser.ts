@@ -8,7 +8,10 @@ export function callHook([method, args]: [string, unknown[]]): unknown {
   const hooks = (window as unknown as { __DEBUFF_DEV__?: Hooks }).__DEBUFF_DEV__;
   if (!hooks) throw new Error("window.__DEBUFF_DEV__ is missing. Call exposeDevHooks(game, { input }) in dev builds.");
   const fn = hooks[method];
-  if (typeof fn !== "function") throw new Error(`__DEBUFF_DEV__.${method} is not a function`);
+  if (typeof fn !== "function")
+    throw new Error(
+      `Unknown dev hook "${method}": the game's @debuffjp/dev is older than this tool. Update it (npm i -D @debuffjp/dev@latest).`,
+    );
   return fn(...args);
 }
 

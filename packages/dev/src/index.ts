@@ -331,7 +331,8 @@ function linkAgent(game: Game, session: DevSession, options: DevHooksOptions, er
     let body: { id: string; ok: true; result: unknown } | { id: string; ok: false; error: string };
     try {
       const fn = hooks[method];
-      if (typeof fn !== "function") throw new Error(`Unknown dev hook "${String(method)}"`);
+      if (typeof fn !== "function")
+        throw new Error(`Unknown dev hook "${String(method)}": this @debuffjp/dev is older than the tool. Update it.`);
       body = { id, ok: true, result: (fn as (...a: unknown[]) => unknown)(...args) };
       if (method === "capture") session.log("agent", "captured a frame");
       else if (method === "press" || method === "release" || method === "tap") session.log("agent", method, String(args[0] ?? ""));
