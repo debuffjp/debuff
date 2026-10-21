@@ -47,8 +47,18 @@ export class Gamepads {
   /** The raw pad state the next `poll()` uses: `fed`, else the first connected gamepad. */
   sample(): PadState | null {
     if (this.fed !== undefined) return this.fed;
-    return (typeof navigator !== "undefined" && navigator.getGamepads && navigator.getGamepads().find((p) => p?.connected)) || null;
+    if (typeof navigator === "undefined" || !navigator.getGamepads || this.blocked) return null;
+    try {
+      return navigator.getGamepads().find((p) => p?.connected) || null;
+    } catch {
+      // A frame whose permissions policy disallows "gamepad" (a chat app's sandbox, an embed) throws here
+      // on every call. Treat it as no pad, once and for all, instead of crashing the game each frame.
+      this.blocked = true;
+      return null;
+    }
   }
+
+  private blocked = false;
 
   poll(): void {
     [this.previous, this.current] = [this.current, this.previous];

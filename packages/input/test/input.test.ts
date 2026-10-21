@@ -108,6 +108,18 @@ describe("Gamepads", () => {
     g.poll();
     expect(g.connected).toBe(false);
   });
+
+  it("is inert, and stops asking, when a permissions policy blocks the Gamepad API", () => {
+    const getGamepads = vi.fn(() => {
+      throw new DOMException('Access to the feature "gamepad" is disallowed by permissions policy.', "SecurityError");
+    });
+    vi.stubGlobal("navigator", { getGamepads });
+    const g = new Gamepads();
+    g.poll();
+    g.poll();
+    expect(g.connected).toBe(false);
+    expect(getGamepads).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("embedding", () => {
