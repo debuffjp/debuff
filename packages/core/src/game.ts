@@ -348,7 +348,8 @@ export class Game {
       const { clientWidth: cw, clientHeight: ch } = this.container;
       if (cw > 0 && ch > 0) {
         css = Math.min(cw / this.minW, ch / this.minH);
-        if (this.scaleMode === "expand") this.setLogical(Math.max(this.minW, Math.round(cw / css)), Math.max(this.minH, Math.round(ch / css)));
+        if (this.scaleMode === "expand")
+          this.setLogical(Math.max(this.minW, Math.round(cw / css)), Math.max(this.minH, Math.round(ch / css)));
         // Integer mode snaps in device pixels so each logical pixel maps to whole device pixels.
         if (this.scaleMode === "integer") css = Math.max(1, Math.floor(css * dpr)) / dpr;
       }
