@@ -1,4 +1,4 @@
-// Download size: builds a one-sprite app with spryte and with PixiJS 8 (Vite production builds) and
+// Download size: builds a one-sprite app with spryte, PixiJS 8 and Phaser 4 (Vite production builds) and
 // measures the JavaScript, brotli-compressed, at startup and in total. Writes results/<date>.json.
 //   npm run build && node bench/size/run.mjs
 import { readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -13,7 +13,7 @@ const version = (pkg) => JSON.parse(readFileSync(join(modules, pkg, "package.jso
 const brotli = (b) => brotliCompressSync(b, { params: { [constants.BROTLI_PARAM_QUALITY]: 11 } }).length;
 
 const results = {};
-for (const name of ["spryte", "pixi"]) {
+for (const name of ["spryte", "pixi", "phaser"]) {
   const root = join(here, "apps", name);
   const out = join(root, "dist");
   rmSync(out, { recursive: true, force: true });
@@ -37,7 +37,7 @@ for (const name of ["spryte", "pixi"]) {
 const report = {
   date: new Date().toISOString(),
   method: "Vite production build of apps/<name> (one rotated sprite), JS only, brotli quality 11",
-  versions: { spryte: version("spryte"), "pixi.js": version("pixi.js"), vite: version("vite") },
+  versions: { spryte: version("spryte"), "pixi.js": version("pixi.js"), phaser: version("phaser"), vite: version("vite") },
   results,
 };
 const file = join(here, "results", `${report.date.slice(0, 10)}.json`);
