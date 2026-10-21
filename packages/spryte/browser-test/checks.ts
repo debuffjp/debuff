@@ -627,6 +627,7 @@ for (const backend of ["webgl2", "2d"] as const) {
     ["invert", [invert()], 3],
     ["blur", [blur(2)], 8],
     ["blur then grayscale", [blur(1.5), grayscale(0.5)], 8],
+    ["large blur (30 device px)", [blur(15)], 8],
   ];
   for (const [name, filters, tolerance] of cases) {
     const scene = (draw: Draw) => {

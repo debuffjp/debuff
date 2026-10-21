@@ -80,8 +80,8 @@ export function restore(draw: Draw, o: Offscreen): void {
   draw.blend(o.blend);
 }
 
-/** @internal Draw a pooled target over the whole destination, 1:1 and untransformed, through `shader` (default none). */
-export function whole(draw: Draw, t: RenderTarget, o: Offscreen, shader: Shader | null = null): void {
+/** @internal Draw a pooled target over the whole destination, 1:1 and untransformed, through `shader` (default none). 1:1 means `smooth` only matters to shaders sampling between texels. */
+export function whole(draw: Draw, t: RenderTarget, o: Offscreen, shader: Shader | null = null, smooth = false): void {
   const outer = draw.shader;
   if (outer !== shader) draw.backend.setShader(shader);
   const m = draw.tmp;
@@ -92,6 +92,6 @@ export function whole(draw: Draw, t: RenderTarget, o: Offscreen, shader: Shader 
   m[4] = 0;
   m[5] = 0;
   draw.quads++;
-  draw.backend.quad(m, t, 0, 0, t.width, t.height, 0xffffffff, 0, false);
+  draw.backend.quad(m, t, 0, 0, t.width, t.height, 0xffffffff, 0, smooth);
   if (outer !== shader) draw.backend.setShader(outer);
 }

@@ -45,7 +45,7 @@ export function filter(draw: Draw, filters: readonly Filter[], fn: () => void): 
             result,
             () => {
               for (const [name, value] of p.uniforms(1 / o.pw, 1 / o.ph, scale)) p.shader.set(name, value);
-              whole(draw, from, o, p.shader);
+              whole(draw, from, o, p.shader, p.smooth);
             },
             true,
           );
@@ -73,6 +73,8 @@ export interface Filter {
 /** @internal */
 export interface FilterPass {
   shader: Shader;
+  /** Sample the previous pass with linear filtering. */
+  smooth?: boolean;
   uniforms(texelW: number, texelH: number, scale: number): [string, UniformValue][];
 }
 
@@ -84,18 +86,33 @@ let matrixShader: Shader | undefined;
 const BLUR = `
 uniform vec2 dir;
 uniform float sigma;
+bool inside(vec2 uv) {
+  return all(greaterThanEqual(uv, vec2(0.0))) && all(lessThanEqual(uv, vec2(1.0)));
+}
 vec4 tap(vec2 uv) {
-  return all(greaterThanEqual(uv, vec2(0.0))) && all(lessThanEqual(uv, vec2(1.0))) ? source(uv) : vec4(0.0);
+  return inside(uv) ? source(uv) : vec4(0.0);
+}
+// Texels i and i + 1 from uv along d, weighted k1 and k2, in one linear sample at f. At the image's edge only
+// texel i is inside: sample it alone, since outside is transparent (clamping would repeat the edge texel).
+vec4 pair(vec2 uv, vec2 d, float i, float k1, float k2, float f) {
+  if (inside(uv + d * (i + 1.0))) return source(uv + d * f) * (k1 + k2);
+  return tap(uv + d * i) * k1;
 }
 vec4 effect(vec4 color, vec2 uv) {
-  float n = min(ceil(sigma * 3.0), 64.0);
+  // Out to 3 sigma, two texels per tap: linear filtering samples between texels i and i + 1 at the point
+  // that weights them as the Gaussian does, halving the taps.
+  float n = min(ceil(sigma * 3.0), 128.0);
+  float s2 = 2.0 * sigma * sigma;
   vec4 sum = tap(uv);
   float total = 1.0;
-  for (int i = 1; i <= 64; i++) {
-    float f = float(i);
-    if (f > n) break;
-    float k = exp(-f * f / (2.0 * sigma * sigma));
-    sum += (tap(uv + dir * f) + tap(uv - dir * f)) * k;
+  for (int j = 0; j < 64; j++) {
+    float i = 1.0 + 2.0 * float(j);
+    if (i > n) break;
+    float k1 = exp(-i * i / s2);
+    float k2 = exp(-(i + 1.0) * (i + 1.0) / s2);
+    float k = k1 + k2;
+    float f = (i * k1 + (i + 1.0) * k2) / k;
+    sum += pair(uv, dir, i, k1, k2, f) + pair(uv, -dir, i, k1, k2, f);
     total += 2.0 * k;
   }
   return sum / total * color;
@@ -115,14 +132,15 @@ vec4 effect(vec4 color, vec2 uv) {
 }`;
 
 /**
- * Gaussian blur. `radius` is the standard deviation in logical units, the same as CSS `blur()`. Two passes;
- * very large blurs (over about 20 device pixels) are cut short, so blur a smaller target and scale it up instead.
+ * Gaussian blur. `radius` is the standard deviation in logical units, the same as CSS `blur()`. Two passes of
+ * up to 65 taps; blurs over about 40 device pixels are cut short, so blur a smaller target and scale it up instead.
  */
 export function blur(radius: number): Filter {
   blurShader ??= new Shader(BLUR);
   const shader = blurShader;
   const pass = (x: number, y: number): FilterPass => ({
     shader,
+    smooth: true,
     uniforms: (tw, th, scale) => [
       ["dir", [x * tw, y * th]],
       ["sigma", Math.max(radius * scale, 1e-3)],
