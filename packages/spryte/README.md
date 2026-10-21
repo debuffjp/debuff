@@ -60,6 +60,8 @@ Against PixiJS 8 on the same machine, assets and simulation, over 3–7 interlea
 
 In [2dbench](https://github.com/debuffjp/2dbench)'s raycaster scene (a retro first-person maze drawn as thousands of texture slices), spryte held 20,000 enemies at 60 fps against PixiJS `Sprite`'s 5,000. The gap is per-sprite work: a PixiJS `Sprite` is a scene-graph object updated, bounded and batched every frame, while spryte writes a few numbers per sprite into a typed array and the GPU expands them. Static scenes, where PixiJS can cache, are much closer.
 
+Against Phaser 4 on the same laptop, spryte draws moving sprites 2.7–3.1× faster than Phaser's `Image` and 5× faster than its `SpriteGPULayer`, at 11.3 kB of JavaScript against Phaser's 276.6 kB ([spryte vs Phaser](https://debuff.jp/blog/spryte-vs-phaser)).
+
 - **Bulk sprites with no per-sprite JavaScript.** On WebGL2, pass a `Float32Array` of positions (plus optional per-copy scale, rotation and colour arrays) and spryte uploads it as is.
 - **Immediate mode.** There are no display objects to create, pool or destroy. Draw what you want this frame.
 - **Verified output.** Real-GPU pixel checks prove that the bulk paths, render targets and shaders draw exactly what the simple path draws.
@@ -78,6 +80,7 @@ draw.withShader(crt, () => draw.sprite(scene, 0, 0, { origin: [0, 0] }));
 - **Guides on debuff.jp:** [getting started](https://debuff.jp/spryte/getting-started), [sprites and frames](https://debuff.jp/spryte/sprites), [bulk sprites and particles](https://debuff.jp/spryte/bulk-sprites), [shapes and text](https://debuff.jp/spryte/shapes-and-text), [transforms and clipping](https://debuff.jp/spryte/transforms-and-clipping), [render targets and shaders](https://debuff.jp/spryte/render-targets-and-shaders), [pixel art](https://debuff.jp/spryte/pixel-art)
 - **[How spryte got fast](https://debuff.jp/research/how-spryte-got-fast):** the research write-up, from the first profile to the 8-byte instance format
 - **[Migrating from PixiJS](https://debuff.jp/spryte/migrating-from-pixijs):** the mental model, side-by-side code and a mapping table
+- **[Migrating from Phaser](https://debuff.jp/spryte/migrating-from-phaser):** what spryte replaces in Phaser, side-by-side code and a mapping table
 - [Changelog](https://github.com/debuffjp/spryte/blob/main/CHANGELOG.md)
 - [Roadmap](https://github.com/debuffjp/debuff/blob/main/docs/roadmap.md#spryte)
 - [API reference](https://github.com/debuffjp/spryte/blob/main/docs/api.md)
