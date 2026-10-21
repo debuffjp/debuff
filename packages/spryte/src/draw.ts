@@ -383,13 +383,13 @@ export class Draw {
       this.bitmapText(text, x, y, font, o);
       return;
     }
-    const entry = this.textCache.get(text, font, this.renderScale, (src) => this.backend.invalidate(src));
+    const entry = this.textCache.get(text, font, this.renderScale, this.backend);
     const ax = o.align === "center" ? 0.5 : o.align === "right" ? 1 : 0;
     const ay = o.baseline === "middle" ? 0.5 : o.baseline === "bottom" ? 1 : 0;
     this.local(x - ax * entry.w, y - ay * entry.h, entry.w, entry.h);
     const color = this.withAlpha(toRGBA(o.color ?? "#ffffff"), o.alpha ?? 1);
     this.quads++;
-    this.backend.quad(this.tmp, entry.canvas, 0, 0, entry.canvas.width, entry.canvas.height, color, 0, true);
+    this.backend.quad(this.tmp, entry.src, entry.sx, entry.sy, entry.sw, entry.sh, color, 0, true);
   }
 
   /**
@@ -399,7 +399,7 @@ export class Draw {
   measure(text: string, font: string | BitmapFont = this.defaultFont()): { w: number; h: number } {
     if (!text) return { w: 0, h: 0 };
     if (typeof font !== "string") return font.measure(text);
-    const entry = this.textCache.get(text, font, this.renderScale, (src) => this.backend.invalidate(src));
+    const entry = this.textCache.get(text, font, this.renderScale, this.backend);
     return { w: entry.w, h: entry.h };
   }
 
@@ -683,64 +683,173 @@ function makeCanvas(w: number, h: number): HTMLCanvasElement | OffscreenCanvas {
 }
 
 interface TextEntry {
-  canvas: HTMLCanvasElement | OffscreenCanvas;
-  /** The frame it was last drawn in. */
-  frame: number;
+  /** The image holding the rasterised string: an atlas page, or its own canvas. */
+  src: HTMLCanvasElement | OffscreenCanvas;
+  /** Source rect in `src`, in pixels. */
+  sx: number;
+  sy: number;
+  sw: number;
+  sh: number;
   /** Logical size. */
   w: number;
   h: number;
+  /** The atlas page it lives on, or null for its own canvas. */
+  page: AtlasPage | null;
+  /** The frame it was last drawn in. */
+  frame: number;
   used: number;
 }
 
+/** Atlas pages are this many pixels square. */
+const PAGE = 1024;
+
+interface AtlasPage {
+  canvas: HTMLCanvasElement | OffscreenCanvas;
+  ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
+  /** Shelf packing: the current shelf's top and height, and the next free x on it. */
+  shelfY: number;
+  shelfH: number;
+  x: number;
+  /** The last frame a string on this page was drawn in. */
+  frame: number;
+  keys: string[];
+}
+
+type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
+
 /**
- * LRU cache of rasterised text (white; tinted at draw time). Holds at least 256 strings, and never evicts one
- * drawn this frame or the last, so a screen with more distinct strings than that doesn't re-rasterise and
- * re-upload all of them every frame.
+ * Cache of rasterised text (white; tinted at draw time).
+ *
+ * On WebGL2, strings are packed into shared atlas pages, and a new string uploads only its own rectangle. Text
+ * that changes every frame (scores, timers, damage numbers) then costs one small upload per new string instead
+ * of a new texture each, and the labels on a page batch into one draw call. A full page is recycled once none
+ * of its strings was drawn this frame or the last; while every page is in use, a new page is added.
+ *
+ * On the Canvas 2D fallback, and for a string too big for a page, each string gets its own canvas, kept in an
+ * LRU of at least 256 strings that never evicts one drawn this frame or the last.
  */
 class TextCache {
   private readonly entries = new Map<string, TextEntry>();
+  private readonly pages: AtlasPage[] = [];
   private clock = 0;
   /** Advanced by `begin()`. */
   frame = 0;
   private limit = 256;
+  private measureCtx: Ctx2D | null = null;
+  private scratch: HTMLCanvasElement | OffscreenCanvas | null = null;
 
-  get(text: string, font: string, scale: number, evict: (src: TextureSource) => void): TextEntry {
+  get(text: string, font: string, scale: number, backend: Backend): TextEntry {
     const key = `${scale}|${font}|${text}`;
     const hit = this.entries.get(key);
     if (hit) {
       hit.used = ++this.clock;
       hit.frame = this.frame;
+      if (hit.page) hit.page.frame = this.frame;
       return hit;
     }
-    const measureCtx = makeCanvas(1, 1).getContext("2d") as CanvasRenderingContext2D | null;
-    if (!measureCtx) throw new Error("draw.text needs a 2D canvas for rasterising text");
-    measureCtx.font = font;
-    const metrics = measureCtx.measureText(text);
+    if (!this.measureCtx) {
+      this.measureCtx = makeCanvas(1, 1).getContext("2d") as Ctx2D | null;
+      if (!this.measureCtx) throw new Error("draw.text needs a 2D canvas for rasterising text");
+    }
+    this.measureCtx.font = font;
+    const metrics = this.measureCtx.measureText(text);
     const ascent = metrics.fontBoundingBoxAscent ?? metrics.actualBoundingBoxAscent;
     const descent = metrics.fontBoundingBoxDescent ?? metrics.actualBoundingBoxDescent;
     const w = Math.ceil(metrics.width) + 2;
     const h = Math.ceil(ascent + descent) + 2;
-    const canvas = makeCanvas(Math.ceil(w * scale), Math.ceil(h * scale));
-    const ctx = canvas.getContext("2d") as CanvasRenderingContext2D | null;
-    if (ctx) {
+    const pw = Math.ceil(w * scale);
+    const ph = Math.ceil(h * scale);
+    const draw = (ctx: Ctx2D) => {
       ctx.scale(scale, scale);
       ctx.font = font;
       ctx.fillStyle = "#fff";
       ctx.textBaseline = "alphabetic";
       ctx.fillText(text, 1, 1 + ascent);
-    }
-    const entry = { canvas, w, h, used: ++this.clock, frame: this.frame };
+    };
+    const entry =
+      backend.update && pw + 2 <= PAGE && ph + 2 <= PAGE / 8
+        ? this.pack(key, pw, ph, w, h, draw, backend)
+        : this.own(pw, ph, w, h, draw, backend);
     this.entries.set(key, entry);
-    if (this.entries.size > this.limit) {
+    return entry;
+  }
+
+  /** Rasterise into an atlas page and upload just that rectangle. */
+  private pack(key: string, pw: number, ph: number, w: number, h: number, draw: (ctx: Ctx2D) => void, backend: Backend): TextEntry {
+    const page = this.room(pw, ph);
+    // A pixel of gap around each string, so linear filtering never picks up a neighbour.
+    const sx = page.x + 1;
+    const sy = page.shelfY + 1;
+    page.x += pw + 2;
+    page.keys.push(key);
+    page.frame = this.frame;
+    if (!this.scratch || this.scratch.width < pw || this.scratch.height < ph)
+      this.scratch = makeCanvas(Math.max(pw, 256), Math.max(ph, 64));
+    const sc = this.scratch.getContext("2d") as Ctx2D | null;
+    if (sc) {
+      sc.setTransform(1, 0, 0, 1, 0, 0);
+      sc.clearRect(0, 0, this.scratch.width, this.scratch.height);
+      draw(sc);
+      // The page keeps a copy, so the whole texture can be rebuilt (a lost context, or its first use).
+      page.ctx.clearRect(sx, sy, pw, ph);
+      page.ctx.drawImage(this.scratch, 0, 0, pw, ph, sx, sy, pw, ph);
+      backend.update?.(page.canvas, sx, sy, this.scratch, pw, ph);
+    }
+    return { src: page.canvas, sx, sy, sw: pw, sh: ph, w, h, page, frame: this.frame, used: ++this.clock };
+  }
+
+  /** A page with room for a `pw × ph` string: the current one, a recycled one, or a new one. */
+  private room(pw: number, ph: number): AtlasPage {
+    const current = this.pages[this.pages.length - 1];
+    if (current) {
+      if (current.x + pw + 2 <= PAGE && ph + 2 <= current.shelfH) return current;
+      // Start a new shelf below the current one.
+      const y = current.shelfY + current.shelfH;
+      if (y + ph + 2 <= PAGE) {
+        current.shelfY = y;
+        current.shelfH = ph + 2;
+        current.x = 0;
+        return current;
+      }
+    }
+    // Recycle the least recently drawn page that nothing on screen uses (not drawn this frame or the last).
+    let free: AtlasPage | undefined;
+    for (const p of this.pages) if (p.frame < this.frame - 1 && (!free || p.frame < free.frame)) free = p;
+    if (free) {
+      for (const k of free.keys) this.entries.delete(k);
+      free.keys.length = 0;
+      this.pages.splice(this.pages.indexOf(free), 1);
+    } else {
+      const canvas = makeCanvas(PAGE, PAGE);
+      const ctx = canvas.getContext("2d") as Ctx2D | null;
+      if (!ctx) throw new Error("draw.text needs a 2D canvas for rasterising text");
+      free = { canvas, ctx, shelfY: 0, shelfH: 0, x: 0, frame: this.frame, keys: [] };
+    }
+    free.shelfY = 0;
+    free.shelfH = ph + 2;
+    free.x = 0;
+    // Last in the list is the current page.
+    this.pages.push(free);
+    return free;
+  }
+
+  /** Its own canvas: the Canvas 2D fallback, or a string too big for a page. */
+  private own(pw: number, ph: number, w: number, h: number, draw: (ctx: Ctx2D) => void, backend: Backend): TextEntry {
+    const canvas = makeCanvas(pw, ph);
+    const ctx = canvas.getContext("2d") as Ctx2D | null;
+    if (ctx) draw(ctx);
+    let owned = 1;
+    for (const e of this.entries.values()) if (!e.page) owned++;
+    if (owned > this.limit) {
       // Evict the least recently used quarter, never anything drawn this frame or the last.
-      const stale = [...this.entries].filter(([, e]) => e.frame < this.frame - 1).sort((a, b) => a[1].used - b[1].used);
-      for (const [k, e] of stale.slice(0, Math.max(64, this.entries.size >> 2))) {
+      const stale = [...this.entries].filter(([, e]) => !e.page && e.frame < this.frame - 1).sort((a, b) => a[1].used - b[1].used);
+      for (const [k, e] of stale.slice(0, Math.max(64, owned >> 2))) {
         this.entries.delete(k);
-        evict(e.canvas);
+        backend.invalidate(e.src);
       }
       // Still full of live strings: the screen needs more, so make room for them.
-      this.limit = Math.max(256, this.entries.size * 2);
+      this.limit = Math.max(256, owned * 2);
     }
-    return entry;
+    return { src: canvas, sx: 0, sy: 0, sw: pw, sh: ph, w, h, page: null, frame: this.frame, used: ++this.clock };
   }
 }

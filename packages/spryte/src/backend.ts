@@ -88,5 +88,11 @@ export interface Backend {
   resize(backingWidth: number, backingHeight: number): void;
   /** Drop cached GPU data for a source whose pixels changed. */
   invalidate(src: TextureSource): void;
+  /**
+   * Copy `w × h` pixels of `from` into `dst` at (`x`, `y`), where `dst` (a canvas this backend may hold as a
+   * texture) has already been updated the same way. Lets a texture atlas upload one new region instead of
+   * re-uploading the whole image. Backends that draw straight from the canvas don't need it.
+   */
+  update?(dst: TextureSource, x: number, y: number, from: HTMLCanvasElement | OffscreenCanvas, w: number, h: number): void;
   dispose(): void;
 }

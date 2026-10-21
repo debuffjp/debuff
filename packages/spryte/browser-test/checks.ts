@@ -443,4 +443,18 @@ for (const backend of ["webgl2", "2d"] as const) {
   if (raw.kind === "webgl2") raw.gl.getExtension("WEBGL_lose_context")?.loseContext();
 }
 
+// Text atlas (WebGL2): strings added after a page is on the GPU upload only their own rectangle. Draw them
+// straight away (the first string uploads the page, the rest go through region uploads), and compare with a
+// renderer that rasterised them all first (one whole-page upload). Same pixels means the region path is right.
+{
+  const labels = Array.from({ length: 60 }, (_, i) => `${(i * 7919) % 1000}`);
+  const scene = (warm: boolean) => (draw: Draw) => {
+    if (warm) for (const t of labels) draw.measure(t, "bold 9px monospace");
+    labels.forEach((t, i) => {
+      draw.text(t, 2 + (i % 6) * 13, 2 + Math.floor(i / 6) * 5.5, { font: "bold 9px monospace", color: i % 2 ? "#cffb2d" : "#fff" });
+    });
+  };
+  record("text atlas: region uploads == whole-page upload (webgl2)", await render(scene(true)), await render(scene(false)));
+}
+
 (window as unknown as { __checks: unknown }).__checks = results;

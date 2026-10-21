@@ -160,6 +160,9 @@ describe("text cache", () => {
       textBaseline: "",
       scale() {},
       fillText() {},
+      setTransform() {},
+      clearRect() {},
+      drawImage() {},
       measureText: (t: string) => ({ width: t.length * 8, fontBoundingBoxAscent: 12, fontBoundingBoxDescent: 4 }),
     };
     vi.stubGlobal(
@@ -204,5 +207,47 @@ describe("text cache", () => {
       for (let i = 0; i < 200; i++) draw.text(`${f}:${i}`, 0, 0);
     }
     expect(evicted.length).toBeGreaterThan(0);
+  });
+  /** A recorder whose backend can upload regions, so text goes into atlas pages (the WebGL2 path). */
+  const atlas = () => {
+    const r = recorder();
+    const updates: { dst: TextureSource; x: number; y: number; w: number; h: number }[] = [];
+    (r.draw as unknown as { backend: Backend }).backend.update = (dst, x, y, _from, w, h) => updates.push({ dst, x, y, w, h });
+    return { ...r, updates };
+  };
+
+  it("packs strings into shared pages and uploads only each new string's rectangle", () => {
+    const { draw, quads, updates } = atlas();
+    for (let f = 0; f < 2; f++) {
+      draw.begin("#000", 100, 100, 1);
+      for (let i = 0; i < 600; i++) draw.text(String(i), 0, 0);
+    }
+    // One upload per new string, none for strings already cached.
+    expect(updates).toHaveLength(600);
+    // 600 short strings fit on one page, so they all share one texture (one batch).
+    expect(new Set(quads.map((q) => q.src)).size).toBe(1);
+    // No two strings overlap on the page.
+    const rects = updates.map((u) => [u.x, u.y, u.x + u.w, u.y + u.h]);
+    const overlap = rects.some((a, i) => rects.some((b, j) => i !== j && a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3]));
+    expect(overlap).toBe(false);
+    // Each quad reads its string's rectangle.
+    expect(quads[0]?.uv).toEqual([updates[0]?.x, updates[0]?.y, updates[0]?.w, updates[0]?.h]);
+  });
+
+  it("recycles pages whose strings left the screen, and never one still on it", () => {
+    const { draw, quads, updates } = atlas();
+    for (let f = 0; f < 40; f++) {
+      draw.begin("#000", 100, 100, 1);
+      // 4,000 new strings a frame: more than a page holds, so pages fill and must be recycled.
+      for (let i = 0; i < 4000; i++) draw.text(`${f}:${i}`, 0, 0);
+    }
+    const pages = new Set(updates.map((u) => u.dst));
+    // Bounded: about five pages a frame, and this frame's and last frame's must stay, so about ten in all,
+    // rather than five more every frame.
+    expect(pages.size).toBeLessThanOrEqual(12);
+    // Within the last frame, no rectangle was written twice (a recycled page never held a string drawn that frame).
+    const last = updates.slice(-4000).map((u) => `${String(pages.size && [...pages].indexOf(u.dst))}:${u.x}:${u.y}`);
+    expect(new Set(last).size).toBe(last.length);
+    expect(quads.length).toBe(160000);
   });
 });
