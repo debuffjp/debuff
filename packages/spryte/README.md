@@ -2,11 +2,11 @@
 
 # spryte
 
-**Blazing fast 2D rendering for the web: 2–4× faster than the most popular renderer, at a ninth of its size.** Every number is checked pixel for pixel in [2dbench](https://github.com/debuffjp/2dbench), an open benchmark you can [run on your own device](https://debuffjp.github.io/2dbench/mobile.html).
+**Blazing fast 2D rendering for the web: 2–4× faster than the most popular renderer, at an eighth of its size.** Every number is checked pixel for pixel in [2dbench](https://github.com/debuffjp/2dbench), an open benchmark you can [run on your own device](https://debuffjp.github.io/2dbench/mobile.html).
 
 ![Most sprites each library holds at 60 fps, per 2dbench scene](https://debuff.jp/charts/max-at-60fps.svg)
 
-You draw in immediate mode (sprites, bulk sprites, rects, circles, lines, text, clips, blend modes, render targets and custom shaders), and spryte batches it onto WebGL2 with instancing, falling back to Canvas 2D automatically. No dependencies, no scene graph, no game framework.
+You draw in immediate mode (sprites, bulk sprites, nine-slice panels, tiled fills, shapes and strokes, text, clips, masks, blend modes, filters, render targets and custom shaders), and spryte batches it onto WebGL2 with instancing, falling back to Canvas 2D automatically. No dependencies, no scene graph, no game framework.
 
 > **Alpha.** spryte is the renderer inside [debuff](https://debuff.jp), where games already run on it. The API may still change before 1.0. It's measured on desktop Chrome and Chromium (Windows and Linux; NVIDIA and AMD GPUs), iPhone Safari and Chrome, and Firefox on Android, and its one-call-per-sprite path is ahead of PixiJS on every device so far ([results across devices](https://github.com/debuffjp/2dbench#across-devices)). Safari on macOS isn't covered yet: [run 2dbench on your device](https://debuffjp.github.io/2dbench/mobile.html) to help.
 
@@ -49,7 +49,7 @@ Against PixiJS 8 on the same machine, assets and simulation, over 3–7 interlea
 
 | | spryte | PixiJS 8 | |
 | --- | --- | --- | --- |
-| JS at startup (brotli) | **10.1 kB** | 87.8 kB | ~9× smaller |
+| JS at startup (brotli) | **11.3 kB** | 87.8 kB | ~8× smaller |
 | 200k particles, per-particle scale, rotation, tint and alpha all changing | **5.8 ms** | 24.2 ms (`ParticleContainer`) | 4.2× faster |
 | 50k sprites with rotation, scale and tint, one call each | **7.8 ms** | 27.1 ms (`Sprite`) | 3.5× faster |
 | 200k sprites, position only, bulk | **2.8 ms** | 7.2 ms (`ParticleContainer`) | 2.6× faster |

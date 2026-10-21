@@ -1,6 +1,6 @@
 # spryte benchmarks
 
-**Short version:** on the same machine, assets and simulation, spryte is **2.6–4.2× faster than PixiJS 8** on comparable APIs, and ships about **9× less JavaScript** at startup. A pixel-parity gate confirms both draw the same scene before anything is timed. These are one desktop machine's numbers. Across the other devices measured in [2dbench](https://github.com/debuffjp/2dbench#across-devices) (an RTX 4080 laptop on Linux, AMD integrated graphics, an Apple M5 Pro, iPhones in Safari and Chrome, an Android phone in Firefox), spryte's one-call-per-sprite path is ahead on every one.
+**Short version:** on the same machine, assets and simulation, spryte is **2.6–4.2× faster than PixiJS 8** on comparable APIs, and ships about **8× less JavaScript** at startup. A pixel-parity gate confirms both draw the same scene before anything is timed. These are one desktop machine's numbers. Across the other devices measured in [2dbench](https://github.com/debuffjp/2dbench#across-devices) (an RTX 4080 laptop on Linux, AMD integrated graphics, an Apple M5 Pro, iPhones in Safari and Chrome, an Android phone in Firefox), spryte's one-call-per-sprite path is ahead on every one.
 
 ## Results, 2026-10-20
 
@@ -58,10 +58,10 @@ From [`bench/size`](https://github.com/debuffjp/debuff/tree/main/bench/size) (co
 
 | | JS at startup | All JS, including lazy chunks |
 | --- | --- | --- |
-| **spryte** 0.1.1 | **10.1 kB** | 11.4 kB (the lazy part is the Canvas 2D fallback) |
+| **spryte** main (2026-10-21) | **11.3 kB** | 13.0 kB (the lazy part is the Canvas 2D fallback) |
 | PixiJS 8.22 (`Application` + `Assets` + `Sprite`) | 87.8 kB | 152.0 kB |
 
-The PixiJS "all JS" figure includes lazy chunks from `Application` and `Assets` that an app built without them avoids. A hand-minimised PixiJS app (a bare `WebGLRenderer`, no `Application` or `Assets`) measured about 90 kB in total, so the comparison that holds up is startup: **about 9×**.
+The PixiJS "all JS" figure includes lazy chunks from `Application` and `Assets` that an app built without them avoids. A hand-minimised PixiJS app (a bare `WebGLRenderer`, no `Application` or `Assets`) measured about 90 kB in total, so the comparison that holds up is startup: **about 8×**. Shapes, masks, filters, `nineSlice` and `tiled` are imported functions, so they add nothing here unless an app uses them.
 
 ## Checked for fairness
 

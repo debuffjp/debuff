@@ -23,13 +23,14 @@ export class Canvas2DBackend implements Backend {
   private readonly surfaces = new WeakMap<RenderTarget, Surface>();
   private target: RenderTarget | null = null;
   private warnedShader = false;
+  private warnedFilter = false;
   private scale = 1;
   private smoothing: boolean | undefined;
   private scratch: HTMLCanvasElement | OffscreenCanvas | undefined;
   /** Recoloured frames per source, keyed by rect, tint and flash. */
   private shades = new WeakMap<object, Map<string, Surface>>();
   private clipped = false;
-  private blendMode: BlendMode = "normal";
+  private blendMode: BlendMode | "mask" = "normal";
 
   constructor(ctx: CanvasRenderingContext2D) {
     this.ctx = ctx;
@@ -121,9 +122,32 @@ export class Canvas2DBackend implements Backend {
     }
   }
 
-  setBlend(mode: BlendMode): void {
+  path(m: Matrix, points: ArrayLike<number>, n: number, closed: boolean, width: number, color: number): void {
+    if (n < 2) return;
+    const ctx = this.ctx;
+    const s = this.scale;
+    ctx.setTransform(m[0] * s, m[1] * s, m[2] * s, m[3] * s, m[4] * s, m[5] * s);
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.moveTo(points[0] as number, points[1] as number);
+    for (let i = 1; i < n; i++) ctx.lineTo(points[i * 2] as number, points[i * 2 + 1] as number);
+    if (closed || width === 0) ctx.closePath();
+    if (width === 0) {
+      ctx.fillStyle = rgbaToCss(color);
+      ctx.fill();
+    } else {
+      ctx.strokeStyle = rgbaToCss(color);
+      ctx.lineWidth = width;
+      ctx.lineJoin = "miter";
+      ctx.miterLimit = 4;
+      ctx.lineCap = "butt";
+      ctx.stroke();
+    }
+  }
+
+  setBlend(mode: BlendMode | "mask"): void {
     this.blendMode = mode;
-    this.ctx.globalCompositeOperation = mode === "add" ? "lighter" : "source-over";
+    this.ctx.globalCompositeOperation = COMPOSITE[mode];
   }
 
   setClip(rect: ClipRect | null): void {
@@ -162,11 +186,11 @@ export class Canvas2DBackend implements Backend {
 
   dispose(): void {}
 
-  setTarget(target: RenderTarget | null, clear: number | null, _width: number, _height: number): void {
+  setTarget(target: RenderTarget | null, clear: number | null, width: number, _height: number): void {
     this.ctx = target ? (this.surface(target).getContext("2d") as CanvasRenderingContext2D) : this.screen;
     this.target = target;
-    // Targets are sized in pixels; the canvas in logical units at its backing scale.
-    this.scale = target ? 1 : this.screenScale;
+    // The canvas is in logical units at its backing scale; a target at its pixels per logical unit (1 for `into`).
+    this.scale = target ? target.width / width : this.screenScale;
     this.smoothing = undefined;
     this.setBlend(this.blendMode);
     if (target && clear !== null) {
@@ -179,6 +203,17 @@ export class Canvas2DBackend implements Backend {
         ctx.fillRect(0, 0, target.width, target.height);
       }
     }
+  }
+
+  setFilter(css: string): void {
+    if (css !== "none" && !canvasFilters()) {
+      if (!this.warnedFilter) {
+        this.warnedFilter = true;
+        console.warn("spryte: this browser's Canvas 2D ignores ctx.filter, so filters draw unfiltered on the fallback");
+      }
+      return;
+    }
+    this.ctx.filter = css;
   }
 
   setShader(shader: Shader | null): void {
@@ -271,3 +306,35 @@ function newSurface(w: number, h: number): Surface {
 function mixWhite(c: number, f: number): number {
   return Math.round(c + ((255 - c) * f) / 255);
 }
+
+let filtersWork: boolean | undefined;
+
+/**
+ * Whether Canvas 2D applies `ctx.filter`. Some browsers accept the property and ignore it (Safari before 18), so
+ * this draws one red pixel through `grayscale(1)` and reads it back, once.
+ */
+export function canvasFilters(): boolean {
+  if (filtersWork === undefined) {
+    const c = typeof OffscreenCanvas === "function" ? new OffscreenCanvas(1, 1) : document.createElement("canvas");
+    const g = c.getContext("2d", { willReadFrequently: true }) as CanvasRenderingContext2D | null;
+    if (!g) {
+      filtersWork = false;
+      return false;
+    }
+    g.filter = "grayscale(1)";
+    g.fillStyle = "#f00";
+    g.fillRect(0, 0, 1, 1);
+    const [r, gr] = g.getImageData(0, 0, 1, 1).data;
+    filtersWork = r !== undefined && r === gr;
+  }
+  return filtersWork;
+}
+
+const COMPOSITE: Record<BlendMode | "mask", GlobalCompositeOperation> = {
+  normal: "source-over",
+  add: "lighter",
+  multiply: "multiply",
+  screen: "screen",
+  erase: "destination-out",
+  mask: "destination-in",
+};

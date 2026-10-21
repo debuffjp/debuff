@@ -62,28 +62,39 @@ export class Draw {
   /** Preallocated transform stack: push/pop copy six numbers and never allocate. */
   private readonly stack: Matrix[] = [];
   private depth = 0;
-  private readonly m: Matrix = [1, 0, 0, 1, 0, 0];
+  /** @internal */
+  readonly m: Matrix = [1, 0, 0, 1, 0, 0];
   private readonly frames = new WeakMap<TextureSource, Frame>();
   private lastImage: TextureSource | null = null;
   private lastFrame: Frame | undefined;
-  private readonly clips: ClipRect[] = [];
-  private shader: Shader | null = null;
+  /** @internal */
+  readonly clips: ClipRect[] = [];
+  /** @internal */
+  shader: Shader | null = null;
   /** The render target being drawn into, or null for the canvas. */
-  private target: RenderTarget | null = null;
+  /** @internal */
+  target: RenderTarget | null = null;
   /** The canvas's logical size this frame, to switch back to after `into()`. */
-  private viewW = 1;
-  private viewH = 1;
-  private readonly tmp: Matrix = [1, 0, 0, 1, 0, 0];
+  /** @internal */
+  viewW = 1;
+  /** @internal */
+  viewH = 1;
+  /** @internal */
+  readonly tmp: Matrix = [1, 0, 0, 1, 0, 0];
   private readonly textCache = new TextCache();
   /** Antialiased white circles, 64, 256 and 1024px across, each made on first use. */
   private readonly circleTextures: (HTMLCanvasElement | OffscreenCanvas | undefined)[] = [];
 
-  private backingW = 0;
-  private backingH = 0;
+  /** @internal */
+
+  backingW = 0;
+  /** @internal */
+  backingH = 0;
 
   /** @internal */
   constructor(
-    private backend: Backend,
+    /** @internal */
+    public backend: Backend,
     /** Default filtering for images (false for pixel art). */
     public smooth: boolean,
   ) {}
@@ -215,6 +226,7 @@ export class Draw {
   // ---- drawing ---------------------------------------------------------------------------
 
   blend(mode: BlendMode): void {
+    this.blendMode = mode;
     this.backend.setBlend(mode);
   }
 
@@ -374,7 +386,9 @@ export class Draw {
     return f;
   }
 
-  private spriteColor(o: SpriteDrawOptions): number {
+  /** @internal */
+
+  spriteColor(o: SpriteDrawOptions): number {
     const tint = o.tint === undefined ? WHITE : toRGBA(o.tint);
     const alpha = o.alpha ?? 1;
     return alpha === 1 && this.alpha === 1 ? tint : this.withAlpha(tint, alpha);
@@ -539,7 +553,8 @@ export class Draw {
     this.clips.length = 0;
     copy(IDENTITY, this.m);
     this.alpha = 1;
-    this.backend.setBlend("normal");
+    this.maskDepth = 0;
+    this.blend("normal");
     this.backend.begin(toRGBA(clear), width, height, scale);
   }
 
@@ -552,7 +567,7 @@ export class Draw {
     }
     copy(IDENTITY, this.m);
     this.alpha = 1;
-    this.backend.setBlend("normal");
+    this.blend("normal");
   }
 
   /** @internal */
@@ -582,8 +597,15 @@ export class Draw {
 
   // ---- internals ---------------------------------------------------------------------------
 
+  /** @internal */
+
+  blendMode: BlendMode = "normal";
+  /** @internal */
+  maskDepth = 0;
+
   /** tmp = current matrix × (translate(x, y) · scale(w, h)): maps the unit square to the rect. */
-  private local(x: number, y: number, w: number, h: number): void {
+  /** @internal */
+  local(x: number, y: number, w: number, h: number): void {
     const m = this.m;
     const t = this.tmp;
     t[0] = m[0] * w;
@@ -594,7 +616,9 @@ export class Draw {
     t[5] = m[1] * x + m[3] * y + m[5];
   }
 
-  private wholeImage(image: TextureSource): Frame {
+  /** @internal */
+
+  wholeImage(image: TextureSource): Frame {
     // Loops usually draw one image many times in a row; skip the WeakMap for repeats.
     if (image === this.lastImage && this.lastFrame) return this.lastFrame;
     let f = this.frames.get(image);
@@ -611,7 +635,9 @@ export class Draw {
     return typeof this.font === "function" ? this.font() : this.font;
   }
 
-  private withAlpha(rgba: number, alpha: number): number {
+  /** @internal */
+
+  withAlpha(rgba: number, alpha: number): number {
     const a = Math.round((rgba & 0xff) * alpha * this.alpha);
     return ((rgba & 0xffffff00) | Math.max(0, Math.min(255, a))) >>> 0;
   }
@@ -646,6 +672,7 @@ function disposed(was: Backend): Backend {
     raw: was.raw,
     begin: fail,
     quad: fail,
+    path: fail,
     quads: fail,
     copies: fail,
     setBlend: fail,
