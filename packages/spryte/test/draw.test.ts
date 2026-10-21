@@ -280,3 +280,37 @@ describe("shapes", () => {
     }
   });
 });
+
+describe("nineSlice and tiled", () => {
+  const image = { width: 30, height: 30 } as unknown as HTMLImageElement;
+
+  it("nineSlice keeps corners at source size and stretches the rest", () => {
+    const { draw, quads } = recorder();
+    draw.nineSlice(image, 0, 0, 100, 50, 10);
+    expect(quads).toHaveLength(9);
+    // Top-left corner: 10 × 10 from (0, 0); centre: 80 × 30 from the middle 10 × 10.
+    expect(quads[0]?.m).toEqual([10, 0, 0, 10, 0, 0]);
+    expect(quads[0]?.uv).toEqual([0, 0, 10, 10]);
+    expect(quads[4]?.m).toEqual([80, 0, 0, 30, 10, 10]);
+    expect(quads[4]?.uv).toEqual([10, 10, 10, 10]);
+  });
+
+  it("nineSlice shrinks corners evenly when the box is too small", () => {
+    const { draw, quads } = recorder();
+    draw.nineSlice(image, 0, 0, 10, 40, [10, 10, 10, 10]);
+    // Middle column collapses; corners are 5 wide.
+    expect(quads).toHaveLength(6);
+    expect(quads[0]?.m[0]).toBe(5);
+  });
+
+  it("tiled repeats the frame, clipping and scrolling the edge tiles", () => {
+    const { draw, quads } = recorder();
+    draw.tiled({ image, x: 0, y: 0, w: 10, h: 10 }, 0, 0, 25, 10, { offsetX: 5 });
+    // Tiles start 5 px early: [0,5) [5,15) [15,25).
+    expect(quads.map((q) => [q.m[4], q.m[0], q.uv[0], q.uv[2]])).toEqual([
+      [0, 5, 5, 5],
+      [5, 10, 0, 10],
+      [15, 10, 0, 10],
+    ]);
+  });
+});

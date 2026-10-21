@@ -59,7 +59,7 @@ What stops spryte replacing PixiJS's renderer in a typical game today, as of 0.2
 - [ ] **Masks.** Today: rectangular `clip`. Missing: masking by a sprite or shape.
 - [ ] **Filters.** Today: custom fragment shaders over render targets. Missing: ready-made effects (blur, glow, colour matrix, displacement) and a simple way to chain them.
 - [ ] **Text layout.** Today: CSS and bitmap fonts, `align`, `baseline`, line breaks and `measure`. Missing: word wrap to a width, and mixed styles in one string.
-- [ ] **Sprite variants.** Nine-slice (UI panels), tiling sprites, meshes and ropes.
+- [x] **Sprite variants.** `nineSlice` (UI panels) and `tiled` (repeating fills that work inside atlases). Meshes and ropes are left out of scope.
 - [ ] **Sheets and animation.** Loading texture atlases (Aseprite and TexturePacker JSON) into frames, and a small frame-animation helper. debuff's asset pipeline covers this for debuff games; standalone spryte users write their own today.
 - [ ] **Accessibility.** A pattern or helper for exposing canvas content to screen readers (PixiJS has an accessibility plugin).
 - [ ] **Migration tooling.** More of the [migration guide](https://debuff.jp/spryte/migrating-from-pixijs) as runnable examples, and side-by-side ports of common PixiJS examples.
