@@ -66,6 +66,7 @@ More in [Why debuff](https://debuff.jp/docs/why). Agents can start from [llms.tx
 | [`@debuffjp/dev`](./packages/dev) | Dev panel (perf, tune, state, explained errors, replays, rewind) and `window.__DEBUFF_DEV__`, stripped from production |
 | [`@debuffjp/cli`](./tooling/cli) | `debuff dev · build · assets · test · scenario · fuzz · inspect · report` |
 | [`myaku`](./packages/myaku) | Frame profiler for any web game: finds the hitches players feel and says why in plain words. Standalone; `debuff dev` runs it for you |
+| [`plonk`](./packages/plonk) | Game music made in code: songs as text, synthesized live with Web Audio, about 2 kB brotli. Standalone; plays through `audio.bus("music")` |
 | [`keiko`](./tooling/keiko) | Fast, deterministic logic tests for any web game: the real game in Node, no browser. Standalone; debuff integrates it |
 | [`create-debuff`](./tooling/create-debuff) | `npm create debuff` scaffolder |
 | [`@debuffjp/mcp`](./tooling/mcp) | MCP server: agents inspect, build, test and play your game |
