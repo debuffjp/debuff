@@ -1,0 +1,5 @@
+{
+  "mcpServers": {
+    "debuff": { "type": "streamable-http", "url": "https://debuff.jp/mcp" }
+  }
+}
