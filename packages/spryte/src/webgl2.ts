@@ -117,28 +117,33 @@ void main() {
   outColor = vec4(mix(t.rgb, vec3(t.a), u_flash), t.a);
 }`;
 
-/** Tessellated shapes (`polygon`, `polyline`, `roundRect`, `ring`): plain triangles with edge coverage. */
+/**
+ * Tessellated shapes (`polygon`, `polyline`, `roundRect`, `ring`) as indexed triangles with edge coverage.
+ * Sprites drawn while shapes are pending join the same batch as textured quads, so UI that alternates panels
+ * and icons stays one draw call. The fragment stage is the sprite program's.
+ */
 const SHAPE_VERT = `#version 300 es
-layout(location=0) in vec2 a_pos;
-layout(location=1) in float a_cov;
-layout(location=2) in vec4 a_color;
+layout(location=0) in vec4 a_posuv;   // x, y, u, v
+layout(location=1) in vec4 a_color;   // normalised RGBA
+layout(location=2) in vec4 a_extra;   // coverage, flash, texture unit / 255 (255: none)
 uniform vec2 u_view;
+out highp vec2 v_uv;
 out vec4 v_color;
+out float v_flash;
+flat out int v_unit;
 void main() {
-  vec2 clip = a_pos / u_view * 2.0 - 1.0;
+  vec2 clip = a_posuv.xy / u_view * 2.0 - 1.0;
   gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);
-  v_color = vec4(a_color.rgb * a_color.a, a_color.a) * a_cov;
+  v_uv = a_posuv.zw;
+  v_color = vec4(a_color.rgb * a_color.a, a_color.a) * a_extra.x;
+  v_flash = a_extra.y;
+  v_unit = int(a_extra.z * 255.0 + 0.5);
 }`;
-
-const SHAPE_FRAG = `#version 300 es
-precision mediump float;
-in vec4 v_color;
-out vec4 outColor;
-void main() { outColor = v_color; }`;
 
 interface ShapePipeline extends ProgramInfo {
   vao: WebGLVertexArrayObject;
   buffer: WebGLBuffer;
+  indices: WebGLBuffer;
 }
 
 interface EachPipeline extends ProgramInfo {
@@ -283,7 +288,7 @@ export class WebGL2Backend implements Backend {
 
   /** Draw calls this frame, counting the batch still pending (read before `end()` flushes it). */
   get drawCalls(): number {
-    return this.submitted + (this.count > 0 ? 1 : 0);
+    return this.submitted + (this.count > 0 || (this.shapes?.count ?? 0) > 0 ? 1 : 0);
   }
 
   constructor(gl: WebGL2RenderingContext) {
@@ -385,7 +390,8 @@ export class WebGL2Backend implements Backend {
     smooth: boolean,
   ): void {
     if (this.lost) return;
-    if (this.shapes && this.shapes.count > 0) this.flushShapes();
+    // Custom effects run in the sprite program, so they end a mixed shape batch.
+    if (this.shader && this.shapes && this.shapes.count > 0) this.flushShapes();
     // Fast path: consecutive draws from the same source skip the texture lookup.
     if (src !== null && src === this.target) throw new Error("spryte: can't draw a render target into itself");
     const t = src === null ? this.white : src === this.lastSrc && this.last ? this.last : this.texture(src);
@@ -413,6 +419,21 @@ export class WebGL2Backend implements Backend {
     }
     this.lastUnit = unit;
     this.lastSmooth = smooth;
+    const shapes = this.shapes;
+    if (shapes && shapes.count > 0 && !this.shader) {
+      // Shapes pending: join their batch instead of breaking it.
+      shapes.sprite(
+        m,
+        sx * t.iw,
+        t.v0 + sy * t.ih,
+        (sx + sw) * t.iw,
+        t.v0 + (sy + sh) * t.ih,
+        color === 0xffffffff ? color : bytes(color),
+        flash,
+        unit,
+      );
+      return;
+    }
     const f = this.count * (STRIDE / 4);
     const { f32 } = this;
     f32[f] = m[0];
@@ -665,6 +686,7 @@ export class WebGL2Backend implements Backend {
         gl.deleteProgram(this.shapePipe.program);
         gl.deleteVertexArray(this.shapePipe.vao);
         gl.deleteBuffer(this.shapePipe.buffer);
+        gl.deleteBuffer(this.shapePipe.indices);
       }
     }
     this.textures.clear();
@@ -875,38 +897,56 @@ export class WebGL2Backend implements Backend {
     if (!s || s.count === 0) return;
     if (this.lost) {
       s.count = 0;
+      s.icount = 0;
       return;
     }
     const gl = this.gl;
     this.shapePipe ??= this.shapePipeline();
     const p = this.shapePipe;
+    // Textures of sprites that joined the batch.
+    for (let i = 0; i < this.unitCount; i++) {
+      gl.activeTexture(gl.TEXTURE0 + i);
+      gl.bindTexture(gl.TEXTURE_2D, this.units[i] ?? null);
+      gl.bindSampler(i, this.unitSmooth[i] ? this.linear : this.nearest);
+    }
+    this.unitCount = 0;
     gl.useProgram(p.program);
     gl.bindVertexArray(p.vao);
     this.syncView(p);
     gl.bindBuffer(gl.ARRAY_BUFFER, p.buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, s.f32, gl.STREAM_DRAW, 0, s.count * 4);
-    gl.drawArrays(gl.TRIANGLES, 0, s.count);
+    gl.bufferData(gl.ARRAY_BUFFER, s.f32, gl.STREAM_DRAW, 0, s.count * 6);
+    // The index buffer is part of the shape VAO's state.
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, s.indices, gl.STREAM_DRAW, 0, s.icount);
+    gl.drawElements(gl.TRIANGLES, s.icount, gl.UNSIGNED_INT, 0);
     this.submitted++;
     s.count = 0;
+    s.icount = 0;
     gl.useProgram(this.active.program);
     gl.bindVertexArray(this.vao);
   }
 
   private shapePipeline(): ShapePipeline {
     const gl = this.gl;
-    const program = link(gl, SHAPE_VERT, SHAPE_FRAG, "shape");
+    const program = link(gl, SHAPE_VERT, FRAG, "shape");
+    gl.useProgram(program);
+    gl.uniform1iv(
+      gl.getUniformLocation(program, "u_tex"),
+      Array.from({ length: UNITS }, (_, i) => i),
+    );
     const vao = gl.createVertexArray();
     const buffer = gl.createBuffer();
-    if (!buffer) throw new Error("WebGL2: could not create shape buffer");
+    const indices = gl.createBuffer();
+    if (!buffer || !indices) throw new Error("WebGL2: could not create shape buffer");
     gl.bindVertexArray(vao);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indices);
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     gl.enableVertexAttribArray(0);
-    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 16, 0);
+    gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 24, 0);
     gl.enableVertexAttribArray(1);
-    gl.vertexAttribPointer(1, 1, gl.FLOAT, false, 16, 8);
+    gl.vertexAttribPointer(1, 4, gl.UNSIGNED_BYTE, true, 24, 16);
     gl.enableVertexAttribArray(2);
-    gl.vertexAttribPointer(2, 4, gl.UNSIGNED_BYTE, true, 16, 12);
-    return { program, view: gl.getUniformLocation(program, "u_view"), w: -1, h: -1, vao, buffer };
+    gl.vertexAttribPointer(2, 4, gl.UNSIGNED_BYTE, true, 24, 20);
+    return { program, view: gl.getUniformLocation(program, "u_view"), w: -1, h: -1, vao, buffer, indices };
   }
 
   private flush(): void {

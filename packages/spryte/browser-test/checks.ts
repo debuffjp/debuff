@@ -16,6 +16,7 @@ import {
   polyline,
   ring,
   roundRect,
+  Shader,
   saturate,
   sepia,
   tiled,
@@ -650,6 +651,36 @@ for (const backend of ["webgl2", "2d"] as const) {
     });
     check(`filter ${name}: changes the image`, diff(gl2, plain) > 500, `${diff(gl2, plain)} px changed`);
   }
+}
+
+// Sprites that join a pending shape batch draw exactly what they draw in their own batches (an identity custom
+// shader keeps them out of the shape batch), with tint, flash, alpha, smoothing, several textures and order.
+{
+  const other = art();
+  const scene = (split: boolean) => (draw: Draw) => {
+    const body = () => {
+      for (let i = 0; i < 12; i++) {
+        const x = 4 + (i % 4) * 19;
+        const y = 4 + Math.floor(i / 4) * 18;
+        roundRect(draw, x, y, 16, 14, 4, i % 2 ? "#2a6cff" : "#e23");
+        draw.sprite(i % 3 ? img : other, x + 8, y + 7, {
+          tint: i % 2 ? "#fff" : "#8cf",
+          flash: i === 5 ? 0.4 : 0,
+          alpha: i === 7 ? 0.5 : 1,
+          smooth: i % 4 === 0,
+          rotation: i * 0.3,
+        });
+        ring(draw, x + 8, y + 7, 5, 1, "#ffd36b");
+      }
+    };
+    if (split) draw.withShader(identity, body);
+    else body();
+  };
+  const identity = new Shader("vec4 effect(vec4 color, vec2 uv) { return source(uv) * color; }");
+  const [joined, split] = [await render(scene(false)), await render(scene(true))];
+  let worst = 0;
+  for (let i = 0; i < joined.length; i++) worst = Math.max(worst, Math.abs((joined[i] as number) - (split[i] as number)));
+  check("sprites joining a shape batch == their own batches (webgl2)", worst <= 1, `max channel error ${worst}`);
 }
 
 (window as unknown as { __checks: unknown }).__checks = results;

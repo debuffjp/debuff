@@ -6,8 +6,11 @@ const I = [1, 0, 0, 1, 0, 0] as [number, number, number, number, number, number]
 /** Area covered at full coverage: sum of triangles whose three vertices have coverage 1. */
 function solidArea(b: ShapeBuffer): number {
   let area = 0;
-  for (let t = 0; t < b.count; t += 3) {
-    const v = (k: number) => [b.f32[(t + k) * 4] as number, b.f32[(t + k) * 4 + 1] as number, b.f32[(t + k) * 4 + 2] as number];
+  for (let t = 0; t < b.icount; t += 3) {
+    const v = (k: number) => {
+      const i = b.indices[t + k] as number;
+      return [b.f32[i * 6] as number, b.f32[i * 6 + 1] as number, ((b.u32[i * 6 + 5] as number) & 255) / 255];
+    };
     const [a, c, d] = [v(0), v(1), v(2)] as number[][];
     if (a?.[2] !== 1 || c?.[2] !== 1 || d?.[2] !== 1) continue;
     area +=
@@ -40,15 +43,17 @@ describe("ShapeBuffer", () => {
       b.add(I, pts, 4, true, 0, 0xffffffff, 1);
       // Core inset by half a pixel: 9 × 9.
       expect(solidArea(b)).toBeCloseTo(81, 5);
-      // Two core triangles plus four fringe bands of two.
-      expect(b.count).toBe(6 + 4 * 6);
+      // Two core triangles plus four fringe bands of two, over an inner and an outer ring of four.
+      expect(b.icount).toBe(6 + 4 * 6);
+      expect(b.count).toBe(8);
     }
   });
 
   it("strokes a line with a core and two fringes per segment", () => {
     const b = new ShapeBuffer();
     b.add(I, [0, 0, 10, 0], 2, false, 4, 0xffffffff, 1);
-    expect(b.count).toBe(18);
+    expect(b.icount).toBe(18);
+    expect(b.count).toBe(8);
     expect(solidArea(b)).toBeCloseTo(30, 5); // 10 long, 4 - 1 wide
   });
 
@@ -56,8 +61,17 @@ describe("ShapeBuffer", () => {
     const b = new ShapeBuffer();
     b.add(I, [0, 0, 10, 0], 2, false, 0.25, 0xffffffff, 1);
     let max = 0;
-    for (let i = 0; i < b.count; i++) max = Math.max(max, b.f32[i * 4 + 2] as number);
-    expect(max).toBeCloseTo(0.25, 5);
+    for (let i = 0; i < b.count; i++) max = Math.max(max, ((b.u32[i * 6 + 5] as number) & 255) / 255);
+    expect(max).toBeCloseTo(0.25, 2);
+  });
+
+  it("fills concave and mirrored shapes with n - 2 core triangles", () => {
+    for (const m of [I, [-1, 0, 0, 1, 0, 0] as typeof I]) {
+      const b = new ShapeBuffer();
+      b.add(m, [0, 0, 2, 0, 2, 1, 1, 1, 1, 2, 0, 2], 6, true, 0, 0xffffffff, 0.01);
+      expect(b.icount).toBe(3 * 4 + 6 * 6);
+      expect(solidArea(b)).toBeCloseTo(3, 1);
+    }
   });
 
   it("ignores repeated points and degenerate input", () => {
