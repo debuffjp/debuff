@@ -221,12 +221,24 @@ export class Game {
   add(scene: Scene): this {
     if (this.scenes.has(scene.id)) throw new Error(`Scene "${scene.id}" already added`);
     this.scenes.set(scene.id, scene);
+    // A game with scenes that never starts draws nothing and reports nothing; say so in dev.
+    if (isDev() && this.scenes.size === 1 && typeof setTimeout !== "undefined") {
+      setTimeout(() => {
+        // Tools that drive the game with step() never start it, but they do advance the clock.
+        if (!this.wanted && this.clock.tick === 0)
+          console.warn(`[debuff] Scenes were added (${this.sceneList()}) but game.start() was never called, so nothing runs.`);
+      }, 2000);
+    }
     return this;
+  }
+
+  private sceneList(): string {
+    return [...this.scenes.keys()].join(", ") || "none";
   }
 
   go(id: string): void {
     const next = this.scenes.get(id);
-    if (!next) throw new Error(`Unknown scene "${id}". Added: ${[...this.scenes.keys()].join(", ") || "none"}`);
+    if (!next) throw new Error(`Unknown scene "${id}". Added: ${this.sceneList()}`);
     const previous = this.active;
     previous?.exit?.(this);
     this.active = next;
@@ -235,6 +247,13 @@ export class Game {
   }
 
   start(): void {
+    if (isDev() && !this.active) {
+      console.warn(
+        this.scenes.size
+          ? `[debuff] game.start() with no active scene, so only the background draws. Call game.go(id) first. Added: ${this.sceneList()}`
+          : "[debuff] game.start() with no scenes. Add one with game.add({ id, update, render }) and pick it with game.go(id).",
+      );
+    }
     this.lastError = undefined;
     this.wanted = true;
     if (typeof document === "undefined" || !document.hidden || !this.pauseWhenHidden) this.run();

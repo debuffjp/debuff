@@ -250,3 +250,56 @@ describe("Game loop errors", () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe("Game dev warnings", () => {
+  function setup() {
+    vi.stubEnv("DEV", true);
+    vi.useFakeTimers();
+    vi.stubGlobal("requestAnimationFrame", () => 0);
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    return warn;
+  }
+  function teardown() {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  }
+
+  it("warns when start() runs with no active scene, naming the added scenes", () => {
+    const warn = setup();
+    const { game } = makeGame({ splash: false });
+    game.add(recorder("play").scene);
+    game.start();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("game.go(id)"));
+    expect(warn.mock.calls[0][0]).toContain("play");
+    game.dispose();
+    teardown();
+  });
+
+  it("warns when scenes are added but the game never starts", () => {
+    const warn = setup();
+    const { game } = makeGame({ splash: false });
+    game.add(recorder("play").scene);
+    vi.advanceTimersByTime(2500);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("game.start() was never called"));
+    game.dispose();
+    teardown();
+  });
+
+  it("stays quiet for a correct start, and for games driven by step()", () => {
+    const warn = setup();
+    const a = makeGame({ splash: false }).game;
+    a.add(recorder("play").scene).go("play");
+    a.start();
+    const b = makeGame({ splash: false }).game;
+    b.add(recorder("play").scene).go("play");
+    b.step(1);
+    vi.advanceTimersByTime(2500);
+    expect(warn).not.toHaveBeenCalled();
+    a.dispose();
+    b.dispose();
+    teardown();
+  });
+});
