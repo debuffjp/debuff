@@ -6,6 +6,7 @@ describe("filters", () => {
     const f = blur(3);
     expect(f.passes).toHaveLength(2);
     expect(f.passes[0]?.shader).toBe(blur(1).passes[0]?.shader); // shared, never recompiled
+    expect(f.passes[1]?.smooth).toBe(true);
     expect(f.passes[1]?.uniforms(0.01, 0.02, 2)).toEqual([
       ["dir", [0, 0.02]],
       ["sigma", 6],
