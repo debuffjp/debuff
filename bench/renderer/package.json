@@ -11,7 +11,7 @@
     "pixi.js": "^8.22.0"
   },
   "dependencies": {
-    "@debuffjp/core": "0.10.0",
-    "spryte": "0.2.2"
+    "@debuffjp/core": "0.11.0",
+    "spryte": "0.2.3"
   }
 }
