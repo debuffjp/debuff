@@ -42,7 +42,14 @@ if (!existsSync(exe)) {
 run(process.execPath, ["tooling/mcp/scripts/server-json.mjs"]);
 const jwk = createPrivateKey(readFileSync(key)).export({ format: "jwk" });
 const privateKey = Buffer.from(jwk.d, "base64url").toString("hex");
-run(exe, ["login", "dns", "--domain", "debuff.jp", "--private-key", privateKey]);
+try {
+  run(exe, ["login", "dns", "--domain", "debuff.jp", "--private-key", privateKey]);
+} catch {
+  // Node's error repeats the command line, private key included: report the failure without it.
+  // mcp-publisher has already printed why (inherited stdio). "timestamp outside valid window" means this
+  // machine's clock is off by more than 15 s: sync it (Windows: Settings > Time > Sync now) and rerun.
+  fail("mcp-publisher login failed (see its message above).");
+}
 run(exe, ["publish"], { cwd: "tooling/mcp" });
 
 const res = await fetch("https://registry.modelcontextprotocol.io/v0.1/servers?search=jp.debuff");
