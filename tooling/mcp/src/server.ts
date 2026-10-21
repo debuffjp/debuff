@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import {
   buildReport,
   checkSaves,
@@ -46,6 +46,8 @@ export function createServer(options: ServerOptions): McpServer {
   );
   const rootOf = (root?: string) => resolve(options.root, root ?? ".");
   let session: GameSession | undefined;
+  /** The running session's project root, for files tools write (captures). */
+  let sessionRoot = options.root;
   const live = () => {
     if (!session) throw new Error("No game running. Call game_start first.");
     return session;
@@ -223,13 +225,41 @@ export function createServer(options: ServerOptions): McpServer {
         ...root,
         page: z.string().optional().describe('Path to open in headless mode. Default "/".'),
         mode: z.enum(["auto", "live", "headless"]).optional().describe("Default auto."),
+        viewport: z
+          .tuple([z.number().int().min(64).max(4096), z.number().int().min(64).max(4096)])
+          .optional()
+          .describe(
+            'Headless only: browser viewport [width, height] in CSS pixels. Default [960, 540]. Try [390, 844] to test a scale: "expand" game in phone portrait.',
+          ),
+        reducedMotion: z
+          .boolean()
+          .optional()
+          .describe(
+            "Force game.reducedMotion on or off for this session. Default: leave it; the state's reducedMotion says what it is. When true, games may freeze animations.",
+          ),
       },
     },
-    safely(async ({ root: r, page, mode }) => {
+    safely(async ({ root: r, page, mode, viewport, reducedMotion }) => {
       await session?.stop();
       session = undefined;
-      session = await startSession(rootOf(r), { ...(page ? { page } : {}), ...(mode ? { mode } : {}) });
-      return json({ mode: session.mode, url: session.url, state: await session.call("state") });
+      sessionRoot = rootOf(r);
+      session = await startSession(sessionRoot, {
+        ...(page ? { page } : {}),
+        ...(mode ? { mode } : {}),
+        ...(viewport ? { width: viewport[0], height: viewport[1] } : {}),
+      });
+      const state = await session.call(
+        reducedMotion === undefined ? "state" : "reducedMotion",
+        ...(reducedMotion === undefined ? [] : [reducedMotion]),
+      );
+      return json({
+        mode: session.mode,
+        url: session.url,
+        ...(viewport && session.mode === "live"
+          ? { warning: "viewport only applies to headless mode; the human's tab keeps its size" }
+          : {}),
+        state,
+      });
     }),
   );
 
@@ -237,7 +267,9 @@ export function createServer(options: ServerOptions): McpServer {
     "game_state",
     {
       title: "Game state",
-      description: "Current scene, tick, time, renderer, frame stats, the scene's inspect() data and plugin inspect data.",
+      description:
+        "Current scene, tick, time, renderer, frame stats, the scene's inspect() data and plugin inspect data. " +
+        "reducedMotion true means the game may freeze or tone down its animations (reducedMotionForced: game_start forced it).",
       inputSchema: {},
       annotations: { readOnlyHint: true },
     },
@@ -250,9 +282,38 @@ export function createServer(options: ServerOptions): McpServer {
       title: "Advance time",
       annotations: { readOnlyHint: false, destructiveHint: false },
       description: "Advance the simulation by fixed steps (60 per second by default) and return the new state.",
-      inputSchema: { steps: z.number().int().min(1).max(36_000).describe("Fixed simulation steps to run.") },
+      inputSchema: {
+        steps: z.number().int().min(1).max(36_000).describe("Fixed simulation steps to run."),
+        quiet: z.boolean().optional().describe("Leave out the scene's inspect() state and plugin data, to keep the result short."),
+      },
     },
-    safely(async ({ steps }) => json(await live().call("step", steps))),
+    safely(async ({ steps, quiet }) => {
+      const state = await live().call<Record<string, unknown>>("step", steps);
+      if (!quiet) return json(state);
+      const { state: _scene, plugins: _plugins, ...rest } = state;
+      return json(rest);
+    }),
+  );
+
+  server.registerTool(
+    "game_command",
+    {
+      title: "Run a game command",
+      annotations: { readOnlyHint: false, destructiveHint: false },
+      description:
+        "Run a command the game registered with devTools({ commands }) (warp to a level, grant an item, select a cell), like a scenario's " +
+        "{ command, args } step; recorded in replays. Prefer it over computing screen coordinates for game_input. An unknown name lists " +
+        "the registered ones. Returns the command's result and the new state.",
+      inputSchema: {
+        name: z.string().describe("Command name."),
+        args: z.array(z.unknown()).optional().describe("JSON arguments, passed in order."),
+      },
+    },
+    safely(async ({ name, args }) => {
+      const s = live();
+      const result = await s.call("command", name, ...(args ?? []));
+      return json({ result: result ?? null, state: await s.call("state") });
+    }),
   );
 
   server.registerTool(
@@ -315,13 +376,25 @@ export function createServer(options: ServerOptions): McpServer {
     "game_capture",
     {
       title: "Capture frame",
-      description: "Screenshot of the current frame as a PNG image.",
-      inputSchema: {},
-      annotations: { readOnlyHint: true },
+      description: "Screenshot of the current frame as a PNG image. With `path`, also saves it to that file in the project.",
+      inputSchema: {
+        path: z.string().optional().describe("Save the PNG here, relative to the project root (e.g. public/thumbnail.png). Overwrites."),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false },
     },
-    safely(async () => {
+    safely(async ({ path }) => {
       const dataUrl = await live().call<string>("capture");
-      return { content: [{ type: "image" as const, data: dataUrl.slice(dataUrl.indexOf(",") + 1), mimeType: "image/png" }] };
+      const data = dataUrl.slice(dataUrl.indexOf(",") + 1);
+      const content: Content[] = [{ type: "image", data, mimeType: "image/png" }];
+      if (path) {
+        const file = resolve(sessionRoot, path);
+        const rel = relative(sessionRoot, file);
+        if (!rel || rel.startsWith("..") || isAbsolute(rel)) throw new Error(`path must be a file inside the project root: ${path}`);
+        mkdirSync(dirname(file), { recursive: true });
+        writeFileSync(file, Buffer.from(data, "base64"));
+        content.push({ type: "text", text: JSON.stringify({ saved: rel.split("\\").join("/") }) });
+      }
+      return { content };
     }),
   );
 
@@ -342,11 +415,21 @@ export function createServer(options: ServerOptions): McpServer {
       title: "Frame breakdown",
       description:
         "Recent frames, oldest first: intervalMs (what the player feels), updateMs, renderMs, steps (>1 means catching up), quads, drawCalls and " +
-        "longTaskMs (browser-reported main-thread stalls). Use it to explain stutter; in headless mode times reflect stepping, not real play.",
-      inputSchema: { count: z.number().int().min(1).max(240).optional().describe("Default 60.") },
+        "longTaskMs (browser-reported main-thread stalls). Use it to explain stutter; in headless mode times reflect stepping, not real play. " +
+        "summary: true returns percentiles and the 3 slowest frames instead of every frame.",
+      inputSchema: {
+        count: z.number().int().min(1).max(240).optional().describe("Default 60."),
+        summary: z
+          .boolean()
+          .optional()
+          .describe("Count, p50/p95/max of updateMs, renderMs, quads and drawCalls, and the 3 slowest frames."),
+      },
       annotations: { readOnlyHint: true },
     },
-    safely(async ({ count }) => json(await live().call("frames", count ?? 60))),
+    safely(async ({ count, summary }) => {
+      const frames = await live().call<FrameLike[]>("frames", count ?? 60);
+      return json(summary ? summarizeFrames(frames) : frames);
+    }),
   );
 
   server.registerTool(
@@ -361,7 +444,16 @@ export function createServer(options: ServerOptions): McpServer {
       inputSchema: {},
       annotations: { readOnlyHint: true },
     },
-    safely(async () => json(await live().call("profile"))),
+    safely(async () => {
+      const s = live();
+      if (s.mode === "headless") {
+        throw new Error(
+          "Profiling needs live mode: a headless copy only advances through game_step, so it has no real frame timing to explain. " +
+            "Use game_frames with summary: true for update/render cost here, or open the game under `debuff dev` and call game_start again.",
+        );
+      }
+      return json(await s.call("profile"));
+    }),
   );
 
   server.registerTool(
@@ -460,4 +552,23 @@ export function createServer(options: ServerOptions): McpServer {
     await close();
   };
   return server;
+}
+
+type FrameLike = { updateMs: number; renderMs: number; quads: number; drawCalls: number };
+
+/** Percentiles of the frame fields agents read, plus the 3 slowest frames (by update + render). */
+export function summarizeFrames(frames: FrameLike[]) {
+  const stats = (key: "updateMs" | "renderMs" | "quads" | "drawCalls") => {
+    const sorted = frames.map((f) => f[key]).sort((a, b) => a - b);
+    const at = (p: number) => Math.round((sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))] ?? 0) * 1000) / 1000;
+    return { p50: at(0.5), p95: at(0.95), max: at(1) };
+  };
+  return {
+    count: frames.length,
+    updateMs: stats("updateMs"),
+    renderMs: stats("renderMs"),
+    quads: stats("quads"),
+    drawCalls: stats("drawCalls"),
+    worst: [...frames].sort((a, b) => b.updateMs + b.renderMs - (a.updateMs + a.renderMs)).slice(0, 3),
+  };
 }

@@ -65,3 +65,15 @@ describe("ParamRegistry", () => {
     expect(player.get("speed")).toBe(200);
   });
 });
+
+describe("Random state", () => {
+  it("saves and restores the sequence", () => {
+    const r = new Random(42);
+    r.next();
+    const saved = r.state;
+    const a = [r.next(), r.int(0, 99), r.next()];
+    r.state = saved;
+    expect([r.next(), r.int(0, 99), r.next()]).toEqual(a);
+    expect(JSON.parse(JSON.stringify({ s: r.state })).s).toBe(r.state);
+  });
+});

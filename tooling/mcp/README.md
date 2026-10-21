@@ -42,17 +42,18 @@ For Claude Desktop, `mcpb/manifest.json` describes a desktop extension that asks
 | `run_tests` | Run the logic tests in `tests/` ([keiko](https://github.com/debuffjp/debuff/tree/main/tooling/keiko)): the real game in Node, no browser; failures carry the tick, scene and state |
 | `run_scenarios` | Run `scenarios/*.json` headless; per-step results, errors, captures |
 | `fuzz` | Play with random input; each crash, stuck state or back-and-forth loop comes with an explained error and a scenario that replays it |
-| `game_start` | Attach to the live game, or open a private headless copy, paused (see below) |
-| `game_step` | Advance fixed simulation steps (pausing first); returns state |
+| `game_start` | Attach to the live game, or open a private headless copy, paused (see below). Headless takes a `viewport: [w, h]`; `reducedMotion` forces it on or off |
+| `game_step` | Advance fixed simulation steps (pausing first); returns state (`quiet` leaves out your `inspect()` data) |
 | `game_pause` | Pause or resume a live game |
-| `game_frames` | Recent frame breakdown: update/render ms, catch-up steps, quads, draw calls, long tasks |
+| `game_frames` | Recent frame breakdown: update/render ms, catch-up steps, quads, draw calls, long tasks; `summary` gives percentiles and the 3 slowest |
 | `game_notes` | Moments the human flagged in the overlay, with the state at that tick |
 | `game_rewind` | Live mode: take the human's game back (or forward) to a tick, paused, with its exact state then |
 | `game_replay` | Save the live session up to a tick (for example a note's) as a scenario in `.debuff/replays/` that reproduces it |
 | `game_input` | `press` / `release` keys; `tap`, `pointer_down`, `pointer_move`, `pointer_up` |
-| `game_state` | Scene, tick, renderer, frame stats, your `inspect()` data |
+| `game_state` | Scene, tick, renderer, frame stats, `reducedMotion`, your `inspect()` data |
+| `game_command` | Run a command the game registered with `devTools({ commands })`, with JSON args |
 | `game_params` / `game_set_param` | Read and tune typed params (validated) |
-| `game_capture` | The current frame as a PNG image |
+| `game_capture` | The current frame as a PNG image; `path` also saves it in the project (thumbnails, store art) |
 | `game_errors` | Runtime errors, explained: whose problem (your code, a rejected call, a debuff bug), the source line, a hint |
 | `game_stop` | Close the game |
 

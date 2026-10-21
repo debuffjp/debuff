@@ -80,6 +80,9 @@ describe("expect", () => {
     expect(3).toBeBelow(4);
     expect(4).toBeAtLeast(4);
     expect(4).toBeAtMost(4);
+    expect(3).toBeLessThan(4);
+    expect(5).toBeGreaterThan(4);
+    expect(4).not.toBeLessThan(4);
     expect(4).toBeBetween(1, 5);
     expect(1.0004).toBeCloseTo(1);
     expect(1).toBeTruthy();

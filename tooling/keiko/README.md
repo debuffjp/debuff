@@ -264,7 +264,7 @@ Pass `{ sameSeed: true }` when the game takes all its randomness from `Math.rand
 
 ### `expect(value)`
 
-`toBe`, `toEqual`, `toBeAbove`, `toBeBelow`, `toBeAtLeast`, `toBeAtMost`, `toBeBetween`, `toBeCloseTo(target, tolerance = 0.001)`, `toBeTruthy`, `toBeFalsy`, `toBeDefined`, `toBeUndefined`, `toContain`, `toHaveLength`, `toMatch`, `toThrow`, and `.not` for each.
+`toBe`, `toEqual`, `toBeAbove`, `toBeBelow`, `toBeAtLeast`, `toBeAtMost`, `toBeLessThan`, `toBeGreaterThan`, `toBeBetween`, `toBeCloseTo(target, tolerance = 0.001)`, `toBeTruthy`, `toBeFalsy`, `toBeDefined`, `toBeUndefined`, `toContain`, `toHaveLength`, `toMatch`, `toThrow`, and `.not` for each.
 
 ### Errors
 
@@ -289,7 +289,7 @@ npx keiko init                # a first test for your game, for the engine it us
 npx keiko                     # every test
 npx keiko tests/jump.test.ts  # some files
 npx keiko tests/levels        # every test in a folder
-npx keiko -t "pause"          # tests whose name contains "pause"
+npx keiko -t "pause"          # tests whose full name contains "pause" (case-insensitive substring, not a regex)
 npx keiko --json              # a report for tools and agents
 npx keiko --root games/demo   # a project in another folder
 npx keiko --no-debuff         # drive a debuff game through __KEIKO__ instead (--debuff forces the opposite)
