@@ -307,6 +307,20 @@ describe("nineSlice and tiled", () => {
     expect(quads[0]?.m[0]).toBe(5);
   });
 
+  it("puts pixel-art panels and tiles on whole units without gaps", () => {
+    const { draw, quads } = recorder();
+    draw.translate(0.4, 0.6);
+    draw.tiled({ image, x: 0, y: 0, w: 10, h: 10 }, 0, 0, 25, 10, { offsetX: 5 });
+    for (const q of quads) expect(Number.isInteger(q.m[4]) && Number.isInteger(q.m[0])).toBe(true);
+    // Each tile starts where the last ended.
+    for (let i = 1; i < quads.length; i++) expect(quads[i]?.m[4]).toBe((quads[i - 1]?.m[4] ?? 0) + (quads[i - 1]?.m[0] ?? 0));
+  });
+
+  it("refuses a tiling that would hang the tab", () => {
+    const { draw } = recorder();
+    expect(() => draw.tiled({ image, x: 0, y: 0, w: 10, h: 10 }, 0, 0, 1000, 1000, { scale: 0.001 })).toThrow(/tiles/);
+  });
+
   it("tiled repeats the frame, clipping and scrolling the edge tiles", () => {
     const { draw, quads } = recorder();
     draw.tiled({ image, x: 0, y: 0, w: 10, h: 10 }, 0, 0, 25, 10, { offsetX: 5 });

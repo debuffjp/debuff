@@ -392,6 +392,7 @@ export class Draw {
         const sh = (vs[j + 1] as number) - (vs[j] as number);
         if (pw <= 0 || ph <= 0 || sw <= 0 || sh <= 0) continue;
         this.local(xs[i] as number, ys[j] as number, pw, ph);
+        if (!smooth) this.snapEdges();
         this.quads++;
         this.backend.quad(this.tmp, f.image, us[i] as number, vs[j] as number, sw, sh, color, o.flash ?? 0, smooth);
       }
@@ -411,6 +412,8 @@ export class Draw {
     const color = this.spriteColor(o);
     const smooth = o.smooth ?? this.smooth;
     const flash = o.flash ?? 0;
+    const tiles = (Math.ceil(w / tw) + 1) * (Math.ceil(h / th) + 1);
+    if (tiles > 1_000_000) throw new Error(`spryte: tiled() would draw ${tiles} tiles; use a larger frame or scale`);
     const ox = ((((o.offsetX ?? 0) * k) % tw) + tw) % tw;
     const oy = ((((o.offsetY ?? 0) * k) % th) + th) % th;
     for (let ty = y - oy; ty < y + h; ty += th) {
@@ -422,6 +425,7 @@ export class Draw {
         const x1 = Math.min(tx + tw, x + w);
         if (x1 <= x0) continue;
         this.local(x0, y0, x1 - x0, y1 - y0);
+        if (!smooth) this.snapEdges();
         this.quads++;
         this.backend.quad(this.tmp, f.image, f.x + (x0 - tx) / k, f.y + (y0 - ty) / k, (x1 - x0) / k, (y1 - y0) / k, color, flash, smooth);
       }
@@ -905,6 +909,21 @@ export class Draw {
   private scratch(n: number): Float32Array {
     if (this.points.length < n) this.points = new Float32Array(2 ** Math.ceil(Math.log2(n)));
     return this.points;
+  }
+
+  /**
+   * Pixel art: put an unrotated quad's edges on whole units, like `sprite()`. Neighbouring quads share edges,
+   * so they round the same way and never gap or overlap.
+   */
+  private snapEdges(): void {
+    const t = this.tmp;
+    if (t[1] !== 0 || t[2] !== 0) return;
+    const x0 = Math.round(t[4]);
+    const y0 = Math.round(t[5]);
+    t[0] = Math.round(t[4] + t[0]) - x0;
+    t[3] = Math.round(t[5] + t[3]) - y0;
+    t[4] = x0;
+    t[5] = y0;
   }
 
   /** tmp = current matrix × (translate(x, y) · scale(w, h)): maps the unit square to the rect. */
