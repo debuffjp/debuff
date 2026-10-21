@@ -28,12 +28,16 @@ In a debuff game: `new Player({ context: audio.ctx, destination: audio.bus("musi
 
 Steps separated by spaces; each is a sixteenth note (4 per beat):
 
-- `C4`, `Eb5`, `F#3`: a note (A4 = 440 Hz). `C4+E4+G4`: a chord.
+- `C4`, `Eb5`, `F#3`: a note (A4 = 440 Hz). `C4+E4+G4` or `Am7@3`, `Cmaj7@4`, `G@3`: a chord.
+- `^1`, `^5`, `^3@5`: a scale degree of the song's `key` (prefer these: the melody always fits the key).
+- Endings on any note, chord or hit: `!` accent, `_` ghost (quiet), `?` half the time, `?30` 30% (seeded).
 - `x`: a drum hit; `X`: an accented hit.
 - `.`: silence. `-`: hold the step before. `|`: ignored, for marking bars.
 
-A song: `{ bpm, swing?, instruments, sections: { name: { instrument: pattern } }, order: [section names] }`. A section
-lasts as long as its longest pattern; shorter ones repeat (a 4-step drum loop under a 16-step melody). The song loops.
+A song: `{ bpm, swing?, key?, transpose?, instruments, sections: { name: { instrument: pattern | [variants] } }, order }`.
+A section lasts as long as its longest pattern; shorter ones repeat (a 4-step drum loop under a 16-step melody). A
+list of patterns takes turns each time the section plays (fills). The song loops. Keys: "C major", "A minor",
+"D dorian", "E phrygian", "F lydian", "G mixolydian", "C pentatonic", "A minor pentatonic", "A blues".
 
 ## Instrument recipes
 
@@ -48,7 +52,8 @@ hat: { wave: "noise", decay: 0.03, sustain: 0, volume: 0.08, filter: { cutoff: 9
 
 Fields: `wave` (sine, square, sawtooth, triangle, noise), `attack`/`decay`/`sustain`/`release`, `volume`, `octave`,
 `detune` (cents, second oscillator), `filter` `{ cutoff, q, sweep }`, `drop` (semitones, pitch falls into the note),
-`vibrato` (cents), `echo` (0-1). Keep volumes low (leads 0.1-0.2, bass about 0.2): several loud tracks clip.
+`vibrato` (cents), `echo` and `reverb` (0-1 sends), `pan` (-1 to 1). A master compressor and limiter stop clipping,
+but balance is still yours: check it with `mix()` (below).
 
 ## Writing a good game theme
 
@@ -57,6 +62,31 @@ Fields: `wave` (sine, square, sawtooth, triangle, noise), `attack`/`decay`/`sust
 - Make it react instead of writing more songs: `player.tempo(1.12)` when time runs low, `player.layer("kick", 0)` on
   menus, then back to 1 in play.
 - Music is a creative call: write a draft, describe what it should feel like, and let the human listen and decide.
+
+## Sound effects in the song's key
+
+```ts
+const POP = { wave: "sine", drop: 7, decay: 0.12, sustain: 0, volume: 0.3 };
+player.sfx(POP, { degree: [1, 3, 5, 8, 10][combo - 1], octave: 5 }); // combos climb the song's arpeggio
+player.sfx(BELL, { degree: 1, quantize: "beat", after: 2 }); // celebrations land on the beat
+```
+
+Quantize celebrations and stingers; never the player's own taps (feedback must be instant).
+
+## Check a mix without hearing it
+
+In a browser (it renders offline, faster than real time):
+
+```ts
+import { mix } from "plonk";
+const report = await mix(song, 20);
+// report.song.lufs (aim for about -16), report.song.clipped (must be 0), report.song.bands (low/mid/high shares),
+// report.tracks[name].belowMix (LU under the mix: lead and bass 0-5, pads 3-8, drums 10-15),
+// report.warnings: plain words, e.g. "hat: buried (32 LU under the mix); raise its volume". Fix every warning.
+```
+
+Iterate: change volumes, run `mix()` again, until there are no warnings and the balance reads right. Then hand it to a
+person to listen: numbers can't judge a melody.
 
 ## Check a song without hearing it
 

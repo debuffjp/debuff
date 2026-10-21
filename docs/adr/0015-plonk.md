@@ -27,5 +27,9 @@ time, layers, tempo, looping. It needs a sequencer, not a one-shot renderer.
 
 - Music costs about 2 kB of engine plus a few hundred bytes per song, and starts instantly.
 - Composition is a creative call: plonk is the instrument; songs need the human's ear.
+- Sounding good is part of the package, not left to taste alone: a master compressor and limiter, reverb and pan,
+  keys, scale degrees and chord names, seeded variation, sound effects in the song's key (`sfx`), and measurement
+  without ears (`render`, `analyse`, `mix`: BS.1770 loudness, clipping, spectrum, per-track balance). The measuring
+  code tree-shakes away from games that don't import it.
 - Later: sounds-as-params integration (ADR 0010's overlay rows for songs), a pattern editor in the dev overlay, and
   a `game_song` MCP tool that shows a song as a piano roll image for agents.

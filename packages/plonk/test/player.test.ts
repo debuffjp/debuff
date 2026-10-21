@@ -36,6 +36,16 @@ function fakeContext() {
     createDelay: () => node("delay"),
     createBiquadFilter: () => node("filter"),
     createOscillator: () => node("osc"),
+    createDynamicsCompressor: () => ({
+      ...node("comp"),
+      threshold: param(),
+      knee: param(),
+      ratio: param(),
+      attack: param(),
+      release: param(),
+    }),
+    createConvolver: () => node("convolver"),
+    createStereoPanner: () => ({ ...node("pan"), pan: param() }),
     createBufferSource: () => node("noise"),
     createBuffer: (_c: number, len: number) => ({ getChannelData: () => new Float32Array(len) }),
   };
@@ -73,6 +83,21 @@ describe("Player", () => {
     expect(player.played.length).toBeGreaterThan(6);
     player.stop();
     expect(player.playing).toBe(false);
+  });
+
+  it("plays sound effects in the song's key, on the beat when asked", () => {
+    vi.useFakeTimers();
+    const { ctx, run } = fakeContext();
+    const player = new Player({ context: ctx });
+    player.play({ ...song, key: "A minor" });
+    run(0.3);
+    const now = ctx.currentTime;
+    const at = player.sfx({ wave: "sine" }, { degree: 3, quantize: "beat" });
+    // 120 bpm: a beat every 0.5 s, from the song's start (just after time 0).
+    expect(at).toBeGreaterThanOrEqual(now);
+    expect(at - 0.05).toBeCloseTo(0.5, 1);
+    expect(player.played.at(-1)!.freq).toBeCloseTo(523.25, 1); // C5: the 3rd of A minor
+    player.stop();
   });
 
   it("speeds up without a jump", () => {

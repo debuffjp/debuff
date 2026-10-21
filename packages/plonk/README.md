@@ -64,6 +64,21 @@ Pass the engine's audio context and a bus, so the music shares its volume and mu
 const player = new Player({ context: audio.ctx, destination: audio.bus("music") });
 ```
 
+## Sounding good
+
+- **Keys and degrees:** give a song a `key` ("A minor") and write `^1 ^3 ^5`; named chords (`Am7@3`) work too.
+- **Variation:** `!` accents, `_` ghost notes, `?` / `?30` chances (seeded), and tracks that take turns between
+  patterns, for fills.
+- **Space:** `reverb`, `echo` and `pan` per instrument; a master compressor and limiter so the mix never clips.
+- **Sound effects that belong to the music:** `player.sfx(instrument, { degree, quantize: "beat" })` plays in the
+  song's key, on its beat if you like.
+
+## Checking a mix without speakers
+
+`await mix(song)` (in a browser) renders the song offline and reports its loudness in LUFS (ITU-R BS.1770), peaks and
+clipping, spectrum balance, each track's level under the mix, and warnings in plain words ("hat: buried"). Aim for
+about -16 LUFS with no warnings, then let a person listen.
+
 ## Seeing music without hearing it
 
 `notes(song, fromStep, toStep)` returns every note in a window as data (time, instrument, frequency, duration,
