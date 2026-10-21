@@ -10,15 +10,15 @@
     "test": "debuff test && debuff scenario"
   },
   "dependencies": {
-    "@debuffjp/audio": "0.10.0",
-    "@debuffjp/core": "0.10.0",
-    "@debuffjp/input": "0.10.0",
-    "@debuffjp/juice": "0.10.0"
+    "@debuffjp/audio": "0.11.0",
+    "@debuffjp/core": "0.11.0",
+    "@debuffjp/input": "0.11.0",
+    "@debuffjp/juice": "0.11.0"
   },
   "devDependencies": {
-    "@debuffjp/cli": "0.10.0",
+    "@debuffjp/cli": "0.11.0",
     "typescript": "^7.0.2",
-    "@debuffjp/dev": "0.10.0",
+    "@debuffjp/dev": "0.11.0",
     "keiko": "0.5.1"
   }
 }
