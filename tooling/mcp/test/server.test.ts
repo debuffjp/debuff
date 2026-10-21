@@ -98,7 +98,7 @@ describe("debuff MCP server", () => {
 
     const unknown = await call("game_command", { name: "warp", args: [1] });
     expect(unknown.isError).toBe(true);
-    expect(unknown.content[0]?.text).toMatch(/Unknown command "warp"/);
+    expect(unknown.content[0]?.text).toBe('Unknown command "warp". Registered: none');
 
     const profile = await call("game_profile");
     expect(profile.isError).toBe(true);

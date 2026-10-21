@@ -132,8 +132,14 @@ export class HeadlessSession implements GameSession {
   }
 
   /** Call a `window.__DEBUFF_DEV__` method. */
-  call<R = unknown>(method: string, ...args: unknown[]): Promise<R> {
-    return this.page.evaluate(callHook, [method, args] as [string, unknown[]]) as Promise<R>;
+  async call<R = unknown>(method: string, ...args: unknown[]): Promise<R> {
+    try {
+      return (await this.page.evaluate(callHook, [method, args] as [string, unknown[]])) as R;
+    } catch (err) {
+      // Playwright wraps page errors as "page.evaluate: Error: <message>\n    at …"; agents only need the message.
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(message.replace(/^page\.evaluate: (?:\w*Error: )?/, "").split("\n    at ")[0]);
+    }
   }
 
   async stop(): Promise<void> {
