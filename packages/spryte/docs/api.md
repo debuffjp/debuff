@@ -45,7 +45,7 @@ draw.dispose();                           // frees GPU objects and listeners; th
 | `push()`, `pop()`, `translate(x, y)`, `scale(x, y?)`, `rotate(rad)` | Transform stack. `begin()` resets it. |
 | `clip(x, y, w, h, fn)` | Draws inside `fn` are clipped to the rectangle's screen bounds. Nested clips intersect. |
 | `withCamera(camera, fn)` | Applies `camera.view()` (any `{ view(): Matrix }`) for the draws inside `fn`. |
-| `blend(mode)` | `"normal"` or `"add"`. |
+| `blend(mode)` | `"normal"`, `"add"` (glow), `"multiply"` (shadows, tinted light), `"screen"` (soft lightening) or `"erase"` (cut alpha out, e.g. holes in a render target). Pixel-identical on WebGL2 and Canvas 2D over opaque pixels. |
 | `alpha` | Global alpha multiplier. |
 | `smooth` | Default filtering. |
 | `font` | Default font: a CSS string, a `BitmapFont`, or a function returning one (evaluated lazily). |

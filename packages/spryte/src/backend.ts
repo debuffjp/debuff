@@ -1,7 +1,13 @@
 /** 2D affine matrix `[a, b, c, d, e, f]`: x' = a·x + c·y + e, y' = b·x + d·y + f (Canvas order). */
 export type Matrix = [number, number, number, number, number, number];
 
-export type BlendMode = "normal" | "add";
+/**
+ * How drawing combines with what's underneath. `add` brightens (glows, fire), `multiply` darkens (shadows,
+ * tinted lighting), `screen` lightens softly, and `erase` cuts alpha out of what's there (holes in a render
+ * target, masks). On a see-through target `multiply` follows the GPU formula, which hides drawing over fully
+ * transparent pixels where Canvas 2D shows it.
+ */
+export type BlendMode = "normal" | "add" | "multiply" | "screen" | "erase";
 
 export interface ClipRect {
   x: number;

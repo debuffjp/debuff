@@ -457,4 +457,27 @@ for (const backend of ["webgl2", "2d"] as const) {
   record("text atlas: region uploads == whole-page upload (webgl2)", await render(scene(true)), await render(scene(false)));
 }
 
+// Blend modes: WebGL2 matches Canvas 2D on the opaque canvas, for opaque and partly transparent drawing.
+{
+  const scene = (draw: Draw) => {
+    draw.rect(0, 0, 160, 60, "#80a0c0");
+    draw.rect(0, 60, 160, 60, "#e04020");
+    (["normal", "add", "multiply", "screen", "erase"] as const).forEach((mode, i) => {
+      draw.blend(mode);
+      draw.rect(4 + i * 30, 10, 24, 100, "#c8f040");
+      draw.rect(4 + i * 30, 40, 24, 40, "#2060ff80");
+    });
+    draw.blend("normal");
+  };
+  const gl2 = await render(scene, "webgl2", 1);
+  const c2d = await render(scene, "2d", 1);
+  let worst = 0;
+  for (let i = 0; i < gl2.length; i++) {
+    // Erase leaves the canvas see-through; compare colour only where something is left.
+    if (i % 4 !== 3 && ((gl2[i - (i % 4) + 3] as number) === 0 || (c2d[i - (i % 4) + 3] as number) === 0)) continue;
+    worst = Math.max(worst, Math.abs((gl2[i] as number) - (c2d[i] as number)));
+  }
+  check("blend modes: WebGL2 matches Canvas 2D", worst <= 2, `max channel error ${worst}`);
+}
+
 (window as unknown as { __checks: unknown }).__checks = results;
