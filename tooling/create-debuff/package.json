@@ -1,6 +1,6 @@
 {
   "name": "create-debuff",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "Scaffold a new debuff game: npm create debuff",
   "keywords": [
     "game",
