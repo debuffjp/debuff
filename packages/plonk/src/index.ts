@@ -5,16 +5,22 @@
 //   const player = new Player();
 //   player.play(theme);
 
-export { Player, type PlayerOptions, type PlayOptions } from "./player.js";
+export { type Analysis, analyse, loudness, type MixReport, mix, RENDER_RATE, render } from "./analyse.js";
+export { Player, type PlayerOptions, type PlayOptions, type SfxOptions } from "./player.js";
 export {
+  chord,
+  degree,
   frequency,
   type Instrument,
   type NoteEvent,
   notes,
   parse,
+  parseKey,
+  SCALES,
   type Song,
   type Step,
   sectionSteps,
   songSteps,
   stepSeconds,
+  type Track,
 } from "./song.js";
