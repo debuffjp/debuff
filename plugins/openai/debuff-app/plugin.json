@@ -1,0 +1,51 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "debuff",
+  "version": "0.11.0",
+  "description": "Make 2D browser games in chat and play them straight away from a link, or start a real project with debuff, an open-source TypeScript toolkit.",
+  "author": {
+    "name": "debuff",
+    "url": "https://debuff.jp"
+  },
+  "homepage": "https://debuff.jp",
+  "repository": "https://github.com/debuffjp/debuff",
+  "license": "MIT",
+  "keywords": [
+    "2d-game",
+    "game-development",
+    "gamedev",
+    "browser-game",
+    "html5-game",
+    "game-engine",
+    "pixel-art",
+    "platformer",
+    "game-jam",
+    "typescript"
+  ],
+  "extensions": {
+    "com.openai": {
+      "requires_local_executor": false,
+      "interface": {
+        "displayName": "debuff",
+        "shortDescription": "Make 2D browser games and play them from a link",
+        "longDescription": "debuff is a free, open-source toolkit for small, polished 2D web games. Ask for a game and get a link that runs it in your browser next to its code, with nothing to install. Start a real project from a platformer, top-down adventure or match-3 starter, or get answers from the debuff guides and API reference.\n\nThe app only reads public documentation and makes links. It can't see your files or accounts, and playground code travels inside the link, so nothing is stored.",
+        "developerName": "debuff",
+        "category": "Developer Tools",
+        "capabilities": ["Read"],
+        "websiteURL": "https://debuff.jp",
+        "supportURL": "https://discord.gg/jshbDHSpCY",
+        "privacyPolicyURL": "https://debuff.jp/privacy",
+        "termsOfServiceURL": "https://debuff.jp/terms",
+        "defaultPrompt": [
+          "Make me a tiny game I can play in the browser",
+          "Start a debuff platformer project",
+          "How do I add jumping to a debuff game?"
+        ],
+        "brandColor": "#0A0A0A",
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/logo.png",
+        "screenshots": []
+      }
+    }
+  }
+}
