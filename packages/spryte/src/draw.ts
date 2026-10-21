@@ -235,7 +235,61 @@ export class Draw {
   // ---- drawing ---------------------------------------------------------------------------
 
   blend(mode: BlendMode): void {
+    this.blendMode = mode;
     this.backend.setBlend(mode);
+  }
+
+  /**
+   * Run `fn`, keeping what it draws only where `shape` draws: a sprite (soft, using its alpha), shapes, text,
+   * anything. Same units, transform and clips as outside. Nests. Costs two offscreen passes the size of the
+   * destination, so mask a group of things at once rather than each sprite.
+   *
+   * ```ts
+   * draw.mask(() => draw.circle(px, py, 40, "#fff"), () => drawLevel(draw)); // spotlight
+   * ```
+   */
+  mask(shape: () => void, fn: () => void): void {
+    const outer = this.target;
+    const lw = outer ? outer.width : this.viewW;
+    const lh = outer ? outer.height : this.viewH;
+    const pw = outer ? outer.width : this.backingW || Math.round(this.viewW * this.renderScale);
+    const ph = outer ? outer.height : this.backingH || Math.round(this.viewH * this.renderScale);
+    const level = this.maskDepth++;
+    const content = this.maskTarget(level * 2, pw, ph);
+    const cover = this.maskTarget(level * 2 + 1, pw, ph);
+    const blend = this.blendMode;
+    const alpha = this.alpha;
+    const clip = this.clips.at(-1) ?? null;
+    const pass = (into: RenderTarget, draw: () => void) => {
+      this.target = into;
+      this.backend.setTarget(into, 0, lw, lh);
+      // Targets match the destination's pixels, so clips carry over as they are.
+      if (clip) this.backend.setClip(clip);
+      this.blend("normal");
+      try {
+        draw();
+      } finally {
+        if (clip) this.backend.setClip(null);
+      }
+    };
+    try {
+      pass(content, fn);
+      this.alpha = 1;
+      pass(cover, shape);
+      // Keep content where the shape drew: one quad over the whole target, so both backends agree.
+      this.target = content;
+      this.backend.setTarget(content, null, lw, lh);
+      this.backend.setBlend("mask");
+      this.whole(cover, lw, lh);
+    } finally {
+      this.target = outer;
+      this.backend.setTarget(outer, null, lw, lh);
+      if (clip) this.backend.setClip(clip);
+      this.maskDepth--;
+      this.alpha = alpha;
+      this.blend(blend);
+    }
+    this.whole(content, lw, lh);
   }
 
   rect(x: number, y: number, w: number, h: number, color: Color): void {
@@ -675,7 +729,8 @@ export class Draw {
     this.clips.length = 0;
     copy(IDENTITY, this.m);
     this.alpha = 1;
-    this.backend.setBlend("normal");
+    this.maskDepth = 0;
+    this.blend("normal");
     this.backend.begin(toRGBA(clear), width, height, scale);
   }
 
@@ -688,7 +743,7 @@ export class Draw {
     }
     copy(IDENTITY, this.m);
     this.alpha = 1;
-    this.backend.setBlend("normal");
+    this.blend("normal");
   }
 
   /** @internal */
@@ -732,6 +787,36 @@ export class Draw {
     const m = this.m;
     const device = radius * Math.hypot(m[0], m[1]) * this.renderScale;
     return Math.max(2, Math.min(256, Math.ceil((device * angle) / 4)));
+  }
+
+  private blendMode: BlendMode = "normal";
+  private maskDepth = 0;
+  /** Two offscreen targets per level of mask nesting, kept between frames and remade when the size changes. */
+  private readonly maskTargets: RenderTarget[] = [];
+
+  private maskTarget(i: number, w: number, h: number): RenderTarget {
+    const t = this.maskTargets[i];
+    if (t && t.width === w && t.height === h) return t;
+    if (t) this.backend.disposeTarget(t);
+    const fresh = new RenderTarget(w, h);
+    this.maskTargets[i] = fresh;
+    return fresh;
+  }
+
+  /** Draw a mask target over the whole destination, 1:1 and untransformed, with no custom shader. */
+  private whole(t: RenderTarget, lw: number, lh: number): void {
+    const shader = this.shader;
+    if (shader) this.backend.setShader(null);
+    const t0 = this.tmp;
+    t0[0] = lw;
+    t0[1] = 0;
+    t0[2] = 0;
+    t0[3] = lh;
+    t0[4] = 0;
+    t0[5] = 0;
+    this.quads++;
+    this.backend.quad(t0, t, 0, 0, t.width, t.height, WHITE, 0, false);
+    if (shader) this.backend.setShader(shader);
   }
 
   private points = new Float32Array(64);

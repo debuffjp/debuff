@@ -82,10 +82,12 @@ export interface Backend {
    * `aa` is one device pixel in those units, for edge antialiasing where the backend does its own.
    */
   path(m: Matrix, points: ArrayLike<number>, n: number, closed: boolean, width: number, color: number, aa: number): void;
-  setBlend(mode: BlendMode): void;
+  /** `mask` (internal, for `draw.mask`) keeps what's there in proportion to the source's alpha. */
+  setBlend(mode: BlendMode | "mask"): void;
   /**
    * Send drawing to `target` (null: the canvas). `clear` (0xRRGGBBAA) clears it first; null keeps what's there.
-   * `width, height` are the logical size of the destination (the target's pixel size, or the canvas's logical size).
+   * `width, height` are the logical size of the destination: the canvas's logical size, or for a target its pixel
+   * size (`into`) or the canvas's logical size again (`mask`, whose targets match the canvas's backing pixels).
    */
   setTarget(target: RenderTarget | null, clear: number | null, width: number, height: number): void;
   /** Draw subsequent quads with a custom fragment effect (null: the default). */

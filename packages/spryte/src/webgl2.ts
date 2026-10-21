@@ -277,7 +277,7 @@ export class WebGL2Backend implements Backend {
   private lastSrc: TextureSource | null = null;
   private last: CachedTexture | undefined;
   private count = 0;
-  private blend: BlendMode = "normal";
+  private blend: BlendMode | "mask" = "normal";
   private submitted = 0;
 
   /** Draw calls this frame, counting the batch still pending (read before `end()` flushes it). */
@@ -584,7 +584,7 @@ export class WebGL2Backend implements Backend {
     gl.enableVertexAttribArray(loc);
   }
 
-  setBlend(mode: BlendMode): void {
+  setBlend(mode: BlendMode | "mask"): void {
     if (mode === this.blend || this.lost) return;
     this.flush();
     this.blend = mode;
@@ -999,6 +999,7 @@ export class WebGL2Backend implements Backend {
     else if (b === "multiply") gl.blendFunc(gl.DST_COLOR, gl.ONE_MINUS_SRC_ALPHA);
     else if (b === "screen") gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR);
     else if (b === "erase") gl.blendFunc(gl.ZERO, gl.ONE_MINUS_SRC_ALPHA);
+    else if (b === "mask") gl.blendFunc(gl.ZERO, gl.SRC_ALPHA);
     else gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
   }
 }

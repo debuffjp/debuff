@@ -29,7 +29,7 @@ export class Canvas2DBackend implements Backend {
   /** Recoloured frames per source, keyed by rect, tint and flash. */
   private shades = new WeakMap<object, Map<string, Surface>>();
   private clipped = false;
-  private blendMode: BlendMode = "normal";
+  private blendMode: BlendMode | "mask" = "normal";
 
   constructor(ctx: CanvasRenderingContext2D) {
     this.ctx = ctx;
@@ -144,7 +144,7 @@ export class Canvas2DBackend implements Backend {
     }
   }
 
-  setBlend(mode: BlendMode): void {
+  setBlend(mode: BlendMode | "mask"): void {
     this.blendMode = mode;
     this.ctx.globalCompositeOperation = COMPOSITE[mode];
   }
@@ -185,11 +185,11 @@ export class Canvas2DBackend implements Backend {
 
   dispose(): void {}
 
-  setTarget(target: RenderTarget | null, clear: number | null, _width: number, _height: number): void {
+  setTarget(target: RenderTarget | null, clear: number | null, width: number, _height: number): void {
     this.ctx = target ? (this.surface(target).getContext("2d") as CanvasRenderingContext2D) : this.screen;
     this.target = target;
-    // Targets are sized in pixels; the canvas in logical units at its backing scale.
-    this.scale = target ? 1 : this.screenScale;
+    // The canvas is in logical units at its backing scale; a target at its pixels per logical unit (1 for `into`).
+    this.scale = target ? target.width / width : this.screenScale;
     this.smoothing = undefined;
     this.setBlend(this.blendMode);
     if (target && clear !== null) {
@@ -295,10 +295,11 @@ function mixWhite(c: number, f: number): number {
   return Math.round(c + ((255 - c) * f) / 255);
 }
 
-const COMPOSITE: Record<BlendMode, GlobalCompositeOperation> = {
+const COMPOSITE: Record<BlendMode | "mask", GlobalCompositeOperation> = {
   normal: "source-over",
   add: "lighter",
   multiply: "multiply",
   screen: "screen",
   erase: "destination-out",
+  mask: "destination-in",
 };

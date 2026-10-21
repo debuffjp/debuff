@@ -16,6 +16,7 @@ function recorder() {
   const quads: Quad[] = [];
   const blends: string[] = [];
   const clips: (ClipRect | null)[] = [];
+  const targets: unknown[] = [];
   const paths: { m: Matrix; points: number[]; closed: boolean; width: number; color: number }[] = [];
   const backend: Backend = {
     kind: "2d",
@@ -27,6 +28,9 @@ function recorder() {
       paths.push({ m: [...m] as Matrix, points: Array.from(points).slice(0, n * 2), closed, width, color }),
     setBlend: (mode) => blends.push(mode),
     setClip: (rect) => clips.push(rect),
+    setTarget: (t) => targets.push(t),
+    setShader: () => {},
+    disposeTarget: () => {},
     end: () => {},
     resize: () => {},
     invalidate: () => {},
@@ -39,7 +43,7 @@ function recorder() {
     if (!q) throw new Error(`no quad ${i}`);
     return q;
   };
-  return { draw, quads, quad, blends, clips, paths };
+  return { draw, quads, quad, blends, clips, paths, targets };
 }
 
 /** Where the unit square's corner (u, v) lands. */
@@ -312,5 +316,28 @@ describe("nineSlice and tiled", () => {
       [5, 10, 0, 10],
       [15, 10, 0, 10],
     ]);
+  });
+});
+
+describe("mask", () => {
+  it("draws content and shape offscreen, masks, composites, and restores state", () => {
+    const { draw, quads, blends, targets } = recorder();
+    draw.blend("add");
+    draw.alpha = 0.5;
+    draw.mask(
+      () => draw.rect(0, 0, 10, 10, "#fff"),
+      () => draw.rect(0, 0, 50, 50, "#f00"),
+    );
+    // content, cover, back to content for the mask quad, then the canvas.
+    expect(targets).toHaveLength(4);
+    expect(targets[0]).toBe(targets[2]);
+    expect(targets[3]).toBeNull();
+    expect(blends).toContain("mask");
+    expect(blends.at(-1)).toBe("add");
+    expect(draw.alpha).toBe(0.5);
+    // Two drawn rects, the mask quad and the composite, which covers the whole canvas.
+    expect(quads).toHaveLength(4);
+    expect(quads[3]?.m).toEqual([100, 0, 0, 100, 0, 0]);
+    expect(quads[3]?.src).toBe(targets[0]);
   });
 });
