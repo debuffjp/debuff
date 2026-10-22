@@ -1,12 +1,12 @@
 ---
 name: plonk
-description: Use when a web game needs music, a soundtrack, a theme, background music or a jingle, or the user asks to compose, edit or tweak game music, especially when the game draws its art in code or must stay small (Poki, CrazyGames, game jams). plonk makes music in code: songs are small text patterns synthesized live with Web Audio, about 2 kB brotli, any engine.
+description: Use when a web game needs music, a soundtrack, a theme, background music or a jingle, or the user asks to compose, edit or tweak game music, especially when the game draws its art in code or must stay small (Poki, CrazyGames, game jams). plonk makes music in code: songs are small text patterns synthesized live with Web Audio, under 4 kB brotli, any engine.
 ---
 
 # Writing game music with plonk
 
 plonk plays songs written as data: instruments plus patterns of sixteenth-note steps, synthesized live with Web Audio.
-No audio files. The engine is about 2 kB brotli; a song is a few hundred bytes.
+No audio files. The engine is under 4 kB brotli; a song is a few hundred bytes.
 
 Docs: https://debuff.jp/plonk/ · Notation: https://debuff.jp/plonk/songs · Playground: https://debuff.jp/plonk/playground
 

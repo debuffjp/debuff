@@ -16,7 +16,7 @@ A living document. Items move up only with evidence from real games, jams and fi
 ## Done in 0.1
 
 - [x] Runtime: fixed-step loop, scenes, camera, sprites, input (keys, pointer, touch, gamepad, action bindings), audio, juice, storage, params, reduced motion
-- [x] Batched WebGL2 renderer with a Canvas 2D fallback (ADR 0007), now the standalone [spryte](../packages/spryte) package (ADR 0013): bulk `draw.sprites`, render targets, custom shaders, 2–4× PixiJS on the benchmark; `draw.clip`; recovers from GPU context loss
+- [x] Batched WebGL2 renderer with a Canvas 2D fallback (ADR 0007), now the standalone [spryte](../packages/spryte) package (ADR 0013): bulk `draw.sprites`, render targets, custom shaders, 2-4x PixiJS on the benchmark; `draw.clip`; recovers from GPU context loss
 - [x] Assets: generated manifest, automatic atlas packing, only referenced files ship
 - [x] Tilemaps: culled rendering, solid and one-way collision with landing tolerance, Tiled and LDtk import
 - [x] Loop errors stop cleanly instead of freezing (`hooks.error`, `game.lastError`)

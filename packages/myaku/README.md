@@ -65,7 +65,7 @@ profiler.stop();     // restore everything myaku wrapped
 | Option | Default | |
 | --- | --- | --- |
 | `size` | `600` | Frames kept |
-| `budgetMs` | 1.5× the display's frame interval | Slower frames are hitches. myaku measures the display every 30 frames and keeps the fastest rate seen: 25 ms at 60 Hz, 12.5 ms at 120 Hz. Settable later |
+| `budgetMs` | 1.5x the display's frame interval | Slower frames are hitches. myaku measures the display every 30 frames and keeps the fastest rate seen: 25 ms at 60 Hz, 12.5 ms at 120 Hz. Settable later |
 | `contexts` | `true` | Wrap canvas contexts to count draws, uploads and compiles |
 | `global` | `true` | Expose the profiler as `window.__MYAKU__` |
 | `engines` | `true` | Add engine spans automatically (see below) |
@@ -134,7 +134,7 @@ Chromium's [Long Animation Frames](https://w3c.github.io/long-animation-frames/)
 
 | | Long Animation Frames | myaku |
 | --- | --- | --- |
-| Which frames | Over 50 ms (three game frames) | Over 1.5× the display interval (25 ms at 60 Hz), including frames whose timestamps look on time |
+| Which frames | Over 50 ms (three game frames) | Over 1.5x the display interval (25 ms at 60 Hz), including frames whose timestamps look on time |
 | Where in the game loop | The one `requestAnimationFrame` callback | The game's own callback and source line, then engine spans (`update:<scene>`, `render`) found automatically |
 | GPU work | Not covered | Draw calls, texture and buffer uploads with bytes, shader compiles |
 | Garbage collection, throttling, hidden tabs | Not covered | A verdict for each, or `unknown` when it can't tell |

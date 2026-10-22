@@ -9,7 +9,7 @@ debuff is an open-source toolkit for 2D browser games that handles the basics fo
 - **The groundwork, done.** Start from a running game in under a minute. Crisp pixels on every screen, keyboard, touch and gamepad, sound that plays, levels from Tiled or LDtk, and a build you can put anywhere on the web, game portals like Poki and CrazyGames included ([publishing guide](https://debuff.jp/docs/publishing)).
 - **Tune it until it feels right.** Speeds, timings and other feel values become live sliders in the dev panel, with undo.
 - **When something breaks, it tells you.** Errors say whose bug it is and point at the line. Replays and scenario tests bring a bug back exactly, so you can fix it and move on.
-- **Room to grow.** Small (the starter ships at about 19 kB) and fast: its renderer, [spryte](packages/spryte), draws moving sprites 2–4× faster than the most popular 2D web renderer, at an eighth of its size: 800,000 at 60 fps on our test laptop, against 200,000 ([benchmarks](https://debuff.jp/benchmarks), [run them yourself](https://debuffjp.github.io/2dbench/mobile.html)), so the engine doesn't hold your idea back.
+- **Room to grow.** Small (the starter ships at about 19 kB) and fast: its renderer, [spryte](packages/spryte), draws moving sprites 2-4x faster than the most popular 2D web renderer, at an eighth of its size: 800,000 at 60 fps on our test laptop, against 200,000 ([benchmarks](https://debuff.jp/benchmarks), [run them yourself](https://debuffjp.github.io/2dbench/mobile.html)), so the engine doesn't hold your idea back.
 - **Agents help if you want them, you decide.** Coding agents can play the game you have open, read what's happening and check their changes. Creative calls stay with you.
 
 > **Status: 0.9, early development.** APIs will change, and feedback from real games shapes them.
@@ -66,7 +66,7 @@ More in [Why debuff](https://debuff.jp/docs/why). Agents can start from [llms.tx
 | [`@debuffjp/dev`](./packages/dev) | Dev panel (perf, tune, state, explained errors, replays, rewind) and `window.__DEBUFF_DEV__`, stripped from production |
 | [`@debuffjp/cli`](./tooling/cli) | `debuff dev · build · assets · test · scenario · fuzz · inspect · report` |
 | [`myaku`](./packages/myaku) | Frame profiler for any web game: finds the hitches players feel and says why in plain words. Standalone; `debuff dev` runs it for you |
-| [`plonkjs`](./packages/plonk) | Game music made in code: songs as text, synthesized live with Web Audio, about 2 kB brotli. Standalone; plays through `audio.bus("music")` |
+| [`plonkjs`](./packages/plonk) | Game music made in code: songs as text, synthesized live with Web Audio, under 4 kB brotli. Standalone; plays through `audio.bus("music")` |
 | [`keiko`](./tooling/keiko) | Fast, deterministic logic tests for any web game: the real game in Node, no browser. Standalone; debuff integrates it |
 | [`create-debuff`](./tooling/create-debuff) | `npm create debuff` scaffolder |
 | [`@debuffjp/mcp`](./tooling/mcp) | MCP server: agents inspect, build, test and play your game |
