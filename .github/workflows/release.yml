@@ -1,8 +1,9 @@
 name: Release
 
-# On every push to main: with pending changesets, open or update the "Version packages" PR.
-# Once that PR is merged (no changesets left), publish whatever isn't on npm yet, tag it,
-# and point the plugins at the new @debuffjp/mcp. See docs/releasing.md.
+# On every push to main: publish whatever version isn't on npm yet, tag it and point the
+# plugins at the new @debuffjp/mcp; then open or update the "Version packages" PR from
+# pending changesets. Publishing runs first and on its own, so a merged Version PR still
+# ships when new changesets have landed since. See docs/releasing.md.
 on:
   push:
     branches: [main]
@@ -26,9 +27,14 @@ jobs:
           cache: npm
           registry-url: https://registry.npmjs.org
       - run: npm ci
+      # A no-op when every version is already on npm.
+      - name: Publish unpublished versions
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          npm run release:ci
       - uses: changesets/action@v2
         with:
-          publish-script: npm run release:ci
           pr-title: Version packages
           commit-message: Version packages
         env:

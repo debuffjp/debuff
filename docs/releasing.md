@@ -6,7 +6,7 @@
 
 1. In each PR with user-facing changes, run `npx changeset` and commit the changeset file.
 2. When changesets land on `main`, the workflow opens or updates a **Version packages** PR that bumps versions and changelogs. Run the Matrix workflow on it before merging.
-3. Merge that PR. The next Release run finds no pending changesets and runs `npm run release:ci`: it builds, runs `changeset publish` (publishes every package whose version isn't on npm yet and tags it), points the Claude plugin and desktop extension at the new `@debuffjp/mcp` (committing that change), and pushes `main` and the tags. The tags matter: `create-debuff` downloads templates from its own tag, so a missing tag breaks `npm create debuff`.
+3. Merge that PR. The next Release run runs `npm run release:ci` before anything else, even if new changesets have landed since: it builds, runs `changeset publish` (publishes every package whose version isn't on npm yet and tags it), points the Claude plugin and desktop extension at the new `@debuffjp/mcp` (committing that change), and pushes `main` and the tags. The tags matter: `create-debuff` downloads templates from its own tag, so a missing tag breaks `npm create debuff`.
 
 If a publish stops partway, re-run the Release workflow (Actions → Release → Run workflow). It skips packages that are already on npm.
 
