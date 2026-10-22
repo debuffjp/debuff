@@ -5,7 +5,7 @@
 A pixel font for 2D web games, made for [debuff](https://debuff.jp) and free for any project. Downloads: [debuffjp/debuff-sans releases](https://github.com/debuffjp/debuff-sans/releases/latest).
 
 - Printable ASCII plus `· × … ° ← ↑ → ↓ ♥ ★` (105 glyphs).
-- 5×7 capitals, 2-pixel descenders, proportional widths with 1 pixel of spacing.
+- 5x7 capitals, 2-pixel descenders, proportional widths with 1 pixel of spacing.
 - Comes as an outline font (TTF), a bitmap font (BDF) and a sprite sheet (PNG).
 
 ## Files
@@ -14,9 +14,9 @@ A pixel font for 2D web games, made for [debuff](https://debuff.jp) and free for
 | --- | --- |
 | `debuff-sans.ttf` | CSS, design tools, any engine that loads TTF. One pixel is 100 units on a 1000-unit em, so it's crisp at **10px, 20px, 30px…** |
 | `debuff-sans.bdf` | Bitmap-font tools and engines that read BDF |
-| `debuff-sans.png` | Sprite-sheet engines and Aseprite: a 6×9 grid, white on transparent, in the order below |
+| `debuff-sans.png` | Sprite-sheet engines and Aseprite: a 6x9 grid, white on transparent, in the order below |
 
-Sheet order: space to `~` (ASCII 32–126), then `· × … ° ← ↑ → ↓ ♥ ★`. Each glyph starts at its cell's left
+Sheet order: space to `~` (ASCII 32-126), then `· × … ° ← ↑ → ↓ ♥ ★`. Each glyph starts at its cell's left
 edge; its advance is its rightmost inked column + 1. A space advances 3 pixels.
 
 ## Use it
@@ -36,7 +36,7 @@ edge; its advance is its rightmost inked column + 1. A space advances 3 pixels.
 
 **debuff**: it's built in. `draw.text` uses it by default, and `debuffSans()` returns it as a `BitmapFont`.
 
-**Other engines** (Phaser, PixiJS, KAPLAY, Godot, LÖVE…): load `debuff-sans.png` as a bitmap font with a 6×9
+**Other engines** (Phaser, PixiJS, KAPLAY, Godot, LÖVE…): load `debuff-sans.png` as a bitmap font with a 6x9
 cell, or use the TTF at a multiple of 10px with smoothing off.
 
 ## Edit or build it

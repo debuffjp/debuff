@@ -1,7 +1,7 @@
 # plonk
 
 **Game music made in code.** A song is a few hundred bytes of data, instruments and patterns of notes, synthesized
-live with Web Audio. There are no audio files to download, the engine is about 2 kB brotli, and it works with any
+live with Web Audio. There are no audio files to download, the engine is under 4 kB brotli, and it works with any
 engine (or none).
 
 **[Try it in the playground](https://debuff.jp/plonk/playground)**: draw a melody, roll dice, jam on your keyboard,

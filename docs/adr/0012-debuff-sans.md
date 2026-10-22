@@ -16,7 +16,7 @@ machine's fonts.
 debuff ships a bespoke pixel font, **debuff sans**, in `@debuffjp/core`, and `draw.text` / `draw.measure`
 (and `@debuffjp/ui` menus) use it when no `font` is given. CSS fonts and custom `BitmapFont`s still work.
 
-- The glyphs are printable ASCII plus `· × … ° ← ↑ → ↓ ♥ ★`, up to 5×9 pixels (5×7 capitals, 2-pixel descenders), proportional.
+- The glyphs are printable ASCII plus `· × … ° ← ↑ → ↓ ♥ ★`, up to 5x9 pixels (5x7 capitals, 2-pixel descenders), proportional.
 - The source of truth is the readable glyph table in `fonts/debuff-sans/build.mjs`. It generates the packed
   data in core (one base-32 digit per row, ~1 kB) and a PNG sheet for other engines. `lint:packages`
   fails if they are stale.

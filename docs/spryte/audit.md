@@ -8,11 +8,11 @@ The renderer was already well separated. Before this change it lived in `package
 
 | File | Role |
 | --- | --- |
-| `backend.ts` | Internal `Backend` interface. Everything is a quad: a 2×3 matrix mapping the unit square, an optional source rect, RGBA tint, flash, filtering. Also `Matrix`, `BlendMode`, `ClipRect`, `RawContext`, `TextureSource`. |
+| `backend.ts` | Internal `Backend` interface. Everything is a quad: a 2x3 matrix mapping the unit square, an optional source rect, RGBA tint, flash, filtering. Also `Matrix`, `BlendMode`, `ClipRect`, `RawContext`, `TextureSource`. |
 | `webgl2.ts` | Instanced, multi-texture batcher. One static unit quad plus a 52-byte-per-instance buffer (16,384 instances), 8 texture units per batch, premultiplied alpha, `normal`/`add` blend, scissor clips, context loss/restore. |
 | `canvas2d.ts` | Fallback. `setTransform` + `drawImage` per quad. Tint and flash go through a scratch canvas. Loaded with dynamic `import()` so WebGL2 browsers never download it. |
 | `draw.ts` | Public `Draw`: transform stack (preallocated), `rect`, `circle` (64px cached disc), `line`, `sprite`, `text` (CSS fonts rasterised into an LRU cache of 256 canvases; bitmap fonts drawn per glyph), `measure`, `clip`, `withCamera`, `blend`, `invalidate`. Pixel-art snapping for unrotated sprites. |
-| `color.ts` | `#hex`/number → `0xRRGGBBAA`, with a cached CSS fallback through a 1×1 canvas. |
+| `color.ts` | `#hex`/number → `0xRRGGBBAA`, with a cached CSS fallback through a 1x1 canvas. |
 | `bitmap-font.ts` | Sprite-sheet fonts. |
 | `debuff-sans*.ts` | debuff's built-in pixel font, the default for `draw.text`. |
 
@@ -37,15 +37,15 @@ Renderer setup (`createBackend`, the `PENDING` placeholder) was in `core/src/gam
 
 ## 3. Bugs, limitations, bottlenecks found while reading
 
-Ordered by likely user impact. Items 1–3 are fixed (see "Status" after the list), with unit tests in `packages/spryte/test/webgl2.test.ts`.
+Ordered by likely user impact. Items 1-3 are fixed (see "Status" after the list), with unit tests in `packages/spryte/test/webgl2.test.ts`.
 
-1. **Precision risk on mobile.** The fragment shader is `precision mediump float`, so `v_uv` is mediump. On GPUs where mediump is real fp16 (many Mali and Adreno chips; desktop is always fp32), texel addressing in atlases wider than about 1–2k px can be off by a texel, which shows as bleeding and shimmer in pixel art. Fix: `highp` on the UV varying. Needs a device to confirm. **Not verified on hardware.**
+1. **Precision risk on mobile.** The fragment shader is `precision mediump float`, so `v_uv` is mediump. On GPUs where mediump is real fp16 (many Mali and Adreno chips; desktop is always fp32), texel addressing in atlases wider than about 1-2k px can be off by a texel, which shows as bleeding and shimmer in pixel art. Fix: `highp` on the UV varying. Needs a device to confirm. **Not verified on hardware.**
 2. **Switching filtering re-uploads the texture.** `texture()` keys its cache by source and deletes and re-uploads when `smooth` differs. Drawing one image both smooth and pixelated in the same frame re-uploads it on every switch. Fix: sampler objects (WebGL2 has them) or two cache entries.
 3. **`dispose()` leaks GPU objects.** It deletes textures but not the program, shaders, VAO, quad/instance buffers or the white texture. It doesn't matter for one game per page, but it does for editors and hot reload that create and destroy renderers.
 4. **Context restore doesn't restore clip state.** It's reapplied on the next `clip()` call, so this only matters mid-frame. Low risk.
 5. **Every quad pays an 8-way sampler `if` chain** in the fragment shader. That's fine on desktop; on low-end mobile it's **not measured**.
 6. **Text cache eviction** sorts the whole map (256 entries) on overflow. It's rare, so it's not a hot path.
-7. **Canvas 2D fallback** is 20–40× slower (ADR 0007) and tint/flash cost two scratch-canvas compositions per quad. That's acceptable as a fallback.
+7. **Canvas 2D fallback** is 20-40x slower (ADR 0007) and tint/flash cost two scratch-canvas compositions per quad. That's acceptable as a fallback.
 8. **Upload stalls:** the first draw of a new image uploads synchronously in the frame. There's no preload/upload API, so a level start can hitch.
 
 **Status (2026-10-19):** fixed 1 (UVs are `highp`; still **not verified on a phone**), fixed 2 (sampler objects: one upload per source, filtering chosen per draw), and fixed 3 (`dispose` deletes the program, buffers, VAO, samplers and white texture; shaders are deleted after linking). The WebGL2 backend now has unit tests against a recording fake GL, covering batching, the 8-unit split, context loss and restore, `invalidate`, scissor and `dispose`. The basic template's startup code went from 14.7 to 14.9 kB brotli.
@@ -105,10 +105,10 @@ API debt to settle before 1.0: `begin`, `end`, `resize`, `dispose` and `renderSc
 ### Progress since the audit (2026-10-19)
 
 - **Differentiation against PixiJS, measured** (`packages/spryte/docs/benchmarks.md`; one machine, so the caveats apply):
-  - `draw.sprites()` bulk path: about 3× ParticleContainer at 200k.
-  - With per-copy scale, rotation and colour: about 4× ParticleContainer with every dynamic property on.
-  - A `sprite()` loop is about 4× PixiJS `Sprite`.
-  - About 9× less JS at startup (10.1 vs 87.8 kB brotli, `bench/size`).
+  - `draw.sprites()` bulk path: about 3x ParticleContainer at 200k.
+  - With per-copy scale, rotation and colour: about 4x ParticleContainer with every dynamic property on.
+  - A `sprite()` loop is about 4x PixiJS `Sprite`.
+  - About 9x less JS at startup (10.1 vs 87.8 kB brotli, `bench/size`).
 - **New features:**
   - Render targets (`createTarget`, `into`).
   - Custom shaders (`createShader`, `withShader`, with errors mapped to your line numbers).
@@ -118,7 +118,7 @@ API debt to settle before 1.0: `begin`, `end`, `resize`, `dispose` and `renderSc
 
 ## 9. Release readiness
 
-Not ready for a 1.0. A public beta is now justified on features and performance, but still has no device matrix. The code is production-proven inside debuff, but it has no WebGL2 unit tests, no device matrix, one benchmark machine, an unsettled name, and lifecycle methods still marked internal. A public beta is reasonable after plan steps 2–4.
+Not ready for a 1.0. A public beta is now justified on features and performance, but still has no device matrix. The code is production-proven inside debuff, but it has no WebGL2 unit tests, no device matrix, one benchmark machine, an unsettled name, and lifecycle methods still marked internal. A public beta is reasonable after plan steps 2-4.
 
 ## 10. Open decisions (need the maintainer)
 
