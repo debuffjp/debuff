@@ -17,6 +17,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      actions: write # dispatch CI on the Version packages PR
       id-token: write # npm trusted publishing (OIDC) and provenance
     steps:
       - uses: actions/checkout@v7
@@ -34,8 +35,16 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           npm run release:ci
       - uses: changesets/action@v2
+        id: changesets
         with:
           pr-title: Version packages
           commit-message: Version packages
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # PRs opened with GITHUB_TOKEN don't trigger CI (they wait at "action_required"); a dispatch is the
+      # one event that token may start, and its checks land on the PR's head commit.
+      - name: Run CI on the Version packages PR
+        if: steps.changesets.outputs.hasChangesets == 'true'
+        run: gh workflow run ci.yml --ref changeset-release/main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
