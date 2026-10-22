@@ -14,6 +14,7 @@ concurrency:
 
 permissions:
   contents: read
+  statuses: write # dispatched runs report to the PR as a commit status
 
 jobs:
   check:
@@ -40,3 +41,14 @@ jobs:
             templates/*/.debuff/
             templates/*/scenarios/__baselines__/
           if-no-files-found: ignore
+      # Release dispatches this on the Version packages PR. A dispatched run's check isn't listed on the PR,
+      # so report its result as a commit status, which is.
+      - name: Report to the Version packages PR
+        if: always() && github.event_name == 'workflow_dispatch'
+        run: >
+          gh api repos/${{ github.repository }}/statuses/${{ github.sha }}
+          -f state=${{ job.status == 'success' && 'success' || 'failure' }}
+          -f context=CI -f description="npm run check on ${{ github.ref_name }}"
+          -f target_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
