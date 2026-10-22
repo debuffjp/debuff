@@ -19,7 +19,7 @@ draw.sprite(assets.frame("coin"), x, y); // any image, atlased or not
 | --- | --- | --- |
 | `assets/logo.png` | `logo` | `default` |
 | `assets/level1/map.json` | `level1/map` | `level1` |
-| `assets/hero@16x24.png` | `hero` (grid 16×24) | `default` |
+| `assets/hero@16x24.png` | `hero` (grid 16x24) | `default` |
 
 ## API
 

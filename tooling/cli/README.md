@@ -87,7 +87,7 @@ export default defineConfig({ plugins: [aseprite()] });
 ```
 
 - `hero.aseprite` with several frames becomes a sprite sheet: `assets.frames("hero")` returns the frames in order.
-- `font@6x9.aseprite` flattens to one image with a 6×9 grid, ready for `BitmapFont`.
+- `font@6x9.aseprite` flattens to one image with a 6x9 grid, ready for `BitmapFont`.
 - Hidden layers are left out, so guide layers stay in the source.
 
 It looks for Aseprite in `$ASEPRITE`, then on `PATH`, then in the usual install folders (including Steam). You can also pass `aseprite({ binary })`. If it can't find Aseprite, the build warns and skips those files. Results are cached by file contents, so Aseprite only runs when a file changes.

@@ -11,7 +11,7 @@ createRenderer(canvas) ──▶ Draw (public, immediate mode)
 
 ## One primitive
 
-Every draw becomes `quad(matrix, source, srcRect, rgba, flash, smooth)`: a 2×3 affine matrix that maps the unit square into logical space. Rects use a 1×1 white texture, circles a cached 64 px disc, and text a cached raster or bitmap-font glyphs. Because there's only one primitive, any new feature that reduces to quads batches for free.
+Every draw becomes `quad(matrix, source, srcRect, rgba, flash, smooth)`: a 2x3 affine matrix that maps the unit square into logical space. Rects use a 1x1 white texture, circles a cached 64 px disc, and text a cached raster or bitmap-font glyphs. Because there's only one primitive, any new feature that reduces to quads batches for free.
 
 ## WebGL2 backend
 
@@ -27,7 +27,7 @@ Every draw becomes `quad(matrix, source, srcRect, rgba, flash, smooth)`: a 2×3 
 
 ## Canvas 2D backend
 
-`setTransform` + `drawImage` per quad. Tint and flash composite through a scratch canvas, which is slow but only used when asked for. It's 20–40× slower than WebGL2 at sprite throughput, so it's a correctness fallback, not a performance path.
+`setTransform` + `drawImage` per quad. Tint and flash composite through a scratch canvas, which is slow but only used when asked for. It's 20-40x slower than WebGL2 at sprite throughput, so it's a correctness fallback, not a performance path.
 
 ## Boundaries
 

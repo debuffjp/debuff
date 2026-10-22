@@ -26,7 +26,7 @@ This is **mossfell**, a top-down action-adventure made with **debuff** (https://
 
 ## How the game is put together
 
-- `assets/world.tmj` is one Tiled map: a 4×2 grid of 16×11-tile screens. Columns 0–2 are the overworld ("the fell"), column 3 is the dungeon ("the hollow"). Objects in the `entities` layer place the spawn, enemies (`Slime`, `Moth`, `Thorn`, `Warden`), pickups (`Seed`, `Heart`, `Key`), the `Relic`, and the stairs targets (`Arrive`, `Return`).
+- `assets/world.tmj` is one Tiled map: a 4x2 grid of 16x11-tile screens. Columns 0-2 are the overworld ("the fell"), column 3 is the dungeon ("the hollow"). Objects in the `entities` layer place the spawn, enemies (`Slime`, `Moth`, `Thorn`, `Warden`), pickups (`Seed`, `Heart`, `Key`), the `Relic`, and the stairs targets (`Arrive`, `Return`).
 - Walking off a screen edge starts a scroll; enemies respawn whenever a screen is entered. Stairs fade between the fell and the hollow.
 - Feel values are in three param groups: `player`, `world` and `enemies`.
 - `inspect()` reports `state` (`play`/`won`/`lost`), `screen`, `player` (hp in half-hearts, keys, seeds), `enemies`, `kills`, `doorOpen`, `wardenDown`.
