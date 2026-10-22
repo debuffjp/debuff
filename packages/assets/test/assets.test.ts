@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AssetError, type AssetManifest, Assets } from "../src/index.js";
+import { ASSETS_CHANGED_EVENT, AssetError, type AssetManifest, Assets, type AssetsChangedDetail } from "../src/index.js";
 
 const manifest: AssetManifest = {
   version: 1,
@@ -10,14 +10,16 @@ const manifest: AssetManifest = {
   },
 };
 
+const stubResponse = async (url: string, status = 200) => ({
+  ok: status === 200,
+  status,
+  json: async () => ({ url }),
+  text: async () => `text:${url}`,
+  arrayBuffer: async () => new ArrayBuffer(4),
+});
+
 function stubFetch(status = 200) {
-  const fetch = vi.fn(async (url: string) => ({
-    ok: status === 200,
-    status,
-    json: async () => ({ url }),
-    text: async () => `text:${url}`,
-    arrayBuffer: async () => new ArrayBuffer(4),
-  }));
+  const fetch = vi.fn((url: string) => stubResponse(url, status));
   vi.stubGlobal("fetch", fetch);
   return fetch;
 }
@@ -80,6 +82,56 @@ describe("reload", () => {
     stubFetch(500);
     await expect(assets.reload("config")).rejects.toThrow(/Failed to reload asset "config".*HTTP 500/);
     expect(assets.json("config")).toEqual({ url: "assets/config.json" });
+  });
+
+  it("a slow first fetch can't overwrite a reload that finished before it", async () => {
+    let finishFirst: (r: unknown) => void = () => {};
+    const slow = new Promise((r) => {
+      finishFirst = r;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => (url.includes("?t=") ? stubResponse(url) : slow)),
+    );
+    const assets = new Assets(manifest);
+    const first = assets.fetch("config");
+    await assets.reload("config");
+    expect(assets.json("config")).toEqual({ url: expect.stringMatching(/\?t=/) });
+    finishFirst(await stubResponse("assets/config.json"));
+    await first;
+    expect(assets.json("config")).toEqual({ url: expect.stringMatching(/\?t=/) });
+  });
+
+  it("runs every listener even if one throws, then reports the error", async () => {
+    stubFetch();
+    const assets = new Assets(manifest);
+    await assets.fetch("config");
+    const seen: string[] = [];
+    assets.onChange("config", () => {
+      throw new Error("tileset missing");
+    });
+    assets.onChange("config", (id) => seen.push(id));
+    await expect(assets.reload("config")).rejects.toThrow(/listener for "config" threw: tileset missing/);
+    expect(seen).toEqual(["config"]);
+    expect(assets.json("config")).toEqual({ url: expect.stringMatching(/\?t=/) });
+  });
+
+  it("re-fetches changed files it holds on the dev-server event and counts them as consumed", async () => {
+    const fetch = stubFetch();
+    // Its own files: loaders from earlier tests are still alive and would answer for the shared manifest's.
+    const own: AssetManifest = {
+      version: 1,
+      assets: { held: { type: "json", src: "assets/held.json" }, idle: { type: "json", src: "assets/idle.json" } },
+    };
+    const assets = new Assets(own);
+    await assets.fetch("held");
+    const miss = new CustomEvent<AssetsChangedDetail>(ASSETS_CHANGED_EVENT, { detail: { files: ["assets/idle.json"], consumed: 0 } });
+    dispatchEvent(miss);
+    expect(miss.detail.consumed).toBe(0);
+    const hit = new CustomEvent<AssetsChangedDetail>(ASSETS_CHANGED_EVENT, { detail: { files: ["assets/held.json"], consumed: 0 } });
+    dispatchEvent(hit);
+    expect(hit.detail.consumed).toBe(1);
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
   });
 });
 
