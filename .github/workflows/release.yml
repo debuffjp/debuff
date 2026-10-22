@@ -1,26 +1,35 @@
 name: Release
 
+# On every push to main: with pending changesets, open or update the "Version packages" PR.
+# Once that PR is merged (no changesets left), publish whatever isn't on npm yet, tag it,
+# and point the plugins at the new @debuffjp/mcp. See docs/releasing.md.
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 concurrency: release-${{ github.ref }}
 
 jobs:
-  version:
+  release:
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
+      id-token: write # npm trusted publishing (OIDC) and provenance
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          # Trusted publishing needs npm 11.5+, which ships with Node 24.
+          node-version: 24
           cache: npm
+          registry-url: https://registry.npmjs.org
       - run: npm ci
-      # Opens or updates a "Version packages" PR from pending changesets.
-      # Publishing happens locally with `npm run release` (see docs/releasing.md).
       - uses: changesets/action@v2
+        with:
+          publish: npm run release:ci
+          title: Version packages
+          commit: Version packages
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
