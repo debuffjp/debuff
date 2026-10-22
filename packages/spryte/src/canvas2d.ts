@@ -38,7 +38,7 @@ export class Canvas2DBackend implements Backend {
     this.raw = { kind: "2d", ctx };
   }
 
-  begin(clear: number, width: number, height: number, scale: number): void {
+  begin(clear: number | null, width: number, height: number, scale: number): void {
     this.ctx = this.screen;
     this.target = null;
     this.scale = scale;
@@ -47,6 +47,7 @@ export class Canvas2DBackend implements Backend {
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = "source-over";
+    if (clear === null) return;
     // A see-through clear colour replaces last frame instead of blending over it.
     if ((clear & 0xff) < 255) ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = rgbaToCss(clear);

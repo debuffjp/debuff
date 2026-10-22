@@ -39,8 +39,8 @@ export interface Backend {
   readonly contextLost?: boolean;
   /** GPU draw calls submitted so far this frame, where the backend batches (WebGL2). */
   readonly drawCalls?: number;
-  /** Begin a frame: clear to `clear` (0xRRGGBBAA) at the given logical size and backing scale. */
-  begin(clear: number, width: number, height: number, scale: number): void;
+  /** Begin a frame: clear to `clear` (0xRRGGBBAA; null keeps what's there) at the given logical size and backing scale. */
+  begin(clear: number | null, width: number, height: number, scale: number): void;
   /**
    * Draw the unit square transformed by `m`. `src` null draws solid `color`.
    * `sx, sy, sw, sh` is the source rect in source pixels (ignored when `src` is null). `flash` (0..1) mixes the texture toward white.
