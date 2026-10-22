@@ -28,8 +28,8 @@ jobs:
       - run: npm ci
       - uses: changesets/action@v2
         with:
-          publish: npm run release:ci
-          title: Version packages
-          commit: Version packages
+          publish-script: npm run release:ci
+          pr-title: Version packages
+          commit-message: Version packages
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
