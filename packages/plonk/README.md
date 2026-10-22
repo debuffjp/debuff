@@ -4,6 +4,9 @@
 live with Web Audio. There are no audio files to download, the engine is about 2 kB brotli, and it works with any
 engine (or none).
 
+**[Try it in the playground](https://debuff.jp/plonk/playground)**: draw a melody, roll dice, jam on your keyboard,
+then copy the song into your game. Guides and the API: [debuff.jp/plonk](https://debuff.jp/plonk/).
+
 ```ts
 import { Player, type Song } from "plonkjs";
 
