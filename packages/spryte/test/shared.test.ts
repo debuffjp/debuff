@@ -43,13 +43,38 @@ const M: Matrix = [16, 0, 0, 16, 0, 0];
 const image = { width: 16, height: 16 } as unknown as TextureSource;
 
 describe("createSharedRenderer", () => {
-  it("never listens for context events, and sizes itself to the drawing buffer until told otherwise", () => {
+  it("notes context events without claiming them, and sizes itself to the drawing buffer until told otherwise", () => {
     const { gl, listeners } = hostGL();
     const shared = createSharedRenderer(gl);
-    expect(listeners.size).toBe(0);
+    expect([...listeners.keys()].sort()).toEqual(["webglcontextlost", "webglcontextrestored"]);
     expect([shared.draw.backingW, shared.draw.backingH]).toEqual([100, 50]);
     shared.target(null, 64, 32);
     expect([shared.draw.backingW, shared.draw.backingH]).toEqual([64, 32]);
+    shared.draw.dispose();
+    expect(listeners.size).toBe(0);
+  });
+
+  it("rebuilds at the next begin after a loss and restore that happened between frames", () => {
+    const { gl, named, listeners } = hostGL();
+    const shared = createSharedRenderer(gl);
+    const programs = named("createProgram").length;
+    const fire = (name: string) => (listeners.get(name) as (e: object) => void)({ preventDefault: () => {} });
+    fire("webglcontextlost");
+    expect(shared.draw.contextLost).toBe(true);
+    fire("webglcontextrestored");
+    // isContextLost() is already false again: begin() must still rebuild, since the old objects are dead.
+    shared.draw.begin(null, 100, 50, 1);
+    expect(shared.draw.contextLost).toBe(false);
+    expect(named("createProgram").length).toBeGreaterThan(programs);
+    shared.draw.sprite(image, 10, 10);
+    shared.draw.end();
+    expect(named("drawArraysInstanced")).toHaveLength(1);
+    // A restore alone (the loss event missed) rebuilds too.
+    const again = named("createProgram").length;
+    fire("webglcontextrestored");
+    shared.draw.begin(null, 100, 50, 1);
+    expect(named("createProgram").length).toBeGreaterThan(again);
+    shared.draw.end();
   });
 
   it("rebinds what it needs at begin, draws into the host's framebuffer at its size, and doesn't clear", () => {

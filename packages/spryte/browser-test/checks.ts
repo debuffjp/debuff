@@ -917,7 +917,8 @@ function hostCanvas(): WebGL2RenderingContext {
   gl.getExtension("WEBGL_lose_context")?.loseContext();
 }
 
-// Context loss on a shared context: the host prevents the default, spryte notices at begin() and rebuilds.
+// Context loss on a shared context: the host prevents the default, spryte notes the events and rebuilds at its
+// next begin(). Twice: once drawing while lost, once with the loss and restore between two frames.
 {
   const gl = hostCanvas();
   const ext = gl.getExtension("WEBGL_lose_context");
@@ -955,6 +956,23 @@ function hostCanvas(): WebGL2RenderingContext {
     `lost ${lostState} (seen ${lostSeen}), restored ${restoredState}, contextLost after: ${shared.draw.contextLost}`,
   );
   record("shared context loss: same pixels after restore", readTopDown(gl), await render(busy, "webgl2", 1));
+  // No frame between the loss and the restore: isContextLost() is false again by the next begin(), and the old
+  // objects are dead. The host engine (or a benchmark's context-loss check) does exactly this.
+  const lost2 = event("webglcontextlost");
+  ext?.loseContext();
+  await lost2;
+  await new Promise((r) => setTimeout(r, 0));
+  const restored2 = event("webglcontextrestored");
+  ext?.restoreContext();
+  const restored2State = await restored2;
+  await new Promise((r) => setTimeout(r, 0));
+  frame();
+  check(
+    "shared context loss between frames: recovered",
+    restored2State === "fired" && !shared.draw.contextLost,
+    `restored ${restored2State}, contextLost after: ${shared.draw.contextLost}`,
+  );
+  record("shared context loss between frames: same pixels after", readTopDown(gl), await render(busy, "webgl2", 1));
   shared.draw.dispose();
   ext?.loseContext();
 }

@@ -128,7 +128,7 @@ shared.draw.end();
 ```
 
 - At `begin()` spryte binds its own program, vertex array and blend state, and resets depth test, face culling, colour mask and `UNPACK_FLIP_Y`. It keeps the host's scissor and stencil, so a camera viewport or mask applies to spryte too, and its own `clip()` intersects the host's scissor. At `end()` it gives the host's scissor back and unbinds sampler objects, which would otherwise override the texture filtering of a host written for WebGL1. It does not restore the host's program, vertex array, texture bindings or viewport: the host must rebind what it needs after the slot, as engines with cached GL state do (Phaser does).
-- Context loss belongs to the host: it must `preventDefault` on `webglcontextlost` for the browser to restore the context. spryte notices the loss at `begin()`, draws nothing while lost, and rebuilds its GPU objects at the first `begin()` after the restore.
+- Context loss belongs to the host: it must `preventDefault` on `webglcontextlost` for the browser to restore the context. spryte listens to both events without claiming them, draws nothing while lost, and rebuilds its GPU objects at the first `begin()` after the restore, inside the host's slot, even when the loss and restore both happened between two frames.
 - The separate export costs nothing in apps that don't use it, and an app that only uses it never loads the Canvas 2D fallback.
 
 ### Phaser 4: `spryte/phaser`
