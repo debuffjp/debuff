@@ -66,7 +66,17 @@ const mcpb = read("tooling/mcp/mcpb/manifest.json");
 mcpb.version = version;
 write("tooling/mcp/mcpb/manifest.json", mcpb);
 
-execSync("npm install --package-lock-only --ignore-scripts --no-audit --no-fund", { cwd: plugin, stdio: "inherit" });
+// `npm view` can see the new version minutes before installs resolve it and its deps (ETARGET). Retry.
+for (let tries = 1; ; tries++) {
+  try {
+    execSync("npm install --package-lock-only --ignore-scripts --no-audit --no-fund", { cwd: plugin, stdio: "inherit" });
+    break;
+  } catch (error) {
+    if (tries === 30) throw error;
+    console.log("npm can't resolve it yet, retrying in 10 s…");
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10_000);
+  }
+}
 // Match the repo's formatting (Biome collapses short arrays that JSON.stringify spreads over lines).
 execSync("npx biome format --write plugins tooling/mcp/mcpb/manifest.json", { stdio: "inherit" });
 execSync(`git add plugins tooling/mcp/mcpb/manifest.json`, { stdio: "inherit" });
