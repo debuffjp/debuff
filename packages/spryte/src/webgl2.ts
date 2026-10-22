@@ -218,7 +218,7 @@ interface CachedTexture {
 export class WebGL2Backend implements Backend {
   readonly kind = "webgl2" as const;
   readonly raw: RawContext;
-  private readonly gl: WebGL2RenderingContext;
+  protected readonly gl: WebGL2RenderingContext;
   private readonly capacity = 16_384;
   private readonly data = new ArrayBuffer(this.capacity * STRIDE);
   private readonly f32 = new Float32Array(this.data);
@@ -232,10 +232,10 @@ export class WebGL2Backend implements Backend {
   private linear!: WebGLSampler;
   private main!: ProgramInfo;
   /** The program sprite batches draw with: `main`, or a custom shader's inside `withShader`. */
-  private active!: ProgramInfo;
+  protected active!: ProgramInfo;
   private shader: Shader | null = null;
   private readonly customs = new Map<Shader, CustomProgram>();
-  private vao!: WebGLVertexArrayObject;
+  protected vao!: WebGLVertexArrayObject;
   private quadBuffer!: WebGLBuffer;
   private copyPipe!: CopyPipeline;
   private each!: EachPipeline;
@@ -247,19 +247,19 @@ export class WebGL2Backend implements Backend {
   private staging = new Float32Array(0);
   private readonly targets = new Map<RenderTarget, { fbo: WebGLFramebuffer; cached: CachedTexture }>();
   /** Where drawing goes: a render target, or null for the canvas. */
-  private target: RenderTarget | null = null;
+  protected target: RenderTarget | null = null;
   /** Height in pixels of the current destination, for flipping scissor rectangles. */
-  private outH = 1;
+  protected outH = 1;
   private viewW = 1;
   private viewH = 1;
   /** True between webglcontextlost and webglcontextrestored: drawing is skipped. */
-  private lost = false;
-  private readonly onLost = (e: Event) => {
+  protected lost = false;
+  protected readonly onLost = (e: Event) => {
     // preventDefault tells the browser we will handle restoration.
     e.preventDefault();
     this.lost = true;
   };
-  private readonly onRestored = () => {
+  protected readonly onRestored = () => {
     // Every GPU object died with the context. Sources are still in memory, so textures re-upload lazily.
     // Render targets come back blank. Custom shaders recompile on next use.
     const shader = this.shader;
@@ -361,21 +361,29 @@ export class WebGL2Backend implements Backend {
     gl.bindVertexArray(this.vao);
   }
 
-  begin(clear: number, width: number, height: number): void {
+  begin(clear: number | null, width: number, height: number): void {
     if (this.lost) return;
     const gl = this.gl;
-    if (this.target) gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     this.target = null;
-    this.outH = gl.drawingBufferHeight;
-    gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+    this.bindOutput();
     if (this.active !== this.main) this.setShader(null);
     this.viewW = width;
     this.viewH = height;
-    // The canvas is premultiplied, so a see-through clear colour is premultiplied too (opaque colours are unchanged).
-    const a = (clear & 0xff) / 255;
-    gl.clearColor(((clear >>> 24) / 255) * a, (((clear >>> 16) & 0xff) / 255) * a, (((clear >>> 8) & 0xff) / 255) * a, a);
-    gl.clear(gl.COLOR_BUFFER_BIT);
+    if (clear !== null) {
+      // The canvas is premultiplied, so a see-through clear colour is premultiplied too (opaque colours are unchanged).
+      const a = (clear & 0xff) / 255;
+      gl.clearColor(((clear >>> 24) / 255) * a, (((clear >>> 16) & 0xff) / 255) * a, (((clear >>> 8) & 0xff) / 255) * a, a);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+    }
     this.submitted = 0;
+  }
+
+  /** Bind the frame's destination, the canvas, with the viewport sized to it. Shared mode binds the host's framebuffer instead. */
+  protected bindOutput(): void {
+    const gl = this.gl;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+    this.outH = gl.drawingBufferHeight;
   }
 
   quad(
@@ -721,11 +729,7 @@ export class WebGL2Backend implements Backend {
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.targetStore(target).fbo);
       gl.viewport(0, 0, target.width, target.height);
       this.outH = target.height;
-    } else {
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
-      this.outH = gl.drawingBufferHeight;
-    }
+    } else this.bindOutput();
     this.target = target;
     this.viewW = width;
     this.viewH = height;
@@ -949,7 +953,7 @@ export class WebGL2Backend implements Backend {
     return { program, view: gl.getUniformLocation(program, "u_view"), w: -1, h: -1, vao, buffer, indices };
   }
 
-  private flush(): void {
+  protected flush(): void {
     this.flushShapes();
     if (this.lost) {
       this.count = 0;
@@ -1045,7 +1049,7 @@ export class WebGL2Backend implements Backend {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   }
 
-  private applyBlend(): void {
+  protected applyBlend(): void {
     const gl = this.gl;
     // Colours are premultiplied, so each mode is one blendFunc.
     const b = this.blend;

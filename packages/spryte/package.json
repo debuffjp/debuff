@@ -29,6 +29,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./phaser": {
+      "types": "./dist/phaser.d.ts",
+      "default": "./dist/phaser.js"
     }
   },
   "files": [
@@ -41,6 +45,8 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "example": "vite examples/minimal",
+    "example:phaser": "vite examples/phaser",
+    "test:phaser": "node examples/phaser/check.mjs",
     "test:browser": "node browser-test/run.mjs"
   },
   "publishConfig": {

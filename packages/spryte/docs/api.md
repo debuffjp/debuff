@@ -22,7 +22,7 @@ draw.end();                               // submits the frame
 draw.dispose();                           // frees GPU objects and listeners; the Draw is unusable after
 ```
 
-`scale` is usually `canvas.width / width` (CSS scale × `devicePixelRatio`). It also sets the resolution that text is rasterised at.
+`scale` is usually `canvas.width / width` (CSS scale × `devicePixelRatio`). It also sets the resolution that text is rasterised at. A `clear` of `null` draws over what's already there: an overlay, a second pass, or a frame another engine began.
 
 ## Drawing
 
@@ -43,6 +43,7 @@ draw.dispose();                           // frees GPU objects and listeners; th
 | | |
 | --- | --- |
 | `push()`, `pop()`, `translate(x, y)`, `scale(x, y?)`, `rotate(rad)` | Transform stack. `begin()` resets it. |
+| `transform(a, b, c, d, e, f)` | Multiply a matrix (Canvas order: x' = a·x + c·y + e, y' = b·x + d·y + f) onto the transform: a camera or parent transform from another engine, skew included. |
 | `clip(x, y, w, h, fn)` | Draws inside `fn` are clipped to the rectangle's screen bounds. Nested clips intersect. |
 | `withCamera(camera, fn)` | Applies `camera.view()` (any `{ view(): Matrix }`) for the draws inside `fn`. |
 | `blend(mode)` | `"normal"`, `"add"` (glow), `"multiply"` (shadows, tinted light), `"screen"` (soft lightening) or `"erase"` (cut alpha out, e.g. holes in a render target). Pixel-identical on WebGL2 and Canvas 2D over opaque pixels. Erase in render targets or on a `transparent` canvas: what an erased opaque canvas shows is up to the browser. |
@@ -111,6 +112,46 @@ draw.withShader(wave, () => draw.sprite(hero, x, y));
 - `set()` affects only draws made after it, even inside the same scope.
 - Shaders compose with render targets: draw into a target, then draw the target through a shader for full-screen post-processing.
 - `sprites()` inside `withShader` falls back to one quad per copy, which is correct but without the bulk speed-up.
+
+## Inside another engine: createSharedRenderer(gl, options?)
+
+spryte on a WebGL2 context another engine owns, to draw the heaviest parts of a frame (bullets, particles) inside that engine's frame and draw order, on one GPU context with no overlay canvas. `options` has `smooth`. It returns `{ draw, target(framebuffer, width, height) }`.
+
+```ts
+const shared = createSharedRenderer(gl);        // inside the host's slot for foreign drawing: creation changes GL state
+// each frame, in that slot:
+shared.target(hostFramebuffer, width, height);  // if the host's destination changed (null: the canvas)
+shared.draw.begin(null, width, height, 1);      // null: draw over the host's frame
+shared.draw.transform(a, b, c, d, e, f);        // the host's camera
+shared.draw.sprites(bullet, positions, count);
+shared.draw.end();
+```
+
+- At `begin()` spryte binds its own program, vertex array and blend state, and resets depth test, face culling, colour mask and `UNPACK_FLIP_Y`. It keeps the host's scissor and stencil, so a camera viewport or mask applies to spryte too, and its own `clip()` intersects the host's scissor. At `end()` it gives the host's scissor back and unbinds sampler objects, which would otherwise override the texture filtering of a host written for WebGL1. It does not restore the host's program, vertex array, texture bindings or viewport: the host must rebind what it needs after the slot, as engines with cached GL state do (Phaser does).
+- Context loss belongs to the host: it must `preventDefault` on `webglcontextlost` for the browser to restore the context. spryte notices the loss at `begin()`, draws nothing while lost, and rebuilds its GPU objects at the first `begin()` after the restore.
+- The separate export costs nothing in apps that don't use it, and an app that only uses it never loads the Canvas 2D fallback.
+
+### Phaser 4: `spryte/phaser`
+
+```ts
+import { createPhaserContext, spryteExtern } from "spryte/phaser";
+
+const game = new Phaser.Game({ type: Phaser.WEBGL, ...createPhaserContext(), scene: Bullets });
+class Bullets extends Phaser.Scene {
+  create() {
+    const extern = this.add.extern().setDepth(5); // spryte draws at this depth
+    spryteExtern(extern, (draw) => draw.sprites(bullet, positions, count));
+  }
+}
+```
+
+| Function | |
+| --- | --- |
+| `createPhaserContext(canvas?, attributes?)` | A WebGL2 context for Phaser to run on (Phaser makes WebGL1 by itself), with `shimShaders` installed. Spread the result (`canvas`, `context`) into the game config. `attributes` default to Phaser's: opaque, antialiased, premultiplied, with a stencil buffer. |
+| `spryteExtern(extern, render, options?)` | `render(draw)` runs each frame in the Extern's slot, with the Extern's `calcMatrix` (camera and any Container) applied, so coordinates are Phaser's world. Filters on the Extern or camera, camera viewports and `Stencil` masks apply. Returns `{ draw, dispose }`; `draw` exists from the first frame on, and `dispose` runs when the Extern is destroyed. |
+| `shimShaders(gl)` | Translates Phaser's GLSL ES 1.00 shaders to ES 3.00 as they compile. Without it, on a WebGL2 context Phaser 4.2.1's `Gradient`, noise objects with `noiseNormalMap` and `smoothPixelArt` fail to compile, since `OES_standard_derivatives` is a WebGL1 extension. Your own ES 1.00 shaders go through it too; ones that declare `#version 300 es` pass through. |
+
+Tested with Phaser 4.2.1 (`npm run test:phaser` runs the example's real-GPU checks). Phaser 3 has an `Extern` with a different callback and state handling; it isn't supported.
 
 ## Diagnostics and escape hatches
 

@@ -24,6 +24,7 @@ Every draw becomes `quad(matrix, source, srcRect, rgba, flash, smooth)`: a 2x3 a
 - **Render targets:** a framebuffer plus texture per target, created on first use. Sampling flips V, because GL stores the target bottom row first. Contents are already premultiplied, so they blend like uploaded images.
 - **Premultiplied alpha** throughout: uploads premultiply, the blend is `ONE, ONE_MINUS_SRC_ALPHA` (`add`: `ONE, ONE`), and tint is premultiplied in the vertex shader.
 - **Context loss:** `preventDefault` on loss, skip work while lost, and rebuild everything on restore.
+- **Shared mode** (`createSharedRenderer`, a subclass in its own module so the canvas path doesn't carry it): the context belongs to another engine. Between frames nothing is assumed bound, so `begin()` binds the program, VAO, blend (`FUNC_ADD`, the mode's `blendFunc`), the host's framebuffer and viewport, and resets depth test, cull face, colour mask and `UNPACK_FLIP_Y`. The host's scissor and stencil are kept: clips intersect the host's scissor box and render targets draw unscissored, and `end()` gives the host's scissor back and unbinds samplers 0–7. What spryte leaves behind: its program, VAO, array buffer, active texture unit and the textures it bound. Context loss is polled with `isContextLost()` at `begin()` instead of listened for, since the host owns the events.
 
 ## Canvas 2D backend
 

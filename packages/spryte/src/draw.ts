@@ -144,6 +144,22 @@ export class Draw {
     m[5] += m[1] * x + m[3] * y;
   }
 
+  /**
+   * Multiply a matrix `[a, b, c, d, e, f]` (x' = a·x + c·y + e, y' = b·x + d·y + f, the Canvas order) onto the
+   * current transform, the way `translate`, `scale` and `rotate` do. For a camera or parent transform another
+   * engine computed, which can include skew that those three can't express.
+   */
+  transform(a: number, b: number, c: number, d: number, e: number, f: number): void {
+    const m = this.m;
+    const [m0, m1, m2, m3] = m;
+    m[4] += m0 * e + m2 * f;
+    m[5] += m1 * e + m3 * f;
+    m[0] = m0 * a + m2 * b;
+    m[1] = m1 * a + m3 * b;
+    m[2] = m0 * c + m2 * d;
+    m[3] = m1 * c + m3 * d;
+  }
+
   scale(x: number, y = x): void {
     const m = this.m;
     m[0] *= x;
@@ -541,10 +557,11 @@ export class Draw {
   renderScale = 1;
 
   /**
-   * Start a frame: clear to `clear`, at a logical size of `width × height` units with `scale` backing pixels per
-   * unit (2 on a 2× screen, or the canvas's pixel width / `width`). Resets the transform, alpha, blend and clips.
+   * Start a frame: clear to `clear` (null draws over what's there: an overlay, a second pass, or a frame another
+   * engine began), at a logical size of `width × height` units with `scale` backing pixels per unit (2 on a 2×
+   * screen, or the canvas's pixel width / `width`). Resets the transform, alpha, blend and clips.
    */
-  begin(clear: Color, width: number, height: number, scale: number): void {
+  begin(clear: Color | null, width: number, height: number, scale: number): void {
     this.textCache.frame++;
     this.renderScale = scale;
     this.viewW = width;
@@ -558,7 +575,7 @@ export class Draw {
     this.alpha = 1;
     this.maskDepth = 0;
     this.blend("normal");
-    this.backend.begin(toRGBA(clear), width, height, scale);
+    this.backend.begin(clear === null ? null : toRGBA(clear), width, height, scale);
   }
 
   /** @internal Reset transform and blend between scene and afterRender hooks. */
