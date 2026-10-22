@@ -47,11 +47,25 @@ const tuning = game.params.define("player", {
 const assets = new Assets(await (await fetch("assets/manifest.json")).json());
 await assets.load();
 // The tile ids decide collision and look.ts draws them, so the tileset needs no image.
-const map = fromTiled(assets.json("level1"), { image: () => document.createElement("canvas") });
-const objects = map.objects("entities");
-const spawn = objects.find((o) => o.type === "Spawn") ?? { x: 32, y: 32 };
-const goal = objects.find((o) => o.type === "Goal");
+const loadMap = () => fromTiled(assets.json("level1"), { image: () => document.createElement("canvas") });
+let map = loadMap();
+let objects = map.objects("entities");
+let spawn = objects.find((o) => o.type === "Spawn") ?? { x: 32, y: 32 };
+let goal = objects.find((o) => o.type === "Goal");
 game.camera.bounds = { x: 0, y: 0, width: map.pixelWidth, height: map.pixelHeight };
+// Save level1.tmj in Tiled (or masu) while `debuff dev` runs and the new level appears under the player.
+if (import.meta.env.DEV) {
+  assets.onChange("level1", () => {
+    map = loadMap();
+    objects = map.objects("entities");
+    spawn = objects.find((o) => o.type === "Spawn") ?? { x: 32, y: 32 };
+    goal = objects.find((o) => o.type === "Goal");
+    game.camera.bounds = { x: 0, y: 0, width: map.pixelWidth, height: map.pixelHeight };
+    // Coins follow the level; one already taken at the same spot stays taken.
+    const taken = new Set(coins.filter((c) => c.taken).map((c) => `${c.x},${c.y}`));
+    coins = objects.filter((o) => o.type === "Coin").map((o) => ({ ...o, taken: taken.has(`${o.x},${o.y}`), scale: 1 }));
+  });
+}
 game.camera.deadzone = { x: 24, y: 16 };
 game.camera.lerp = 10;
 
@@ -297,9 +311,19 @@ const play: Scene = {
   },
 
   inspect: () => ({
-    player: { x: Math.round(player.x), y: Math.round(player.y), onGround: player.onGround },
+    player: {
+      x: Math.round(player.x),
+      y: Math.round(player.y),
+      w: player.w,
+      h: player.h,
+      vx: Math.round(player.vx),
+      vy: Math.round(player.vy),
+      onGround: player.onGround,
+    },
     score,
     coins: coins.length,
+    // Where the remaining coins are, so harnesses can list them as entities next to the player.
+    pickups: coins.filter((c) => !c.taken).map((c) => ({ x: Math.round(c.x), y: Math.round(c.y) })),
     won,
     paused,
     menu: paused === "settings" ? settingsMenu.inspect().focused : paused ? pauseMenu.inspect().focused : undefined,
