@@ -1,0 +1,23 @@
+{
+  "date": "2026-10-22T01:56:27.431Z",
+  "versions": {
+    "howler": "2.2.4",
+    "tone": "15.1.22",
+    "plonkjs": "0.2.0"
+  },
+  "method": "Vite production build, all JS, brotli quality 11",
+  "results": {
+    "howler (audio file)": {
+      "brotliBytes": 8823,
+      "kB": 8.8
+    },
+    "tone (synth)": {
+      "brotliBytes": 50989,
+      "kB": 51
+    },
+    "plonkjs (synth)": {
+      "brotliBytes": 3823,
+      "kB": 3.8
+    }
+  }
+}
