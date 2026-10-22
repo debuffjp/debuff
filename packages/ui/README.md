@@ -43,7 +43,7 @@ Text is measured with `draw.measure`, so nothing is positioned by guesswork:
   - style: `font`, `color`, `focusColor`, `disabledColor`, `gap` (3), `align` (`left`/`center`), `cursor` (`>`), `cursorGap` (4), `valueGap` (12), `highlight` (a jelly pill behind the focused row; on with debuff's look, `false` turns it off); panel adds `title`, `titleFont`, `titleColor`, `titleGap` (6), `borders`, `fill`, `padding`, `radius`
 - `panel(draw, x, y, w, h, borders, fill?, chamfer?, radius?)`: 1px rings, outermost first, then the fill; `radius` rounds each corner, `chamfer` cuts it by that many pixels instead
 - `panelAround(draw, cx, cy, w, h, { borders, fill, padding, radius, chamfer, shadow, shadowOffset })`: a panel fitted around content, centred and pixel-snapped; returns the content's top-left
-- `bar(draw, x, y, w, h, value, { segments, gap, fill, empty })`: a segmented meter; `value` (0–1) lights whole cells only, all the same width; returns the width used
+- `bar(draw, x, y, w, h, value, { segments, gap, fill, empty })`: a segmented meter; `value` (0-1) lights whole cells only, all the same width; returns the width used
 
 Out of the box, panels and menus use debuff's own look ("squish"): a soft, round-cornered dark panel with no outline, light labels, lime focus and a jelly highlight that squashes when focus moves. Set your own `borders` or `fill` and you get exactly what you set. `debuffFrame` is that look as a style object, to spread into anything:
 

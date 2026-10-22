@@ -35,7 +35,7 @@ The browser now has the pieces to do much better:
 - Optional spans, so games can name their own systems: `profiler.span("physics", () => …)` or `begin`/`end`. Engine adapters add these automatically: debuff's hooks, Phaser's `preupdate`/`postrender`, PixiJS's ticker and render, three.js's `renderer.info`.
 - Everything goes into fixed-size typed-array ring buffers, so the profiler never allocates per frame and doesn't cause the GC it is trying to detect. The overhead target is under 0.2 ms per frame.
 
-**Explain.** Every hitch (a frame over budget, by default 1.5× the display's refresh interval) gets a verdict in plain words, ranked by evidence:
+**Explain.** Every hitch (a frame over budget, by default 1.5x the display's refresh interval) gets a verdict in plain words, ranked by evidence:
 
 > Frame 1,204 took 41 ms (budget 16.7). 28 ms was script: `spawnWave` at src/enemies.ts:88, via Long Animation Frames. 3 textures (12 MB) were uploaded this frame. Likely cause: creating textures while playing. Preload them in the scene's load step.
 

@@ -44,7 +44,7 @@ game.start();
 | `Camera` | Smoothed follow, deadzone, bounds, trauma shake, culling, `toWorld()` |
 | `Sprite`, `sliceGrid` | Frames, named animations, origin, flip, impact flash |
 | `draw.text`, `draw.measure` | Text in debuff sans (the built-in pixel font), a `BitmapFont` or a CSS font; `measure` returns the box `text` fills |
-| `debuffSans()` | The built-in pixel font: printable ASCII, 5×7 capitals with descenders, proportional, white so `color` tints it |
+| `debuffSans()` | The built-in pixel font: printable ASCII, 5x7 capitals with descenders, proportional, white so `color` tints it |
 | `BitmapFont` | Pixel font from a sprite-sheet grid. Widths are measured from the glyph pixels; crisp at any integer scale |
 | `ParamRegistry`, `ParamGroup` | Typed, ranged, unit-annotated values; `describe()` is JSON |
 | `Random` | Seeded PRNG: `next`, `range`, `int`, `pick` |

@@ -25,7 +25,7 @@ time, layers, tempo, looping. It needs a sequencer, not a one-shot renderer.
 
 ## Consequences
 
-- Music costs about 2 kB of engine plus a few hundred bytes per song, and starts instantly.
+- Music costs a few kB of engine (2 kB at 0.1; 3.7 kB brotli at 0.2, with the master bus, reverb and `sfx`) plus a few hundred bytes per song, and starts instantly.
 - Composition is a creative call: plonk is the instrument; songs need the human's ear.
 - Sounding good is part of the package, not left to taste alone: a master compressor and limiter, reverb and pan,
   keys, scale degrees and chord names, seeded variation, sound effects in the song's key (`sfx`), and measurement

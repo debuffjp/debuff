@@ -16,7 +16,7 @@ ADR 0007's comparison with PixiJS was one non-interleaved run per renderer. Pixi
 2. **spryte stays a renderer:** drawing, textures, render targets, shaders, lifecycle. Loops, input, audio, cameras with game behaviour, and DPR/CSS scaling policy stay in debuff.
 3. **Bulk drawing is part of the API.** `draw.sprites(frame, positions, count, options, each?)` uploads typed arrays as is: 8 bytes per copy for positions, plus optional per-copy scale, rotation and packed colour. That removes per-sprite JavaScript, which a Chrome CPU profile at 200k sprites showed was where the time went (`Draw.sprite` and `WebGL2Backend.quad` together were about half the frame, against similar GPU time). The profile wasn't committed; rerun it with DevTools on `bench/renderer`.
 4. **Every performance claim comes from `npm run bench:renderer`**, which:
-   - runs several **interleaved rounds** in rotating order and reports the median with min–max;
+   - runs several **interleaved rounds** in rotating order and reports the median with min-max;
    - checks **pixel parity** first: every renderer draws the same seeded frame, and coverage (drawn area relative to the reference) has to show nobody skips work;
    - records the **environment**: GPU, Chrome, CPU, OS, the detected power source and plan, the PixiJS version, and the spryte version and commit;
    - compares **like for like**: `draw.sprite` against PixiJS `Sprite`, and `draw.sprites` against `ParticleContainer` with the same dynamic properties. Both renderers use nearest filtering, no antialiasing and whole-pixel rounding (PixiJS with `roundPixels: true`).
