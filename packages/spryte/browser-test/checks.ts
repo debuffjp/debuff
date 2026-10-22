@@ -6,6 +6,7 @@ import {
   brightness,
   contrast,
   createRenderer,
+  createSharedRenderer,
   type Draw,
   type Filter,
   filter,
@@ -716,6 +717,246 @@ for (const backend of ["webgl2", "2d"] as const) {
   let worst = 0;
   for (let i = 0; i < joined.length; i++) worst = Math.max(worst, Math.abs((joined[i] as number) - (split[i] as number)));
   check("sprites joining a shape batch == their own batches (webgl2)", worst <= 1, `max channel error ${worst}`);
+}
+
+// Top-down pixels of a WebGL2 canvas (readPixels is bottom row first).
+function readTopDown(gl: WebGL2RenderingContext): Uint8Array {
+  const out = new Uint8Array(W * H * 4);
+  gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, out);
+  const flipped = new Uint8Array(out.length);
+  for (let y = 0; y < H; y++) flipped.set(out.subarray((H - 1 - y) * W * 4, (H - y) * W * 4), y * W * 4);
+  return flipped;
+}
+
+// begin(null) draws over the previous frame instead of clearing it.
+{
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const draw = createRenderer(canvas, { backend: "webgl2", smooth: false });
+  draw.resize(W, H);
+  draw.begin("#102030", W, H, 1);
+  busy(draw);
+  draw.end();
+  draw.begin(null, W, H, 1);
+  draw.end();
+  draw.begin(null, W, H, 1);
+  draw.rect(100, 90, 20, 20, "#f0f");
+  draw.end();
+  const gl = (draw.raw as { gl: WebGL2RenderingContext }).gl;
+  const kept = readTopDown(gl);
+  draw.dispose();
+  gl.getExtension("WEBGL_lose_context")?.loseContext();
+  record(
+    "begin(null) keeps the previous frame",
+    kept,
+    await render(
+      (d) => {
+        busy(d);
+        d.rect(100, 90, 20, 20, "#f0f");
+      },
+      "webgl2",
+      1,
+    ),
+  );
+}
+
+// transform() applied step by step is the same as translate, rotate and scale.
+{
+  const scene = (viaTransform: boolean) => (draw: Draw) => {
+    if (viaTransform) {
+      draw.transform(1, 0, 0, 1, 20, 10);
+      draw.transform(Math.cos(0.5), Math.sin(0.5), -Math.sin(0.5), Math.cos(0.5), 0, 0);
+      draw.transform(1.5, 0, 0, 0.75, 0, 0);
+    } else {
+      draw.translate(20, 10);
+      draw.rotate(0.5);
+      draw.scale(1.5, 0.75);
+    }
+    busy(draw);
+  };
+  record("transform() == translate, rotate, scale", await render(scene(false)), await render(scene(true)));
+}
+
+/**
+ * A small WebGL1-minded host engine on a WebGL2 context: its own program and VAO, a nearest-filtered texture set
+ * through texParameteri (no sampler objects), scissored draws, and no assumptions reset between draws beyond
+ * rebinding its program, VAO and texture, like Phaser.
+ */
+function host(gl: WebGL2RenderingContext) {
+  const compile = (type: number, src: string) => {
+    const s = gl.createShader(type) as WebGLShader;
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    return s;
+  };
+  const program = gl.createProgram() as WebGLProgram;
+  gl.attachShader(
+    program,
+    compile(gl.VERTEX_SHADER, "attribute vec2 a; varying vec2 v; void main() { v = a; gl_Position = vec4(a * 2.0 - 1.0, 0.0, 1.0); }"),
+  );
+  gl.attachShader(
+    program,
+    compile(
+      gl.FRAGMENT_SHADER,
+      "precision mediump float; uniform sampler2D t; varying vec2 v; void main() { gl_FragColor = texture2D(t, v); }",
+    ),
+  );
+  gl.bindAttribLocation(program, 0, "a");
+  gl.linkProgram(program);
+  const vao = gl.createVertexArray();
+  gl.bindVertexArray(vao);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  const checker = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, checker);
+  const px = new Uint8Array(4 * 4 * 4);
+  for (let i = 0; i < 16; i++) px.set((i + Math.floor(i / 4)) % 2 ? [255, 255, 255, 255] : [200, 30, 30, 255], i * 4);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 4, 4, 0, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  const draw = (tex: WebGLTexture | null, x: number, y: number, w: number, h: number) => {
+    gl.useProgram(program);
+    gl.bindVertexArray(vao);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.viewport(x, H - y - h, w, h);
+    gl.enable(gl.SCISSOR_TEST);
+    gl.scissor(x, H - y - h, w, h);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  };
+  return {
+    clear() {
+      gl.disable(gl.SCISSOR_TEST);
+      gl.clearColor(0x10 / 255, 0x20 / 255, 0x30 / 255, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+    },
+    /** The checker magnified into a pixel rectangle (top-left origin): a linear sampler left bound would blur it. */
+    checker: (x: number, y: number, w: number, h: number) => draw(checker, x, y, w, h),
+    /** A framebuffer with a W×H nearest texture, and a 1:1 draw of that texture to the canvas. */
+    framebuffer() {
+      const tex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, W, H, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      const fbo = gl.createFramebuffer();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+      return { fbo, blit: () => draw(tex, 0, 0, W, H) };
+    },
+    scissor(x: number, y: number, w: number, h: number) {
+      gl.enable(gl.SCISSOR_TEST);
+      gl.scissor(x, H - y - h, w, h);
+    },
+  };
+}
+
+function hostCanvas(): WebGL2RenderingContext {
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  canvas.addEventListener("webglcontextlost", (e) => e.preventDefault());
+  return canvas.getContext("webgl2", { alpha: false, antialias: false, premultipliedAlpha: true }) as WebGL2RenderingContext;
+}
+
+// spryte on a host's context, between the host's own draws. Inside the host's scissor (x < 100), spryte's pixels
+// match the owned renderer with the same clip; the host's draw after spryte matches the host alone (no program,
+// VAO, texture-filter or scissor leak); nothing is drawn outside the host's scissor.
+{
+  const scene = (draw: Draw) => {
+    busy(draw);
+    draw.clip(80, 10, 70, 50, () => draw.rect(0, 0, W, H, "#ff0"));
+    // Offscreen passes: their targets are the host framebuffer's size and composite back under its scissor.
+    mask(
+      draw,
+      () => draw.circle(60, 70, 25, "#fff"),
+      () => draw.rect(30, 40, 60, 60, "#0ff"),
+    );
+    draw.sprite(img, 30, 90, { smooth: true, scaleX: 3, scaleY: 3 }); // last batch: the linear sampler on unit 0
+  };
+  const owned = await render((d) => d.clip(0, 0, 100, H, () => scene(d)), "webgl2", 1);
+  const expected = (() => {
+    const gl = hostCanvas();
+    const h = host(gl);
+    h.clear();
+    h.checker(110, 10, 40, 30);
+    h.checker(110, 60, 40, 50);
+    const out = readTopDown(gl);
+    gl.getExtension("WEBGL_lose_context")?.loseContext();
+    for (let y = 0; y < H; y++) out.set(owned.subarray(y * W * 4, (y * W + 100) * 4), y * W * 4);
+    return out;
+  })();
+  const gl = hostCanvas();
+  const h = host(gl);
+  h.clear();
+  h.checker(110, 10, 40, 30);
+  h.scissor(0, 0, 100, H);
+  const shared = createSharedRenderer(gl, { smooth: false });
+  shared.draw.begin(null, W, H, 1);
+  scene(shared.draw);
+  shared.draw.end();
+  h.checker(110, 60, 40, 50);
+  record("shared context: spryte under the host's scissor, host unchanged after", readTopDown(gl), expected);
+
+  // The same into a host framebuffer, which the host then shows.
+  const fb = h.framebuffer();
+  h.clear();
+  h.scissor(0, 0, 100, H);
+  shared.target(fb.fbo, W, H);
+  shared.draw.begin(null, W, H, 1);
+  scene(shared.draw);
+  shared.draw.end();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.disable(gl.SCISSOR_TEST);
+  fb.blit();
+  record("shared context: into a host framebuffer", readTopDown(gl), owned);
+  shared.draw.dispose();
+  gl.getExtension("WEBGL_lose_context")?.loseContext();
+}
+
+// Context loss on a shared context: the host prevents the default, spryte notices at begin() and rebuilds.
+{
+  const gl = hostCanvas();
+  const ext = gl.getExtension("WEBGL_lose_context");
+  const shared = createSharedRenderer(gl, { smooth: false });
+  const frame = () => {
+    shared.draw.begin("#102030", W, H, 1);
+    busy(shared.draw);
+    shared.draw.end();
+  };
+  frame();
+  const event = (name: string) =>
+    new Promise<string>((r) => {
+      gl.canvas.addEventListener(name, () => r("fired"), { once: true });
+      setTimeout(() => r("timed out"), 3000);
+    });
+  const lost = event("webglcontextlost");
+  ext?.loseContext();
+  const lostState = await lost;
+  let threw = false;
+  try {
+    frame();
+  } catch {
+    threw = true;
+  }
+  const lostSeen = shared.draw.contextLost;
+  await new Promise((r) => setTimeout(r, 250));
+  const restored = event("webglcontextrestored");
+  ext?.restoreContext();
+  const restoredState = await restored;
+  await new Promise((r) => setTimeout(r, 0));
+  frame();
+  check(
+    "shared context loss: noticed, no throw, recovered",
+    !!ext && !threw && lostSeen && !shared.draw.contextLost,
+    `lost ${lostState} (seen ${lostSeen}), restored ${restoredState}, contextLost after: ${shared.draw.contextLost}`,
+  );
+  record("shared context loss: same pixels after restore", readTopDown(gl), await render(busy, "webgl2", 1));
+  shared.draw.dispose();
+  ext?.loseContext();
 }
 
 (window as unknown as { __checks: unknown }).__checks = results;

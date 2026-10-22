@@ -60,7 +60,7 @@ Against PixiJS 8 on the same machine, assets and simulation, over 3-7 interleave
 
 In [2dbench](https://github.com/debuffjp/2dbench)'s raycaster scene (a retro first-person maze drawn as thousands of texture slices), spryte held 20,000 enemies at 60 fps against PixiJS `Sprite`'s 5,000. The gap is per-sprite work: a PixiJS `Sprite` is a scene-graph object updated, bounded and batched every frame, while spryte writes a few numbers per sprite into a typed array and the GPU expands them. Static scenes, where PixiJS can cache, are much closer.
 
-Against Phaser 4 on the same laptop, spryte draws moving sprites 2.2-3.1x faster than Phaser's `Image` and 5x faster than its `SpriteGPULayer`, at 11.3 kB of JavaScript against Phaser's 276.6 kB ([spryte vs Phaser](https://debuff.jp/blog/spryte-vs-phaser)).
+Against Phaser 4 on the same laptop, spryte draws moving sprites 2.2-3.1x faster than Phaser's `Image` and 5x faster than its `SpriteGPULayer`, at 11.3 kB of JavaScript against Phaser's 276.6 kB ([spryte vs Phaser](https://debuff.jp/blog/spryte-vs-phaser)). A Phaser game can keep Phaser and hand its heaviest effects to spryte, inside Phaser's frame and depth order, through an `Extern` (`spryte/phaser`, see the [API docs](docs/api.md#phaser-4-sprytephaser)).
 
 - **Bulk sprites with no per-sprite JavaScript.** On WebGL2, pass a `Float32Array` of positions (plus optional per-copy scale, rotation and colour arrays) and spryte uploads it as is.
 - **Immediate mode.** There are no display objects to create, pool or destroy. Draw what you want this frame.
