@@ -304,9 +304,19 @@ const play: Scene = {
   },
 
   inspect: () => ({
-    player: { x: Math.round(player.x), y: Math.round(player.y), onGround: player.onGround },
+    player: {
+      x: Math.round(player.x),
+      y: Math.round(player.y),
+      w: player.w,
+      h: player.h,
+      vx: Math.round(player.vx),
+      vy: Math.round(player.vy),
+      onGround: player.onGround,
+    },
     score,
     coins: coins.length,
+    // Where the remaining coins are, so harnesses can list them as entities next to the player.
+    pickups: coins.filter((c) => !c.taken).map((c) => ({ x: Math.round(c.x), y: Math.round(c.y) })),
     won,
     paused,
     menu: paused === "settings" ? settingsMenu.inspect().focused : paused ? pauseMenu.inspect().focused : undefined,
