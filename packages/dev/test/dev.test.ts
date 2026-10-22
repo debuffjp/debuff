@@ -51,6 +51,7 @@ describe("exposeDevHooks", () => {
     expect(hooks.step(3)).toMatchObject({
       scene: "play",
       tick: 3,
+      camera: { x: 50, y: 50, zoom: 1 },
       state: { x: 3 },
       pluginNames: ["dev-tools"],
       plugins: { extra: { ok: true } },
