@@ -57,14 +57,31 @@ class SharedBackend extends WebGL2Backend {
   fbH: number;
   /** The host's scissor box at `begin()`, or null when its scissor test was off. */
   private hostScissor: Int32Array | null = null;
+  /** The context was restored since the last frame: rebuild at the next `begin()`, inside the host's slot. */
+  private restored = false;
+  // Passive listeners: the host owns the events (its preventDefault lets the browser restore) and its own
+  // rebuild. spryte only notes them, since a loss and restore can both happen between two frames.
+  private readonly noteLost = () => {
+    this.lost = true;
+  };
+  private readonly noteRestored = () => {
+    this.restored = true;
+  };
 
   constructor(gl: WebGL2RenderingContext) {
     super(gl);
     this.fbW = gl.drawingBufferWidth;
     this.fbH = gl.drawingBufferHeight;
-    // The host owns context loss; begin() notices it instead.
     gl.canvas.removeEventListener("webglcontextlost", this.onLost);
     gl.canvas.removeEventListener("webglcontextrestored", this.onRestored);
+    gl.canvas.addEventListener("webglcontextlost", this.noteLost);
+    gl.canvas.addEventListener("webglcontextrestored", this.noteRestored);
+  }
+
+  override dispose(): void {
+    this.gl.canvas.removeEventListener("webglcontextlost", this.noteLost);
+    this.gl.canvas.removeEventListener("webglcontextrestored", this.noteRestored);
+    super.dispose();
   }
 
   override begin(clear: number | null, width: number, height: number): void {
@@ -73,7 +90,11 @@ class SharedBackend extends WebGL2Backend {
       this.lost = true;
       return;
     }
-    if (this.lost) this.onRestored();
+    if (this.lost || this.restored) {
+      // Every GPU object died with the old context; the host has rebuilt its own by now.
+      this.restored = false;
+      this.onRestored();
+    }
     // The host drew since last frame: rebind everything spryte otherwise assumes stays bound.
     gl.useProgram(this.active.program);
     gl.bindVertexArray(this.vao);
