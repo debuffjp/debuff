@@ -30,8 +30,29 @@ const RELOAD_CLIENT_CODE = `if (import.meta.hot) {
     dispatchEvent(new CustomEvent("debuff:types", { detail: result }));
   });
   import.meta.hot.send("debuff:types-request");
+  // A level or data file changed on disk: the Assets loader re-fetches it in place (no page reload).
+  import.meta.hot.on("debuff:assets", (detail) => {
+    dispatchEvent(new CustomEvent("debuff:assets-changed", { detail }));
+  });
 }
 `;
+
+/** Data files that `debuff dev` re-fetches in place when they change, instead of reloading the page. */
+const HOT_DATA = /\.(tmj|tsj|ldtk|ldtkl|json|txt|csv)$/i;
+
+/**
+ * Given files that changed under `assets/` (paths relative to it, with their watcher event), the manifest `src`
+ * paths to re-fetch in place, or null when something needs a full reload: a file added or removed (the manifest
+ * changes), or an image, sound or other file the game holds decoded.
+ */
+export function hotAssetFiles(changes: { event: "add" | "unlink" | "change"; rel: string }[]): string[] | null {
+  const out: string[] = [];
+  for (const c of changes) {
+    if (c.event !== "change" || !HOT_DATA.test(c.rel)) return null;
+    out.push(`${ASSETS_DIR}/${c.rel}`);
+  }
+  return out;
+}
 
 const MIME: Record<string, string> = {
   ".png": "image/png",
@@ -133,13 +154,28 @@ export function debuff(options: DebuffViteOptions = {}): PluginOption[] {
       server.watcher.add(dir);
       // chokidar may report either separator on Windows, so normalise before the prefix check.
       const prefix = `${dir.replaceAll("\\", "/").replace(/\/$/, "")}/`;
-      const onChange = (file: string) => {
-        if (!file.replaceAll("\\", "/").startsWith(prefix)) return;
-        compile().then(() => server.ws.send({ type: "full-reload" }));
+      // Changes are batched for a moment: an editor saving a project and its level files is one event, not several.
+      let batch: { event: "add" | "unlink" | "change"; rel: string }[] = [];
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const flush = () => {
+        const changes = batch;
+        batch = [];
+        timer = undefined;
+        const hot = hotAssetFiles(changes);
+        compile().then(() => {
+          if (hot) server.ws.send({ type: "custom", event: "debuff:assets", data: { files: hot } });
+          else server.ws.send({ type: "full-reload" });
+        });
       };
-      server.watcher.on("add", onChange);
-      server.watcher.on("unlink", onChange);
-      server.watcher.on("change", onChange);
+      const onChange = (event: "add" | "unlink" | "change") => (file: string) => {
+        const f = file.replaceAll("\\", "/");
+        if (!f.startsWith(prefix)) return;
+        batch.push({ event, rel: f.slice(prefix.length) });
+        if (timer === undefined) timer = setTimeout(flush, 60);
+      };
+      server.watcher.on("add", onChange("add"));
+      server.watcher.on("unlink", onChange("unlink"));
+      server.watcher.on("change", onChange("change"));
       if (options.agentLink) attachAgentLink(server, root);
       if (options.typecheck) {
         let shown = -1;
