@@ -30,26 +30,35 @@ const RELOAD_CLIENT_CODE = `if (import.meta.hot) {
     dispatchEvent(new CustomEvent("debuff:types", { detail: result }));
   });
   import.meta.hot.send("debuff:types-request");
-  // A level or data file changed on disk: the Assets loader re-fetches it in place (no page reload).
+  // A level or data file changed on disk: the Assets loaders re-fetch it in place. When none of them held the
+  // file (its group isn't loaded, or the game fetches it itself) the page reloads as it would for any other asset.
   import.meta.hot.on("debuff:assets", (detail) => {
-    dispatchEvent(new CustomEvent("debuff:assets-changed", { detail }));
+    const event = new CustomEvent("debuff:assets-changed", { detail: { ...detail, consumed: 0 } });
+    dispatchEvent(event);
+    if (!event.detail.consumed) location.reload();
   });
 }
 `;
 
-/** Data files that `debuff dev` re-fetches in place when they change, instead of reloading the page. */
-const HOT_DATA = /\.(tmj|tsj|ldtk|ldtkl|json|txt|csv)$/i;
+/** Asset types `debuff dev` re-fetches in place when their file changes: plain data the loader swaps without a page reload. */
+const HOT_TYPES = new Set<string>(["json", "text"]);
 
 /**
- * Given files that changed under `assets/` (paths relative to it, with their watcher event), the manifest `src`
- * paths to re-fetch in place, or null when something needs a full reload: a file added or removed (the manifest
- * changes), or an image, sound or other file the game holds decoded.
+ * Given files that changed under `assets/` (paths relative to it, with their watcher event) and the manifest
+ * compiled after the change, the manifest `src` paths to re-fetch in place, or null when something needs a full
+ * reload: a file added or removed (the manifest changes), one the manifest doesn't serve as-is (no importer, or an
+ * importer rewrote it), or an image, sound or other file the game holds decoded.
  */
-export function hotAssetFiles(changes: { event: "add" | "unlink" | "change"; rel: string }[]): string[] | null {
+export function hotAssetFiles(
+  changes: { event: "add" | "unlink" | "change"; rel: string }[],
+  manifest: { assets: Record<string, { type: string; src: string }> },
+): string[] | null {
   const out: string[] = [];
   for (const c of changes) {
-    if (c.event !== "change" || !HOT_DATA.test(c.rel)) return null;
-    out.push(`${ASSETS_DIR}/${c.rel}`);
+    if (c.event !== "change") return null;
+    const src = `${ASSETS_DIR}/${c.rel}`;
+    if (!Object.values(manifest.assets).some((a) => a.src === src && HOT_TYPES.has(a.type))) return null;
+    out.push(src);
   }
   return out;
 }
@@ -157,15 +166,26 @@ export function debuff(options: DebuffViteOptions = {}): PluginOption[] {
       // Changes are batched for a moment: an editor saving a project and its level files is one event, not several.
       let batch: { event: "add" | "unlink" | "change"; rel: string }[] = [];
       let timer: ReturnType<typeof setTimeout> | undefined;
+      // Flushes run one after another, so the manifest served is always the last compile and the browser hears
+      // about changes in the order they happened.
+      let inflight: Promise<void> = Promise.resolve();
       const flush = () => {
         const changes = batch;
         batch = [];
         timer = undefined;
-        const hot = hotAssetFiles(changes);
-        compile().then(() => {
-          if (hot) server.ws.send({ type: "custom", event: "debuff:assets", data: { files: hot } });
-          else server.ws.send({ type: "full-reload" });
-        });
+        inflight = inflight
+          .then(() => compile())
+          .then(
+            (r) => {
+              const hot = hotAssetFiles(changes, r.manifest);
+              if (hot) server.ws.send({ type: "custom", event: "debuff:assets", data: { files: hot } });
+              else server.ws.send({ type: "full-reload" });
+            },
+            (err) => {
+              console.error(`[debuff] ${err instanceof Error ? err.message : String(err)}`);
+              server.ws.send({ type: "full-reload" });
+            },
+          );
       };
       const onChange = (event: "add" | "unlink" | "change") => (file: string) => {
         const f = file.replaceAll("\\", "/");
