@@ -50,15 +50,22 @@ await assets.load();
 const loadMap = () => fromTiled(assets.json("level1"), { image: () => document.createElement("canvas") });
 let map = loadMap();
 let objects = map.objects("entities");
-const spawn = objects.find((o) => o.type === "Spawn") ?? { x: 32, y: 32 };
-const goal = objects.find((o) => o.type === "Goal");
+let spawn = objects.find((o) => o.type === "Spawn") ?? { x: 32, y: 32 };
+let goal = objects.find((o) => o.type === "Goal");
 game.camera.bounds = { x: 0, y: 0, width: map.pixelWidth, height: map.pixelHeight };
 // Save level1.tmj in Tiled (or masu) while `debuff dev` runs and the new level appears under the player.
-assets.onChange("level1", () => {
-  map = loadMap();
-  objects = map.objects("entities");
-  game.camera.bounds = { x: 0, y: 0, width: map.pixelWidth, height: map.pixelHeight };
-});
+if (import.meta.env.DEV) {
+  assets.onChange("level1", () => {
+    map = loadMap();
+    objects = map.objects("entities");
+    spawn = objects.find((o) => o.type === "Spawn") ?? { x: 32, y: 32 };
+    goal = objects.find((o) => o.type === "Goal");
+    game.camera.bounds = { x: 0, y: 0, width: map.pixelWidth, height: map.pixelHeight };
+    // Coins follow the level; one already taken at the same spot stays taken.
+    const taken = new Set(coins.filter((c) => c.taken).map((c) => `${c.x},${c.y}`));
+    coins = objects.filter((o) => o.type === "Coin").map((o) => ({ ...o, taken: taken.has(`${o.x},${o.y}`), scale: 1 }));
+  });
+}
 game.camera.deadzone = { x: 24, y: 16 };
 game.camera.lerp = 10;
 
