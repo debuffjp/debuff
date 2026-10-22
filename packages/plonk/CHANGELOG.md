@@ -1,5 +1,11 @@
 # plonk
 
+## 0.3.0
+
+### Minor Changes
+
+- ec15658: `player.step`: where the music is now, in steps from the top of the song (fractional, counting up across loops, following `tempo()`; -1 when stopped). Read it each frame to move things in time with the music.
+
 ## 0.2.0
 
 ### Minor Changes
