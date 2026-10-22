@@ -44,7 +44,7 @@ jobs:
       # PRs opened with GITHUB_TOKEN don't trigger CI (they wait at "action_required"); a dispatch is the
       # one event that token may start, and its checks land on the PR's head commit.
       - name: Run CI on the Version packages PR
-        if: steps.changesets.outputs.hasChangesets == 'true'
+        if: steps.changesets.outputs.has-changesets == 'true'
         run: gh workflow run ci.yml --ref changeset-release/main
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
