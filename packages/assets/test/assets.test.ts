@@ -55,6 +55,34 @@ describe("Assets", () => {
   });
 });
 
+describe("reload", () => {
+  it("re-fetches past the cache and tells listeners, once per subscription", async () => {
+    const fetch = stubFetch();
+    const assets = new Assets(manifest, "/base/");
+    await assets.fetch("config");
+    const seen: string[] = [];
+    const off = assets.onChange("config", (id) => seen.push(id));
+    const value = await assets.reload("config");
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(String(fetch.mock.calls[1]?.[0])).toMatch(/^\/base\/assets\/config\.json\?t=\d+$/);
+    expect(value).toEqual(assets.json("config"));
+    expect(seen).toEqual(["config"]);
+    off();
+    await assets.reload("config");
+    expect(seen).toEqual(["config"]);
+    expect(() => assets.onChange("nope", () => {})).toThrow(/Unknown asset/);
+  });
+
+  it("reports a failed reload and keeps the old value", async () => {
+    stubFetch();
+    const assets = new Assets(manifest);
+    await assets.fetch("config");
+    stubFetch(500);
+    await expect(assets.reload("config")).rejects.toThrow(/Failed to reload asset "config".*HTTP 500/);
+    expect(assets.json("config")).toEqual({ url: "assets/config.json" });
+  });
+});
+
 describe("atlas frames", () => {
   const atlased: AssetManifest = {
     version: 1,
