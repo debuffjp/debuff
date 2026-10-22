@@ -669,22 +669,31 @@ for (const backend of ["webgl2", "2d"] as const) {
       draw.rect(0, 0, 80, 60, "#203040");
       filter(draw, filters, () => content(draw));
     };
+    const unfiltered = (draw: Draw) => {
+      draw.rect(0, 0, 80, 60, "#203040");
+      content(draw);
+    };
     const gl2 = await render(scene, "webgl2");
     const c2d = await render(scene, "2d");
+    const plain = await render(unfiltered);
+    const plain2d = await render(unfiltered, "2d");
+    // Judge the filter, not the rasteriser: skip pixels where the unfiltered frames already differ. Chrome's
+    // software Canvas 2D (CI, no GPU) draws circle and sprite edges a few levels off, and a colour matrix spreads
+    // that over every channel.
     let worst = 0;
     let off = 0;
-    for (let i = 0; i < gl2.length; i++) {
-      if (i % 4 === 3) continue;
-      const d = Math.abs((gl2[i] as number) - (c2d[i] as number));
-      worst = Math.max(worst, d);
-      if (d > tolerance) off++;
+    for (let p = 0; p < gl2.length; p += 4) {
+      let rasterised = false;
+      for (let c = 0; c < 3; c++) if (Math.abs((plain[p + c] as number) - (plain2d[p + c] as number)) > 3) rasterised = true;
+      if (rasterised) continue;
+      for (let c = 0; c < 3; c++) {
+        const d = Math.abs((gl2[p + c] as number) - (c2d[p + c] as number));
+        worst = Math.max(worst, d);
+        if (d > tolerance) off++;
+      }
     }
     check(`filter ${name}: WebGL2 matches Canvas 2D`, off < 60, `max error ${worst}, ${off} channels over ${tolerance}`);
     // And it did something: a matching pair of unfiltered frames would pass the check above too.
-    const plain = await render((draw: Draw) => {
-      draw.rect(0, 0, 80, 60, "#203040");
-      content(draw);
-    });
     check(`filter ${name}: changes the image`, diff(gl2, plain) > 500, `${diff(gl2, plain)} px changed`);
   }
 }
