@@ -44,6 +44,8 @@ export interface DevState {
   /** Active rendering backend. */
   renderer: "webgl2" | "2d";
   stats: ReturnType<Game["stats"]["summary"]>;
+  /** Camera centre in world units, its zoom, and the view size in logical units. */
+  camera: { x: number; y: number; zoom: number; width: number; height: number };
   /** Whatever the active scene's `inspect()` returns. */
   state: unknown;
   /** Installed plugin names, in install order. */
@@ -223,6 +225,7 @@ function createHooks(game: Game, session: DevSession, options: DevHooksOptions, 
     reducedMotionForced: motionBefore !== undefined,
     renderer: game.draw.kind,
     stats: game.stats.summary(),
+    camera: { x: game.camera.x, y: game.camera.y, zoom: game.camera.zoom, width: game.camera.width, height: game.camera.height },
     state: game.scene?.inspect?.(),
     pluginNames: game.plugins,
     plugins: game.inspect.snapshot(),

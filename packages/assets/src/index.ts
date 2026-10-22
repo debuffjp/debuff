@@ -48,16 +48,64 @@ export class AssetError extends Error {
 
 type Loaded = HTMLImageElement | ArrayBuffer | string | unknown;
 
+/** Dev-server event: assets whose files changed on disk, as manifest `src` paths. */
+export const ASSETS_CHANGED_EVENT = "debuff:assets-changed";
+
+/** Detail of `ASSETS_CHANGED_EVENT`. Loaders add to `consumed` for every cached asset they re-fetch, so the dev client can fall back to a page reload when nothing picked the change up. */
+export interface AssetsChangedDetail {
+  files: string[];
+  consumed?: number;
+}
+
+// Under `debuff dev`, a level or data file saved on disk is re-fetched in place instead of reloading the page.
+// One listener serves every loader, held weakly, so a loader the game drops is collected instead of reloading forever.
+const live = new Set<WeakRef<Assets>>();
+let listening = false;
+function listenForChanges(assets: Assets): void {
+  if (typeof addEventListener === "undefined") return;
+  live.add(new WeakRef(assets));
+  if (listening) return;
+  listening = true;
+  addEventListener(ASSETS_CHANGED_EVENT, (e) => {
+    const detail = (e as CustomEvent<AssetsChangedDetail | undefined>).detail;
+    if (!detail) return;
+    for (const ref of live) {
+      const a = ref.deref();
+      if (a) detail.consumed = (detail.consumed ?? 0) + a.changed(detail.files ?? []);
+      else live.delete(ref);
+    }
+  });
+}
+
 export class Assets {
   private readonly cache = new Map<string, Loaded>();
   private readonly pending = new Map<string, Promise<Loaded>>();
   /** Loads by URL, so assets packed into one atlas share a single request and image. */
   private readonly byUrl = new Map<string, Promise<Loaded>>();
+  private readonly listeners = new Map<string, Set<(id: string) => void>>();
+  /** Bumped by `reload(id)`, so a slower fetch that started earlier can't overwrite the newer value. */
+  private readonly generation = new Map<string, number>();
 
   constructor(
     readonly manifest: AssetManifest,
     private readonly base = "",
-  ) {}
+  ) {
+    if (typeof import.meta.env !== "undefined" && import.meta.env.DEV === true) listenForChanges(this);
+  }
+
+  /**
+   * Files changed on disk (manifest `src` paths): re-fetch the ones this loader holds. Returns how many it
+   * re-fetches; the dev client reloads the page when no loader re-fetched anything.
+   */
+  changed(files: readonly string[]): number {
+    let n = 0;
+    for (const [id, entry] of Object.entries(this.manifest.assets)) {
+      if (!files.includes(entry.src) || !this.cache.has(id)) continue;
+      n++;
+      this.reload(id).catch((err) => console.warn(`[debuff] ${err}`));
+    }
+    return n;
+  }
 
   /** Load every asset in the given groups (default: "default"). */
   async load(groups: string | readonly string[] = "default", onProgress?: (p: LoadProgress) => void): Promise<void> {
@@ -158,18 +206,67 @@ export class Assets {
       this.byUrl.set(url, shared);
       shared.catch(() => this.byUrl.delete(url));
     }
-    const p = shared
+    const gen = this.generation.get(id) ?? 0;
+    const p: Promise<Loaded> = shared
       .then((value) => {
-        this.cache.set(id, value);
-        this.pending.delete(id);
+        // A reload() finished first: keep its value, this one is stale.
+        if ((this.generation.get(id) ?? 0) === gen) this.cache.set(id, value);
+        if (this.pending.get(id) === p) this.pending.delete(id);
         return value;
       })
       .catch((err: unknown) => {
-        this.pending.delete(id);
+        if (this.pending.get(id) === p) this.pending.delete(id);
         throw new AssetError(id, `Failed to load asset "${id}" from ${url}: ${err instanceof Error ? err.message : String(err)}`);
       });
     this.pending.set(id, p);
     return p;
+  }
+
+  /**
+   * Fetch an asset again, replacing the cached value, and tell `onChange` listeners. `debuff dev` calls this when
+   * the file changes on disk; call it yourself to pick up a file your game wrote.
+   */
+  async reload(id: string): Promise<Loaded> {
+    const entry = this.entry(id);
+    const url = this.url(id);
+    this.byUrl.delete(url);
+    this.pending.delete(id);
+    const gen = (this.generation.get(id) ?? 0) + 1;
+    this.generation.set(id, gen);
+    const value = await loadOne(entry.type, `${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}`).catch((err: unknown) => {
+      throw new AssetError(id, `Failed to reload asset "${id}" from ${url}: ${err instanceof Error ? err.message : String(err)}`);
+    });
+    // A later reload() already replaced it; its listeners were told.
+    if (this.generation.get(id) !== gen) return value;
+    this.cache.set(id, value);
+    // Every listener hears about the new value even if one throws; the first error is reported afterwards.
+    let failed: unknown;
+    let threw = false;
+    for (const fn of this.listeners.get(id) ?? []) {
+      try {
+        fn(id);
+      } catch (err) {
+        if (!threw) failed = err;
+        threw = true;
+      }
+    }
+    if (threw)
+      throw new AssetError(id, `An onChange listener for "${id}" threw: ${failed instanceof Error ? failed.message : String(failed)}`);
+    return value;
+  }
+
+  /** Be told after `reload(id)` replaced the asset. Returns the unsubscribe function. */
+  onChange(id: string, listener: (id: string) => void): () => void {
+    this.entry(id);
+    let set = this.listeners.get(id);
+    if (!set) {
+      set = new Set();
+      this.listeners.set(id, set);
+    }
+    set.add(listener);
+    return () => {
+      set.delete(listener);
+    };
   }
 
   private get(id: string, type: AssetType): Loaded {

@@ -1,0 +1,125 @@
+{
+  "format": "bullettime-recording",
+  "version": 1,
+  "header": {
+    "url": "http://localhost:5299/",
+    "seed": 1,
+    "epoch": 1767225600000,
+    "stepMs": 16.666666666666668,
+    "clockAnchorMs": 0,
+    "timezone": "UTC",
+    "locale": "en-US",
+    "viewport": { "width": 1280, "height": 720 },
+    "dpr": 1,
+    "hasTouch": false,
+    "browser": "153.0.8010.12",
+    "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5060 Laptop GPU (0x00002D59) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "gl": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5060 Laptop GPU (0x00002D59) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "engine": { "name": "debuff", "version": "2" },
+    "bootFrames": 5,
+    "loadPolicy": "hold-next-frame",
+    "holdCapMs": 10000,
+    "network": "live",
+    "storage": {
+      "local": { "debuff:dev-overlay:tab": "perf", "debuff:dev-overlay:collapsed": "0" },
+      "idbDetected": false,
+      "cacheDetected": false
+    },
+    "devServer": { "mode": "none" },
+    "caps": {
+      "clock": {
+        "kind": "virtual",
+        "shim": "full",
+        "stepMs": 16.666666666666668,
+        "stepAsync": true,
+        "workers": "none",
+        "css": "seek",
+        "video": "none",
+        "maxSpeed": 8,
+        "anchor": "zero"
+      },
+      "input": {
+        "path": "cdp",
+        "keys": true,
+        "pointer": true,
+        "touch": false,
+        "pad": true,
+        "wheel": true,
+        "pen": "pointer",
+        "penIsPrimary": true,
+        "wheelSettle": false,
+        "pointerLock": "cdp-click",
+        "padLatency": 0,
+        "pointerLatency": 0,
+        "keyboardFocus": false,
+        "snapToPixel": false,
+        "quickTapLost": false,
+        "staleTapPos": false,
+        "touchNeedsHasTouch": false,
+        "scaledCanvasMapping": "unknown"
+      },
+      "capture": {
+        "page": true,
+        "canvas": true,
+        "inTick": true,
+        "renderer": "webgl",
+        "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5060 Laptop GPU (0x00002D59) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+      },
+      "audio": { "mode": "suspend", "states": ["suspended"] },
+      "state": "adapter",
+      "replay": false,
+      "rewind": false,
+      "fastReplay": false,
+      "skipRender": false,
+      "keepOnReload": false,
+      "params": false,
+      "commands": false,
+      "events": false,
+      "notes": false,
+      "profile": "none"
+    },
+    "startFrame": 5
+  },
+  "steps": [{ "press": "ArrowRight" }, { "wait": 60 }, { "release": "ArrowRight" }, { "release": "ArrowRight" }, { "wait": 1 }],
+  "checkpoints": [
+    {
+      "frame": 30,
+      "hash": "62978cc8:13",
+      "rows": [
+        "[\"pickups[0]\",\"pickups\",146,98,0,0,1,[],0]",
+        "[\"pickups[10]\",\"pickups\",898,82,0,0,1,[],0]",
+        "[\"pickups[11]\",\"pickups\",962,146,0,0,1,[],0]",
+        "[\"pickups[1]\",\"pickups\",162,98,0,0,1,[],0]",
+        "[\"pickups[2]\",\"pickups\",290,98,0,0,1,[],0]",
+        "[\"pickups[3]\",\"pickups\",322,98,0,0,1,[],0]",
+        "[\"pickups[4]\",\"pickups\",370,66,0,0,1,[],0]",
+        "[\"pickups[5]\",\"pickups\",482,82,0,0,1,[],0]",
+        "[\"pickups[6]\",\"pickups\",578,98,0,0,1,[],0]",
+        "[\"pickups[7]\",\"pickups\",610,98,0,0,1,[],0]",
+        "[\"pickups[8]\",\"pickups\",754,114,0,0,1,[],0]",
+        "[\"pickups[9]\",\"pickups\",882,82,0,0,1,[],0]",
+        "[\"player\",\"player\",69,163,12,13,1,[\"onGround\"],110]"
+      ]
+    },
+    {
+      "frame": 60,
+      "hash": "e1fc04ec:13",
+      "rows": [
+        "[\"pickups[0]\",\"pickups\",146,98,0,0,1,[],0]",
+        "[\"pickups[10]\",\"pickups\",898,82,0,0,1,[],0]",
+        "[\"pickups[11]\",\"pickups\",962,146,0,0,1,[],0]",
+        "[\"pickups[1]\",\"pickups\",162,98,0,0,1,[],0]",
+        "[\"pickups[2]\",\"pickups\",290,98,0,0,1,[],0]",
+        "[\"pickups[3]\",\"pickups\",322,98,0,0,1,[],0]",
+        "[\"pickups[4]\",\"pickups\",370,66,0,0,1,[],0]",
+        "[\"pickups[5]\",\"pickups\",482,82,0,0,1,[],0]",
+        "[\"pickups[6]\",\"pickups\",578,98,0,0,1,[],0]",
+        "[\"pickups[7]\",\"pickups\",610,98,0,0,1,[],0]",
+        "[\"pickups[8]\",\"pickups\",754,114,0,0,1,[],0]",
+        "[\"pickups[9]\",\"pickups\",882,82,0,0,1,[],0]",
+        "[\"player\",\"player\",124,163,12,13,1,[\"onGround\"],110]"
+      ]
+    }
+  ],
+  "warnings": []
+}

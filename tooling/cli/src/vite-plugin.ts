@@ -30,8 +30,38 @@ const RELOAD_CLIENT_CODE = `if (import.meta.hot) {
     dispatchEvent(new CustomEvent("debuff:types", { detail: result }));
   });
   import.meta.hot.send("debuff:types-request");
+  // A level or data file changed on disk: the Assets loaders re-fetch it in place. When none of them held the
+  // file (its group isn't loaded, or the game fetches it itself) the page reloads as it would for any other asset.
+  import.meta.hot.on("debuff:assets", (detail) => {
+    const event = new CustomEvent("debuff:assets-changed", { detail: { ...detail, consumed: 0 } });
+    dispatchEvent(event);
+    if (!event.detail.consumed) location.reload();
+  });
 }
 `;
+
+/** Asset types `debuff dev` re-fetches in place when their file changes: plain data the loader swaps without a page reload. */
+const HOT_TYPES = new Set<string>(["json", "text"]);
+
+/**
+ * Given files that changed under `assets/` (paths relative to it, with their watcher event) and the manifest
+ * compiled after the change, the manifest `src` paths to re-fetch in place, or null when something needs a full
+ * reload: a file added or removed (the manifest changes), one the manifest doesn't serve as-is (no importer, or an
+ * importer rewrote it), or an image, sound or other file the game holds decoded.
+ */
+export function hotAssetFiles(
+  changes: { event: "add" | "unlink" | "change"; rel: string }[],
+  manifest: { assets: Record<string, { type: string; src: string }> },
+): string[] | null {
+  const out: string[] = [];
+  for (const c of changes) {
+    if (c.event !== "change") return null;
+    const src = `${ASSETS_DIR}/${c.rel}`;
+    if (!Object.values(manifest.assets).some((a) => a.src === src && HOT_TYPES.has(a.type))) return null;
+    out.push(src);
+  }
+  return out;
+}
 
 const MIME: Record<string, string> = {
   ".png": "image/png",
@@ -133,13 +163,39 @@ export function debuff(options: DebuffViteOptions = {}): PluginOption[] {
       server.watcher.add(dir);
       // chokidar may report either separator on Windows, so normalise before the prefix check.
       const prefix = `${dir.replaceAll("\\", "/").replace(/\/$/, "")}/`;
-      const onChange = (file: string) => {
-        if (!file.replaceAll("\\", "/").startsWith(prefix)) return;
-        compile().then(() => server.ws.send({ type: "full-reload" }));
+      // Changes are batched for a moment: an editor saving a project and its level files is one event, not several.
+      let batch: { event: "add" | "unlink" | "change"; rel: string }[] = [];
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      // Flushes run one after another, so the manifest served is always the last compile and the browser hears
+      // about changes in the order they happened.
+      let inflight: Promise<void> = Promise.resolve();
+      const flush = () => {
+        const changes = batch;
+        batch = [];
+        timer = undefined;
+        inflight = inflight
+          .then(() => compile())
+          .then(
+            (r) => {
+              const hot = hotAssetFiles(changes, r.manifest);
+              if (hot) server.ws.send({ type: "custom", event: "debuff:assets", data: { files: hot } });
+              else server.ws.send({ type: "full-reload" });
+            },
+            (err) => {
+              console.error(`[debuff] ${err instanceof Error ? err.message : String(err)}`);
+              server.ws.send({ type: "full-reload" });
+            },
+          );
       };
-      server.watcher.on("add", onChange);
-      server.watcher.on("unlink", onChange);
-      server.watcher.on("change", onChange);
+      const onChange = (event: "add" | "unlink" | "change") => (file: string) => {
+        const f = file.replaceAll("\\", "/");
+        if (!f.startsWith(prefix)) return;
+        batch.push({ event, rel: f.slice(prefix.length) });
+        if (timer === undefined) timer = setTimeout(flush, 60);
+      };
+      server.watcher.on("add", onChange("add"));
+      server.watcher.on("unlink", onChange("unlink"));
+      server.watcher.on("change", onChange("change"));
       if (options.agentLink) attachAgentLink(server, root);
       if (options.typecheck) {
         let shown = -1;

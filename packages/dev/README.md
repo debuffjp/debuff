@@ -16,7 +16,7 @@ All arguments and return values are JSON-serialisable.
 
 | Method | Returns |
 | --- | --- |
-| `state()` | `{ scene, tick, time, frozen, stats, state, pluginNames, plugins }`. `state` is the active scene's `inspect()`, and `plugins` holds `game.inspect` snapshots |
+| `state()` | `{ scene, tick, time, frozen, stats, camera, state, pluginNames, plugins }`. `camera` is the centre, zoom and view size in world units, `state` is the active scene's `inspect()`, and `plugins` holds `game.inspect` snapshots |
 | `step(n)` | pauses, advances `n` fixed steps, returns `state()` |
 | `pause()` / `resume()` / `speed(scale)` | live control; `state().pausedBy` says who paused |
 | `frames(n)` | the latest `n` frame breakdowns: interval, update and render ms, catch-up steps, quads, draw calls, long tasks |
