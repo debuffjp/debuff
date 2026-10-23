@@ -23,8 +23,8 @@ export interface Offscreen {
 /** @internal */
 export function offscreen(draw: Draw): Offscreen {
   const outer = draw.target;
-  const lw = outer ? outer.width : draw.viewW;
-  const lh = outer ? outer.height : draw.viewH;
+  const lw = draw.destW;
+  const lh = draw.destH;
   const pw = outer ? outer.width : draw.backingW || Math.round(draw.viewW * draw.renderScale);
   const ph = outer ? outer.height : draw.backingH || Math.round(draw.viewH * draw.renderScale);
   const level = draw.maskDepth++;
@@ -58,6 +58,9 @@ function pooled(draw: Draw, i: number, w: number, h: number): RenderTarget {
 
 /** @internal Draw `fn` into `into` (cleared when `clear`), in the outer units and clip, starting from normal blending. */
 export function pass(draw: Draw, o: Offscreen, into: RenderTarget, fn: () => void, clear: boolean): void {
+  // The clip comes off before the switch: it belongs to the outer destination (a Canvas 2D clip is a save() on
+  // its context, and a scissor would leave the target only partly cleared), and goes back on inside the target.
+  if (o.clip) draw.backend.setClip(null);
   draw.target = into;
   draw.backend.setTarget(into, clear ? 0 : null, o.lw, o.lh);
   // Targets match the destination's pixels, so clips carry over as they are.

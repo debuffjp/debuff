@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Matrix, TextureSource } from "../src/backend.js";
 import { Draw } from "../src/draw.js";
+import { blur, filter } from "../src/filters.js";
 import { WebGL2Backend } from "../src/webgl2.js";
 
 /**
@@ -121,6 +122,21 @@ describe("WebGL2Backend", () => {
     expect(listeners.size).toBe(0);
   });
 
+  it("uploads an image again once it has loaded, instead of keeping the empty upload", () => {
+    const { gl, count } = fakeGL();
+    const draw = new Draw(new WebGL2Backend(gl), false);
+    draw.begin("#000", 100, 50, 1);
+    const img = { naturalWidth: 0, naturalHeight: 0 } as unknown as HTMLImageElement;
+    draw.sprite(img, 0, 0);
+    draw.end();
+    img.naturalWidth = 16;
+    img.naturalHeight = 16;
+    draw.begin("#000", 100, 50, 1);
+    draw.sprite(img, 0, 0);
+    draw.end();
+    expect(count("texImage2D")).toBe(1);
+  });
+
   it("invalidate() re-uploads changed pixels", () => {
     const { gl, count } = fakeGL();
     const be = new WebGL2Backend(gl);
@@ -222,6 +238,46 @@ describe("WebGL2Backend", () => {
       expect(() => draw.into(t, () => draw.disposeTarget(t))).toThrow(/while drawing into it/);
       // After a throw inside into(), drawing is back on the canvas.
       expect(() => draw.sprite(t, 0, 0)).not.toThrow();
+      draw.end();
+    });
+
+    it("premultiplies a see-through clear colour, like begin()", () => {
+      const { gl, calls } = fakeGL();
+      const draw = new Draw(new WebGL2Backend(gl), false);
+      draw.begin("#000", 100, 50, 1);
+      draw.into(draw.createTarget(10, 10), () => {}, "#ff000080");
+      const a = 0x80 / 255;
+      expect(calls.findLast((c) => c.name === "clearColor")?.args).toEqual([a, 0, 0, a]);
+      draw.end();
+    });
+
+    it("leaves Draw's state as it was when the target can't be created", () => {
+      const { gl } = fakeGL();
+      (gl as unknown as { checkFramebufferStatus: () => string }).checkFramebufferStatus = () => "FRAMEBUFFER_UNSUPPORTED";
+      const draw = new Draw(new WebGL2Backend(gl), false);
+      draw.begin("#000", 100, 50, 2);
+      draw.translate(5, 5);
+      draw.alpha = 0.5;
+      draw.clip(0, 0, 10, 10, () => {
+        expect(() => draw.into(draw.createTarget(10, 10), () => {})).toThrow(/could not be created/);
+        expect(draw.clips).toHaveLength(1);
+      });
+      expect(draw.m).toEqual([1, 0, 0, 1, 5, 5]);
+      expect(draw.alpha).toBe(0.5);
+      expect(draw.renderScale).toBe(2);
+      expect(draw.target).toBeNull();
+      expect(() => draw.pop()).toThrow(/without a matching push/);
+      draw.end();
+    });
+
+    it("clears a filter's first pass in full even inside a clip", () => {
+      const { gl, calls } = fakeGL();
+      const draw = new Draw(new WebGL2Backend(gl), false);
+      draw.begin("#000", 100, 50, 1);
+      draw.clip(10, 10, 20, 20, () => filter(draw, [blur(2)], () => draw.rect(0, 0, 50, 50, "#fff")));
+      const names = calls.map((c) => `${c.name}:${String(c.args[0])}`);
+      const firstClear = names.indexOf("clear:COLOR_BUFFER_BIT", names.indexOf("enable:SCISSOR_TEST"));
+      expect(names.lastIndexOf("disable:SCISSOR_TEST", firstClear)).toBeGreaterThan(names.indexOf("enable:SCISSOR_TEST"));
       draw.end();
     });
 

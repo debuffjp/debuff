@@ -110,6 +110,10 @@ class SharedBackend extends WebGL2Backend {
     super.begin(clear, width, height);
   }
 
+  protected override outputFramebuffer(): WebGLFramebuffer | null {
+    return this.fb;
+  }
+
   protected override bindOutput(): void {
     const gl = this.gl;
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.fb);

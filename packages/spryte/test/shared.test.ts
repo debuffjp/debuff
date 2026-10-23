@@ -145,6 +145,18 @@ describe("createSharedRenderer", () => {
     shared.draw.end();
   });
 
+  it("goes back to the host's framebuffer after creating a target's store mid-frame", () => {
+    const { gl, named } = hostGL();
+    const fb = { kind: "host" } as unknown as WebGLFramebuffer;
+    const shared = createSharedRenderer(gl);
+    shared.target(fb, 200, 100);
+    shared.draw.begin(null, 200, 100, 1);
+    // Drawn as an image before ever being drawn into: its framebuffer is made on the spot.
+    shared.draw.sprite(new RenderTarget(8, 8), 10, 10);
+    expect(named("bindFramebuffer").at(-1)?.args).toEqual(["FRAMEBUFFER", fb]);
+    shared.draw.end();
+  });
+
   it("notices a lost context at begin, draws nothing while lost, and rebuilds when it's back", () => {
     const { gl, named, state } = hostGL();
     const shared = createSharedRenderer(gl);

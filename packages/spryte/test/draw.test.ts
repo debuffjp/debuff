@@ -17,6 +17,7 @@ function recorder() {
   const blends: string[] = [];
   const clips: (ClipRect | null)[] = [];
   const targets: unknown[] = [];
+  const views: [number, number][] = [];
   const paths: { m: Matrix; points: number[]; closed: boolean; width: number; color: number }[] = [];
   const backend: Backend = {
     kind: "2d",
@@ -28,7 +29,10 @@ function recorder() {
       paths.push({ m: [...m] as Matrix, points: Array.from(points).slice(0, n * 2), closed, width, color }),
     setBlend: (mode) => blends.push(mode),
     setClip: (rect) => clips.push(rect),
-    setTarget: (t) => targets.push(t),
+    setTarget: (t, _clear, w, h) => {
+      targets.push(t);
+      views.push([w, h]);
+    },
     setShader: () => {},
     disposeTarget: () => {},
     end: () => {},
@@ -43,7 +47,7 @@ function recorder() {
     if (!q) throw new Error(`no quad ${i}`);
     return q;
   };
-  return { draw, quads, quad, blends, clips, paths, targets };
+  return { draw, quads, quad, blends, clips, paths, targets, views };
 }
 
 /** Where the unit square's corner (u, v) lands. */
@@ -215,6 +219,30 @@ describe("text cache", () => {
     }
     expect(evicted.length).toBeGreaterThan(0);
   });
+  it("keeps the own-canvas cache bounded while strings keep changing", () => {
+    const evicted: TextureSource[] = [];
+    const { draw } = recorder();
+    (draw as unknown as { backend: Backend }).backend.invalidate = (src) => evicted.push(src);
+    let made = 0;
+    const Canvas = globalThis.OffscreenCanvas;
+    vi.stubGlobal(
+      "OffscreenCanvas",
+      class extends Canvas {
+        constructor(w: number, h: number) {
+          super(w, h);
+          made++;
+        }
+      },
+    );
+    // A timer: 100 new strings a frame, none of them ever drawn again.
+    for (let f = 0; f < 60; f++) {
+      draw.begin("#000", 100, 100, 1);
+      for (let i = 0; i < 100; i++) draw.text(`${f}:${i}`, 0, 0);
+    }
+    // This frame's and last frame's 200 are live; the 256 floor plus those is all the cache may keep.
+    expect(made - evicted.length).toBeLessThanOrEqual(512);
+  });
+
   /** A recorder whose backend can upload regions, so text goes into atlas pages (the WebGL2 path). */
   const atlas = () => {
     const r = recorder();
@@ -282,6 +310,41 @@ describe("shapes", () => {
       expect(rr[i + 1]).toBeGreaterThanOrEqual(-1e-6);
       expect(rr[i + 1]).toBeLessThanOrEqual(20 + 1e-6);
     }
+  });
+});
+
+describe("roundRect", () => {
+  it("sends all four corners, however many segments each needs", () => {
+    const { draw, paths } = recorder();
+    roundRect(draw, 0, 0, 100, 100, 20, "#fff");
+    const pts = paths[0]?.points ?? [];
+    expect(pts.length % 8).toBe(0);
+    expect(pts.every(Number.isFinite)).toBe(true);
+    // The last corner (top-left) ends back at the top edge.
+    expect(pts.at(-2)).toBeCloseTo(20);
+    expect(pts.at(-1)).toBeCloseTo(0);
+  });
+});
+
+describe("whole-image frames", () => {
+  it("doesn't remember an image's size from before it loaded", () => {
+    const { draw, quad } = recorder();
+    const img = { naturalWidth: 0, naturalHeight: 0 } as unknown as HTMLImageElement;
+    draw.sprite(img, 0, 0);
+    img.naturalWidth = 16;
+    img.naturalHeight = 8;
+    draw.sprite(img, 0, 0);
+    expect(quad(1).uv).toEqual([0, 0, 16, 8]);
+  });
+
+  it("invalidate() forgets a source's size as well as its pixels", () => {
+    const { draw, quad } = recorder();
+    const canvas = { width: 8, height: 8 } as unknown as HTMLCanvasElement;
+    draw.sprite(canvas, 0, 0);
+    canvas.width = 16;
+    draw.invalidate(canvas);
+    draw.sprite(canvas, 0, 0);
+    expect(quad(1).uv).toEqual([0, 0, 16, 8]);
   });
 });
 
@@ -354,5 +417,33 @@ describe("mask", () => {
     expect(quads).toHaveLength(4);
     expect(quads[3]?.m).toEqual([100, 0, 0, 100, 0, 0]);
     expect(quads[3]?.src).toBe(targets[0]);
+  });
+
+  it("keeps logical units inside a mask on a 2× screen, through a nested into() and a nested mask", () => {
+    const { draw, quads, views } = recorder();
+    draw.begin("#000", 50, 25, 2);
+    draw.resize(100, 50);
+    const t = draw.createTarget(8, 8);
+    mask(
+      draw,
+      () => draw.rect(0, 0, 50, 25, "#fff"),
+      () => {
+        draw.into(t, () => {});
+        draw.rect(0, 0, 10, 10, "#f00");
+        mask(
+          draw,
+          () => draw.rect(0, 0, 50, 25, "#fff"),
+          () => draw.rect(0, 0, 10, 10, "#0f0"),
+        );
+      },
+    );
+    // The rect after into() and the one inside the inner mask are both 10 logical units.
+    const rects = quads.filter((q) => q.color === 0xff0000ff || q.color === 0x00ff00ff);
+    expect(rects.map((q) => q.m)).toEqual([
+      [10, 0, 0, 10, 0, 0],
+      [10, 0, 0, 10, 0, 0],
+    ]);
+    // Every pass is told the destination's logical size, never the pooled target's pixels.
+    expect(views.filter(([w, h]) => w === 100 && h === 50)).toHaveLength(0);
   });
 });

@@ -74,11 +74,16 @@ export class Draw {
   /** The render target being drawn into, or null for the canvas. */
   /** @internal */
   target: RenderTarget | null = null;
-  /** The canvas's logical size this frame, to switch back to after `into()`. */
+  /** The canvas's logical size this frame. */
   /** @internal */
   viewW = 1;
   /** @internal */
   viewH = 1;
+  /** The logical size of the current destination: the canvas, a target inside `into()`, or a mask or filter pass. */
+  /** @internal */
+  destW = 1;
+  /** @internal */
+  destH = 1;
   /** @internal */
   readonly tmp: Matrix = [1, 0, 0, 1, 0, 0];
   private readonly textCache = new TextCache();
@@ -482,20 +487,23 @@ export class Draw {
    */
   into(target: RenderTarget, fn: () => void, clear: Color | null = 0): void {
     const outer = this.target;
-    const outerW = outer ? outer.width : this.viewW;
-    const outerH = outer ? outer.height : this.viewH;
+    const outerW = this.destW;
+    const outerH = this.destH;
     const outerScale = this.renderScale;
     const outerAlpha = this.alpha;
     const outerClips = this.clips.splice(0);
-    if (outerClips.length) this.backend.setClip(null);
     const depth = this.depth;
     this.push();
-    copy(IDENTITY, this.m);
-    this.alpha = 1;
-    this.renderScale = 1;
-    this.target = target;
-    this.backend.setTarget(target, clear === null ? null : toRGBA(clear), target.width, target.height);
+    // Everything from here is undone by the finally, so a target the backend refuses leaves no trace.
     try {
+      if (outerClips.length) this.backend.setClip(null);
+      copy(IDENTITY, this.m);
+      this.alpha = 1;
+      this.renderScale = 1;
+      this.target = target;
+      this.destW = target.width;
+      this.destH = target.height;
+      this.backend.setTarget(target, clear === null ? null : toRGBA(clear), target.width, target.height);
       fn();
     } finally {
       if (this.clips.length) {
@@ -503,6 +511,8 @@ export class Draw {
         this.backend.setClip(null);
       }
       this.target = outer;
+      this.destW = outerW;
+      this.destH = outerH;
       this.backend.setTarget(outer, null, outerW, outerH);
       this.clips.push(...outerClips);
       const clip = outerClips.at(-1);
@@ -549,6 +559,8 @@ export class Draw {
   /** Re-upload a source whose pixels changed (e.g. a canvas you draw into). */
   invalidate(src: TextureSource): void {
     this.backend.invalidate(src);
+    this.frames.delete(src);
+    if (this.lastImage === src) this.lastImage = null;
   }
 
   // ---- frame lifecycle (called by Game) ----------------------------------------------------
@@ -566,6 +578,8 @@ export class Draw {
     this.renderScale = scale;
     this.viewW = width;
     this.viewH = height;
+    this.destW = width;
+    this.destH = height;
     this.target = null;
     this.shader = null;
     this.quads = 0;
@@ -644,6 +658,8 @@ export class Draw {
     let f = this.frames.get(image);
     if (!f) {
       f = wholeImage(image);
+      // An image still loading is 0×0: remember nothing, so its real size is read once it has loaded.
+      if (f.w === 0 || f.h === 0) return f;
       this.frames.set(image, f);
     }
     this.lastImage = image;
@@ -897,12 +913,13 @@ class TextCache {
     if (owned > this.limit) {
       // Evict the least recently used quarter, never anything drawn this frame or the last.
       const stale = [...this.entries].filter(([, e]) => !e.page && e.frame < this.frame - 1).sort((a, b) => a[1].used - b[1].used);
-      for (const [k, e] of stale.slice(0, Math.max(64, owned >> 2))) {
+      const evict = stale.slice(0, Math.max(64, owned >> 2));
+      for (const [k, e] of evict) {
         this.entries.delete(k);
         backend.invalidate(e.src);
       }
       // Still full of live strings: the screen needs more, so make room for them.
-      this.limit = Math.max(256, owned * 2);
+      if (owned - evict.length > this.limit) this.limit = Math.max(256, owned * 2);
     }
     return { src: canvas, sx: 0, sy: 0, sw: pw, sh: ph, w, h, page: null, frame: this.frame, used: ++this.clock };
   }
