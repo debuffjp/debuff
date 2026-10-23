@@ -10,8 +10,8 @@ export interface SpritesEach {
   /** `0xRRGGBBAA` per copy, multiplied with `tint` and `alpha`. A `Uint32Array`, uploaded as is. */
   color?: Uint32Array;
   /**
-   * Frame per copy: an index into the `Frame[]` passed as `draw.sprites`' first argument. Indexes must be
-   * in range. Frames on one image stay one draw call; frames across images draw one quad per copy.
+   * Frame per copy: an index into the `Frame[]` passed as `draw.sprites`' first argument (an index past the
+   * end throws). Frames on one image stay one draw call; frames across images draw one quad per copy.
    */
   frame?: ArrayLike<number>;
 }
@@ -50,7 +50,10 @@ export interface CopySpec {
 export function frameAt(c: CopySpec, i: number): Frame {
   const frames = c.frames;
   const idx = c.each.frame;
-  return frames && idx ? (frames[idx[i] as number] as Frame) : c.frame;
+  if (!frames || !idx) return c.frame;
+  const f = frames[idx[i] as number];
+  if (!f) throw new RangeError(`draw.sprites: each.frame[${i}] is ${idx[i]}, but ${frames.length} frames were passed`);
+  return f;
 }
 
 /**

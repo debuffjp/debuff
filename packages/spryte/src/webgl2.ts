@@ -1,6 +1,5 @@
 import type { Backend, BlendMode, ClipRect, Matrix, RawContext, TextureSource } from "./backend.js";
 import { type CopySpec, copyAt, frameAt } from "./copies.js";
-import type { Frame } from "./draw.js";
 import type { Shader } from "./shader.js";
 import type { ShapeBuffer } from "./shapes.js";
 import { RenderTarget } from "./target.js";
@@ -596,13 +595,11 @@ export class WebGL2Backend implements Backend {
       gl.disableVertexAttribArray(4);
       gl.vertexAttribI4ui(4, 0xffffffff, 0, 0, 0);
     }
-    const frames = c.frames;
-    const idx = c.each.frame;
-    if (frames && idx) {
+    if (c.frames) {
       if (this.stagingFrame.length < n * 6) this.stagingFrame = new Float32Array(n * 6);
       const out = this.stagingFrame;
       for (let i = 0; i < n; i++) {
-        const f = frames[idx[i] as number] as Frame;
+        const f = frameAt(c, i);
         const o = i * 6;
         out[o] = f.x * tex.iw;
         out[o + 1] = tex.v0 + f.y * tex.ih;
