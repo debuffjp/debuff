@@ -1,0 +1,26 @@
+{
+  "name": "@debuffjp/template-sidescroller",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "debuff dev",
+    "build": "tsc --noEmit && debuff build",
+    "assets": "debuff assets",
+    "test": "debuff test && debuff scenario"
+  },
+  "dependencies": {
+    "@debuffjp/assets": "0.14.0",
+    "@debuffjp/audio": "0.14.0",
+    "@debuffjp/core": "0.14.0",
+    "@debuffjp/input": "0.14.0",
+    "@debuffjp/juice": "0.14.0",
+    "@debuffjp/tilemap": "0.14.0"
+  },
+  "devDependencies": {
+    "@debuffjp/cli": "0.14.0",
+    "typescript": "^7.0.2",
+    "@debuffjp/dev": "0.14.0",
+    "keiko": "0.6.0"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "title": "Point-and-click",
+  "kind": "base",
+  "bundled": false,
+  "description": "Click to walk, look and use: rooms with exits and hotspots, an inventory, speech bubbles, a fade between rooms, tenten sprites"
+}

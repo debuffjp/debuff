@@ -14,6 +14,8 @@ Ask the human what they want to make if it isn't clear, then pick the closest st
 - `basic`: one scene and a moving character, the smallest start
 - `topdown`: a tile world seen from above, with tenten sprites and tileset, 8-way movement, wall collision, a following camera and pickups
 - `isometric`: a 2:1 isometric grid, with tenten floor and cube tiles, depth sorting, grid-to-screen projection and pickups
+- `sidescroller`: run and jump through a side-scrolling level, with coyote time, jump buffering, one-way planks and a following camera
+- `pointclick`: click to walk, look and use, with rooms, exits, hotspots, an inventory and speech bubbles
 
 Examples are finished small games, for learning from or building on:
 

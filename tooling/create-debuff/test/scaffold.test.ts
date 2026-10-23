@@ -73,7 +73,9 @@ describe("official templates", () => {
 
   it("lists base templates before examples, and resolves locally in a repo checkout", () => {
     const all = listTemplates();
-    expect(all.map((t) => t.id)).toEqual(expect.arrayContaining(["basic", "topdown", "isometric", "platformer", "mossfell", "squish"]));
+    expect(all.map((t) => t.id)).toEqual(
+      expect.arrayContaining(["basic", "topdown", "isometric", "sidescroller", "pointclick", "platformer", "mossfell", "squish"]),
+    );
     const firstExample = all.findIndex((t) => t.kind === "example");
     expect(all.slice(0, firstExample).every((t) => t.kind === "base")).toBe(true);
     expect(all.slice(firstExample).every((t) => t.kind === "example")).toBe(true);

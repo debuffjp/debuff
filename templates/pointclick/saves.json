@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "saves": [
+    {
+      "key": "debuff-pointclick",
+      "file": "src/main.ts",
+      "fields": {
+        "wins": "number"
+      }
+    }
+  ]
+}

@@ -30,6 +30,22 @@ export const OFFICIAL_TEMPLATES: readonly OfficialTemplate[] = [
     source: "github:debuffjp/debuff/templates/isometric",
   },
   {
+    id: "sidescroller",
+    kind: "base",
+    title: "Side-scroller",
+    description:
+      "Run and jump through a side-scrolling level: tenten tileset and sprites, coyote time, jump buffering, one-way planks, a following camera, pickups",
+    source: "github:debuffjp/debuff/templates/sidescroller",
+  },
+  {
+    id: "pointclick",
+    kind: "base",
+    title: "Point-and-click",
+    description:
+      "Click to walk, look and use: rooms with exits and hotspots, an inventory, speech bubbles, a fade between rooms, tenten sprites",
+    source: "github:debuffjp/debuff/templates/pointclick",
+  },
+  {
     id: "platformer",
     kind: "example",
     title: "Platformer",
