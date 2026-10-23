@@ -48,7 +48,9 @@ describe("exposeDevHooks", () => {
     const { hooks, game } = setup();
     expect(window.__DEBUFF_DEV__).toBe(hooks);
     game.inspect.register("extra", () => ({ ok: true }));
-    expect(hooks.step(3)).toMatchObject({
+    game.inspect.register("dev-overlay", () => ({ open: true }));
+    expect(hooks.step(3).plugins).toEqual({ extra: { ok: true } });
+    expect(hooks.step(0)).toMatchObject({
       scene: "play",
       tick: 3,
       camera: { x: 50, y: 50, zoom: 1 },

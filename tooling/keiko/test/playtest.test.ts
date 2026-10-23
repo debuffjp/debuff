@@ -239,6 +239,22 @@ describe("Playtest", () => {
     expect(await g.settle()).toBe(g);
   });
 
+  it("a key handler that awaits (an ad, a save) continues under run(), not under wait()", async () => {
+    // Like gloop's "+5 moves": the handler awaits an SDK promise, then changes state.
+    let moves = 0;
+    const hooks = fakeHooks();
+    hooks.press = () => {
+      void Promise.resolve().then(() => {
+        moves += 5;
+      });
+    };
+    const g = new Playtest<FakeState>(debuffDriver(hooks), { root: "." });
+    g.tap("Space").wait("1s");
+    expect(moves).toBe(0); // wait() is synchronous: no turn of the event loop, so the promise never ran
+    await g.run(1);
+    expect(moves).toBe(5);
+  });
+
   it("hints at eventually() when until() times out while the game is loading", () => {
     const g = new Playtest<FakeState>(debuffDriver(fakeHooks()), { root: ".", loading: () => true });
     expect(() => g.until(() => false, { within: 1 })).toThrow(/use `await game.eventually/);

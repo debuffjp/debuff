@@ -2,7 +2,7 @@ import type { Game, ParamDescription, ParamValue, Plugin } from "@debuffjp/core"
 import type { Report } from "myaku";
 import type { ExplainedError } from "./explain.js";
 import { type PadStep, type Replay, takeRewind, toPadState } from "./replay.js";
-import { DevSession, type FrameSample, type GameEventRecord, type Note, type TypeDiagnostic } from "./session.js";
+import { DevSession, type FrameSample, type GameEventRecord, gamePlugins, type Note, type TypeDiagnostic } from "./session.js";
 
 /** The parts of `@debuffjp/input`'s `Input` the hooks drive. Structural, so `dev` does not depend on `input`. */
 export interface DrivableInput {
@@ -50,7 +50,7 @@ export interface DevState {
   state: unknown;
   /** Installed plugin names, in install order. */
   pluginNames: readonly string[];
-  /** Snapshots from `game.inspect` providers, keyed by name. */
+  /** Snapshots from `game.inspect` providers, keyed by name. debuff's own dev tools (`dev-*`) are left out. */
   plugins: Record<string, unknown>;
   /** Number of notes the human has flagged (read them with `notes()`). */
   notes: number;
@@ -228,7 +228,7 @@ function createHooks(game: Game, session: DevSession, options: DevHooksOptions, 
     camera: { x: game.camera.x, y: game.camera.y, zoom: game.camera.zoom, width: game.camera.width, height: game.camera.height },
     state: game.scene?.inspect?.(),
     pluginNames: game.plugins,
-    plugins: game.inspect.snapshot(),
+    plugins: gamePlugins(game),
     notes: session.notes.length,
     events: { ...session.eventCounts },
   });

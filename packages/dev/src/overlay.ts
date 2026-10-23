@@ -1,12 +1,12 @@
 import type { Game, NumberParamSpec, ParamSpec, ParamValue, Plugin } from "@debuffjp/core";
 import { type ExplainedError, loc } from "./explain.js";
 import { applyKit, fillRange, proc } from "./kit.js";
-import { DevSession, diagnose, type FrameSample, HITCH, summarize, type TypeDiagnostic } from "./session.js";
+import { DevSession, diagnose, type FrameSample, gamePlugins, HITCH, summarize, type TypeDiagnostic } from "./session.js";
 
 export interface DevOverlayOptions {
   /** Key (KeyboardEvent.code) that toggles the overlay. Default "Backquote". */
   toggleKey?: string;
-  /** Start visible. Default true. */
+  /** Start visible. Default true, except in automated browsers (`navigator.webdriver`), where it starts hidden. */
   open?: boolean;
   /** Corner to dock to. Default "top-right". */
   position?: "top-left" | "top-right" | "bottom-left" | "bottom-right";
@@ -90,7 +90,9 @@ class Overlay {
     this.root = el("div", { "data-debuff-overlay": "" });
     Object.assign(this.root.style, panelStyle(options.position ?? "top-right"));
     applyKit(this.root);
-    this.root.hidden = options.open === false;
+    // Automated browsers (scenario runs, agent harnesses) get the game alone: the panel would sit in
+    // every screenshot and catch taps meant for the corner. The toggle key still shows it.
+    this.root.hidden = !(options.open ?? !navigator.webdriver);
 
     // ---- header: always visible, even collapsed ----
     const header = el("div");
@@ -449,8 +451,7 @@ class Overlay {
 
   private stateText(): string {
     const scene = this.game.scene;
-    const plugins = this.game.inspect.snapshot();
-    delete plugins["dev-overlay"];
+    const plugins = gamePlugins(this.game);
     return JSON.stringify(
       {
         scene: scene?.id ?? null,

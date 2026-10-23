@@ -1,6 +1,11 @@
 import { Game } from "@debuffjp/core";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { devOverlay } from "../src/index.js";
+
+// happy-dom reports navigator.webdriver as true, where the overlay starts hidden. Tests play a human unless they say otherwise.
+beforeEach(() => {
+  vi.spyOn(navigator, "webdriver", "get").mockReturnValue(false);
+});
 
 function makeGame() {
   const canvas = document.createElement("canvas");
@@ -38,6 +43,16 @@ describe("devOverlay", () => {
     game.params.group("player")?.set("speed", 42);
     expect(panel()?.querySelector<HTMLInputElement>('input[data-param="player.speed"]')?.value).toBe("42");
     game.dispose();
+  });
+
+  it("starts hidden in automated browsers unless opened explicitly", () => {
+    vi.spyOn(navigator, "webdriver", "get").mockReturnValue(true);
+    const game = makeGame().use(devOverlay());
+    expect(panel()?.hidden).toBe(true);
+    game.dispose();
+    const opened = makeGame().use(devOverlay({ open: true }));
+    expect(panel()?.hidden).toBe(false);
+    opened.dispose();
   });
 
   it("toggles with the key and removes itself on dispose", () => {
