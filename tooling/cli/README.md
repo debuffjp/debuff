@@ -100,15 +100,15 @@ aseprite -b --script-param w=6 --script-param h=9 --script-param out=assets/font
 
 ### tenten
 
-[tenten](https://github.com/debuffjp/tenten) is a headless pixel-art tool for coding agents: an MCP server draws sprites and animations and saves them as `.tt`, a JSON file with the pixels as text grids that diffs in git. The `tenten()` plugin turns `.tt` files in `assets/` into PNGs and sprite sheets, the same way `aseprite()` does for `.aseprite`:
+[tenten](https://github.com/debuffjp/tenten) is a headless pixel-art tool for coding agents: an MCP server draws sprites and animations and saves them as `.tt`, a JSON file with the pixels as text grids that diffs in git. `.tt` files in `assets/` become PNGs and sprite sheets with no configuration, the same way `aseprite()` does for `.aseprite`. Add the `tenten()` plugin only to change how tenten is run:
 
 ```ts
 import { defineConfig, tenten } from "@debuffjp/cli";
 
-export default defineConfig({ plugins: [tenten()] });
+export default defineConfig({ plugins: [tenten({ command: ["node", "../tenten/bin/tenten.js"] })] });
 ```
 
 - `slime.tt` with several frames becomes a sprite sheet: `assets.frames("slime")` returns the frames in order.
 - `font@6x9.tt` flattens to one image with a 6x9 grid.
 
-debuff runs tenten from `$TENTEN` (its `bin/tenten.js`), then the copy installed in the project, and otherwise fetches it with `npx -y tenten` the first time a `.tt` file is seen. tenten needs Node 24. You can also pass `tenten({ command })`. Results are cached by file contents.
+debuff runs tenten from `$TENTEN` (its `bin/tenten.js`), then the copy installed in the project, and otherwise fetches it with `npx -y tenten` the first time a `.tt` file is seen. tenten needs Node 24. Results are cached by file contents.

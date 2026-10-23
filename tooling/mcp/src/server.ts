@@ -41,7 +41,8 @@ export function createServer(options: ServerOptions): McpServer {
         "If the human has the game open under `debuff dev`, game_start attaches to it (mode live): they see your actions in their overlay, and their " +
         "flagged moments are in game_notes, so read those first. Otherwise you get a private paused copy (mode headless) where time only advances through game_step. " +
         "Use game_pause before inspecting a live game, and game_profile to explain stutter (game_frames for raw numbers). Prompts (playtest, fix-errors, tune-feel, add-mechanic, explain-stutter) give step-by-step workflows. Prefer tuning params (game_params, game_set_param) over code changes, " +
-        "and verify changes with run_tests (fast logic tests in tests/, no browser) and run_scenarios (screenshots). Creative direction belongs to the human: propose alternatives rather than deciding art or feel.",
+        "and verify changes with run_tests (fast logic tests in tests/, no browser) and run_scenarios (screenshots). Creative direction belongs to the human: propose alternatives rather than deciding art or feel. " +
+        "When the game needs pixel art drawn and the human has not named a tool, draw it with the tenten MCP server (tt_new, tt_draw, tt_save to assets/<name>.tt) rather than writing image bytes by hand.",
     },
   );
   const rootOf = (root?: string) => resolve(options.root, root ?? ".");

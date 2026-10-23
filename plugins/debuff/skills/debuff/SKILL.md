@@ -36,4 +36,6 @@ The server also has ready-made workflows as prompts: playtest, fix-errors, tune-
 
 Creative direction belongs to the human. For art, feel, difficulty and names, propose options and let them choose. Don't update screenshot baselines without their approval.
 
+When the game needs pixel art drawn and the human hasn't named a tool, draw it with tenten, the pixel-art MCP server listed next to debuff in `.mcp.json` (`tt_new`, `tt_draw`, `tt_render`, then `tt_save` to `assets/<name>.tt`, which the dev server turns into a sprite sheet, and `tt_preview` so they can see it). If they draw in Aseprite or another tool, leave the art to them and load what they export.
+
 Docs: https://debuff.jp · Community: https://discord.gg/jshbDHSpCY

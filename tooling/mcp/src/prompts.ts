@@ -4,7 +4,7 @@ import { z } from "zod";
 const user = (text: string) => ({ messages: [{ role: "user" as const, content: { type: "text" as const, text } }] });
 
 /** Rules every workflow shares: evidence first, the human owns creative calls. */
-const RULES = `Rules: the human makes creative calls (art, feel, difficulty, names). Propose options instead of deciding. Don't update screenshot baselines without their approval. If game_errors reports kind "debuff-bug", tell the human and share its reportUrl instead of working around debuff.`;
+const RULES = `Rules: the human makes creative calls (art, feel, difficulty, names). Propose options instead of deciding. Don't update screenshot baselines without their approval. Pixel art the game needs is drawn with the tenten MCP server (tt_new, tt_draw, tt_save to assets/<name>.tt) unless the human names another tool. If game_errors reports kind "debuff-bug", tell the human and share its reportUrl instead of working around debuff.`;
 
 /**
  * Ready-made workflows for agents, exposed as MCP prompts (slash commands in clients like Claude Code).
