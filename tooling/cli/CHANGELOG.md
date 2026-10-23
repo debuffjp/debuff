@@ -1,5 +1,13 @@
 # @debuffjp/cli
 
+## 0.15.0
+
+### Patch Changes
+
+- Updated dependencies [bc01ad0]
+- Updated dependencies [7dbe21a]
+  - create-debuff@0.15.0
+
 ## 0.14.0
 
 ### Minor Changes
