@@ -1,5 +1,16 @@
 # @debuffjp/cli
 
+## 0.14.0
+
+### Minor Changes
+
+- 7bf806f: `debuff dev` re-fetches changed level and data files in place instead of reloading the page, when the compiled manifest serves the file as json or text and a loader holds it; anything else (images, sounds, added or removed files, data no loader has) still reloads the page. Asset recompiles after a change run one at a time, so the served manifest is always the latest.
+- 3e03829: `.tt` sprites drawn with [tenten](https://github.com/debuffjp/tenten), the pixel-art MCP server for agents, become PNGs and sprite sheets in `assets/` with no configuration, like `.aseprite` files do with `aseprite()`. tenten is found in `$TENTEN` or the project, and otherwise fetched with `npx -y tenten` the first time a `.tt` file appears; `tenten({ command })` overrides that. New projects' `.mcp.json` lists the tenten server next to debuff's, and the template agent guides, the debuff skill and the MCP server tell agents to draw pixel art with tenten unless the human names another tool.
+
+### Patch Changes
+
+- create-debuff@0.14.0
+
 ## 0.13.3
 
 ### Patch Changes
