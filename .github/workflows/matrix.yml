@@ -55,7 +55,7 @@ jobs:
           node-version: 24
           cache: npm
       - if: matrix.pm == 'pnpm'
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 11
       - if: matrix.pm == 'yarn'
