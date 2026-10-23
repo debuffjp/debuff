@@ -1,5 +1,11 @@
 # @debuffjp/dev
 
+## 0.14.0
+
+### Minor Changes
+
+- ca6ba6a: `state()` adds `camera` (centre, zoom and view size in world units) so external harnesses can place `inspect()` rows in the view.
+
 ## 0.13.3
 
 No changes in this release.
