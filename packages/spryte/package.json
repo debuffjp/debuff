@@ -19,7 +19,8 @@
   "bugs": "https://github.com/debuffjp/spryte/issues",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/debuffjp/spryte.git"
+    "url": "git+https://github.com/debuffjp/debuff.git",
+    "directory": "packages/spryte"
   },
   "type": "module",
   "sideEffects": false,
