@@ -26,7 +26,7 @@ This is **squish**, a squishy match-3 made with **debuff** (https://debuff.jp). 
 
 ## How the game is put together
 
-- `src/board.ts` holds the rules as plain functions over a grid of colour indexes: `findMatches`, `swapMatches`, `findMove`, `collapse` (gravity and refill) and `fill` (a fresh board with no matches and at least one move). No drawing or timing, so tests check rules directly. `toRows`/`fromRows` turn a board into letters (`a`–`f`, `.` for empty) and back.
+- `src/board.ts` holds the rules as plain functions over a grid of colour indexes: `findMatches`, `swapMatches`, `findMove`, `collapse` (gravity and refill) and `fill` (a fresh board with no matches and at least one move). No drawing or timing, so tests check rules directly. `toRows`/`fromRows` turn a board into letters (`a`-`f`, `.` for empty) and back.
 - `src/main.ts` animates what the rules decide, one phase at a time: `idle` → `swap` → `pop` → `fall` → `pop` again while cascades continue → `idle`, or `unswap` when a swap matches nothing (no move spent). Phases advance on fixed timers, so runs replay exactly. Tweens only move and squash the pieces.
 - Pieces are drawn in code (`drawPiece`): six flat colours, each with its own shape, so colour is never the only clue. Squash and stretch pivot from the bottom of each cell.
 - Input: tap a piece then a neighbour, or swipe a piece; on keyboard or gamepad, move the cursor with arrows, pick up with Space/Z/A, then push with an arrow.

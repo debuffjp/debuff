@@ -22,7 +22,7 @@ draw.end();                               // submits the frame
 draw.dispose();                           // frees GPU objects and listeners; the Draw is unusable after
 ```
 
-`scale` is usually `canvas.width / width` (CSS scale × `devicePixelRatio`). It also sets the resolution that text is rasterised at. A `clear` of `null` draws over what's already there: an overlay, a second pass, or a frame another engine began.
+`scale` is usually `canvas.width / width` (CSS scale times `devicePixelRatio`). It also sets the resolution that text is rasterised at. A `clear` of `null` draws over what's already there: an overlay, a second pass, or a frame another engine began.
 
 ## Drawing
 
@@ -107,7 +107,7 @@ wave.set("time", t);                      // float, or [x, y], [x, y, z], [x, y,
 draw.withShader(wave, () => draw.sprite(hero, x, y));
 ```
 
-- `color` is the draw's tint × alpha, premultiplied. Flash is applied after your effect.
+- `color` is the draw's tint times alpha, premultiplied. Flash is applied after your effect.
 - Shaders compile on first use. Errors throw with the driver's message, and line numbers refer to your source. A shader that fails to compile leaves the renderer as it was, and using it again throws again.
 - `set()` affects only draws made after it, even inside the same scope.
 - Shaders compose with render targets: draw into a target, then draw the target through a shader for full-screen post-processing.

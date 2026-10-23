@@ -33,7 +33,7 @@ A living document. Items move up only with evidence from real games, jams and fi
 
 ## Differentiators: what makes debuff the obvious choice
 
-Proposals, ordered by leverage. Each builds on something debuff already has (a fixed-step clock, seeded RNG, scenarios, explained errors, the MCP server) that PixiJS (a renderer, not a game loop) and raw canvas don't.
+Proposals, ordered by payoff for the effort. Each builds on something debuff already has (a fixed-step clock, seeded RNG, scenarios, explained errors, the MCP server) that PixiJS (a renderer, not a game loop) and raw canvas don't.
 
 - [x] **Deterministic replays and time travel.** Recording, save/copy, rewind and scrub in the dev panel, save as scenario, and `game_replay` / `game_rewind` for agents. Inputs plus seed are a complete recording. Rewind and scrub in the dev panel, share a replay file that reproduces a bug exactly, and turn any replay into a scenario.
 - [x] **Fuzz playtesting.** `debuff fuzz` drives random and biased inputs headlessly for N minutes, and reports explained errors and stuck states, each with a replay file. It works in CI, and agents can use it via MCP.

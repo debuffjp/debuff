@@ -5,7 +5,7 @@
 
 ## Context
 
-The planning brief left Canvas 2D vs PixiJS open until a benchmark exists. We want maximum leverage from web standards, a small runtime, and no premature multi-renderer abstraction.
+The planning brief left Canvas 2D vs PixiJS open until a benchmark exists. We want to get as much as possible from web standards, a small runtime, and no premature multi-renderer abstraction.
 
 ## Decision
 
