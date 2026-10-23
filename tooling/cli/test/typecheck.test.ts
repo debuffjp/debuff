@@ -1,11 +1,12 @@
 import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseTscOutput, typecheck } from "../src/index.js";
 
-const repoModules = fileURLToPath(new URL("../../../node_modules", import.meta.url));
+// Wherever `typescript` actually resolves: a git worktree inside the repo has no node_modules of its own.
+const repoModules = dirname(dirname(createRequire(import.meta.url).resolve("typescript/package.json")));
 
 /** A tiny project that resolves `typescript` from the repo's node_modules. */
 function project(files: Record<string, string>): string {
