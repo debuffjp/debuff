@@ -7,7 +7,7 @@ import type { FunctionImporter, ImportResult, SourceFile, ToolingPlugin } from "
 import { quoteWindows } from "./command.js";
 
 export interface TentenOptions {
-  /** Command that runs tenten, e.g. `["node", "tools/tenten/bin/tenten.js"]`. Default: `$TENTEN`, then the project's installed `tenten`, then `npx -y tenten`. */
+  /** Command that runs tenten, e.g. `["node", "tools/tenten/bin/tenten.js"]`. Default: `$TENTEN`, then the project's installed `tenten`, then `npx -y -p @debuffjp/tenten tenten`. */
   command?: string[];
   /** @internal Runs the command; replaced in tests. */
   exec?: (command: string[]) => void;
@@ -21,10 +21,10 @@ export function findTenten(near: string, explicit?: string[]): string[] {
   const fromEnv = process.env.TENTEN;
   if (fromEnv && existsSync(fromEnv)) return fromEnv.endsWith(".js") ? [process.execPath, fromEnv] : [fromEnv];
   try {
-    const pkg = createRequire(near).resolve("tenten/package.json");
+    const pkg = createRequire(near).resolve("@debuffjp/tenten/package.json");
     return [process.execPath, join(dirname(pkg), "bin", "tenten.js")];
   } catch {
-    return ["npx", "-y", "--package", "tenten", "tenten"];
+    return ["npx", "-y", "--package", "@debuffjp/tenten", "tenten"];
   }
 }
 
