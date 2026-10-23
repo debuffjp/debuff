@@ -1,0 +1,6 @@
+{
+  "mcpServers": {
+    "debuff": { "command": "npx", "args": ["-y", "@debuffjp/mcp"] },
+    "tenten": { "command": "npx", "args": ["-y", "--package", "@debuffjp/tenten", "tenten-mcp"] }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "title": "Side-scroller",
+  "kind": "base",
+  "bundled": false,
+  "description": "Run and jump through a side-scrolling level: tenten tileset and sprites, coyote time, jump buffering, one-way planks, a following camera, pickups"
+}

@@ -1,0 +1,18 @@
+{
+  "$schema": "../node_modules/@debuffjp/cli/schema/scenario.schema.json",
+  "steps": [
+    { "wait": 10 },
+    { "expect": { "scene": { "eq": "play" }, "state.room": { "eq": "yard" } } },
+    { "tap": [218, 134] },
+    { "until": { "events.pickup": { "gte": 1 } }, "within": 240 },
+    { "wait": 5 },
+    { "capture": "got-the-key" },
+    { "contrast": [100, 10, 120, 20] },
+    { "tap": [308, 140] },
+    { "until": { "state.room": { "eq": "hall" } }, "within": 360 },
+    { "tap": [160, 60] },
+    { "until": { "events.win": { "gte": 1 } }, "within": 240 },
+    { "wait": 5 },
+    { "capture": "the-end" }
+  ]
+}
