@@ -111,4 +111,4 @@ export default defineConfig({ plugins: [tenten({ command: ["node", "../tenten/bi
 - `slime.tt` with several frames becomes a sprite sheet: `assets.frames("slime")` returns the frames in order.
 - `font@6x9.tt` flattens to one image with a 6x9 grid.
 
-debuff runs tenten from `$TENTEN` (its `bin/tenten.js`), then the copy installed in the project, and otherwise fetches it with `npx -y tenten` the first time a `.tt` file is seen. tenten needs Node 24. Results are cached by file contents.
+debuff runs tenten from `$TENTEN` (its `bin/tenten.js`), then the copy installed in the project, and otherwise fetches it with `npx -y -p @debuffjp/tenten tenten` the first time a `.tt` file is seen. tenten needs Node 24. Results are cached by file contents.

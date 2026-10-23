@@ -6,7 +6,7 @@
     },
     "tenten": {
       "command": "npx",
-      "args": ["-y", "--package", "tenten", "tenten-mcp"]
+      "args": ["-y", "--package", "@debuffjp/tenten", "tenten-mcp"]
     }
   }
 }
