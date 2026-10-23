@@ -31,7 +31,7 @@ export function polyline(
 export function roundRect(draw: Draw, x: number, y: number, w: number, h: number, radius: number, color: Color, lineWidth?: number): void {
   const r = Math.max(0, Math.min(radius, w / 2, h / 2));
   const steps = r > 0 ? arcSteps(draw, r, Math.PI / 2) : 0;
-  const pts = scratch((steps + 1) * 4);
+  const pts = scratch((steps + 1) * 8);
   let k = 0;
   const corner = (cx: number, cy: number, from: number) => {
     for (let i = 0; i <= steps; i++) {

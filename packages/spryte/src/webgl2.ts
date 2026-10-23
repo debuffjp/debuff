@@ -378,10 +378,15 @@ export class WebGL2Backend implements Backend {
     this.submitted = 0;
   }
 
-  /** Bind the frame's destination, the canvas, with the viewport sized to it. Shared mode binds the host's framebuffer instead. */
+  /** The frame's destination: the canvas. Shared mode draws into the host's framebuffer instead. */
+  protected outputFramebuffer(): WebGLFramebuffer | null {
+    return null;
+  }
+
+  /** Bind the frame's destination with the viewport sized to it. */
   protected bindOutput(): void {
     const gl = this.gl;
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.outputFramebuffer());
     gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
     this.outH = gl.drawingBufferHeight;
   }
@@ -734,7 +739,9 @@ export class WebGL2Backend implements Backend {
     this.viewW = width;
     this.viewH = height;
     if (clear !== null) {
-      gl.clearColor((clear >>> 24) / 255, ((clear >>> 16) & 0xff) / 255, ((clear >>> 8) & 0xff) / 255, (clear & 0xff) / 255);
+      // Premultiplied, like begin().
+      const a = (clear & 0xff) / 255;
+      gl.clearColor(((clear >>> 24) / 255) * a, (((clear >>> 16) & 0xff) / 255) * a, (((clear >>> 8) & 0xff) / 255) * a, a);
       gl.clear(gl.COLOR_BUFFER_BIT);
     }
   }
@@ -771,7 +778,7 @@ export class WebGL2Backend implements Backend {
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, target.width, target.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
     this.wrap();
-    const previous = this.target ? (this.targets.get(this.target)?.fbo ?? null) : null;
+    const previous = this.target ? (this.targets.get(this.target)?.fbo ?? null) : this.outputFramebuffer();
     gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
     const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
@@ -1024,6 +1031,10 @@ export class WebGL2Backend implements Backend {
     const hit = this.textures.get(src);
     if (hit) return hit;
     if (src instanceof RenderTarget) return this.targetStore(src).cached;
+    const w = "naturalWidth" in src ? src.naturalWidth : src.width;
+    const h = "naturalHeight" in src ? src.naturalHeight : src.height;
+    // An image still loading is 0×0: nothing to upload, and nothing to remember.
+    if (w === 0 || h === 0) return this.white;
     const gl = this.gl;
     const tex = gl.createTexture();
     if (!tex) throw new Error("WebGL2: could not create texture");
@@ -1032,8 +1043,6 @@ export class WebGL2Backend implements Backend {
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
     this.wrap();
-    const w = "naturalWidth" in src ? src.naturalWidth : src.width;
-    const h = "naturalHeight" in src ? src.naturalHeight : src.height;
     const cached = { tex, iw: 1 / w, ih: 1 / h, v0: 0 };
     this.textures.set(src, cached);
     // Unit 0 is now bound to this texture; the next flush rebinds whatever the batch needs.
