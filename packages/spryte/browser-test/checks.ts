@@ -9,6 +9,7 @@ import {
   createSharedRenderer,
   type Draw,
   type Filter,
+  type Frame,
   filter,
   grayscale,
   hueRotate,
@@ -191,6 +192,34 @@ for (const backend of ["webgl2", "2d"] as const) {
         differing: differing <= tolerance ? 0 : differing,
         nonBackground: drawn,
       });
+    }
+}
+
+// Per-copy frame: sprites(frames, …, { frame }) must match a sprite() loop over the same frames. Frames of
+// different sizes on one image take the instanced path; a frame on a second image forces one quad per copy.
+{
+  const n = 20;
+  const other = art();
+  const sub = (image: HTMLCanvasElement, x: number, y: number, w: number, h: number) => ({ image, x, y, w, h });
+  const onOne = [sub(img, 0, 0, 8, 6), sub(img, 1, 1, 3, 2), sub(img, 4, 0, 4, 6)];
+  const mixed = [...onOne, sub(other, 0, 3, 8, 3)];
+  const scale = Float32Array.from({ length: n }, (_, i) => 1 + (i % 3));
+  for (const backend of ["webgl2", "2d"] as const)
+    for (const [name, frames, withScale] of [
+      ["one image", onOne, false],
+      ["one image + scale", onOne, true],
+      ["across images", mixed, false],
+    ] as const) {
+      const index = Uint8Array.from({ length: n }, (_, i) => i % frames.length);
+      const each = withScale ? { frame: index, scale } : { frame: index };
+      const loop = await render((draw) => {
+        for (let i = 0; i < n; i++) {
+          const k = withScale ? (scale[i] as number) : 1;
+          draw.sprite(frames[index[i] as number] as Frame, pos[i * 2] as number, pos[i * 2 + 1] as number, { scaleX: k, scaleY: k });
+        }
+      }, backend);
+      const bulk = await render((draw) => draw.sprites(frames, pos, n, {}, each), backend);
+      record(`sprites(each.frame) == sprite() loop: ${name} (${backend})`, loop, bulk);
     }
 }
 

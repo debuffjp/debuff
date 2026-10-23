@@ -1,5 +1,6 @@
 import type { Backend, BlendMode, ClipRect, Matrix, RawContext, TextureSource } from "./backend.js";
-import { type CopySpec, copyAt } from "./copies.js";
+import { type CopySpec, copyAt, frameAt } from "./copies.js";
+import type { Frame } from "./draw.js";
 import type { Shader } from "./shader.js";
 import type { ShapeBuffer } from "./shapes.js";
 import { RenderTarget } from "./target.js";
@@ -72,14 +73,14 @@ layout(location=1) in vec2 a_pos;
 layout(location=2) in float a_scale;
 layout(location=3) in float a_rot;
 layout(location=4) in uint a_color;
+layout(location=5) in vec4 a_uv;    // this copy's frame in texture space
+layout(location=6) in vec2 a_size;  // this copy's frame size in pixels
 uniform vec2 u_view;
 uniform vec4 u_linear;  // current transform, linear part
 uniform vec2 u_mt;      // current transform, translation
-uniform vec2 u_size;    // frame size
-uniform vec2 u_offset;  // -origin × size
+uniform vec2 u_origin;  // anchor as a fraction of the frame size
 uniform vec2 u_scale;
 uniform float u_rot;
-uniform vec4 u_uv;
 uniform vec4 u_color;   // shared tint × alpha, straight
 uniform float u_snap;
 out highp vec2 v_uv;
@@ -91,15 +92,16 @@ void main() {
   vec2 s = u_scale * a_scale;
   vec2 ab = vec2(cs * s.x, sn * s.x);
   vec2 cd = vec2(-sn * s.y, cs * s.y);
-  vec2 l = ab * u_offset.x + cd * u_offset.y + a_pos;
+  vec2 offset = -u_origin * a_size;
+  vec2 l = ab * offset.x + cd * offset.y + a_pos;
   mat2 M = mat2(u_linear.xy, u_linear.zw);
   vec2 e = M * l + u_mt;
   // Like sprite(): unrotated copies land on whole pixels, decided per copy.
   if (u_snap > 0.5 && r == 0.0) e = floor(e + 0.5);
-  vec2 p = (M * ab) * (u_size.x * a_corner.x) + (M * cd) * (u_size.y * a_corner.y) + e;
+  vec2 p = (M * ab) * (a_size.x * a_corner.x) + (M * cd) * (a_size.y * a_corner.y) + e;
   vec2 clip = p / u_view * 2.0 - 1.0;
   gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);
-  v_uv = mix(u_uv.xy, u_uv.zw, a_corner);
+  v_uv = mix(a_uv.xy, a_uv.zw, a_corner);
   vec4 each = vec4(float(a_color >> 24u), float((a_color >> 16u) & 255u), float((a_color >> 8u) & 255u), float(a_color & 255u)) / 255.0;
   vec4 c = u_color * each;
   v_color = vec4(c.rgb * c.a, c.a);
@@ -148,9 +150,9 @@ interface ShapePipeline extends ProgramInfo {
 
 interface EachPipeline extends ProgramInfo {
   vao: WebGLVertexArrayObject;
-  /** Position, scale, rotation and colour buffers (attribute locations 1–4). */
+  /** Position, scale, rotation, colour and frame (uv + size) buffers (attribute locations 1–4, 5–6). */
   buffers: WebGLBuffer[];
-  at: Record<"linear" | "mt" | "size" | "offset" | "scale" | "rot" | "uv" | "color" | "flash" | "snap", WebGLUniformLocation | null>;
+  at: Record<"linear" | "mt" | "origin" | "scale" | "rot" | "color" | "flash" | "snap", WebGLUniformLocation | null>;
 }
 
 interface CopyPipeline extends ProgramInfo {
@@ -244,6 +246,7 @@ export class WebGL2Backend implements Backend {
   private shapes: ShapeBuffer | undefined;
   private stagingScale = new Float32Array(0);
   private stagingRot = new Float32Array(0);
+  private stagingFrame = new Float32Array(0);
   private staging = new Float32Array(0);
   private readonly targets = new Map<RenderTarget, { fbo: WebGLFramebuffer; cached: CachedTexture }>();
   /** Where drawing goes: a render target, or null for the canvas. */
@@ -537,20 +540,23 @@ export class WebGL2Backend implements Backend {
 
   copies(c: CopySpec): void {
     if (this.lost || c.count <= 0) return;
-    if (c.src === this.target) throw new Error("spryte: can't draw a render target into itself");
-    if (this.shader) {
-      // Custom effects run in the sprite program: one quad per copy.
+    if (this.shader || c.mixed) {
+      // Custom effects run in the sprite program, and frames across images need its texture units: one quad per copy.
       const q: Matrix = [1, 0, 0, 1, 0, 0];
       for (let i = 0; i < c.count; i++) {
-        const color = copyAt(c, i, q);
-        this.quad(q, c.src, c.sx, c.sy, c.sw, c.sh, color, c.flash, c.smooth);
+        const f = frameAt(c, i);
+        if (f.image === this.target) throw new Error("spryte: can't draw a render target into itself");
+        const color = copyAt(c, i, q, f);
+        this.quad(q, f.image, f.x, f.y, f.w, f.h, color, c.flash, c.smooth);
       }
       return;
     }
+    const src = c.frame.image;
+    if (src === this.target) throw new Error("spryte: can't draw a render target into itself");
     this.flush();
     const gl = this.gl;
-    const tex = c.src === this.lastSrc && this.last ? this.last : this.texture(c.src);
-    this.lastSrc = c.src;
+    const tex = src === this.lastSrc && this.last ? this.last : this.texture(src);
+    this.lastSrc = src;
     this.last = tex;
     const p = this.each;
     const at = p.at;
@@ -560,11 +566,9 @@ export class WebGL2Backend implements Backend {
     const m = c.m;
     gl.uniform4f(at.linear, m[0], m[1], m[2], m[3]);
     gl.uniform2f(at.mt, m[4], m[5]);
-    gl.uniform2f(at.size, c.sw, c.sh);
-    gl.uniform2f(at.offset, c.ox, c.oy);
+    gl.uniform2f(at.origin, c.originX, c.originY);
     gl.uniform2f(at.scale, c.scaleX, c.scaleY);
     gl.uniform1f(at.rot, c.rotation);
-    gl.uniform4f(at.uv, c.sx * tex.iw, tex.v0 + c.sy * tex.ih, (c.sx + c.sw) * tex.iw, tex.v0 + (c.sy + c.sh) * tex.ih);
     const col = c.color;
     gl.uniform4f(at.color, (col >>> 24) / 255, ((col >>> 16) & 0xff) / 255, ((col >>> 8) & 0xff) / 255, (col & 0xff) / 255);
     gl.uniform1f(at.flash, c.flash);
@@ -591,6 +595,32 @@ export class WebGL2Backend implements Backend {
     } else {
       gl.disableVertexAttribArray(4);
       gl.vertexAttribI4ui(4, 0xffffffff, 0, 0, 0);
+    }
+    const frames = c.frames;
+    const idx = c.each.frame;
+    if (frames && idx) {
+      if (this.stagingFrame.length < n * 6) this.stagingFrame = new Float32Array(n * 6);
+      const out = this.stagingFrame;
+      for (let i = 0; i < n; i++) {
+        const f = frames[idx[i] as number] as Frame;
+        const o = i * 6;
+        out[o] = f.x * tex.iw;
+        out[o + 1] = tex.v0 + f.y * tex.ih;
+        out[o + 2] = (f.x + f.w) * tex.iw;
+        out[o + 3] = tex.v0 + (f.y + f.h) * tex.ih;
+        out[o + 4] = f.w;
+        out[o + 5] = f.h;
+      }
+      gl.bindBuffer(gl.ARRAY_BUFFER, p.buffers[4] as WebGLBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, out, gl.STREAM_DRAW, 0, n * 6);
+      gl.enableVertexAttribArray(5);
+      gl.enableVertexAttribArray(6);
+    } else {
+      const f = c.frame;
+      gl.disableVertexAttribArray(5);
+      gl.disableVertexAttribArray(6);
+      gl.vertexAttrib4f(5, f.x * tex.iw, tex.v0 + f.y * tex.ih, (f.x + f.w) * tex.iw, tex.v0 + (f.y + f.h) * tex.ih);
+      gl.vertexAttrib2f(6, f.w, f.h);
     }
     gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, n);
     this.submitted++;
@@ -820,6 +850,7 @@ export class WebGL2Backend implements Backend {
       [2, 1],
       [3, 1],
       [4, 1],
+      [5, 4],
     ] as const) {
       const b = gl.createBuffer();
       if (!b) throw new Error("WebGL2: could not create buffer");
@@ -829,6 +860,10 @@ export class WebGL2Backend implements Backend {
       else gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 0, 0);
       gl.vertexAttribDivisor(loc, 1);
     }
+    // The frame buffer interleaves uv (location 5) and size (location 6): 6 floats per copy.
+    gl.vertexAttribPointer(5, 4, gl.FLOAT, false, 24, 0);
+    gl.vertexAttribPointer(6, 2, gl.FLOAT, false, 24, 16);
+    gl.vertexAttribDivisor(6, 1);
     const u = (name: string) => gl.getUniformLocation(program, name);
     return {
       program,
@@ -840,11 +875,9 @@ export class WebGL2Backend implements Backend {
       at: {
         linear: u("u_linear"),
         mt: u("u_mt"),
-        size: u("u_size"),
-        offset: u("u_offset"),
+        origin: u("u_origin"),
         scale: u("u_scale"),
         rot: u("u_rot"),
-        uv: u("u_uv"),
         color: u("u_color"),
         flash: u("u_flash"),
         snap: u("u_snap"),

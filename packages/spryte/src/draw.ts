@@ -307,9 +307,16 @@ export class Draw {
    * // ...update pos...
    * draw.sprites(spark, pos, live, { tint: "#ffd36b", alpha: 0.8 });
    * ```
+   *
+   * Per-copy scale, rotation, colour and frame go in `each`. For a frame per copy, pass the frames as an
+   * array and index it with `each.frame`:
+   *
+   * ```ts
+   * draw.sprites(itemFrames, pos, n, {}, { frame: itemKind });
+   * ```
    */
   sprites(
-    frame: Frame | TextureSource,
+    frame: Frame | TextureSource | readonly Frame[],
     positions: ArrayLike<number>,
     count = positions.length >> 1,
     o: SpriteDrawOptions = NO_OPTIONS,
@@ -321,13 +328,14 @@ export class Draw {
       if (each.scale) count = Math.min(count, each.scale.length);
       if (each.rotation) count = Math.min(count, each.rotation.length);
       if (each.color) count = Math.min(count, each.color.length);
+      if (each.frame) count = Math.min(count, each.frame.length);
     }
     if (count <= 0) return;
-    if (each && (each.scale || each.rotation || each.color)) {
+    if (each && (each.scale || each.rotation || each.color || each.frame)) {
       this.spritesEach(frame, positions, count, o, each);
       return;
     }
-    const f = this.place(frame, 0, 0, o);
+    const f = this.place(Array.isArray(frame) ? (frame[0] as Frame) : (frame as Frame | TextureSource), 0, 0, o);
     const t = this.tmp;
     const smooth = o.smooth ?? this.smooth;
     // Snapped per copy, like sprite().
@@ -337,13 +345,27 @@ export class Draw {
   }
 
   private spritesEach(
-    frame: Frame | TextureSource,
+    frame: Frame | TextureSource | readonly Frame[],
     positions: ArrayLike<number>,
     count: number,
     o: SpriteDrawOptions,
     each: SpritesEach,
   ): void {
-    const f = frame === this.lastImage && this.lastFrame ? this.lastFrame : "image" in frame ? frame : this.wholeImage(frame);
+    let frames: readonly Frame[] | undefined;
+    let f: Frame;
+    let mixed = false;
+    if (Array.isArray(frame)) {
+      const all = frame as readonly Frame[];
+      f = all[0] as Frame;
+      if (!f) return;
+      if (each.frame) {
+        frames = all;
+        for (let i = 1; i < all.length && !mixed; i++) mixed = (all[i] as Frame).image !== f.image;
+      }
+    } else {
+      const one = frame as Frame | TextureSource;
+      f = one === this.lastImage && this.lastFrame ? this.lastFrame : "image" in one ? one : this.wholeImage(one);
+    }
     const origin = o.origin;
     const rotation = o.rotation ?? 0;
     const smooth = o.smooth ?? this.smooth;
@@ -353,13 +375,11 @@ export class Draw {
       m,
       positions,
       count,
-      src: f.image,
-      sx: f.x,
-      sy: f.y,
-      sw: f.w,
-      sh: f.h,
-      ox: -(origin ? origin[0] : 0.5) * f.w,
-      oy: -(origin ? origin[1] : 0.5) * f.h,
+      frame: f,
+      originX: origin ? origin[0] : 0.5,
+      originY: origin ? origin[1] : 0.5,
+      frames,
+      mixed,
       scaleX: (o.scaleX ?? 1) * (o.flipX ? -1 : 1),
       scaleY: (o.scaleY ?? 1) * (o.flipY ? -1 : 1),
       rotation,
