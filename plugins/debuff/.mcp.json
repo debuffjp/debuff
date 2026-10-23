@@ -3,6 +3,10 @@
     "debuff": {
       "command": "npx",
       "args": ["-y", "@debuffjp/mcp@0.13.3"]
+    },
+    "tenten": {
+      "command": "npx",
+      "args": ["-y", "--package", "tenten", "tenten-mcp"]
     }
   }
 }
