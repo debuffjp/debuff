@@ -1,5 +1,6 @@
 {
   "title": "Basic",
+  "kind": "base",
   "bundled": true,
   "description": "Minimal starter: buff on a WebGL2 canvas with input, juice, audio, dev tools and a scenario"
 }

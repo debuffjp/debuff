@@ -1,0 +1,15 @@
+{
+  "$schema": "../node_modules/@debuffjp/cli/schema/scenario.schema.json",
+  "steps": [
+    { "wait": 10 },
+    { "expect": { "scene": { "eq": "play" }, "state.sparks.collected": { "eq": 0 } } },
+    { "command": "warp", "args": [8, 2] },
+    { "press": "ArrowDown" },
+    { "until": { "events.spark": { "gte": 1 } }, "within": 180 },
+    { "release": "ArrowDown" },
+    { "wait": 5 },
+    { "capture": "collected" },
+    { "expect": { "state.sparks.collected": { "eq": 1 } } },
+    { "contrast": [0, 0, 72, 24] }
+  ]
+}

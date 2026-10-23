@@ -3,13 +3,38 @@ import { join, relative } from "node:path";
 import * as p from "@clack/prompts";
 import pc from "./ansi.js";
 import { banner, lime, pink, sky } from "./brand.js";
-import { create, detectPackageManager, isEmptyDir, listTemplates, ownVersion, resolveTemplate } from "./scaffold.js";
+import {
+  create,
+  detectPackageManager,
+  isEmptyDir,
+  listTemplates,
+  ownVersion,
+  resolveTemplate,
+  type TemplateInfo,
+  type TemplateKind,
+} from "./scaffold.js";
 
 export interface CreateOptions {
   dir?: string | undefined;
   template?: string | undefined;
   /** Accept defaults without prompting (CI, agents). */
   yes?: boolean;
+}
+
+/** The template list as select options, under a heading per kind. Headings are disabled rows, so the cursor skips them. */
+export function templateOptions(templates: readonly TemplateInfo[]): { value: string; label: string; hint?: string; disabled?: boolean }[] {
+  const heading: Record<TemplateKind, string> = {
+    base: "Base templates: a starting point for your own game",
+    example: "Examples: finished small games to learn from",
+  };
+  const options: { value: string; label: string; hint?: string; disabled?: boolean }[] = [];
+  for (const kind of ["base", "example"] as const) {
+    const group = templates.filter((t) => t.kind === kind);
+    if (group.length === 0) continue;
+    options.push({ value: `#${kind}`, label: pc.dim(heading[kind]), disabled: true });
+    for (const t of group) options.push({ value: t.id, label: t.title, hint: t.description });
+  }
+  return options;
 }
 
 /** Interactive scaffold flow. Falls back to defaults when stdin is not a TTY so agents
@@ -45,7 +70,8 @@ export async function runCreate(options: CreateOptions): Promise<number> {
   if (!template && interactive && templates.length > 1) {
     const answer = await p.select({
       message: "Pick a template",
-      options: templates.map((t) => ({ value: t.id, label: t.title, hint: t.description })),
+      options: templateOptions(templates),
+      initialValue: templates[0]?.id,
     });
     if (p.isCancel(answer)) return cancelled();
     template = answer;

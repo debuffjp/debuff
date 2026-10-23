@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>topdown</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0a0c08; overflow: hidden; }
+      /* The game scales the canvas to fit this container (see GameOptions.scale). */
+      #app { position: fixed; inset: 0; display: grid; place-items: center; }
+      canvas { display: block; outline: none; }
+    </style>
+  </head>
+  <body>
+    <main id="app"><canvas id="game" tabindex="0"></canvas></main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

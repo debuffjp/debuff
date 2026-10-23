@@ -20,10 +20,14 @@ export function templatesDir(): string {
   throw new Error("create-debuff: templates directory not found");
 }
 
+/** A base template is a starting point to build your own game on. An example is a finished small game to learn from. */
+export type TemplateKind = "base" | "example";
+
 export interface TemplateInfo {
   id: string;
   title: string;
   description: string;
+  kind: TemplateKind;
 }
 
 /** Templates available locally (bundled in the package, or every template in a repo checkout). */
@@ -34,19 +38,21 @@ function localTemplates(): TemplateInfo[] {
     .map((id) => {
       const meta = join(dir, id, "template.json");
       const info = existsSync(meta) ? (JSON.parse(readFileSync(meta, "utf8")) as Partial<TemplateInfo>) : {};
-      return { id, title: info.title ?? id, description: info.description ?? "" };
+      return { id, title: info.title ?? id, description: info.description ?? "", kind: info.kind ?? "example" };
     });
 }
 
 /** Every template: local ones plus official templates that download on demand. */
 export function listTemplates(): TemplateInfo[] {
   const local = localTemplates();
-  const remote = OFFICIAL_TEMPLATES.filter((t) => !local.some((l) => l.id === t.id)).map(({ id, title, description }) => ({
+  const remote = OFFICIAL_TEMPLATES.filter((t) => !local.some((l) => l.id === t.id)).map(({ id, title, description, kind }) => ({
     id,
     title,
     description,
+    kind,
   }));
-  return [...local, ...remote];
+  const all = [...local, ...remote];
+  return [...all.filter((t) => t.kind === "base"), ...all.filter((t) => t.kind !== "base")];
 }
 
 /**
