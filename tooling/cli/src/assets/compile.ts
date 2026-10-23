@@ -5,6 +5,7 @@ import type { AssetImporter, CompiledEntry, GeneratedFile, ImportResult, SourceF
 import { type AtlasOptions, buildAtlases } from "./atlas.js";
 import { builtinImporter } from "./builtin.js";
 import { runCommandImporter } from "./command.js";
+import { tentenImporter } from "./tenten.js";
 
 export interface CompiledManifest {
   version: 1;
@@ -59,7 +60,10 @@ export interface CompileOptions {
  */
 export async function compileAssets(root: string, options: CompileOptions = {}): Promise<CompileResult> {
   const dir = join(root, "assets");
-  const importers = [...(options.plugins ?? []).flatMap((p) => p.assets ?? []), builtinImporter];
+  const fromPlugins = (options.plugins ?? []).flatMap((p) => p.assets ?? []);
+  // .tt sprites import without configuration; a plugin that claims .tt (e.g. tenten({ command })) replaces the default.
+  const claimsTt = fromPlugins.some((i) => i.extensions.some((e) => e.toLowerCase() === ".tt"));
+  const importers = [...fromPlugins, ...(claimsTt ? [] : [tentenImporter()]), builtinImporter];
   const cacheDir = join(root, ".debuff", "cache", "assets");
   const useCache = options.cache ?? true;
   const files = walk(dir)

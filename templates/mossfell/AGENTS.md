@@ -22,7 +22,7 @@ This is **mossfell**, a top-down action-adventure made with **debuff** (https://
 - `assets/`: source art, audio and data. The manifest and atlases are generated from it, and only files the game references ship. Don't edit generated files.
 - `tests/`: logic tests (`*.test.ts`, `keiko`). They boot the real game headless, drive input, time and params, and assert on `inspect()` state. Add one for each mechanic you build. Guide: https://debuff.jp/docs/testing
 - `scenarios/`: JSON scripts run in a real browser. Prefer assertions on state over screenshots: `expect` and `until` read `state.*` (your `inspect()`) and `events.<name>`, the number of times the game called `game.emit("<name>")`. `{ "until": { "events.coin": { "gte": 1 } }, "within": 60 }` waits for a coin instead of guessing a wait. Add a capture only when a change is visual. When you add effects that flash or shake (hits, explosions, screen flashes), add a `{ "flashes": 240 }` step to check them for photosensitive safety, and a `{ "contrast": [x, y, w, h] }` step for new HUD text.
-- `.mcp.json`: connects the debuff MCP server, so you can play and inspect the running game.
+- `.mcp.json`: connects the debuff MCP server, so you can play and inspect the running game, and the tenten server for drawing pixel art.
 
 ## How the game is put together
 
@@ -43,6 +43,7 @@ This is **mossfell**, a top-down action-adventure made with **debuff** (https://
 ## Rules
 
 - **Creative direction belongs to the human:** art, feel, difficulty, story and names. Propose two or three options; don't decide.
+- **Pixel art goes through tenten unless the human names another tool.** When the game needs a sprite, animation or tile drawn, use the `tenten` MCP server from `.mcp.json`: `tt_new`, `tt_draw`, `tt_render` to check it, `tt_save` to `assets/<name>.tt`, which the dev server turns into a sprite sheet, and `tt_preview` so the human sees it. If they draw in Aseprite or elsewhere, leave the art to them and load what they export.
 - Don't update screenshot baselines (`--update`) without the human's say-so.
 - If `game_errors` reports `debuff-bug`, it's a bug in debuff, not this game. Tell the human and share its `reportUrl`; don't work around debuff internals.
 - Prefer debuff's APIs (`draw`, `input`, `assets`, `params`, `juice`) over adding new runtime dependencies. The game should stay small.

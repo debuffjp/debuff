@@ -103,3 +103,27 @@ describe("tenten importer", () => {
     }
   });
 });
+
+describe("tenten by default", () => {
+  it("imports .tt files with no plugin configured", async () => {
+    const root = project({ "assets/x.tt": "tt" });
+    const prev = process.env.TENTEN;
+    process.env.TENTEN = join(root, "missing.js");
+    try {
+      const { importedBy, warnings } = await compileAssets(root, { cache: false, atlas: false });
+      expect(warnings[0]).toMatch(/Skipped x\.tt: tenten failed/);
+      expect(importedBy).toEqual({});
+    } finally {
+      if (prev === undefined) delete process.env.TENTEN;
+      else process.env.TENTEN = prev;
+    }
+  });
+
+  it("lets a configured tenten() plugin replace the default", async () => {
+    const root = project({ "assets/x.tt": "tt" });
+    const fake = fakeTenten(1, 8, 8);
+    const { importedBy } = await compile(root, fake.exec);
+    expect(importedBy.x).toBe("tenten");
+    expect(fake.calls).toHaveLength(1);
+  });
+});
