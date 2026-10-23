@@ -227,6 +227,17 @@ for (const backend of ["webgl2", "2d"] as const) {
 const pixelAt = (px: Uint8Array, x: number, y: number) => Array.from(px.subarray((y * W + x) * 4, (y * W + x) * 4 + 4));
 const check = (name: string, pass: boolean, detail: string) =>
   results.push({ name: `${name}: ${detail}`, differing: pass ? 0 : 1, nonBackground: 1000 });
+
+// An index past the end of the frames throws with a message rather than a TypeError deep in a backend.
+for (const backend of ["webgl2", "2d"] as const) {
+  let message = "";
+  try {
+    await render((draw) => draw.sprites([{ image: img, x: 0, y: 0, w: 8, h: 6 }], pos, 2, {}, { frame: Uint8Array.of(0, 3) }), backend);
+  } catch (e) {
+    message = String(e);
+  }
+  check(`sprites(each.frame) out of range throws (${backend})`, message.includes("each.frame[1] is 3"), message);
+}
 {
   const identity = (draw: Draw) => draw.createShader(`vec4 effect(vec4 color, vec2 uv) { return source(uv) * color; }`);
   const scene = (draw: Draw) => {
