@@ -97,3 +97,18 @@ It looks for Aseprite in `$ASEPRITE`, then on `PATH`, then in the usual install 
 ```bash
 aseprite -b --script-param w=6 --script-param h=9 --script-param out=assets/font@6x9.aseprite --script node_modules/@debuffjp/cli/aseprite/new-font.lua
 ```
+
+### tenten
+
+[tenten](https://github.com/debuffjp/tenten) is a headless pixel-art tool for coding agents: an MCP server draws sprites and animations and saves them as `.tt`, a JSON file with the pixels as text grids that diffs in git. The `tenten()` plugin turns `.tt` files in `assets/` into PNGs and sprite sheets, the same way `aseprite()` does for `.aseprite`:
+
+```ts
+import { defineConfig, tenten } from "@debuffjp/cli";
+
+export default defineConfig({ plugins: [tenten()] });
+```
+
+- `slime.tt` with several frames becomes a sprite sheet: `assets.frames("slime")` returns the frames in order.
+- `font@6x9.tt` flattens to one image with a 6x9 grid.
+
+debuff runs tenten from `$TENTEN` (its `bin/tenten.js`), then the copy installed in the project, and otherwise fetches it with `npx -y tenten` the first time a `.tt` file is seen. tenten needs Node 24. You can also pass `tenten({ command })`. Results are cached by file contents.
