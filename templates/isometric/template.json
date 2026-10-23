@@ -1,0 +1,6 @@
+{
+  "title": "Isometric",
+  "kind": "base",
+  "bundled": false,
+  "description": "Walk a 2:1 isometric grid: tenten floor and cube tiles, depth sorting, grid-to-screen projection, a following camera, pickups"
+}

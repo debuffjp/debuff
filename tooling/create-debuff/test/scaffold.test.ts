@@ -11,6 +11,7 @@ import {
   pinnedSource,
   resolveTemplate,
   scaffold,
+  templateOptions,
   templatesDir,
 } from "../src/index.js";
 
@@ -18,7 +19,7 @@ const tmp = () => mkdtempSync(join(tmpdir(), "create-debuff-"));
 
 describe("scaffold", () => {
   it("lists templates with metadata", () => {
-    expect(listTemplates()).toContainEqual(expect.objectContaining({ id: "basic", title: "Basic" }));
+    expect(listTemplates()).toContainEqual(expect.objectContaining({ id: "basic", title: "Basic", kind: "base" }));
   });
 
   it("copies a template, restores .gitignore, names the package and skips build output", () => {
@@ -57,18 +58,48 @@ describe("remote templates", () => {
 });
 
 describe("official templates", () => {
-  it("each official template exists in the repo and is not bundled into the package", () => {
+  it("each official template exists in the repo, is not bundled into the package, and agrees on its metadata", () => {
     for (const t of OFFICIAL_TEMPLATES) {
       const meta = JSON.parse(readFileSync(join(templatesDir(), t.id, "template.json"), "utf8"));
       expect(meta.bundled, t.id).toBe(false);
+      expect({ title: meta.title, kind: meta.kind, description: meta.description }, t.id).toEqual({
+        title: t.title,
+        kind: t.kind,
+        description: t.description,
+      });
       expect(t.source).toBe(`github:debuffjp/debuff/templates/${t.id}`);
     }
   });
 
-  it("lists bundled and official templates, and resolves locally in a repo checkout", () => {
-    expect(listTemplates().map((t) => t.id)).toEqual(expect.arrayContaining(["basic", "platformer", "mossfell", "squish"]));
+  it("lists base templates before examples, and resolves locally in a repo checkout", () => {
+    const all = listTemplates();
+    expect(all.map((t) => t.id)).toEqual(expect.arrayContaining(["basic", "topdown", "isometric", "platformer", "mossfell", "squish"]));
+    const firstExample = all.findIndex((t) => t.kind === "example");
+    expect(all.slice(0, firstExample).every((t) => t.kind === "base")).toBe(true);
+    expect(all.slice(firstExample).every((t) => t.kind === "example")).toBe(true);
+    expect(all.find((t) => t.id === "squish")?.title).toBe("Match 3");
     expect(resolveTemplate("platformer").kind).toBe("local");
     expect(resolveTemplate("github:me/x")).toEqual({ kind: "remote", source: "github:me/x" });
+  });
+});
+
+describe("templateOptions", () => {
+  it("puts a disabled heading above each kind and skips empty kinds", () => {
+    const options = templateOptions([
+      { id: "iso", title: "Isometric", description: "d", kind: "base" },
+      { id: "basic", title: "Basic", description: "d", kind: "base" },
+    ]);
+    expect(options.map((o) => o.value)).toEqual(["#base", "iso", "basic"]);
+    expect(options[0]?.disabled).toBe(true);
+    expect(options[1]?.disabled).toBeUndefined();
+  });
+
+  it("lists examples under their own heading", () => {
+    const options = templateOptions([
+      { id: "basic", title: "Basic", description: "d", kind: "base" },
+      { id: "squish", title: "Match 3", description: "d", kind: "example" },
+    ]);
+    expect(options.map((o) => o.value)).toEqual(["#base", "basic", "#example", "squish"]);
   });
 });
 

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "saves": [
+    {
+      "key": "debuff-topdown",
+      "file": "src/main.ts",
+      "fields": {
+        "best": "number"
+      }
+    }
+  ]
+}

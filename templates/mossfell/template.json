@@ -1,5 +1,6 @@
 {
   "title": "Mossfell",
+  "kind": "example",
   "bundled": false,
   "description": "Top-down action-adventure: screen-by-screen scrolling, sword combat, hearts, enemies, a key and locked door, a small dungeon"
 }

@@ -1,5 +1,6 @@
 {
-  "title": "Squish",
+  "title": "Match 3",
+  "kind": "example",
   "bundled": false,
   "description": "Squishy match-3 for touch and mouse: swap jelly blobs, cascades and combos, squash-and-stretch juice, drawn in code with no art files"
 }

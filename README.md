@@ -25,7 +25,7 @@ npm install
 npm run dev
 ```
 
-Open the URL it prints, then press <kbd>`</kbd> in the game for the dev panel. Edit `src/main.ts` and the game reloads. For a tilemap platformer instead of the minimal starter, add `-- --template platformer` to the first command, `-- --template mossfell` for a top-down adventure, or `-- --template squish` for a squishy match-3 that plays well on phones. pnpm, Yarn and Bun work too (`pnpm create debuff`, and so on).
+Open the URL it prints, then press <kbd>`</kbd> in the game for the dev panel. Edit `src/main.ts` and the game reloads. The first command asks which template you want. Base templates are starting points for your own game: `basic` (the minimal starter), `topdown` (a tile world seen from above) and `isometric` (a 2:1 grid), the last two with pixel art drawn in [tenten](https://github.com/debuffjp/tenten). Examples are finished small games to learn from: `platformer`, `mossfell` (a top-down adventure) and `squish` (a match-3 that plays well on phones). Skip the question with `-- --template <id>`. pnpm, Yarn and Bun work too (`pnpm create debuff`, and so on).
 
 New projects include a `.mcp.json`, so a coding agent like Claude Code can play and inspect the game you have open, and draw its pixel art with [tenten](https://github.com/debuffjp/tenten). See the [agent guide](https://debuff.jp/docs/agents).
 

@@ -78,7 +78,7 @@ describe("tenten importer", () => {
     const prev = process.env.TENTEN;
     delete process.env.TENTEN;
     try {
-      expect(findTenten(join(root, "assets", "x.tt"))).toEqual(["npx", "-y", "--package", "tenten", "tenten"]);
+      expect(findTenten(join(root, "assets", "x.tt"))).toEqual(["npx", "-y", "--package", "@debuffjp/tenten", "tenten"]);
       expect(findTenten(join(root, "assets", "x.tt"), ["node", "t.js"])).toEqual(["node", "t.js"]);
     } finally {
       if (prev !== undefined) process.env.TENTEN = prev;
@@ -88,15 +88,15 @@ describe("tenten importer", () => {
   it("runs the installed copy when the project depends on tenten", () => {
     const root = project({
       "assets/x.tt": "tt",
-      "node_modules/tenten/package.json": JSON.stringify({ name: "tenten", version: "0.0.1" }),
-      "node_modules/tenten/bin/tenten.js": "",
+      "node_modules/@debuffjp/tenten/package.json": JSON.stringify({ name: "@debuffjp/tenten", version: "0.0.1" }),
+      "node_modules/@debuffjp/tenten/bin/tenten.js": "",
     });
     const prev = process.env.TENTEN;
     delete process.env.TENTEN;
     try {
       expect(findTenten(join(root, "assets", "x.tt"))).toEqual([
         process.execPath,
-        join(root, "node_modules", "tenten", "bin", "tenten.js"),
+        join(root, "node_modules", "@debuffjp", "tenten", "bin", "tenten.js"),
       ]);
     } finally {
       if (prev !== undefined) process.env.TENTEN = prev;

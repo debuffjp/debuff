@@ -9,12 +9,17 @@ debuff is an open-source TypeScript toolkit for 2D browser games. It handles the
 
 ## Starting a new game
 
-Ask the human what they want to make if it isn't clear, then pick the closest starter:
+Ask the human what they want to make if it isn't clear, then pick the closest starter. Base templates are starting points for a new game:
+
+- `basic`: one scene and a moving character, the smallest start
+- `topdown`: a tile world seen from above, with tenten sprites and tileset, 8-way movement, wall collision, a following camera and pickups
+- `isometric`: a 2:1 isometric grid, with tenten floor and cube tiles, depth sorting, grid-to-screen projection and pickups
+
+Examples are finished small games, for learning from or building on:
 
 - `platformer`: runs and jumps through a Tiled level, with collision, coins and tunable movement
 - `mossfell`: top-down action-adventure with screen-by-screen rooms, sword combat, hearts, enemies and a locked door
-- `squish`: squishy match-3 for touch and mouse, with swaps, cascades, combos and squash-and-stretch juice, drawn in code
-- `basic`: one scene and a moving character, the smallest start
+- `squish`: match-3 for touch and mouse, with swaps, cascades, combos and squash-and-stretch juice, drawn in code
 
 ```bash
 npm create debuff@latest my-game -- --template platformer --yes

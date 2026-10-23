@@ -1,0 +1,6 @@
+{
+  "title": "Top-down",
+  "kind": "base",
+  "bundled": false,
+  "description": "Walk a tile world from above: tenten sprites and tileset, 8-way movement, wall collision, a following camera, pickups"
+}
