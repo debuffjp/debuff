@@ -97,7 +97,7 @@ A review set out to show the comparison favoured spryte. In the dynamic scenes e
 - **Noise control:** rounds in rotated order. The published counts (10k, 50k, 200k) are measured for every renderer in every round, even past 60 fps.
 - **Environment recorded automatically,** including power source and plan.
 
-## Reading these honestly
+## How to read these
 
 - **Devices differ, ratios hold.** The table above is one machine. In [2dbench](https://github.com/debuffjp/2dbench#across-devices), spryte's one-call-per-sprite path leads on every device so far (2.7-3.8x on desktops and iPhones, 1.6x on an Android phone). The bulk paths finish level on iPhones, where the GPU's fill rate is the limit. [Run it on your device](https://debuffjp.github.io/2dbench/mobile.html).
 - **Specialised against specialised, general against general.** The bulk rows compare `draw.sprites` with `ParticleContainer`, and the general rows compare `draw.sprite` with `Sprite`.
