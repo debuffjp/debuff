@@ -532,6 +532,14 @@ export class DevSession {
 const format = (v: ParamValue) => (typeof v === "number" && !Number.isInteger(v) ? v.toFixed(2) : String(v));
 
 /**
+ * The game's plugin snapshots, without debuff's own dev tools (providers named `dev-*`, like the overlay's
+ * panel state), so harnesses that diff `state()` see only the game.
+ */
+export function gamePlugins(game: Game): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(game.inspect.snapshot()).filter(([name]) => !name.startsWith("dev-")));
+}
+
+/**
  * Explain a frame in plain words, so a red bar points somewhere useful.
  * @internal exported for the overlay and tests
  */
