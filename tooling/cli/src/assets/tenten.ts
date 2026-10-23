@@ -33,8 +33,8 @@ interface SheetJson {
 }
 
 /**
- * Imports `.tt` files, the sprite format of [tenten](https://github.com/debuffjp/tenten), the pixel-art tool agents
- * draw with. Multi-frame files become sprite sheets, one cell per frame, and `name@WxH.tt` is a grid of that size.
+ * Imports `.tt` files, the sprite format of [tenten](https://github.com/debuffjp/tenten), the headless pixel-art
+ * tool. Multi-frame files become sprite sheets, one cell per frame, and `name@WxH.tt` is a grid of that size.
  * tenten is run from `$TENTEN`, the project's installed copy, or fetched with npx the first time a `.tt` file is seen.
  */
 export function tentenImporter(options: TentenOptions = {}): FunctionImporter {

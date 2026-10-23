@@ -100,7 +100,7 @@ aseprite -b --script-param w=6 --script-param h=9 --script-param out=assets/font
 
 ### tenten
 
-[tenten](https://github.com/debuffjp/tenten) is a headless pixel-art tool for coding agents: an MCP server draws sprites and animations and saves them as `.tt`, a JSON file with the pixels as text grids that diffs in git. `.tt` files in `assets/` become PNGs and sprite sheets with no configuration, the same way `aseprite()` does for `.aseprite`. Add the `tenten()` plugin only to change how tenten is run:
+[tenten](https://github.com/debuffjp/tenten) is a headless, scriptable pixel-art tool: its MCP server, CLI and TypeScript API draw sprites and animations as text grids and ops and save them as `.tt`, a JSON file with the pixels as text grids that diffs in git. `.tt` files in `assets/` become PNGs and sprite sheets with no configuration, the same way `aseprite()` does for `.aseprite`. Add the `tenten()` plugin only to change how tenten is run:
 
 ```ts
 import { defineConfig, tenten } from "@debuffjp/cli";
