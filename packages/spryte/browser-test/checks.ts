@@ -637,6 +637,72 @@ for (const backend of ["webgl2", "2d"] as const) {
   check("soft, nested and in-target masks: WebGL2 matches Canvas 2D", off < 80, `${off} px off by > 48`);
 }
 
+// Offscreen passes inside a clip, and nested at render scale 2 (render() draws at 2x): each must equal drawing
+// the same content directly. A full-cover mask shape or a zero-strength filter keeps everything, so any
+// difference is a leaked clip, a stale pooled target or content drawn in the wrong units.
+{
+  const content = (draw: Draw) => {
+    draw.rect(0, 0, 80, 60, "#334");
+    for (let i = 0; i < 20; i++) draw.sprite(img, pos[i * 2] as number, pos[i * 2 + 1] as number, { scaleX: 2, scaleY: 2 });
+  };
+  const keep = (draw: Draw) => draw.rect(0, 0, 80, 60, "#fff");
+  const after = (draw: Draw) => draw.rect(62, 42, 16, 16, "#f0f"); // outside the clip: must still land
+  const direct = (draw: Draw) => {
+    draw.clip(10, 8, 50, 30, () => content(draw));
+    after(draw);
+  };
+  const maskInClip = (draw: Draw) => {
+    draw.clip(10, 8, 50, 30, () =>
+      mask(
+        draw,
+        () => keep(draw),
+        () => content(draw),
+      ),
+    );
+    after(draw);
+  };
+  const blurred = (draw: Draw) => {
+    draw.clip(10, 8, 50, 30, () => filter(draw, [blur(3)], () => content(draw)));
+    after(draw);
+  };
+  const polluted = (draw: Draw) => {
+    // A full-screen blur first, so the pooled target holds bright pixels outside the clip for the blur to sample.
+    filter(draw, [blur(3)], () => draw.rect(0, 0, 80, 60, "#fff"));
+    draw.rect(0, 0, 80, 60, "#102030");
+    blurred(draw);
+  };
+  const nested = (draw: Draw) => {
+    const t = draw.createTarget(8, 8);
+    mask(
+      draw,
+      () => keep(draw),
+      () => {
+        draw.into(t, () => draw.rect(0, 0, 8, 8, "#fff"));
+        content(draw);
+        mask(
+          draw,
+          () => keep(draw),
+          () => after(draw),
+        );
+      },
+    );
+    draw.disposeTarget(t);
+  };
+  const plain = (draw: Draw) => {
+    content(draw);
+    after(draw);
+  };
+  for (const backend of ["webgl2", "2d"] as const) {
+    record(`mask inside clip == clip (${backend})`, await render(maskInClip, backend), await render(direct, backend));
+    record(
+      `filter inside clip after an unclipped filter == alone (${backend})`,
+      await render(polluted, backend),
+      await render(blurred, backend),
+    );
+    record(`into() and mask nested in a mask at 2x == direct (${backend})`, await render(nested, backend), await render(plain, backend));
+  }
+}
+
 // filter(): WebGL2's passes match the browser's CSS filters on Canvas 2D.
 {
   const content = (draw: Draw) => {
