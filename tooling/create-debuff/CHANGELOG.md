@@ -1,5 +1,15 @@
 # create-debuff
 
+## 0.15.0
+
+### Minor Changes
+
+- bc01ad0: The template picker groups templates into base templates (starting points for your own game) and examples (finished small games). Four new base templates come with pixel art drawn in tenten: `topdown` and `isometric` (a tileset, buff with walk animations, pickups), `sidescroller` (run, jump, one-way planks) and `pointclick` (rooms, hotspots, an inventory, speech). Squish is listed as "Match 3". Templates declare `kind` in `template.json`.
+
+### Patch Changes
+
+- 7dbe21a: The templates' agent guide says what `inspect()` is for: it is all that tests, scenarios, fuzzing, replay diffs and agents can see of the game, so report what a player reacts to as lists of positions, not counts, cap large lists, and name the camera or board transform plainly. It also points games whose logic awaits something at `await game.run()` instead of `wait()`.
+
 ## 0.14.0
 
 No changes in this release.
