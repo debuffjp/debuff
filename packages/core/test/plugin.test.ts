@@ -117,3 +117,60 @@ describe("game.inspect", () => {
     expect(() => game.inspect.register("ok", () => 2)).toThrow(/already registered/);
   });
 });
+
+describe("game.emit", () => {
+  it("delivers an event emitted by a listener after the current one reaches every listener", () => {
+    const game = makeGame();
+    const first: string[] = [];
+    const second: string[] = [];
+    game.hooks.gameEvent((name) => {
+      first.push(name);
+      if (name === "pop") game.emit("achievement");
+    });
+    game.hooks.gameEvent((name) => second.push(name));
+    game.emit("pop");
+    expect(first).toEqual(["pop", "achievement"]);
+    expect(second).toEqual(["pop", "achievement"]);
+  });
+
+  it("keeps delivering after a listener throws", () => {
+    const game = makeGame();
+    const seen: string[] = [];
+    game.hooks.gameEvent((name) => {
+      if (name === "a") {
+        game.emit("b");
+        throw new Error("boom");
+      }
+    });
+    game.hooks.gameEvent((name) => seen.push(name));
+    expect(() => game.emit("a")).toThrow("boom");
+    game.emit("c");
+    expect(seen).toEqual(["c"]);
+  });
+});
+
+describe("hooks.renderScene", () => {
+  it("wraps beforeRender and the scene, nesting later wrappers outside, with afterRender outside all", () => {
+    const game = makeGame();
+    const order: string[] = [];
+    game.hooks.beforeRender(() => order.push("beforeRender"));
+    game.hooks.afterRender(() => order.push("afterRender"));
+    game.hooks.renderScene((_draw, render) => {
+      order.push("inner{");
+      render();
+      order.push("}inner");
+    });
+    const off = game.hooks.renderScene((_draw, render) => {
+      order.push("outer{");
+      render();
+      order.push("}outer");
+    });
+    game.add({ id: "a", render: () => order.push("scene") }).go("a");
+    game.redraw();
+    expect(order).toEqual(["outer{", "inner{", "beforeRender", "scene", "}inner", "}outer", "afterRender"]);
+    off();
+    order.length = 0;
+    game.redraw();
+    expect(order).toEqual(["inner{", "beforeRender", "scene", "}inner", "afterRender"]);
+  });
+});

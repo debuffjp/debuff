@@ -119,6 +119,7 @@ export class Game {
   };
   private lastAlpha = 0;
   private readonly pluginRegistry = new PluginRegistry();
+  private pendingEvents: [string, unknown][] | undefined;
   private readonly scenes = new Map<string, Scene>();
   private active: Scene | undefined;
   private frameHandle = 0;
@@ -319,7 +320,19 @@ export class Game {
    * Costs one call per listener; nothing listens in production unless you do.
    */
   emit(name: string, detail?: unknown): void {
-    this.hooks.emit("gameEvent", name, detail);
+    // An event emitted from a listener waits until the current one has reached every listener, so all
+    // listeners see events in the same order (an "achievement" never lands before the "coin" that caused it).
+    if (this.pendingEvents) {
+      this.pendingEvents.push([name, detail]);
+      return;
+    }
+    const pending: [string, unknown][] = [[name, detail]];
+    this.pendingEvents = pending;
+    try {
+      for (let i = 0; i < pending.length; i++) this.hooks.emit("gameEvent", ...(pending[i] as [string, unknown]));
+    } finally {
+      this.pendingEvents = undefined;
+    }
   }
 
   /** Hit-stop: pause simulation for `seconds` (rendering continues). */
@@ -455,10 +468,18 @@ export class Game {
     const { draw } = this;
     this.camera.renderAlpha = alpha;
     draw.begin(this.background, this.width, this.height, this.renderScale);
-    this.phase = "beforeRender";
-    this.hooks.emit("beforeRender", draw, alpha);
-    this.phase = "render";
-    this.active?.render?.(draw, alpha, this);
+    let render = () => {
+      this.phase = "beforeRender";
+      this.hooks.emit("beforeRender", draw, alpha);
+      this.phase = "render";
+      this.active?.render?.(draw, alpha, this);
+    };
+    for (const wrap of this.hooks.list("renderScene")) {
+      const inner = render;
+      render = () => wrap(draw, inner);
+    }
+    this.phase = "renderScene";
+    render();
     // afterRender always starts from a clean transform, whatever the scene left behind.
     draw.reset();
     this.phase = "afterRender";

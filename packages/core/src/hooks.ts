@@ -9,6 +9,8 @@ export interface HookArgs {
   afterUpdate: [dt: number];
   beforeRender: [draw: Draw, alpha: number];
   afterRender: [draw: Draw, alpha: number];
+  /** Wraps `beforeRender` and the scene's render. The listener must call `render()` exactly once. */
+  renderScene: [draw: Draw, render: () => void];
   sceneChange: [next: Scene, previous: Scene | undefined];
   /** The loop stopped because game code threw. The error is also rethrown so the console still shows it. */
   error: [error: unknown, context: GameErrorContext];
@@ -32,7 +34,7 @@ export type HookName = keyof HookArgs;
  * Typed lifecycle hooks on `game.hooks`. Each method registers a listener and returns an unsubscribe function.
  *
  * Order within a step: `beforeUpdate` → camera → `scene.update` → `afterUpdate`.
- * Order within a frame: clear → `beforeRender` → `scene.render` → `afterRender`.
+ * Order within a frame: clear → `renderScene` wrappers around (`beforeRender` → `scene.render`) → `afterRender`.
  * `beforeRender`/`afterRender` draw in logical units; `afterRender` starts from a clean transform.
  * Steps skipped by `freeze()` fire no update hooks.
  */
@@ -42,6 +44,7 @@ export class Hooks {
     afterUpdate: new Set(),
     beforeRender: new Set(),
     afterRender: new Set(),
+    renderScene: new Set(),
     sceneChange: new Set(),
     error: new Set(),
     gameEvent: new Set(),
@@ -62,6 +65,15 @@ export class Hooks {
 
   afterRender(fn: (draw: Draw, alpha: number) => void): Unsubscribe {
     return this.on("afterRender", fn);
+  }
+
+  /**
+   * Draw the world through something: a render target, `filter()`, a shader. Call `render()` once inside, e.g.
+   * `game.hooks.renderScene((draw, render) => filter(draw, [crt], render))`. Later registrations wrap earlier
+   * ones. `afterRender` (HUD overlays, dev tools) stays outside, so it isn't post-processed.
+   */
+  renderScene(fn: (draw: Draw, render: () => void) => void): Unsubscribe {
+    return this.on("renderScene", fn);
   }
 
   sceneChange(fn: (next: Scene, previous: Scene | undefined) => void): Unsubscribe {
@@ -88,6 +100,11 @@ export class Hooks {
     const out = {} as Record<HookName, number>;
     for (const name of Object.keys(this.listeners) as HookName[]) out[name] = this.listeners[name].size;
     return out;
+  }
+
+  /** @internal Listeners in registration order, for hooks `Game` composes instead of emitting. */
+  list<K extends HookName>(name: K): ((...args: HookArgs[K]) => void)[] {
+    return [...this.listeners[name]];
   }
 
   /** @internal Called by `Game`. */

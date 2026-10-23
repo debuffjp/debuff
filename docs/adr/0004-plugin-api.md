@@ -154,3 +154,15 @@ Each phase ships with docs, a plugin authoring guide and contract tests that plu
 1. **Config format:** TypeScript only (`debuff.config.ts`). Tools that can't run TS read `debuff inspect --json`.
 2. **Command namespacing:** colon form, e.g. `debuff aseprite:watch`.
 3. **Dev-boundary allowlist:** plugins can't extend it. Plugin dev code lives behind `import.meta.env.DEV`, like everyone else's.
+
+## Amendments
+
+### 2026-10-23: `renderScene` hook and ordered `gameEvent`
+
+Building the first plugins outside this repo ([debuffjp/plugins](https://github.com/debuffjp/plugins)) showed two gaps:
+
+1. A plugin could draw under or over the scene but not through a target or filter, so full-frame post effects (CRT, palette swap) weren't possible as plugins. `game.hooks.renderScene((draw, render) => ...)` wraps `beforeRender` and the scene's render. `afterRender` stays outside, so HUD overlays and dev tools aren't post-processed.
+2. An event emitted from a `gameEvent` listener reached later listeners before the event that caused it (an achievements plugin's `achievement` landed in analytics before the `coin`). `game.emit` now queues events emitted during delivery and sends them after.
+
+`@debuffjp/core/testing` exports `createTestGame()`, so plugins can run contract tests themselves, as this ADR's delivery plan promised.
+
