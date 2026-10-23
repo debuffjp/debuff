@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "debuff",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "description": "Make 2D browser games with debuff, an open-source TypeScript toolkit. Start a playable platformer or top-down adventure in a minute, then build it with tests, scenario captures and fuzzing that prove each change works.",
   "author": {
     "name": "debuff",
