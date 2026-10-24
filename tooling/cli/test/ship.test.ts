@@ -51,6 +51,29 @@ describe("writeLaunchFiles", () => {
     expect(writeLaunchFiles(root, join(root, "dist"), { enabled: false })).toEqual([]);
     expect(existsSync(join(root, "dist", "manifest.webmanifest"))).toBe(false);
   });
+
+  it("adds og:video with the clip's size from its tkhd box", () => {
+    project();
+    const sized = (type: string, body: Buffer) => {
+      const b = Buffer.concat([Buffer.alloc(4), Buffer.from(type, "latin1"), body]);
+      b.writeUInt32BE(b.length, 0);
+      return b;
+    };
+    const tkhd = Buffer.alloc(84);
+    tkhd.writeUInt32BE(1280 << 16, 76);
+    tkhd.writeUInt32BE(720 << 16, 80);
+    const mp4 = Buffer.concat([sized("ftyp", Buffer.from("isom")), sized("moov", sized("trak", sized("tkhd", tkhd)))]);
+    writeFileSync(join(root, "loop.mp4"), mp4);
+    expect(writeLaunchFiles(root, join(root, "dist"), { url: "https://me.itch.io/jelly", video: "loop.mp4" })).toEqual([]);
+    const html = readFileSync(join(root, "dist", "index.html"), "utf8");
+    expect(html).toContain('<meta property="og:video" content="https://me.itch.io/jelly/preview.mp4" />');
+    expect(html).toContain('<meta property="og:video:secure_url" content="https://me.itch.io/jelly/preview.mp4" />');
+    expect(html).toContain('<meta property="og:video:type" content="video/mp4" />');
+    expect(html).toContain('<meta property="og:video:width" content="1280" />');
+    expect(html).toContain('<meta property="og:video:height" content="720" />');
+    expect(existsSync(join(root, "dist", "preview.mp4"))).toBe(true);
+    expect(writeLaunchFiles(root, join(root, "dist"), { video: "nope.mp4" })).toContain("launch.video nope.mp4 not found");
+  });
 });
 
 describe("ship", () => {
