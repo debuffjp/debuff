@@ -117,7 +117,8 @@ describe("tenten by default", () => {
       if (prev === undefined) delete process.env.TENTEN;
       else process.env.TENTEN = prev;
     }
-  });
+    // Spawns a real node process, which takes over 5 s when the whole suite runs in parallel.
+  }, 30_000);
 
   it("lets a configured tenten() plugin replace the default", async () => {
     const root = project({ "assets/x.tt": "tt" });
