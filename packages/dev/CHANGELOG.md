@@ -1,5 +1,12 @@
 # @debuffjp/dev
 
+## 0.16.0
+
+### Patch Changes
+
+- Updated dependencies [70a00c9]
+  - myaku@0.5.1
+
 ## 0.15.0
 
 ### Minor Changes

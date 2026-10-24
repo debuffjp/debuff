@@ -1,5 +1,17 @@
 # @debuffjp/cli
 
+## 0.16.0
+
+### Minor Changes
+
+- 068ed32: `launch.video` in `debuff.config.ts`: point it at a short looping MP4 and `debuff build` copies it to `dist/preview.mp4` and adds `og:video` tags, size included, so Discord and other apps that play link previews show the clip.
+
+### Patch Changes
+
+- Updated dependencies [70a00c9]
+  - keiko@0.6.1
+  - create-debuff@0.16.0
+
 ## 0.15.0
 
 ### Patch Changes
