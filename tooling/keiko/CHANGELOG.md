@@ -1,5 +1,11 @@
 # keiko
 
+## 0.6.1
+
+### Patch Changes
+
+- 70a00c9: npm homepage links to the package's page on debuff.jp.
+
 ## 0.6.0
 
 ### Minor Changes
