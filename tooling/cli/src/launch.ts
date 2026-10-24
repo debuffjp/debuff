@@ -14,6 +14,8 @@ export interface LaunchConfig {
   url?: string;
   /** Preview image (PNG or JPG, ideally 1200×630), relative to the project root. Default: the first scenario baseline. */
   image?: string;
+  /** Looping preview clip (MP4, H.264, silent, a few seconds), relative to the project root. Players like Discord play it inline. */
+  video?: string;
   /** Square icon (PNG, 512×512 is best), relative to the project root, for the web app manifest. */
   icon?: string;
   /** Browser UI colour. Default: `background`. */
@@ -64,6 +66,27 @@ export function baselineImages(root: string): string[] {
   return out;
 }
 
+/** Width and height from an MP4's first track header (moov > trak > tkhd), or undefined if it has none. */
+export function mp4Size(data: Buffer): { width: number; height: number } | undefined {
+  const find = (start: number, end: number, type: string): [number, number] | undefined => {
+    for (let at = start; at + 8 <= end; ) {
+      const size = data.readUInt32BE(at);
+      if (size < 8) return undefined;
+      if (data.toString("latin1", at + 4, at + 8) === type) return [at + 8, Math.min(at + size, end)];
+      at += size;
+    }
+    return undefined;
+  };
+  const moov = find(0, data.length, "moov");
+  const trak = moov && find(...moov, "trak");
+  const tkhd = trak && find(...trak, "tkhd");
+  if (!tkhd || tkhd[1] - tkhd[0] < 84) return undefined;
+  // Width and height are the last two 16.16 fixed-point fields, after the version-dependent timestamps.
+  const end = tkhd[0] + (data[tkhd[0]] === 1 ? 96 : 84);
+  if (end > tkhd[1]) return undefined;
+  return { width: data.readUInt32BE(end - 8) >>> 16, height: data.readUInt32BE(end - 4) >>> 16 };
+}
+
 /**
  * Add link-preview tags, a web app manifest and a preview image to `dist/`. Tags the page already has are
  * left alone, so a hand-written `<meta property="og:title">` always wins. Returns warnings to print.
@@ -84,6 +107,15 @@ export function writeLaunchFiles(root: string, dist: string, config: LaunchConfi
     image = `preview${extname(source).toLowerCase() || ".png"}`;
     copyFileSync(source, join(dist, image));
   } else if (config.image) warnings.push(`launch.image ${config.image} not found`);
+
+  let video: { file: string; size: { width: number; height: number } | undefined } | undefined;
+  if (config.video) {
+    const path = join(root, config.video);
+    if (existsSync(path)) {
+      video = { file: "preview.mp4", size: mp4Size(readFileSync(path)) };
+      copyFileSync(path, join(dist, video.file));
+    } else warnings.push(`launch.video ${config.video} not found`);
+  }
 
   let icon: string | undefined;
   if (config.icon) {
@@ -108,8 +140,11 @@ export function writeLaunchFiles(root: string, dist: string, config: LaunchConfi
   };
   writeFileSync(join(dist, "manifest.webmanifest"), `${JSON.stringify(manifest, null, 2)}\n`);
 
-  const imageUrl = image && (config.url ? new URL(image, config.url.endsWith("/") ? config.url : `${config.url}/`).toString() : image);
-  if (image && !config.url) warnings.push("set launch.url so link previews can show the image (crawlers need an absolute URL)");
+  const absolute = (file: string) =>
+    config.url ? new URL(file, config.url.endsWith("/") ? config.url : `${config.url}/`).toString() : file;
+  const imageUrl = image && absolute(image);
+  const videoUrl = video && absolute(video.file);
+  if ((image || video) && !config.url) warnings.push("set launch.url so link previews can show the image (crawlers need an absolute URL)");
   const tags: [string, string][] = [
     ['name="description"', description ?? ""],
     ['property="og:type"', "website"],
@@ -117,6 +152,11 @@ export function writeLaunchFiles(root: string, dist: string, config: LaunchConfi
     ['property="og:description"', description ?? ""],
     ['property="og:url"', config.url ?? ""],
     ['property="og:image"', imageUrl ?? ""],
+    ['property="og:video"', videoUrl ?? ""],
+    ['property="og:video:secure_url"', videoUrl?.startsWith("https:") ? videoUrl : ""],
+    ['property="og:video:type"', video ? "video/mp4" : ""],
+    ['property="og:video:width"', video?.size ? String(video.size.width) : ""],
+    ['property="og:video:height"', video?.size ? String(video.size.height) : ""],
     ['name="twitter:card"', image ? "summary_large_image" : "summary"],
     ['name="theme-color"', manifest.theme_color],
   ];
