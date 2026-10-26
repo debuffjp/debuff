@@ -66,6 +66,9 @@ export class Pointer {
   private readonly toLogical: ToLogical;
 
   private readonly onDown = (e: PointerEvent) => {
+    // preventDefault below stops a click focusing the window, so inside an iframe (game portals) keys
+    // would go nowhere until the player clicked outside the game. Take focus ourselves.
+    if (!document.hasFocus()) window.focus();
     if (e.pointerType === "mouse") this.syncButtons(e.buttons);
     // Only the main mouse button is the primary pointer; right and middle are `right` and `middle`.
     if (e.pointerType === "mouse" && e.button) {
