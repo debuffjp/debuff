@@ -25,7 +25,7 @@ Edges clear automatically after each simulation step, so a tap shorter than a fr
 | Source | Names |
 | --- | --- |
 | Keyboard | [`KeyboardEvent.code`](https://developer.mozilla.org/docs/Web/API/KeyboardEvent/code): `Space`, `KeyZ`, `ArrowUp`, … |
-| Pointer | `Pointer` (primary mouse button, touch or pen) |
+| Pointer | `Pointer` (primary mouse button, touch or pen), `PointerRight`, `PointerMiddle` (right and middle mouse buttons) |
 | Gamepad | `PadA` `PadB` `PadX` `PadY` `PadL1` `PadR1` `PadL2` `PadR2` `PadSelect` `PadStart` `PadL3` `PadR3` `PadUp` `PadDown` `PadLeft` `PadRight` |
 | Left stick | `PadStickUp` `PadStickDown` `PadStickLeft` `PadStickRight` |
 
@@ -33,7 +33,8 @@ Edges clear automatically after each simulation step, so a tap shorter than a fr
 
 - `input.down(action)`, `input.pressed(action)`, `input.released(action)`, `input.axis(neg, pos)`
 - `input.pointer`: `x`, `y` (logical), `down`, `pressed`, `released`, `touches`
+- `input.pointer.right`, `input.pointer.middle`: `down`, `pressed`, `released` for the right and middle mouse buttons
 - `input.pointer.wheel`, `wheelX`: wheel or trackpad scroll this step in CSS pixels (positive = down / right), reset every step. Pass `captureWheel: true` to stop the page scrolling under a game that zooms with the wheel.
 - `input.keys`: `down(code)`, `pressed(code)`, `released(code)`
 - `input.pads`: `stickX`, `stickY`, `connected`, `deadzone`
-- Programmatic control for tests and on-screen buttons: `keys.press/release`, `pointer.press/move/release/scroll`
+- Programmatic control for tests and on-screen buttons: `keys.press/release`, `pointer.press/move/release/scroll/pressButton/releaseButton`

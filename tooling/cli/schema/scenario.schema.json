@@ -50,7 +50,12 @@
           "type": "object",
           "required": ["press"],
           "additionalProperties": false,
-          "properties": { "press": { "type": "string", "description": "KeyboardEvent.code to hold, e.g. \"Space\"." } }
+          "properties": {
+            "press": {
+              "type": "string",
+              "description": "KeyboardEvent.code to hold, e.g. \"Space\", or \"PointerRight\" / \"PointerMiddle\" for the right and middle mouse buttons."
+            }
+          }
         },
         { "type": "object", "required": ["release"], "additionalProperties": false, "properties": { "release": { "type": "string" } } },
         {

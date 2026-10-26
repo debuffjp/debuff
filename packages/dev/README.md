@@ -22,7 +22,7 @@ All arguments and return values are JSON-serialisable.
 | `frames(n)` | the latest `n` frame breakdowns: interval, update and render ms, catch-up steps, quads, draw calls, long tasks |
 | `notes()` | moments flagged in the overlay, with state and frames |
 | `params()` / `setParam(group, key, value)` | typed parameter schemas and values |
-| `press(code)` / `release(code)` | keyboard |
+| `press(code)` / `release(code)` | keyboard, plus `"PointerRight"` / `"PointerMiddle"` for the right and middle mouse buttons |
 | `tap(x, y)` / `pointerDown` / `pointerMove` / `pointerUp` | pointer, in logical coordinates |
 | `errors()` | runtime errors since load, explained: `kind` (`your-code`, `debuff-usage`, `debuff-bug`, `outside`), source-mapped `where`, `hint`, `count` |
 | `capture()` | PNG data URL of the current frame |

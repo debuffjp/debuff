@@ -247,3 +247,37 @@ describe("wheel", () => {
     zoomer.dispose();
   });
 });
+
+describe("right and middle buttons", () => {
+  const mouse = (type: string, button: number, buttons: number) =>
+    new PointerEvent(type, { isPrimary: true, pointerId: 1, pointerType: "mouse", button, buttons, cancelable: true });
+
+  it("binds PointerRight and PointerMiddle, with edges, apart from the primary pointer", () => {
+    const h = host();
+    const input = new Input(h, { bindings: { remove: ["PointerRight", "KeyX"], pan: ["PointerMiddle"], place: ["Pointer"] } });
+    expect([...input.keys.captured]).toEqual(["KeyX"]);
+    h.canvas.dispatchEvent(mouse("pointerdown", 2, 2));
+    expect([input.down("remove"), input.pressed("remove"), input.down("place")]).toEqual([true, true, false]);
+    h.endStep();
+    expect([input.down("remove"), input.pressed("remove")]).toEqual([true, false]);
+    // Middle pressed while right is held: browsers send a move with the changed button.
+    h.canvas.dispatchEvent(mouse("pointermove", 1, 6));
+    expect(input.pressed("pan")).toBe(true);
+    h.canvas.dispatchEvent(mouse("pointermove", 2, 4));
+    expect([input.released("remove"), input.down("pan")]).toEqual([true, true]);
+    h.canvas.dispatchEvent(mouse("pointerup", 1, 0));
+    expect(input.released("pan")).toBe(true);
+    input.dispose();
+  });
+
+  it("can be simulated, and plain moves don't release a simulated button", () => {
+    const h = host();
+    const input = new Input(h, { bindings: { remove: ["PointerRight"] } });
+    input.pointer.pressButton("right");
+    h.canvas.dispatchEvent(mouse("pointermove", -1, 0));
+    expect(input.down("remove")).toBe(true);
+    input.pointer.releaseButton("right");
+    expect(input.released("remove")).toBe(true);
+    input.dispose();
+  });
+});
