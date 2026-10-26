@@ -25,6 +25,13 @@
   },
   "$defs": {
     "point": { "type": "array", "prefixItems": [{ "type": "number" }, { "type": "number" }], "minItems": 2, "maxItems": 2 },
+    "press": {
+      "type": "array",
+      "description": "Logical [x, y], or [x, y, kind]: \"mouse\" (default), \"touch\" or \"pen\", as the game sees it in pointer.kind.",
+      "prefixItems": [{ "type": "number" }, { "type": "number" }, { "enum": ["mouse", "touch", "pen"] }],
+      "minItems": 2,
+      "maxItems": 3
+    },
     "comparison": {
       "type": "object",
       "description": "All given conditions must hold.",
@@ -62,13 +69,13 @@
           "type": "object",
           "required": ["tap"],
           "additionalProperties": false,
-          "properties": { "tap": { "$ref": "#/$defs/point", "description": "Logical [x, y]." } }
+          "properties": { "tap": { "$ref": "#/$defs/press" } }
         },
         {
           "type": "object",
           "required": ["pointerDown"],
           "additionalProperties": false,
-          "properties": { "pointerDown": { "$ref": "#/$defs/point" } }
+          "properties": { "pointerDown": { "$ref": "#/$defs/press" } }
         },
         {
           "type": "object",

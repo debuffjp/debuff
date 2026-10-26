@@ -185,7 +185,7 @@ Playing (each returns the playtest, so calls chain):
 | `press(code)` / `release(code)` | Hold or let go of a key (`KeyboardEvent.code`: `"ArrowLeft"`, `"KeyZ"`, `"Space"`), or the right or middle mouse button as `"PointerRight"` / `"PointerMiddle"` (at the mouse's last position) |
 | `hold(code, duration)` | Press, wait, release |
 | `tap(code)` / `tap(x, y)` | A key or pointer press for one step |
-| `pointerDown(x, y)`, `pointerMove(x, y)`, `pointerUp()` | The pointer |
+| `pointerDown(x, y, kind?)`, `pointerMove(x, y)`, `pointerUp()` | The pointer: a mouse, or `"touch"` / `"pen"` to press as a finger or stylus (contact 1) |
 | `wheel(dy, dx = 0)` | Scroll the mouse wheel over the game in CSS pixels (positive = down), at the mouse's last position |
 | `touchDown(id, x, y)`, `touchMove(id, x, y)`, `touchUp(id)` | Fingers by id, for multi-touch. The first finger down is the primary pointer. Without debuff they're `pointerType: "touch"` pointer events plus touch events; avoid id 1, which the mouse uses |
 | `set("group.key", value)` / `set({ … })` | Set params |

@@ -26,7 +26,7 @@ import { type PlayOptions, registry, type TestCase, type TestOptions } from "./r
 import { firstDifference, show } from "./values.js";
 
 export { mulberry32, sleep, VirtualClock } from "./clock.js";
-export { type Driver, type KeikoHooks, MissingHookError } from "./driver.js";
+export { type Driver, type KeikoHooks, MissingHookError, type PointerKind } from "./driver.js";
 export type { Duration } from "./duration.js";
 export type { EngineInfo, EngineTarget } from "./engines.js";
 export { ExpectationError, expect, type Matchers } from "./expect.js";

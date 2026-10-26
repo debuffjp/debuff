@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { yieldTurn } from "./clock.js";
-import { type Driver, MissingHookError, type ParamValue } from "./driver.js";
+import { type Driver, MissingHookError, type ParamValue, type PointerKind } from "./driver.js";
 import { type Duration, describeSteps, toSteps } from "./duration.js";
 import type { EngineInfo, EngineTarget } from "./engines.js";
 import { Trace } from "./trace.js";
@@ -443,9 +443,12 @@ export class Playtest<S = any> {
     return this;
   }
 
-  /** Press the pointer (mouse or touch) at logical coordinates and keep it down. */
-  pointerDown(x: number, y: number): this {
-    this.driver.pointerDown(x, y);
+  /**
+   * Press the pointer at logical coordinates and keep it down: a mouse, or `"touch"` / `"pen"` for a
+   * finger or stylus (contact 1, as the game sees it in `pointer.kind` and `pointer.touches`).
+   */
+  pointerDown(x: number, y: number, kind: PointerKind = "mouse"): this {
+    this.driver.pointerDown(x, y, kind);
     return this;
   }
 
@@ -572,9 +575,11 @@ export class Playtest<S = any> {
       case "tap":
         this.tap(...pair(value));
         break;
-      case "pointerDown":
-        this.pointerDown(...pair(value));
+      case "pointerDown": {
+        const [x, y, kind] = value as [number, number, PointerKind?];
+        this.pointerDown(x, y, kind);
         break;
+      }
       case "pointerMove":
         this.pointerMove(...pair(value));
         break;

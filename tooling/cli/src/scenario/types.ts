@@ -28,15 +28,18 @@ export interface Comparison {
   approx?: [number, number];
 }
 
+/** Logical `[x, y]`, or `[x, y, kind]` with what the game sees in `pointer.kind` (default `"mouse"`). */
+export type PointerPress = [number, number] | [number, number, "mouse" | "touch" | "pen"];
+
 export type Step =
   /** Advance N fixed simulation steps. */
   | { wait: number }
   /** Hold a key (`KeyboardEvent.code`), or the right or middle mouse button as `"PointerRight"` / `"PointerMiddle"`. */
   | { press: string }
   | { release: string }
-  /** Press and release the pointer at logical coordinates over one step. */
-  | { tap: [number, number] }
-  | { pointerDown: [number, number] }
+  /** Press and release the pointer at logical coordinates over one step. `[x, y, kind]` presses as `"touch"` or `"pen"` instead of a mouse. */
+  | { tap: PointerPress }
+  | { pointerDown: PointerPress }
   | { pointerMove: [number, number] }
   | { pointerUp: true }
   /** Scroll the wheel by `dy` CSS pixels (positive = down), or `[dy, dx]`. */

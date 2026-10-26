@@ -1,5 +1,8 @@
 import type { VirtualClock } from "./clock.js";
 
+/** What presses the pointer: a mouse, a finger or a pen. */
+export type PointerKind = "mouse" | "touch" | "pen";
+
 /** Thrown when a test uses something the game doesn't expose through `window.__KEIKO__`. */
 export class MissingHookError extends Error {
   override readonly name = "MissingHookError";
@@ -68,7 +71,8 @@ export interface Driver {
   press(code: string): void;
   release(code: string): void;
   tap(x: number, y: number): void;
-  pointerDown(x: number, y: number): void;
+  /** Press the primary pointer as a mouse, or as a `"touch"` or `"pen"` contact. */
+  pointerDown(x: number, y: number, kind?: PointerKind): void;
   pointerMove(x: number, y: number): void;
   pointerUp(): void;
   /** Scroll the wheel by `dy` (and `dx`) CSS pixels over the game. */
@@ -90,7 +94,8 @@ export interface DebuffDevHooks {
   press(code: string): void;
   release(code: string): void;
   tap(x: number, y: number): void;
-  pointerDown(x: number, y: number): void;
+  /** `kind` needs @debuffjp/dev 0.16+; older versions press as a mouse. */
+  pointerDown(x: number, y: number, kind?: PointerKind): void;
   pointerMove(x: number, y: number): void;
   pointerUp(): void;
   /** @debuffjp/dev 0.16+. */
@@ -135,7 +140,7 @@ export function debuffDriver(hooks: DebuffDevHooks, clock?: VirtualClock): Drive
     press: (c) => hooks.press(c),
     release: (c) => hooks.release(c),
     tap: (x, y) => hooks.tap(x, y),
-    pointerDown: (x, y) => hooks.pointerDown(x, y),
+    pointerDown: (x, y, kind) => (kind && kind !== "mouse" ? hooks.pointerDown(x, y, kind) : hooks.pointerDown(x, y)),
     pointerMove: (x, y) => hooks.pointerMove(x, y),
     pointerUp: () => hooks.pointerUp(),
     wheel: (dy, dx) => newer(hooks.wheel, "wheel").call(hooks, dy, dx),
@@ -168,6 +173,8 @@ export function genericDriver(window: Window & { __KEIKO__?: KeikoHooks }, clock
   const hooks = (): KeikoHooks => window.__KEIKO__ ?? {};
   const dom = domInput(window);
   let ownTicks = 0;
+  /** A touch or pen `pointerDown` is held as contact 1. */
+  let contact = false;
   const missing = (what: string, hook: string) =>
     new MissingHookError(`This game doesn't expose ${what}. Add \`${hook}\` to window.__KEIKO__ (in development builds).`);
   const stepSeconds = () => hooks().stepSeconds ?? clock.stepMs / 1000;
@@ -203,9 +210,22 @@ export function genericDriver(window: Window & { __KEIKO__?: KeikoHooks }, clock
       this.step(1);
       this.pointerUp();
     },
-    pointerDown: (x, y) => (hooks().pointerDown ? hooks().pointerDown?.(x, y) : dom.pointer("down", x, y)),
-    pointerMove: (x, y) => (hooks().pointerMove ? hooks().pointerMove?.(x, y) : dom.pointer("move", x, y)),
-    pointerUp: () => (hooks().pointerUp ? hooks().pointerUp?.() : dom.pointer("up")),
+    pointerDown(x, y, kind = "mouse") {
+      if (kind !== "mouse") {
+        dom.touch("down", 1, x, y, kind);
+        contact = true;
+      } else if (hooks().pointerDown) hooks().pointerDown?.(x, y);
+      else dom.pointer("down", x, y);
+    },
+    pointerMove: (x, y) =>
+      contact ? dom.touch("move", 1, x, y) : hooks().pointerMove ? hooks().pointerMove?.(x, y) : dom.pointer("move", x, y),
+    pointerUp() {
+      if (contact) {
+        contact = false;
+        dom.touch("up", 1);
+      } else if (hooks().pointerUp) hooks().pointerUp?.();
+      else dom.pointer("up");
+    },
     wheel: (dy, dx) => dom.wheel(dy, dx),
     touchDown: (id, x, y, kind) => dom.touch("down", id, x, y, kind),
     touchMove: (id, x, y) => dom.touch("move", id, x, y),
