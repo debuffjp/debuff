@@ -69,7 +69,12 @@
           "type": "object",
           "required": ["tap"],
           "additionalProperties": false,
-          "properties": { "tap": { "$ref": "#/$defs/press" } }
+          "properties": {
+            "tap": {
+              "description": "Tap the pointer at [x, y] (or [x, y, kind]) for one step, or a key by its KeyboardEvent.code, e.g. \"KeyT\".",
+              "oneOf": [{ "$ref": "#/$defs/press" }, { "type": "string" }]
+            }
+          }
         },
         {
           "type": "object",

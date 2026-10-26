@@ -37,8 +37,11 @@ export type Step =
   /** Hold a key (`KeyboardEvent.code`), or the right or middle mouse button as `"PointerRight"` / `"PointerMiddle"`. */
   | { press: string }
   | { release: string }
-  /** Press and release the pointer at logical coordinates over one step. `[x, y, kind]` presses as `"touch"` or `"pen"` instead of a mouse. */
-  | { tap: PointerPress }
+  /**
+   * Press and release the pointer at logical coordinates over one step (`[x, y, kind]` presses as `"touch"`
+   * or `"pen"` instead of a mouse), or tap a key for one step with its code: `{ "tap": "KeyT" }`.
+   */
+  | { tap: PointerPress | string }
   | { pointerDown: PointerPress }
   | { pointerMove: [number, number] }
   | { pointerUp: true }

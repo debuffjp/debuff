@@ -282,7 +282,7 @@ Errors a game raises outside any test (say, an asset that fails to load after it
 
 ### Replaying scenarios
 
-`game.replay()` takes a JSON file (or object) of steps: `wait`, `press`, `release`, `tap`, `pointerDown`, `pointerMove`, `pointerUp`, `wheel`, `touchDown`, `touchMove`, `touchUp`, `set`, `command`, `expect` and `until` (`within` in steps, default 600). It's the [debuff scenario format](https://debuff.jp/docs/scenarios), so debuff's overlay replays and fuzz findings play directly; any tool can write it. `capture` and `contrast` steps are skipped, and `flashes` only plays its frames, since nothing is drawn: those are checked by `debuff scenario`. Plugin steps (names with a `:`) are refused.
+`game.replay()` takes a JSON file (or object) of steps: `wait`, `press`, `release`, `tap` (`[x, y]`, or a key code such as `"KeyT"`), `pointerDown`, `pointerMove`, `pointerUp`, `wheel`, `touchDown`, `touchMove`, `touchUp`, `set`, `command`, `expect` and `until` (`within` in steps, default 600). It's the [debuff scenario format](https://debuff.jp/docs/scenarios), so debuff's overlay replays and fuzz findings play directly; any tool can write it. `capture` and `contrast` steps are skipped, and `flashes` only plays its frames, since nothing is drawn: those are checked by `debuff scenario`. Plugin steps (names with a `:`) are refused.
 
 ## The CLI
 

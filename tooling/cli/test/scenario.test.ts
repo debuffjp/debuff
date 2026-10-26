@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { stepUntil } from "../src/scenario/browser.js";
 import { captureDiffMessage, compare, pick } from "../src/scenario/index.js";
-import { runStep } from "../src/scenario/run.js";
+import { comparisonError, runStep } from "../src/scenario/run.js";
 import type { Step } from "../src/scenario/types.js";
 
 describe("compare", () => {
@@ -112,5 +112,31 @@ describe("runStep: pointer kind", () => {
       ["pointerDown", 3, 4],
       ["tap", 5, 6, "pen"],
     ]);
+  });
+});
+
+describe("runStep: tap with a key and malformed comparisons", () => {
+  it("taps a key for one step when tap is a key code, instead of spreading the string into tap(x, y)", async () => {
+    const { calls, failures } = await play([{ tap: "KeyT" }, { tap: [3, 4] }]);
+    expect(calls).toEqual([
+      ["press", "KeyT"],
+      ["step", 1],
+      ["release", "KeyT"],
+      ["tap", 3, 4],
+    ]);
+    expect(failures).toEqual([undefined, undefined]);
+    const bad = await play([{ tap: 5 } as unknown as Step]);
+    expect(bad.failures[0]).toMatch(/tap: expected a key code like "KeyT" or a point \[x, y\], got 5/);
+  });
+
+  it("explains a bare value where a comparison object was meant", async () => {
+    const { failures } = await play([{ expect: { "state.x": 0 } } as unknown as Step], { state: { x: 0 } });
+    expect(failures[0]).toBe(
+      'state.x: expected a comparison object like { "eq": 0 }, got 0. Comparisons are eq, gt, gte, lt, lte and approx',
+    );
+    const until = await play([{ until: { scene: "play" } } as unknown as Step]);
+    expect(until.failures[0]).toMatch(/^until: scene: expected a comparison object like \{ "eq": "play" \}/);
+    expect(comparisonError({ equals: 1 })).toMatch(/with eq, gt, gte, lt, lte or approx, got \{"equals":1\}/);
+    expect(comparisonError({ eq: 0 })).toBeUndefined();
   });
 });

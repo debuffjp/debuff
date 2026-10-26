@@ -169,6 +169,12 @@ describe("Playtest", () => {
     expect(() => game().command("nope")).toThrow(/the game threw at tick 1/);
   });
 
+  it("replays a tap with a key code as a one-step key press, like game.tap(code)", () => {
+    const g = game();
+    g.replay({ steps: [{ tap: "ArrowRight" }] });
+    expect([g.state.x, g.tick]).toEqual([2, 1]);
+  });
+
   it("replays scenarios, checking expectations and skipping captures and browser-only paths", () => {
     const g = game();
     g.replay({
@@ -197,6 +203,11 @@ describe("Playtest", () => {
     expect(() => g.replay({ steps: [{ expect: { scene: { eq: "menu" } } }] })).toThrow(/expected "menu", got "play"/);
     expect(() => g.replay({ steps: [{ "tiles:paint": 1 }] })).toThrow(/only runs under `debuff scenario`/);
     expect(() => g.replay({ steps: [{ dance: 1 }] })).toThrow(/unknown step/);
+    expect(() => g.replay({ steps: [{ expect: { "state.x": 7 } }] })).toThrow(
+      /state\.x: expected a comparison object like \{ "eq": 7 \}, got 7/,
+    );
+    expect(() => g.replay({ steps: [{ expect: { "state.x": { equals: 7 } } }] })).toThrow(/with eq, gt, gte, lt, lte or approx/);
+    expect(() => g.replay({ steps: [{ tap: 5 }] })).toThrow(/tap: expected a key code like "KeyT"/);
     // until: play step by step until the conditions hold; event counts read 0 until the first emit.
     const h = game();
     h.press("ArrowRight");

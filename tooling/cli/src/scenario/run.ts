@@ -36,9 +36,26 @@ export function pick(obj: unknown, path: string): unknown {
   return value === undefined && path.startsWith("events.") ? 0 : value;
 }
 
+const COMPARISON_KEYS = ["eq", "gt", "gte", "lt", "lte", "approx"];
+
+/**
+ * Why `c` isn't a comparison, or undefined if it is. Catches the easy slip of writing a bare value,
+ * `{ "state.x": 0 }`, where `{ "state.x": { "eq": 0 } }` was meant.
+ */
+export function comparisonError(c: unknown): string | undefined {
+  const show = (v: unknown) => JSON.stringify(v) ?? String(v);
+  if (c === null || typeof c !== "object" || Array.isArray(c))
+    return `expected a comparison object like { "eq": ${show(c)} }, got ${show(c)}. Comparisons are eq, gt, gte, lt, lte and approx`;
+  if (!Object.keys(c).some((k) => COMPARISON_KEYS.includes(k)))
+    return `expected a comparison object with eq, gt, gte, lt, lte or approx, got ${show(c)}`;
+  return undefined;
+}
+
 /** Returns a failure message, or undefined if every condition holds. */
 export function compare(actual: unknown, c: Comparison): string | undefined {
   const show = (v: unknown) => JSON.stringify(v) ?? String(v);
+  const malformed = comparisonError(c);
+  if (malformed) return malformed;
   if ("eq" in c && show(actual) !== show(c.eq)) return `expected ${show(c.eq)}, got ${show(actual)}`;
   const numeric = c.gt !== undefined || c.gte !== undefined || c.lt !== undefined || c.lte !== undefined || c.approx;
   if (!numeric) return undefined;
@@ -176,8 +193,15 @@ export async function runStep(step: Step, call: Call, capture: Capture, until: U
   if ("wait" in step) await call("step", step.wait);
   else if ("press" in step) await call("press", step.press);
   else if ("release" in step) await call("release", step.release);
-  else if ("tap" in step) await call("tap", ...step.tap);
-  else if ("pointerDown" in step) await call("pointerDown", ...step.pointerDown);
+  else if ("tap" in step) {
+    // A key code taps that key for one step, as keiko's `game.tap("Space")` does.
+    if (typeof step.tap === "string") {
+      await call("press", step.tap);
+      await call("step", 1);
+      await call("release", step.tap);
+    } else if (Array.isArray(step.tap)) await call("tap", ...step.tap);
+    else return `tap: expected a key code like "KeyT" or a point [x, y], got ${JSON.stringify(step.tap)}`;
+  } else if ("pointerDown" in step) await call("pointerDown", ...step.pointerDown);
   else if ("pointerMove" in step) await call("pointerMove", ...step.pointerMove);
   else if ("pointerUp" in step) await call("pointerUp");
   else if ("wheel" in step) await call("wheel", ...(typeof step.wheel === "number" ? [step.wheel] : step.wheel));
@@ -214,6 +238,11 @@ export async function runStep(step: Step, call: Call, capture: Capture, until: U
   } else if ("until" in step) {
     const within = step.within ?? DEFAULT_WITHIN;
     if (!Number.isInteger(within) || within < 0) return `until: "within" must be a whole number of steps, got ${within}`;
+    const malformed = Object.entries(step.until).flatMap(([path, c]) => {
+      const m = comparisonError(c);
+      return m ? [`${path}: ${m}`] : [];
+    });
+    if (malformed.length) return `until: ${malformed.join("; ")}`;
     const result = await until(step.until, within);
     if (!result.met) {
       const state = await call<unknown>("state");
