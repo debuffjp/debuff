@@ -103,3 +103,14 @@ describe("runStep: wheel and touch", () => {
     ]);
   });
 });
+
+describe("runStep: pointer kind", () => {
+  it("passes a touch or pen kind to the dev hooks", async () => {
+    const { calls } = await play([{ pointerDown: [1, 2, "touch"] }, { pointerDown: [3, 4] }, { tap: [5, 6, "pen"] }]);
+    expect(calls).toEqual([
+      ["pointerDown", 1, 2, "touch"],
+      ["pointerDown", 3, 4],
+      ["tap", 5, 6, "pen"],
+    ]);
+  });
+});

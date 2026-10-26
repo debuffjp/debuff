@@ -128,3 +128,32 @@ describe("dev hooks: mouse buttons, wheel and touch", () => {
     expect(() => old.hooks.press("PointerRight")).toThrow(/needs @debuffjp\/input 0.16/);
   });
 });
+
+describe("dev hooks: pointer kind", () => {
+  it("presses as a mouse by default, and as a touch or pen contact when asked, never both", async () => {
+    const { Pointer } = await import("../../input/src/pointer.js");
+    const canvas = document.createElement("canvas");
+    const ctx = new Proxy({}, { get: (_t, k) => (k === "canvas" ? canvas : () => undefined), set: () => true });
+    vi.spyOn(canvas, "getContext").mockImplementation(((type: string) =>
+      type === "2d" ? ctx : null) as unknown as typeof canvas.getContext);
+    const game = new Game({ canvas, width: 100, height: 100, scale: "none" });
+    const seen: string[] = [];
+    const pointer = new Pointer(canvas, (x, y) => ({ x, y }));
+    game.add({ id: "play", update: () => seen.push(`${pointer.kind} ${pointer.down} ${pointer.touches.size}`) }).go("play");
+    const hooks = exposeDevHooks(game, { input: { keys: { press() {}, release() {} }, pointer }, agentLink: false });
+    // Called without a receiver, the way the agent link and scenario runners call hooks.
+    const { pointerDown, pointerMove, pointerUp, tap } = hooks;
+    pointerDown(10, 10);
+    expect([pointer.kind, pointer.down, pointer.touches.size]).toEqual(["mouse", true, 0]);
+    pointerUp();
+    pointerDown(20, 20, "touch");
+    pointerMove(25, 30);
+    expect([pointer.kind, pointer.x, pointer.y, pointer.touches.get(1)?.kind]).toEqual(["touch", 25, 30, "touch"]);
+    pointerUp();
+    expect([pointer.down, pointer.touches.size]).toEqual([false, 0]);
+    tap(5, 5, "pen");
+    expect(seen.at(-1)).toBe("pen true 1");
+    expect([pointer.down, pointer.touches.size]).toEqual([false, 0]);
+    game.dispose();
+  });
+});

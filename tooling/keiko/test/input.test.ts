@@ -126,3 +126,32 @@ describe("Playtest: wheel and touch", () => {
     expect(seen).toEqual(["-40 1 false", "10 2 true", "0 0 false"]);
   });
 });
+
+describe("pointerDown with a kind", () => {
+  it("presses as a touch or pen contact without a mouse press as well", () => {
+    const { pointer, driver, seen } = page();
+    driver.pointerDown(10, 10, "touch");
+    driver.pointerMove(20, 20);
+    expect([pointer.kind, pointer.x, pointer.touches.get(1)?.kind]).toEqual(["touch", 20, "touch"]);
+    expect(seen.some((s) => s.endsWith(":mouse"))).toBe(false);
+    driver.pointerUp();
+    expect([pointer.down, pointer.touches.size]).toEqual([false, 0]);
+    driver.pointerDown(1, 1);
+    expect(pointer.kind).toBe("mouse");
+  });
+
+  it("passes the kind to debuff's dev hooks, and leaves a mouse press as it was", () => {
+    const calls: unknown[][] = [];
+    const hooks = {
+      state: () => ({ tick: 0, time: 0, step: 1 / 60, scene: "play", state: {} }),
+      pointerDown: (...a: unknown[]) => calls.push(a),
+    } as unknown as DebuffDevHooks;
+    const driver = debuffDriver(hooks);
+    driver.pointerDown(1, 2);
+    driver.pointerDown(3, 4, "pen");
+    expect(calls).toEqual([
+      [1, 2],
+      [3, 4, "pen"],
+    ]);
+  });
+});
