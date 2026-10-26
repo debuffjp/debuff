@@ -72,10 +72,10 @@ export class Pointer {
     if (e.pointerType === "mouse") this.syncButtons(e.buttons);
     // Only the main mouse button is the primary pointer; right and middle are `right` and `middle`.
     if (e.pointerType === "mouse" && e.button) {
-      this.element.setPointerCapture?.(e.pointerId);
+      this.capture(e.pointerId);
       return;
     }
-    this.element.setPointerCapture?.(e.pointerId);
+    this.capture(e.pointerId);
     const { x, y } = this.toLogical(e.clientX, e.clientY);
     this.touchStart(e.pointerId, x, y, kindOf(e));
     e.preventDefault();
@@ -221,6 +221,15 @@ export class Pointer {
     for (const button of ["right", "middle"] as const) {
       if (buttons & BUTTON_BITS[button]) this.pressButton(button);
       else this.releaseButton(button);
+    }
+  }
+
+  /** Keep receiving this pointer's moves and release outside the element, where the browser allows it. */
+  private capture(id: number): void {
+    try {
+      this.element.setPointerCapture?.(id);
+    } catch {
+      // Synthetic events and unknown pointer ids throw NotFoundError; the press still counts.
     }
   }
 

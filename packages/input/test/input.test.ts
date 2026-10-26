@@ -403,3 +403,18 @@ describe("focus in an iframe", () => {
     input.dispose();
   });
 });
+
+describe("pointer capture", () => {
+  it("still counts a press when setPointerCapture throws for an unknown pointer id", () => {
+    const h = host();
+    h.canvas.setPointerCapture = () => {
+      throw new DOMException("No active pointer with the given id is found.", "NotFoundError");
+    };
+    const input = new Input(h, { bindings: { tap: ["Pointer"], remove: ["PointerRight"] } });
+    h.canvas.dispatchEvent(new PointerEvent("pointerdown", { pointerId: 42, isPrimary: true, cancelable: true }));
+    expect(input.pressed("tap")).toBe(true);
+    h.canvas.dispatchEvent(new PointerEvent("pointerdown", { pointerId: 1, pointerType: "mouse", button: 2, buttons: 2 }));
+    expect(input.pressed("remove")).toBe(true);
+    input.dispose();
+  });
+});
