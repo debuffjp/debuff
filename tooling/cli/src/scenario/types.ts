@@ -39,6 +39,12 @@ export type Step =
   | { pointerDown: [number, number] }
   | { pointerMove: [number, number] }
   | { pointerUp: true }
+  /** Scroll the wheel by `dy` CSS pixels (positive = down), or `[dy, dx]`. */
+  | { wheel: number | [number, number] }
+  /** Touch contacts by id at logical coordinates; `[id, x, y, "pen"]` for a pen. The first contact also presses the primary pointer. */
+  | { touchDown: [number, number, number] | [number, number, number, "pen"] }
+  | { touchMove: [number, number, number] }
+  | { touchUp: number }
   /** Gamepad state from now on (`null` = disconnected): pressed standard-mapping button indices, left stick axes. Recorded replays emit these. */
   | { pad: { buttons: number[]; axes: number[] } | null }
   /** Set params: `{ "player.speed": 300 }` sets group "player", key "speed". */

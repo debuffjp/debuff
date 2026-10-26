@@ -1,6 +1,7 @@
 import { Game } from "@debuffjp/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Gamepads } from "../../input/src/gamepad.js";
+import { Pointer } from "../../input/src/pointer.js";
 import { DevSession, type DrivableInput, InputRecording, type Replay } from "../src/index.js";
 import { fastForward, type RewindRequest, storeRewind, takeRewind } from "../src/replay.js";
 
@@ -290,5 +291,56 @@ describe("pointer buttons in replays", () => {
     expect(() => fastForward({ game: makeGame(), input, command: () => undefined }, [{ press: "PointerRight" }], 1)).toThrow(
       /needs @debuffjp\/input 0.16/,
     );
+  });
+});
+
+describe("wheel and touch in replays", () => {
+  function realInput() {
+    const pointer = new Pointer(document.createElement("canvas"), (x, y) => ({ x, y }));
+    const input: DrivableInput = { keys: { press() {}, release() {} }, pointer };
+    return { input, pointer };
+  }
+
+  it("records touches as touch steps (not also as the pointer presses they make) and wheel scrolls", () => {
+    const game = makeGame();
+    const { input, pointer } = realInput();
+    const rec = new InputRecording(game, input);
+    pointer.touchStart(3, 10, 20);
+    pointer.touchStart(4, 5, 5, "pen");
+    game.step(1);
+    pointer.touchMove(3, 11, 21);
+    pointer.touchMove(3, 12, 22); // same tick: collapsed
+    pointer.scroll(-30);
+    pointer.scroll(4, 2);
+    pointer.touchEnd(3);
+    pointer.touchStart(1, 0, 0, "mouse"); // a mouse contact stays a pointer step
+    pointer.touchEnd(1);
+    expect(rec.toReplay().steps).toEqual([
+      { touchDown: [3, 10, 20] },
+      { touchDown: [4, 5, 5, "pen"] },
+      { wait: 1 },
+      { touchMove: [3, 12, 22] },
+      { wheel: -30 },
+      { wheel: [4, 2] },
+      { touchUp: 3 },
+      { pointerDown: [0, 0] },
+      { pointerUp: true },
+    ]);
+    rec.dispose();
+  });
+
+  it("plays touch and wheel steps back, and lifts touches still down at the end", () => {
+    const { input, pointer } = realInput();
+    const seen: string[] = [];
+    const game = makeGame();
+    game.add({ id: "watch", update: () => seen.push(`${pointer.touches.size} ${pointer.down} ${pointer.wheel}`) }).go("watch");
+    game.hooks.afterUpdate(() => pointer.endStep());
+    fastForward(
+      { game, input, command: () => undefined },
+      [{ touchDown: [1, 5, 5] }, { touchDown: [2, 9, 9] }, { wheel: 12 }, { wait: 1 }, { touchUp: 1 }, { wait: 1 }],
+      2,
+    );
+    expect(seen).toEqual(["2 true 12", "1 false 0"]);
+    expect(pointer.touches.size).toBe(0);
   });
 });

@@ -79,6 +79,51 @@
         { "type": "object", "required": ["pointerUp"], "additionalProperties": false, "properties": { "pointerUp": { "const": true } } },
         {
           "type": "object",
+          "required": ["wheel"],
+          "additionalProperties": false,
+          "properties": {
+            "wheel": {
+              "description": "Scroll the wheel by dy CSS pixels (positive = down), or [dy, dx].",
+              "oneOf": [{ "type": "number" }, { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 }]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["touchDown"],
+          "additionalProperties": false,
+          "properties": {
+            "touchDown": {
+              "description": "Start touch contact [id, x, y] (logical), or [id, x, y, \"pen\"]. The first contact also presses the primary pointer.",
+              "type": "array",
+              "prefixItems": [{ "type": "integer" }, { "type": "number" }, { "type": "number" }, { "const": "pen" }],
+              "minItems": 3,
+              "maxItems": 4
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["touchMove"],
+          "additionalProperties": false,
+          "properties": {
+            "touchMove": {
+              "description": "Move touch contact [id, x, y].",
+              "type": "array",
+              "prefixItems": [{ "type": "integer" }, { "type": "number" }, { "type": "number" }],
+              "minItems": 3,
+              "maxItems": 3
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["touchUp"],
+          "additionalProperties": false,
+          "properties": { "touchUp": { "type": "integer", "description": "End touch contact id." } }
+        },
+        {
+          "type": "object",
           "required": ["pad"],
           "additionalProperties": false,
           "properties": {
