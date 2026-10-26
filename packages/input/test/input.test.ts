@@ -385,3 +385,21 @@ describe("rebind", () => {
     input.dispose();
   });
 });
+
+describe("focus in an iframe", () => {
+  it("focuses the window on press when the document doesn't have focus", () => {
+    const h = host();
+    const input = new Input(h, { bindings: {} });
+    const focus = vi.spyOn(window, "focus").mockImplementation(() => {});
+    const hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(false);
+    const down = () => new PointerEvent("pointerdown", { pointerId: 1, isPrimary: true, cancelable: true });
+    h.canvas.dispatchEvent(down());
+    expect(focus).toHaveBeenCalledTimes(1);
+    hasFocus.mockReturnValue(true);
+    h.canvas.dispatchEvent(down());
+    expect(focus).toHaveBeenCalledTimes(1);
+    focus.mockRestore();
+    hasFocus.mockRestore();
+    input.dispose();
+  });
+});
