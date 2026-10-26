@@ -32,6 +32,7 @@ Edges clear automatically after each simulation step, so a tap shorter than a fr
 ## API
 
 - `input.down(action)`, `input.pressed(action)`, `input.released(action)`, `input.axis(neg, pos)`
+- `input.rebind(action, keys)`: replace an action's bindings (a controls menu), keeping captured keys in step. `input.bindings` is Input's own copy of the map you passed, so change it with `rebind` rather than in place.
 - `input.pointer`: `x`, `y` (logical), `down`, `pressed`, `released`, `touches`
 - `input.pointer.kind`: `"mouse"`, `"touch"` or `"pen"`, whichever made the latest press
 - `input.pointer.touchesStarted`, `touchesEnded`: contacts that started or ended this step (each with `id`, `x`, `y`, `kind`), so a game doesn't diff `touches` itself

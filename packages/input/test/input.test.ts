@@ -354,3 +354,34 @@ describe("pointer kind and touches", () => {
     input.dispose();
   });
 });
+
+describe("rebind", () => {
+  it("replaces an action's keys and keeps captured keys in step", () => {
+    const h = host();
+    const bindings = { jump: ["Space", "PadA"], left: ["ArrowLeft"] };
+    const input = new Input(h, { bindings });
+    input.keys.captured.add("Tab"); // the game's own
+    const keys = ["KeyK", "PadA"];
+    input.rebind("jump", keys);
+    keys.push("KeyL"); // the caller's array stays theirs
+    expect(input.bindings.jump).toEqual(["KeyK", "PadA"]);
+    expect(bindings.jump).toEqual(["Space", "PadA"]);
+    expect([...input.keys.captured].sort()).toEqual(["ArrowLeft", "KeyK", "Tab"]);
+    input.keys.press("Space");
+    expect(input.down("jump")).toBe(false);
+    input.keys.press("KeyK");
+    expect(input.pressed("jump")).toBe(true);
+    const space = new KeyboardEvent("keydown", { code: "Space", cancelable: true });
+    window.dispatchEvent(space);
+    expect(space.defaultPrevented).toBe(false);
+    expect(() => input.rebind("fly" as "jump", [])).toThrow(/Unknown input action "fly"/);
+    input.dispose();
+  });
+
+  it("captures nothing when captureKeys is off", () => {
+    const input = new Input(host(), { bindings: { jump: ["Space"] }, captureKeys: false });
+    input.rebind("jump", ["KeyK"]);
+    expect(input.keys.captured.size).toBe(0);
+    input.dispose();
+  });
+});
