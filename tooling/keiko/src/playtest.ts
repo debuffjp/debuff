@@ -572,9 +572,17 @@ export class Playtest<S = any> {
       case "release":
         this.release(value as string);
         break;
-      case "tap":
-        this.tap(...pair(value));
+      case "tap": {
+        if (typeof value === "string") {
+          this.tap(value);
+          break;
+        }
+        if (!Array.isArray(value)) throw new Error(`tap: expected a key code like "KeyT" or a point [x, y], got ${show(value)}`);
+        const [x, y, kind] = value as [number, number, PointerKind?];
+        if (kind && kind !== "mouse") this.pointerDown(x, y, kind).wait(1).pointerUp();
+        else this.tap(x, y);
         break;
+      }
       case "pointerDown": {
         const [x, y, kind] = value as [number, number, PointerKind?];
         this.pointerDown(x, y, kind);
@@ -689,6 +697,11 @@ interface Comparison {
 }
 
 function compare(actual: unknown, c: Comparison): string | undefined {
+  // A bare value, `{ "state.x": 0 }`, is the easy slip for `{ "state.x": { "eq": 0 } }`.
+  if (c === null || typeof c !== "object" || Array.isArray(c))
+    return `expected a comparison object like { "eq": ${show(c)} }, got ${show(c)}. Comparisons are eq, gt, gte, lt, lte and approx`;
+  if (!Object.keys(c).some((k) => ["eq", "gt", "gte", "lt", "lte", "approx"].includes(k)))
+    return `expected a comparison object with eq, gt, gte, lt, lte or approx, got ${show(c)}`;
   if ("eq" in c && JSON.stringify(actual) !== JSON.stringify(c.eq)) return `expected ${show(c.eq)}, got ${show(actual)}`;
   const numeric = c.gt !== undefined || c.gte !== undefined || c.lt !== undefined || c.lte !== undefined || c.approx;
   if (!numeric) return undefined;
