@@ -47,7 +47,7 @@ test.deterministic("a run plays the same twice", (game) => game.hold("ArrowRight
 ```
 
 - **Time:** `wait(steps | "0.5s")`, `until(condition, { within })`, `during(duration, check)`, `trace("player.y", "1s")`.
-- **Input:** `press`/`release`/`hold`/`tap(code)`, `tap(x, y)`, `pointerDown/Move/Up`.
+- **Input:** `press`/`release`/`hold`/`tap(code)` (`"PointerRight"` / `"PointerMiddle"` for mouse buttons), `tap(x, y)`, `pointerDown/Move/Up`, `wheel(dy)`, `touchDown/Move(id, x, y)`, `touchUp(id)`.
 - **Async flows** (press Play, a screen loads its assets): `await game.eventually((s) => s.screen === "game", { within: "5s" })` and `await game.run("2s")`, not `until`/`wait`.
 - **Tuning:** `test.sweep("jump clears the gap", { "player.jump": [300, 350, 400] }, …)` runs the test for each value.
 

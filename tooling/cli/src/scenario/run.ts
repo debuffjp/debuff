@@ -171,7 +171,8 @@ type Capture = (name: string, tolerance: number) => Promise<string | undefined>;
 type Until = (conditions: Record<string, Comparison>, within: number) => Promise<{ ticks: number; met: boolean }>;
 type Sample = (steps: number) => Promise<{ frames: number[][]; stepSeconds: number }>;
 
-async function runStep(step: Step, call: Call, capture: Capture, until: Until, sample: Sample): Promise<string | undefined> {
+/** Run one built-in step through the dev hooks (`call`). Returns a failure message, if any. Exported for tests. */
+export async function runStep(step: Step, call: Call, capture: Capture, until: Until, sample: Sample): Promise<string | undefined> {
   if ("wait" in step) await call("step", step.wait);
   else if ("press" in step) await call("press", step.press);
   else if ("release" in step) await call("release", step.release);
@@ -179,6 +180,10 @@ async function runStep(step: Step, call: Call, capture: Capture, until: Until, s
   else if ("pointerDown" in step) await call("pointerDown", ...step.pointerDown);
   else if ("pointerMove" in step) await call("pointerMove", ...step.pointerMove);
   else if ("pointerUp" in step) await call("pointerUp");
+  else if ("wheel" in step) await call("wheel", ...(typeof step.wheel === "number" ? [step.wheel] : step.wheel));
+  else if ("touchDown" in step) await call("touchDown", ...step.touchDown);
+  else if ("touchMove" in step) await call("touchMove", ...step.touchMove);
+  else if ("touchUp" in step) await call("touchUp", step.touchUp);
   else if ("pad" in step) await call("pad", step.pad);
   else if ("command" in step) await call("command", step.command, ...(step.args ?? []));
   else if ("set" in step) {

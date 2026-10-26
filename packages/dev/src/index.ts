@@ -1,7 +1,7 @@
 import type { Game, ParamDescription, ParamValue, Plugin } from "@debuffjp/core";
 import type { Report } from "myaku";
 import type { ExplainedError } from "./explain.js";
-import { type PadStep, pressSource, type Replay, releaseSource, takeRewind, toPadState } from "./replay.js";
+import { type PadStep, pointerOp, pressSource, type Replay, releaseSource, takeRewind, toPadState } from "./replay.js";
 import { DevSession, type FrameSample, type GameEventRecord, gamePlugins, type Note, type TypeDiagnostic } from "./session.js";
 
 /** The parts of `@debuffjp/input`'s `Input` the hooks drive. Structural, so `dev` does not depend on `input`. */
@@ -14,6 +14,11 @@ export interface DrivableInput {
     /** Right and middle buttons (`@debuffjp/input` 0.16+), pressed as `"PointerRight"` and `"PointerMiddle"`. */
     pressButton?(button: "right" | "middle"): void;
     releaseButton?(button: "right" | "middle"): void;
+    /** Wheel and touch (`@debuffjp/input` 0.16+). */
+    scroll?(dy: number, dx?: number): void;
+    touchStart?(id: number, x: number, y: number, kind?: "mouse" | "touch" | "pen"): void;
+    touchMove?(id: number, x: number, y: number): void;
+    touchEnd?(id: number): void;
   };
   /** Gamepads (`@debuffjp/input`'s `Gamepads`): recorded per poll, and fed back on replay. */
   pads?: DrivablePads;
@@ -90,6 +95,12 @@ export interface DevHooks {
   pointerDown(x: number, y: number): void;
   pointerMove(x: number, y: number): void;
   pointerUp(): void;
+  /** Scroll the wheel by `dy` (and `dx`) CSS pixels this step: positive scrolls down / right. */
+  wheel(dy: number, dx?: number): void;
+  /** Start a touch contact `id` at logical coordinates (a finger, or `"pen"`). The first contact also presses the primary pointer. */
+  touchDown(id: number, x: number, y: number, kind?: "touch" | "pen"): void;
+  touchMove(id: number, x: number, y: number): void;
+  touchUp(id: number): void;
   /** Feed gamepad state (pressed standard-mapping button indices, left stick axes); `null` = no pad, `undefined` = real pads again. */
   pad(state: PadStep | null | undefined): void;
   params(): Record<string, ParamDescription>;
@@ -280,6 +291,10 @@ function createHooks(game: Game, session: DevSession, options: DevHooksOptions, 
     pointerDown: (x, y) => input().pointer.press(x, y),
     pointerMove: (x, y) => input().pointer.move(x, y),
     pointerUp: () => input().pointer.release(),
+    wheel: (dy, dx = 0) => pointerOp(input(), "scroll")(dy, dx),
+    touchDown: (id, x, y, kind = "touch") => pointerOp(input(), "touchStart")(id, x, y, kind),
+    touchMove: (id, x, y) => pointerOp(input(), "touchMove")(id, x, y),
+    touchUp: (id) => pointerOp(input(), "touchEnd")(id),
     pad(state) {
       const pads = input().pads;
       if (!pads) throw new Error("exposeDevHooks: this input has no gamepads");

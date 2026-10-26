@@ -93,3 +93,38 @@ describe("exposeDevHooks", () => {
     expect(hooks.reducedMotion(null)).toMatchObject({ reducedMotion: before, reducedMotionForced: false });
   });
 });
+
+describe("dev hooks: mouse buttons, wheel and touch", () => {
+  it("drives them through @debuffjp/input's pointer, and explains an input too old for them", async () => {
+    const { Pointer } = await import("../../input/src/pointer.js");
+    const canvas = document.createElement("canvas");
+    const ctx = new Proxy({}, { get: (_t, k) => (k === "canvas" ? canvas : () => undefined), set: () => true });
+    vi.spyOn(canvas, "getContext").mockImplementation(((type: string) =>
+      type === "2d" ? ctx : null) as unknown as typeof canvas.getContext);
+    const game = new Game({ canvas, width: 100, height: 100, scale: "none" });
+    game.add({ id: "play", update() {} }).go("play");
+    const pointer = new Pointer(canvas, (x, y) => ({ x, y }));
+    const keyPress = vi.fn();
+    const keys = { press: keyPress, release: vi.fn() };
+    const hooks = exposeDevHooks(game, { input: { keys, pointer }, agentLink: false });
+    hooks.press("PointerRight");
+    hooks.wheel(-20);
+    hooks.touchDown(7, 3, 4);
+    expect([pointer.right.down, pointer.wheel, pointer.touches.get(7)?.kind, pointer.down, keyPress.mock.calls.length]).toEqual([
+      true,
+      -20,
+      "touch",
+      true,
+      0,
+    ]);
+    hooks.touchMove(7, 9, 9);
+    hooks.touchUp(7);
+    hooks.release("PointerRight");
+    expect([pointer.x, pointer.down, pointer.right.down]).toEqual([9, false, false]);
+    game.dispose();
+
+    const old = setup();
+    expect(() => old.hooks.wheel(1)).toThrow(/needs @debuffjp\/input 0.16/);
+    expect(() => old.hooks.press("PointerRight")).toThrow(/needs @debuffjp\/input 0.16/);
+  });
+});

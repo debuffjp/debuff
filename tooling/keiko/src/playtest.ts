@@ -461,6 +461,36 @@ export class Playtest<S = any> {
     return this;
   }
 
+  /**
+   * Scroll the mouse wheel over the game by `dy` CSS pixels (positive scrolls down), and `dx` sideways.
+   * Put the mouse where it should scroll first with `pointerMove(x, y)`.
+   */
+  wheel(dy: number, dx = 0): this {
+    this.driver.wheel(dy, dx);
+    return this;
+  }
+
+  /**
+   * Put finger `id` down at the game's coordinates. Fingers are independent, so `touchDown` two ids for
+   * a pinch. The first finger down is the primary pointer, as on a real touch screen.
+   */
+  touchDown(id: number, x: number, y: number): this {
+    this.driver.touchDown(id, x, y);
+    return this;
+  }
+
+  /** Move finger `id`. */
+  touchMove(id: number, x: number, y: number): this {
+    this.driver.touchMove(id, x, y);
+    return this;
+  }
+
+  /** Lift finger `id`. */
+  touchUp(id: number): this {
+    this.driver.touchUp(id);
+    return this;
+  }
+
   // ---- params and commands ---------------------------------------------------------------------
 
   /**
@@ -550,6 +580,22 @@ export class Playtest<S = any> {
         break;
       case "pointerUp":
         this.pointerUp();
+        break;
+      case "wheel": {
+        const [dy, dx = 0] = typeof value === "number" ? [value] : (value as [number, number]);
+        this.wheel(dy, dx);
+        break;
+      }
+      case "touchDown": {
+        const [id, x, y, kind] = value as [number, number, number, "pen"?];
+        this.driver.touchDown(id, x, y, kind);
+        break;
+      }
+      case "touchMove":
+        this.touchMove(...(value as [number, number, number]));
+        break;
+      case "touchUp":
+        this.touchUp(value as number);
         break;
       case "set":
         this.set(value as Record<string, ParamValue>);

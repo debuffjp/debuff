@@ -24,6 +24,8 @@ All arguments and return values are JSON-serialisable.
 | `params()` / `setParam(group, key, value)` | typed parameter schemas and values |
 | `press(code)` / `release(code)` | keyboard, plus `"PointerRight"` / `"PointerMiddle"` for the right and middle mouse buttons |
 | `tap(x, y)` / `pointerDown` / `pointerMove` / `pointerUp` | pointer, in logical coordinates |
+| `wheel(dy, dx?)` | wheel scroll in CSS pixels this step |
+| `touchDown(id, x, y, kind?)` / `touchMove(id, x, y)` / `touchUp(id)` | touch contacts (or `"pen"`); the first is the primary pointer. Recorded in replays |
 | `errors()` | runtime errors since load, explained: `kind` (`your-code`, `debuff-usage`, `debuff-bug`, `outside`), source-mapped `where`, `hint`, `count` |
 | `capture()` | PNG data URL of the current frame |
 | `keepForReload()` | save the session for a state-preserving reload; the `debuff dev` client calls it just before a code change reloads the page |

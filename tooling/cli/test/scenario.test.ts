@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { stepUntil } from "../src/scenario/browser.js";
 import { captureDiffMessage, compare, pick } from "../src/scenario/index.js";
+import { runStep } from "../src/scenario/run.js";
+import type { Step } from "../src/scenario/types.js";
 
 describe("compare", () => {
   it("passes matching comparisons", () => {
@@ -63,5 +65,41 @@ describe("stepUntil", () => {
     } finally {
       delete (globalThis as { window?: unknown }).window;
     }
+  });
+});
+
+/** Run steps against a fake page, returning the dev hook calls and any failure messages. */
+async function play(steps: Step[], state: unknown = {}) {
+  const calls: unknown[][] = [];
+  const call = async <R>(method: string, ...args: unknown[]) => {
+    calls.push([method, ...args]);
+    return (method === "state" ? state : undefined) as R;
+  };
+  const failures: (string | undefined)[] = [];
+  const never = () => Promise.reject(new Error("not used"));
+  for (const step of steps) failures.push(await runStep(step, call, never, never, never));
+  return { calls, failures };
+}
+
+describe("runStep: wheel and touch", () => {
+  it("drives the dev hooks' wheel and touch methods", async () => {
+    const { calls } = await play([
+      { wheel: -40 },
+      { wheel: [10, 5] },
+      { touchDown: [2, 10, 20] },
+      { touchDown: [3, 1, 1, "pen"] },
+      { touchMove: [2, 15, 25] },
+      { touchUp: 2 },
+      { press: "PointerRight" },
+    ]);
+    expect(calls).toEqual([
+      ["wheel", -40],
+      ["wheel", 10, 5],
+      ["touchDown", 2, 10, 20],
+      ["touchDown", 3, 1, 1, "pen"],
+      ["touchMove", 2, 15, 25],
+      ["touchUp", 2],
+      ["press", "PointerRight"],
+    ]);
   });
 });
