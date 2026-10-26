@@ -218,3 +218,32 @@ describe("input regressions", () => {
     el.remove();
   });
 });
+
+describe("wheel", () => {
+  it("sums wheel deltas over a step in pixels, and resets them after it", () => {
+    const h = host();
+    const input = new Input(h, { bindings: {} });
+    h.canvas.dispatchEvent(new WheelEvent("wheel", { deltaY: 30, cancelable: true }));
+    h.canvas.dispatchEvent(new WheelEvent("wheel", { deltaY: 2, deltaX: -1, deltaMode: 1, cancelable: true }));
+    expect([input.pointer.wheel, input.pointer.wheelX]).toEqual([62, -16]);
+    h.endStep();
+    expect([input.pointer.wheel, input.pointer.wheelX]).toEqual([0, 0]);
+    input.pointer.scroll(-120);
+    expect(input.pointer.wheel).toBe(-120);
+    input.dispose();
+  });
+
+  it("leaves page scrolling alone unless captureWheel is set", () => {
+    const h = host();
+    const free = new Input(h, { bindings: {} });
+    const a = new WheelEvent("wheel", { deltaY: 10, cancelable: true });
+    h.canvas.dispatchEvent(a);
+    expect(a.defaultPrevented).toBe(false);
+    free.dispose();
+    const zoomer = new Input(h, { bindings: {}, captureWheel: true });
+    const b = new WheelEvent("wheel", { deltaY: 10, cancelable: true });
+    h.canvas.dispatchEvent(b);
+    expect(b.defaultPrevented).toBe(true);
+    zoomer.dispose();
+  });
+});

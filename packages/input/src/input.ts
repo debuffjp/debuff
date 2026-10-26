@@ -26,6 +26,8 @@ export interface InputOptions<A extends string> {
   keyboardTarget?: Window | HTMLElement;
   /** Block the browser default for bound keys (page scrolling in embeds). Default true. */
   captureKeys?: boolean;
+  /** Block page scrolling while the wheel is over the canvas, for games that zoom with it. Default false. */
+  captureWheel?: boolean;
 }
 
 /**
@@ -58,6 +60,7 @@ export class Input<A extends string> {
     }
     // Call through the host so a class method keeps its `this`.
     this.pointer = new Pointer(host.canvas, (x, y) => host.toLogical(x, y));
+    this.pointer.captureWheel = options.captureWheel ?? false;
     this.unhook = host.hooks.afterUpdate(() => this.endStep());
   }
 
