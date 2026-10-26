@@ -33,6 +33,7 @@ Edges clear automatically after each simulation step, so a tap shorter than a fr
 
 - `input.down(action)`, `input.pressed(action)`, `input.released(action)`, `input.axis(neg, pos)`
 - `input.pointer`: `x`, `y` (logical), `down`, `pressed`, `released`, `touches`
+- `input.pointer.wheel`, `wheelX`: wheel or trackpad scroll this step in CSS pixels (positive = down / right), reset every step. Pass `captureWheel: true` to stop the page scrolling under a game that zooms with the wheel.
 - `input.keys`: `down(code)`, `pressed(code)`, `released(code)`
 - `input.pads`: `stickX`, `stickY`, `connected`, `deadzone`
-- Programmatic control for tests and on-screen buttons: `keys.press/release`, `pointer.press/move/release`
+- Programmatic control for tests and on-screen buttons: `keys.press/release`, `pointer.press/move/release/scroll`

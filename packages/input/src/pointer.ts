@@ -21,6 +21,15 @@ export class Pointer {
   released = false;
   /** Active contacts keyed by pointerId. */
   readonly touches = new Map<number, TouchPoint>();
+  /**
+   * Vertical wheel (or trackpad) scroll over the element this step, in CSS pixels: positive scrolls down.
+   * Summed across events and reset by `endStep()`.
+   */
+  wheel = 0;
+  /** Horizontal scroll this step, like `wheel`: positive scrolls right. */
+  wheelX = 0;
+  /** Block the page scrolling while the wheel is over the element (for wheel zoom in embeds). Default false. */
+  captureWheel = false;
 
   private readonly element: HTMLElement;
   private readonly toLogical: ToLogical;
@@ -38,6 +47,12 @@ export class Pointer {
   };
   // Right-click shouldn't open the browser menu over a game.
   private readonly onContextMenu = (e: Event) => e.preventDefault();
+  private readonly onWheel = (e: WheelEvent) => {
+    if (this.captureWheel) e.preventDefault();
+    // Lines and pages (Firefox, some mice) become pixels, so games see one unit everywhere.
+    const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? this.element.clientHeight || 800 : 1;
+    this.scroll(e.deltaY * unit, e.deltaX * unit);
+  };
   private readonly onUp = (e: PointerEvent) => {
     this.touches.delete(e.pointerId);
     if (e.isPrimary) this.release();
@@ -52,6 +67,8 @@ export class Pointer {
     element.addEventListener("pointerup", this.onUp);
     element.addEventListener("pointercancel", this.onUp);
     element.addEventListener("contextmenu", this.onContextMenu);
+    // Not passive, so `captureWheel` can stop the page scrolling.
+    element.addEventListener("wheel", this.onWheel, { passive: false });
   }
 
   /** Simulate pressing the primary pointer at logical coordinates. */
@@ -76,10 +93,18 @@ export class Pointer {
     this.released = true;
   }
 
-  /** Clear edges. Call once after each simulation step. */
+  /** Simulate scrolling the wheel by `dy` (and `dx`) CSS pixels. */
+  scroll(dy: number, dx = 0): void {
+    this.wheel += dy;
+    this.wheelX += dx;
+  }
+
+  /** Clear edges and the wheel. Call once after each simulation step. */
   endStep(): void {
     this.pressed = false;
     this.released = false;
+    this.wheel = 0;
+    this.wheelX = 0;
   }
 
   dispose(): void {
@@ -88,6 +113,7 @@ export class Pointer {
     this.element.removeEventListener("pointerup", this.onUp);
     this.element.removeEventListener("pointercancel", this.onUp);
     this.element.removeEventListener("contextmenu", this.onContextMenu);
+    this.element.removeEventListener("wheel", this.onWheel);
   }
 
   private track(e: PointerEvent): TouchPoint {
