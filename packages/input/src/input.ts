@@ -48,17 +48,21 @@ export class Input<A extends string> {
   readonly keys: Keyboard;
   readonly pointer: Pointer;
   readonly pads = new Gamepads();
+  /**
+   * The current bindings: Input's own copy of the options' map, read on every call. Change them with
+   * `rebind()`, which keeps `keys.captured` in step.
+   */
   readonly bindings: Bindings<A>;
   private readonly unhook: () => void;
+  private readonly captureKeys: boolean;
+  /** Keys in `keys.captured` because a binding uses them (not ones the game added itself). */
+  private readonly boundCaptured = new Set<string>();
 
   constructor(host: InputHost, options: InputOptions<A>) {
-    this.bindings = options.bindings;
+    this.bindings = { ...options.bindings };
     this.keys = new Keyboard(options.keyboardTarget ?? window);
-    if (options.captureKeys ?? true) {
-      for (const list of Object.values(options.bindings) as Binding[][]) {
-        for (const b of list) if (!this.isPointer(b) && !this.isPad(b)) this.keys.captured.add(b);
-      }
-    }
+    this.captureKeys = options.captureKeys ?? true;
+    this.syncCaptured();
     // Call through the host so a class method keeps its `this`.
     this.pointer = new Pointer(host.canvas, (x, y) => host.toLogical(x, y));
     this.pointer.captureWheel = options.captureWheel ?? false;
@@ -84,6 +88,18 @@ export class Input<A extends string> {
     );
   }
 
+  /**
+   * Replace an action's bindings, e.g. from a controls menu: `input.rebind("jump", ["KeyK", "PadA"])`.
+   * Takes a copy of `keys`, and updates `keys.captured` so the new keys stop scrolling the page and the old
+   * ones scroll it again.
+   */
+  rebind(action: A, keys: readonly Binding[]): void {
+    if (!Object.hasOwn(this.bindings, action))
+      throw new Error(`Unknown input action "${action}". Known: ${Object.keys(this.bindings).join(", ")}`);
+    this.bindings[action] = [...keys];
+    this.syncCaptured();
+  }
+
   /** -1, 0 or 1 from two opposing actions, e.g. `axis("left", "right")`. */
   axis(negative: A, positive: A): number {
     return (this.down(positive) ? 1 : 0) - (this.down(negative) ? 1 : 0);
@@ -99,6 +115,19 @@ export class Input<A extends string> {
     const list = this.bindings[action];
     if (!list) throw new Error(`Unknown input action "${action}". Known: ${Object.keys(this.bindings).join(", ")}`);
     return list.some(test);
+  }
+
+  private syncCaptured(): void {
+    if (!this.captureKeys) return;
+    for (const code of this.boundCaptured) this.keys.captured.delete(code);
+    this.boundCaptured.clear();
+    for (const list of Object.values(this.bindings) as Binding[][]) {
+      for (const b of list) {
+        if (this.isPointer(b) || this.isPad(b) || this.keys.captured.has(b)) continue;
+        this.keys.captured.add(b);
+        this.boundCaptured.add(b);
+      }
+    }
   }
 
   private isPointer(b: Binding): boolean {
