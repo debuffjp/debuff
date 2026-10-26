@@ -33,8 +33,10 @@ Edges clear automatically after each simulation step, so a tap shorter than a fr
 
 - `input.down(action)`, `input.pressed(action)`, `input.released(action)`, `input.axis(neg, pos)`
 - `input.pointer`: `x`, `y` (logical), `down`, `pressed`, `released`, `touches`
+- `input.pointer.kind`: `"mouse"`, `"touch"` or `"pen"`, whichever made the latest press
+- `input.pointer.touchesStarted`, `touchesEnded`: contacts that started or ended this step (each with `id`, `x`, `y`, `kind`), so a game doesn't diff `touches` itself
 - `input.pointer.right`, `input.pointer.middle`: `down`, `pressed`, `released` for the right and middle mouse buttons
 - `input.pointer.wheel`, `wheelX`: wheel or trackpad scroll this step in CSS pixels (positive = down / right), reset every step. Pass `captureWheel: true` to stop the page scrolling under a game that zooms with the wheel.
 - `input.keys`: `down(code)`, `pressed(code)`, `released(code)`
 - `input.pads`: `stickX`, `stickY`, `connected`, `deadzone`
-- Programmatic control for tests and on-screen buttons: `keys.press/release`, `pointer.press/move/release/scroll/pressButton/releaseButton`
+- Programmatic control for tests and on-screen buttons: `keys.press/release`, `pointer.press/move/release/scroll/pressButton/releaseButton`, and `pointer.touchStart(id, x, y)` / `touchMove` / `touchEnd` for multi-touch (the first contact also presses the primary pointer, as a real touch does)

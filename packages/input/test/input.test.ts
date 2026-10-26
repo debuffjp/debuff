@@ -281,3 +281,76 @@ describe("right and middle buttons", () => {
     input.dispose();
   });
 });
+
+describe("pointer kind and touches", () => {
+  const touch = (type: string, id: number, x: number, isPrimary: boolean) =>
+    new PointerEvent(type, { pointerId: id, pointerType: "touch", clientX: x, clientY: 0, isPrimary, buttons: 1, cancelable: true });
+
+  it("reports the kind of the latest press, and contacts that started and ended this step", () => {
+    const h = host();
+    const input = new Input(h, { bindings: { tap: ["Pointer"] } });
+    expect(input.pointer.kind).toBe("mouse");
+    h.canvas.dispatchEvent(touch("pointerdown", 5, 20, true));
+    h.canvas.dispatchEvent(touch("pointerdown", 6, 40, false));
+    expect(input.pointer).toMatchObject({ kind: "touch", x: 10, down: true });
+    expect(input.pointer.touchesStarted.map((t) => [t.id, t.x, t.kind])).toEqual([
+      [5, 10, "touch"],
+      [6, 20, "touch"],
+    ]);
+    h.endStep();
+    expect(input.pointer.touchesStarted).toEqual([]);
+    h.canvas.dispatchEvent(touch("pointermove", 6, 60, false));
+    expect([input.pointer.touches.get(6)?.x, input.pointer.x]).toEqual([30, 10]);
+    h.canvas.dispatchEvent(touch("pointerup", 6, 60, false));
+    expect(input.pointer.touchesEnded.map((t) => [t.id, t.x])).toEqual([[6, 30]]);
+    expect(input.pointer.down).toBe(true);
+    h.canvas.dispatchEvent(touch("pointerup", 5, 20, true));
+    expect(input.pointer.down).toBe(false);
+    h.canvas.dispatchEvent(new PointerEvent("pointerdown", { pointerId: 9, pointerType: "pen", isPrimary: true, cancelable: true }));
+    expect(input.pointer.kind).toBe("pen");
+    input.dispose();
+  });
+
+  it("simulates touches through the same paths, with the first contact as the primary pointer", () => {
+    const h = host();
+    const input = new Input(h, { bindings: { tap: ["Pointer"] } });
+    const p = input.pointer;
+    p.touchStart(1, 10, 10);
+    p.touchStart(2, 50, 50);
+    expect([p.pressed, p.kind, p.touches.size, p.touchesStarted.length]).toEqual([true, "touch", 2, 2]);
+    p.touchMove(1, 12, 14);
+    p.touchMove(2, 90, 90);
+    expect([p.x, p.y]).toEqual([12, 14]);
+    p.touchEnd(1);
+    expect([p.released, p.touches.size]).toEqual([true, 1]);
+    p.touchEnd(1); // already ended
+    expect(p.touchesEnded.length).toBe(1);
+    p.press(1, 1);
+    expect(p.kind).toBe("mouse");
+    input.dispose();
+  });
+
+  it("keeps a mouse hover moving the primary pointer, and a held mouse in touches", () => {
+    const h = host();
+    const input = new Input(h, { bindings: {} });
+    const mouse = (type: string, x: number, buttons: number) =>
+      new PointerEvent(type, {
+        pointerId: 1,
+        pointerType: "mouse",
+        isPrimary: true,
+        clientX: x,
+        clientY: 0,
+        buttons,
+        button: 0,
+        cancelable: true,
+      });
+    h.canvas.dispatchEvent(mouse("pointermove", 8, 0));
+    expect([input.pointer.x, input.pointer.touches.size]).toEqual([4, 0]);
+    h.canvas.dispatchEvent(mouse("pointerdown", 10, 1));
+    h.canvas.dispatchEvent(mouse("pointermove", 30, 1));
+    expect([input.pointer.x, input.pointer.touches.get(1)?.kind, input.pointer.kind]).toEqual([15, "mouse", "mouse"]);
+    h.canvas.dispatchEvent(mouse("pointerup", 30, 0));
+    expect([input.pointer.down, input.pointer.touches.size]).toEqual([false, 0]);
+    input.dispose();
+  });
+});
