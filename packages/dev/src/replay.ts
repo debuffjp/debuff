@@ -37,6 +37,26 @@ interface Recorded {
 
 const MAX_EVENTS = 200_000;
 
+/** Pointer buttons a scenario presses like keys, by their binding names. */
+const POINTER_BUTTONS: Readonly<Record<string, "right" | "middle">> = { PointerRight: "right", PointerMiddle: "middle" };
+
+/** Press a key, or the right or middle mouse button by its binding name (`"PointerRight"`, `"PointerMiddle"`). */
+export function pressSource(input: DrivableInput, code: string): void {
+  const button = POINTER_BUTTONS[code];
+  if (!button) input.keys.press(code);
+  else if (input.pointer.pressButton) input.pointer.pressButton(button);
+  else throw new Error(`press("${code}") needs @debuffjp/input 0.16 or later (pointer.pressButton)`);
+}
+
+/** Release what `pressSource` pressed. */
+export function releaseSource(input: DrivableInput, code: string): void {
+  const button = POINTER_BUTTONS[code];
+  if (!button) input.keys.release(code);
+  else input.pointer.releaseButton?.(button);
+}
+
+const BUTTON_CODES = { right: "PointerRight", middle: "PointerMiddle" } as const;
+
 /**
  * Records input and param changes per simulation tick from page load, so a live session can be turned
  * into a scenario that replays it exactly (the fixed-step clock and seeded RNG make runs deterministic).
@@ -93,6 +113,15 @@ export class InputRecording {
       pointerDown = false;
       return { pointerUp: true };
     });
+    if (input.pointer.pressButton && input.pointer.releaseButton) {
+      const buttons = new Set<string>();
+      wrap(input.pointer, "pressButton", (b: "right" | "middle") => {
+        if (buttons.has(b)) return undefined;
+        buttons.add(b);
+        return { press: BUTTON_CODES[b] };
+      });
+      wrap(input.pointer, "releaseButton", (b: "right" | "middle") => (buttons.delete(b) ? { release: BUTTON_CODES[b] } : undefined));
+    }
     const pads = input.pads;
     if (pads) {
       const sample = pads.sample;
@@ -235,10 +264,10 @@ export function fastForward({ game, input, command }: ReplayTarget, steps: Repla
     if ("wait" in step) game.step(Math.min(step.wait, toTick - game.clock.tick), false);
     else if ("press" in step) {
       held.add(step.press);
-      input.keys.press(step.press);
+      pressSource(input, step.press);
     } else if ("release" in step) {
       held.delete(step.release);
-      input.keys.release(step.release);
+      releaseSource(input, step.release);
     } else if ("pointerDown" in step) {
       pointerHeld = true;
       input.pointer.press(...step.pointerDown);
@@ -257,7 +286,7 @@ export function fastForward({ game, input, command }: ReplayTarget, steps: Repla
   }
   if (game.clock.tick < toTick) game.step(toTick - game.clock.tick, false);
   // Nobody is physically holding these any more: let go, or they'd stay stuck down.
-  for (const code of held) input.keys.release(code);
+  for (const code of held) releaseSource(input, code);
   if (pointerHeld) input.pointer.release();
   // Hand the pads back to the real Gamepad API.
   if (input.pads) input.pads.fed = undefined;

@@ -7,11 +7,25 @@ export interface TouchPoint {
   y: number;
 }
 
+/** A mouse button other than the main one. */
+export type PointerButton = "right" | "middle";
+
+/** Held state and this step's edges for one button, like the primary pointer's. */
+export interface ButtonState {
+  down: boolean;
+  pressed: boolean;
+  released: boolean;
+}
+
+// `PointerEvent.buttons` bits.
+const BUTTON_BITS: Record<PointerButton, number> = { right: 2, middle: 4 };
+
 /**
  * Unified mouse, touch and pen input via Pointer Events, in logical game coordinates.
  *
  * `x`, `y`, `down`, `pressed` and `released` describe the primary pointer. Edges are
- * latched until `endStep()`. All active contacts are in `touches` for multi-touch.
+ * latched until `endStep()`. All active contacts are in `touches` for multi-touch. The right and
+ * middle mouse buttons are in `right` and `middle`.
  */
 export class Pointer {
   x = 0;
@@ -28,6 +42,10 @@ export class Pointer {
   wheel = 0;
   /** Horizontal scroll this step, like `wheel`: positive scrolls right. */
   wheelX = 0;
+  /** The right mouse button (or a pen's barrel button reported as one). */
+  readonly right: ButtonState = { down: false, pressed: false, released: false };
+  /** The middle mouse button (wheel click). */
+  readonly middle: ButtonState = { down: false, pressed: false, released: false };
   /** Block the page scrolling while the wheel is over the element (for wheel zoom in embeds). Default false. */
   captureWheel = false;
 
@@ -35,14 +53,20 @@ export class Pointer {
   private readonly toLogical: ToLogical;
 
   private readonly onDown = (e: PointerEvent) => {
-    // Only the main mouse button is "Pointer"; right/middle clicks stay free for the game to read.
-    if (e.pointerType === "mouse" && e.button) return;
+    if (e.pointerType === "mouse") this.syncButtons(e.buttons);
+    // Only the main mouse button is the primary pointer; right and middle are `right` and `middle`.
+    if (e.pointerType === "mouse" && e.button) {
+      this.element.setPointerCapture?.(e.pointerId);
+      return;
+    }
     this.element.setPointerCapture?.(e.pointerId);
     const p = this.track(e);
     if (e.isPrimary) this.press(p.x, p.y);
     e.preventDefault();
   };
   private readonly onMove = (e: PointerEvent) => {
+    // A second button pressed or let go while another is held arrives as a move with `button` set.
+    if (e.pointerType === "mouse" && e.button > 0) this.syncButtons(e.buttons);
     if (this.touches.has(e.pointerId) || e.isPrimary) this.track(e);
   };
   // Right-click shouldn't open the browser menu over a game.
@@ -54,6 +78,7 @@ export class Pointer {
     this.scroll(e.deltaY * unit, e.deltaX * unit);
   };
   private readonly onUp = (e: PointerEvent) => {
+    if (e.pointerType === "mouse") this.syncButtons(e.buttons);
     this.touches.delete(e.pointerId);
     if (e.isPrimary) this.release();
   };
@@ -93,6 +118,22 @@ export class Pointer {
     this.released = true;
   }
 
+  /** Simulate pressing the right or middle button. */
+  pressButton(button: PointerButton): void {
+    const b = this[button];
+    if (b.down) return;
+    b.down = true;
+    b.pressed = true;
+  }
+
+  /** Simulate releasing the right or middle button. */
+  releaseButton(button: PointerButton): void {
+    const b = this[button];
+    if (!b.down) return;
+    b.down = false;
+    b.released = true;
+  }
+
   /** Simulate scrolling the wheel by `dy` (and `dx`) CSS pixels. */
   scroll(dy: number, dx = 0): void {
     this.wheel += dy;
@@ -105,6 +146,7 @@ export class Pointer {
     this.released = false;
     this.wheel = 0;
     this.wheelX = 0;
+    for (const b of [this.right, this.middle]) b.pressed = b.released = false;
   }
 
   dispose(): void {
@@ -114,6 +156,13 @@ export class Pointer {
     this.element.removeEventListener("pointercancel", this.onUp);
     this.element.removeEventListener("contextmenu", this.onContextMenu);
     this.element.removeEventListener("wheel", this.onWheel);
+  }
+
+  private syncButtons(buttons: number): void {
+    for (const button of ["right", "middle"] as const) {
+      if (buttons & BUTTON_BITS[button]) this.pressButton(button);
+      else this.releaseButton(button);
+    }
   }
 
   private track(e: PointerEvent): TouchPoint {

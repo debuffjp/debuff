@@ -31,7 +31,7 @@ export interface Comparison {
 export type Step =
   /** Advance N fixed simulation steps. */
   | { wait: number }
-  /** Hold a key (`KeyboardEvent.code`). */
+  /** Hold a key (`KeyboardEvent.code`), or the right or middle mouse button as `"PointerRight"` / `"PointerMiddle"`. */
   | { press: string }
   | { release: string }
   /** Press and release the pointer at logical coordinates over one step. */

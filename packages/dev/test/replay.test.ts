@@ -254,3 +254,41 @@ describe("gamepad replay", () => {
     expect(sim.sim.x).toBe(0);
   });
 });
+
+describe("pointer buttons in replays", () => {
+  it("records the right and middle buttons as presses of their binding names, and plays them back", () => {
+    const game = makeGame();
+    const held = new Set<string>();
+    const input: DrivableInput = {
+      keys: { press: () => {}, release: () => {} },
+      pointer: {
+        press() {},
+        move() {},
+        release() {},
+        pressButton: (b) => held.add(b),
+        releaseButton: (b) => held.delete(b),
+      },
+    };
+    const rec = new InputRecording(game, input);
+    game.step(2);
+    input.pointer.pressButton?.("right");
+    input.pointer.pressButton?.("right"); // held: not recorded twice
+    game.step(1);
+    input.pointer.releaseButton?.("right");
+    const steps = rec.toReplay().steps;
+    expect(steps).toEqual([{ wait: 2 }, { press: "PointerRight" }, { wait: 1 }, { release: "PointerRight" }]);
+    rec.dispose();
+    const seen: string[] = [];
+    input.pointer.pressButton = (b) => seen.push(`down ${b}`);
+    input.pointer.releaseButton = (b) => seen.push(`up ${b}`);
+    fastForward({ game: makeGame(), input, command: () => undefined }, [...steps, { press: "PointerMiddle" }, { wait: 1 }], 4);
+    expect(seen).toEqual(["down right", "up right", "down middle", "up middle"]);
+  });
+
+  it("explains a PointerRight press on an input too old to have buttons", () => {
+    const { input } = makeInput();
+    expect(() => fastForward({ game: makeGame(), input, command: () => undefined }, [{ press: "PointerRight" }], 1)).toThrow(
+      /needs @debuffjp\/input 0.16/,
+    );
+  });
+});

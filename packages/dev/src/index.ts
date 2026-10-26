@@ -1,13 +1,20 @@
 import type { Game, ParamDescription, ParamValue, Plugin } from "@debuffjp/core";
 import type { Report } from "myaku";
 import type { ExplainedError } from "./explain.js";
-import { type PadStep, type Replay, takeRewind, toPadState } from "./replay.js";
+import { type PadStep, pressSource, type Replay, releaseSource, takeRewind, toPadState } from "./replay.js";
 import { DevSession, type FrameSample, type GameEventRecord, gamePlugins, type Note, type TypeDiagnostic } from "./session.js";
 
 /** The parts of `@debuffjp/input`'s `Input` the hooks drive. Structural, so `dev` does not depend on `input`. */
 export interface DrivableInput {
   keys: { press(code: string): void; release(code: string): void };
-  pointer: { press(x: number, y: number): void; move(x: number, y: number): void; release(): void };
+  pointer: {
+    press(x: number, y: number): void;
+    move(x: number, y: number): void;
+    release(): void;
+    /** Right and middle buttons (`@debuffjp/input` 0.16+), pressed as `"PointerRight"` and `"PointerMiddle"`. */
+    pressButton?(button: "right" | "middle"): void;
+    releaseButton?(button: "right" | "middle"): void;
+  };
   /** Gamepads (`@debuffjp/input`'s `Gamepads`): recorded per poll, and fed back on replay. */
   pads?: DrivablePads;
 }
@@ -75,6 +82,7 @@ export interface DevHooks {
   speed(scale: number): void;
   /** Force `game.reducedMotion` on or off; `null` restores what it was. Returns the new state. */
   reducedMotion(value: boolean | null): DevState;
+  /** Hold a key (`KeyboardEvent.code`), or the right or middle mouse button as `"PointerRight"` / `"PointerMiddle"`. */
   press(code: string): void;
   release(code: string): void;
   /** Press and release the primary pointer at logical coordinates across one step. */
@@ -262,8 +270,8 @@ function createHooks(game: Game, session: DevSession, options: DevHooksOptions, 
       }
       return state();
     },
-    press: (code) => input().keys.press(code),
-    release: (code) => input().keys.release(code),
+    press: (code) => pressSource(input(), code),
+    release: (code) => releaseSource(input(), code),
     tap(x, y) {
       input().pointer.press(x, y);
       game.step(1);

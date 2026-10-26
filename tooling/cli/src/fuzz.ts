@@ -7,7 +7,7 @@ import { launchBrowser, VIEWPORT } from "./scenario/run.js";
 import type { Step } from "./scenario/types.js";
 import { createDevServer } from "./vite.js";
 
-/** Keys most small games use. Override with `keys` (KeyboardEvent.code values). */
+/** Keys most small games use. Override with `keys` (KeyboardEvent.code values, or `"PointerRight"` / `"PointerMiddle"`). */
 export const DEFAULT_FUZZ_KEYS = [
   "ArrowLeft",
   "ArrowRight",
