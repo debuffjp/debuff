@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "debuff",
   "display_name": "debuff",
-  "version": "0.18.0",
+  "version": "0.19.0",
   "description": "Make 2D browser games with Claude",
   "long_description": "Make 2D browser games with Claude using debuff, an open-source TypeScript framework. Point it at your game folder and Claude can play the game headless or attach to the tab you have open under `debuff dev`, send input, step time, take captures, tune feel params live, run scenario tests and read runtime errors that say whose problem they are. You keep the creative calls.",
   "author": {
