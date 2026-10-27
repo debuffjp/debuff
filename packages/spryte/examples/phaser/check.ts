@@ -249,7 +249,10 @@ const config: Phaser.Types.Core.GameConfig = {
 if (q.get("ctx") !== "gl1") {
   const context = createPhaserContext(undefined, { antialias: false });
   const create = context.gl.createTexture.bind(context.gl);
-  context.gl.createTexture = () => (createdTextures++, create());
+  context.gl.createTexture = () => {
+    createdTextures++;
+    return create();
+  };
   Object.assign(config, context);
 }
 out.game = new Phaser.Game(config);
