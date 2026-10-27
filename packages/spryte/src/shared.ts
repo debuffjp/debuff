@@ -11,7 +11,7 @@ export interface SharedRendererOptions {
   /**
    * The host's texture for an image, if it has one, so spryte draws it instead of uploading a second copy. Asked
    * once per image per frame, so a texture the host frees or replaces is never drawn stale; keep it cheap. It must
-   * hold premultiplied alpha.
+   * hold premultiplied alpha. (In spryte 0.6 it was asked once per image and the answer kept.)
    */
   borrow?: (src: ImageSource) => BorrowedTexture | null;
 }

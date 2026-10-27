@@ -48,9 +48,9 @@ export interface MenuStyle {
   cursorGap?: number;
   /** Minimum pixels between the label column and the value column. Default 12. */
   valueGap?: number;
-  /** A pill behind the focused row. Default on with the default look (a style that sets no `color`), off otherwise; `false` turns it off. */
+  /** A pill behind the focused row. Default on with the default look (a style that sets no `color`), off otherwise; `false` turns it off. Before 0.19 the default look was squish's dark-green pill. */
   highlight?: string | number | false;
-  /** The pill squashes wide and flat when focus moves, then springs back. Default false; `squish` turns it on. */
+  /** The pill squashes wide and flat when focus moves, then springs back. Default false; `squish` turns it on. Before 0.19 it always squashed. */
   squash?: boolean;
 }
 

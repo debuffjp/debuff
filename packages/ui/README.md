@@ -61,4 +61,13 @@ pause.drawPanel(draw, game.width / 2, game.height / 2, { ...squish, title: "paus
 bar(draw, 8, 8, 60, 4, hp / maxHp, squishBar);
 ```
 
-Before 0.19 the default was squish. To keep that look, spread `squish` (and `squishBar`) where you relied on the default. `debuffFrame` still works, as squish's frame alone.
+### Before 0.19
+
+Up to 0.18, panels and menus used debuff's own look ("squish") out of the box: a soft, round-cornered dark panel with no outline, light labels, lime focus and a jelly highlight that squashes when focus moves. Bars defaulted to lime cells on dark olive. A style that set its own `borders` or `fill` kept exactly what it set. `debuffFrame` was that look as a style object, to spread into anything:
+
+```ts
+import { debuffFrame } from "@debuffjp/ui";
+pause.drawPanel(draw, game.width / 2, game.height / 2, { ...debuffFrame, title: "paused" });
+```
+
+From 0.19, spread `squish` (and pass `squishBar` to `bar`) where you relied on that default. `debuffFrame` still works, deprecated, as squish's frame alone without its menu colours.
