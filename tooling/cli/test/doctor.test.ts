@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { type DoctorResult, runDoctor } from "../src/index.js";
+import { type DoctorResult, repairDoctor, runDoctor } from "../src/index.js";
 
 const version = (JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string }).version;
 const env = { DEBUFF_TELEMETRY: "off" };
@@ -102,5 +102,27 @@ describe("runDoctor", () => {
       message: "AI agents lack project context: missing CLAUDE.md, .mcp.json with the debuff server",
     });
     expect(r.ok).toBe(true);
+  });
+
+  it("--fix writes a missing .mcp.json, but never overwrites one", async () => {
+    project();
+    rmSync(join(root, ".mcp.json"));
+    let r = await runDoctor(root, { browser: false, env });
+    expect(repairDoctor(root, r)).toEqual(["wrote .mcp.json"]);
+    r = await runDoctor(root, { browser: false, env });
+    expect(check(r, "agent-files")?.ok).toBe(true);
+
+    writeFileSync(join(root, ".mcp.json"), JSON.stringify({ mcpServers: { other: {} } }));
+    r = await runDoctor(root, { browser: false, env });
+    expect(check(r, "agent-files")).toMatchObject({ ok: false });
+    expect(check(r, "agent-files")?.repair).toBeUndefined();
+    expect(repairDoctor(root, r)).toEqual([]);
+    expect(JSON.parse(readFileSync(join(root, ".mcp.json"), "utf8"))).toEqual({ mcpServers: { other: {} } });
+  });
+
+  it("offers installs as repairs", async () => {
+    project({ installedAs: "0.1.0" });
+    const r = await runDoctor(root, { browser: false, env });
+    expect(check(r, "installed")?.repair).toEqual({ run: ["install"] });
   });
 });

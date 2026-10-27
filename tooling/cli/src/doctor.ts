@@ -1,4 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { compileAssets } from "./assets/index.js";
 import { loadConfig, type ResolvedConfig } from "./config.js";
@@ -23,6 +24,8 @@ export interface DoctorCheck {
   message: string;
   /** One command or edit that fixes it. */
   fix?: string;
+  /** What `debuff doctor --fix` does about it, when that's safe without asking: a command, or a file to create. */
+  repair?: { run: string[] } | { write: string; content: string };
 }
 
 export interface DoctorResult {
@@ -167,6 +170,7 @@ function packages(root: string, pkg: PackageJson): DoctorCheck[] {
             .filter(Boolean)
             .join(". "),
           fix: "npm install",
+          repair: { run: ["install"] },
         }
       : { id: "installed", group: "packages", ok: true, message: `${found.size} packages installed` },
   );
@@ -196,6 +200,7 @@ function packages(root: string, pkg: PackageJson): DoctorCheck[] {
       required: false,
       message: `More than one copy of @debuffjp/core is installed (nested under ${nested.join(", ")})`,
       fix: "npm dedupe",
+      repair: { run: ["dedupe"] },
     });
 
   checks.push(
@@ -212,6 +217,7 @@ function packages(root: string, pkg: PackageJson): DoctorCheck[] {
           ok: false,
           message: "@debuffjp/dev is missing: scenarios, fuzzing, the dev panel and the MCP server need its dev hooks",
           fix: `npm i -D @debuffjp/dev@${cli.version}`,
+          repair: { run: ["install", "-D", `@debuffjp/dev@${cli.version}`] },
         },
   );
 
@@ -225,6 +231,8 @@ function packages(root: string, pkg: PackageJson): DoctorCheck[] {
             ok: false,
             message: "A package.json script runs tsc, but TypeScript is not installed",
             fix: "npm i -D typescript",
+            // Declared but not installed is the `installed` check's, whose plain install covers it.
+            ...(!("typescript" in declared) && { repair: { run: ["install", "-D", "typescript"] } }),
           },
     );
   return checks;
@@ -268,6 +276,9 @@ function saves(root: string): DoctorCheck {
   }
 }
 
+const MCP_JSON = `${JSON.stringify({ mcpServers: { debuff: { command: "npx", args: ["-y", "@debuffjp/mcp"] } } }, null, 2)}
+`;
+
 function agentFiles(root: string): DoctorCheck {
   const missing = ["AGENTS.md", "CLAUDE.md"].filter((f) => !existsSync(join(root, f)));
   let mcp = false;
@@ -275,6 +286,8 @@ function agentFiles(root: string): DoctorCheck {
     mcp = Boolean((readJson(join(root, ".mcp.json")) as { mcpServers?: Record<string, unknown> }).mcpServers?.debuff);
   } catch {}
   if (!mcp) missing.push(".mcp.json with the debuff server");
+  // Only a file that doesn't exist yet is safe to write: an existing .mcp.json may list other servers.
+  const repair = !existsSync(join(root, ".mcp.json")) ? { write: ".mcp.json", content: MCP_JSON } : undefined;
   return missing.length
     ? {
         id: "agent-files",
@@ -283,6 +296,7 @@ function agentFiles(root: string): DoctorCheck {
         required: false,
         message: `AI agents lack project context: missing ${missing.join(", ")}`,
         fix: 'Copy them from a fresh `npm create debuff` project; .mcp.json needs `{ "mcpServers": { "debuff": { "command": "npx", "args": ["-y", "@debuffjp/mcp"] } } }`',
+        ...(repair && { repair }),
       }
     : { id: "agent-files", group: "agents", ok: true, message: "AGENTS.md, CLAUDE.md and .mcp.json are set up for AI agents" };
 }
@@ -338,6 +352,50 @@ async function runtimeHooks(root: string): Promise<DoctorCheck> {
     await b?.close();
     await server.close();
   }
+}
+
+/** The package manager the project uses, from its lockfile. */
+function packageManager(root: string): string {
+  for (let dir = root; ; dir = dirname(dir)) {
+    if (existsSync(join(dir, "pnpm-lock.yaml"))) return "pnpm";
+    if (existsSync(join(dir, "yarn.lock"))) return "yarn";
+    if (existsSync(join(dir, "bun.lock")) || existsSync(join(dir, "bun.lockb"))) return "bun";
+    if (existsSync(join(dir, "package-lock.json")) || dirname(dir) === dir) return "npm";
+  }
+}
+
+/** An npm command in the project's package manager: pnpm, yarn and bun add a package with `add`. */
+function command(pm: string, args: string[]): string[] {
+  return pm !== "npm" && args[0] === "install" && args.length > 1 ? ["add", ...args.slice(1)] : args;
+}
+
+/**
+ * Apply the safe repairs a doctor run found (`debuff doctor --fix`): installs, dedupe and missing agent files.
+ * Returns what it did, one line each; run `runDoctor` again to see what's left.
+ */
+export function repairDoctor(root: string, result: DoctorResult, log: (line: string) => void = () => {}): string[] {
+  const pm = packageManager(root);
+  const done: string[] = [];
+  const runs = new Set<string>();
+  for (const c of result.checks) {
+    if (c.ok || !c.repair) continue;
+    if ("write" in c.repair) {
+      writeFileSync(join(root, c.repair.write), c.repair.content);
+      done.push(`wrote ${c.repair.write}`);
+      log(done.at(-1) as string);
+      continue;
+    }
+    const args = command(pm, c.repair.run);
+    const line = [pm, ...args].join(" ");
+    // A plain install after an install of one package is redundant.
+    if (runs.has(line) || (line === `${pm} install` && runs.size)) continue;
+    runs.add(line);
+    log(line);
+    // Its output goes to stderr, so `--fix --json` still prints only JSON on stdout.
+    execFileSync(pm, args, { cwd: root, stdio: ["ignore", 2, 2], shell: process.platform === "win32" });
+    done.push(`ran ${line}`);
+  }
+  return done;
 }
 
 /** Parse a JSON file, allowing the byte order mark Windows editors add (npm accepts it too). */

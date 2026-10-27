@@ -313,13 +313,20 @@ cli
   .command("doctor", "Check the project's setup: Node, packages, config, assets, browser and agent files")
   .option("--root <dir>", "Project root")
   .option("--live", "Also start the dev server and check the game exposes its dev hooks")
+  .option("--fix", "Apply the safe fixes (installs, missing agent files), then check again")
   .option("--json", "Machine-readable output")
-  .action(async (o: Common & { live?: boolean }) => {
-    const { runDoctor } = await import("./doctor.js");
+  .action(async (o: Common & { live?: boolean; fix?: boolean }) => {
+    const { repairDoctor, runDoctor } = await import("./doctor.js");
     if (!o.json) header("doctor", "checking under the hood");
-    const result = await runDoctor(rootOf(o), { live: o.live ?? false });
+    const root = rootOf(o);
+    let result = await runDoctor(root, { live: o.live ?? false });
+    let fixed: string[] = [];
+    if (o.fix) {
+      fixed = repairDoctor(root, result, o.json ? undefined : (line) => p.log.step(line));
+      if (fixed.length) result = await runDoctor(root, { live: o.live ?? false });
+    }
     if (o.json) {
-      console.log(JSON.stringify(result, null, 2));
+      console.log(JSON.stringify(o.fix ? { ...result, fixed } : result, null, 2));
       return result.ok ? 0 : 1;
     }
     for (const c of result.checks) {
@@ -330,10 +337,17 @@ cli
     }
     const problems = result.checks.filter((c) => !c.ok && c.required !== false).length;
     const advice = result.checks.filter((c) => !c.ok && c.required === false).length;
+    const repairable = result.checks.some((c) => !c.ok && c.repair);
     finish(
       result.ok,
       result.ok ? "all set" : `${problems} problem${problems === 1 ? "" : "s"} to fix`,
-      advice ? amber(`${advice} suggestion${advice === 1 ? "" : "s"}`) : o.live ? "" : pc.dim("--live also boots the game"),
+      repairable && !o.fix
+        ? pc.dim("--fix applies the safe fixes")
+        : advice
+          ? amber(`${advice} suggestion${advice === 1 ? "" : "s"}`)
+          : o.live
+            ? ""
+            : pc.dim("--live also boots the game"),
     );
     return result.ok ? 0 : 1;
   });
@@ -435,6 +449,9 @@ async function main(): Promise<void> {
 }
 
 main().catch((err: unknown) => {
-  p.log.error(err instanceof Error ? err.message : String(err));
+  // A command that throws instead of reporting failed on setup (browser, config, dev hooks), which doctor checks.
+  const name = cli.matchedCommand?.name;
+  const hint = name && name !== "doctor" && name !== "create" ? `\n${pc.dim("run `npx debuff doctor` to check the setup")}` : "";
+  p.log.error(`${err instanceof Error ? err.message : String(err)}${hint}`);
   process.exit(1);
 });
