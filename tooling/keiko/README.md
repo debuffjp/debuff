@@ -187,7 +187,7 @@ Playing (each returns the playtest, so calls chain):
 | `tap(code)` / `tap(x, y)` | A key or pointer press for one step |
 | `pointerDown(x, y, kind?)`, `pointerMove(x, y)`, `pointerUp()` | The pointer: a mouse, or `"touch"` / `"pen"` to press as a finger or stylus (contact 1) |
 | `wheel(dy, dx = 0)` | Scroll the mouse wheel over the game in CSS pixels (positive = down), at the mouse's last position |
-| `touchDown(id, x, y)`, `touchMove(id, x, y)`, `touchUp(id)` | Fingers by id, for multi-touch. The first finger down is the primary pointer. Without debuff they're `pointerType: "touch"` pointer events plus touch events; avoid id 1, which the mouse uses |
+| `touchDown(id, x, y)`, `touchMove(id, x, y)`, `touchUp(id)` | Fingers by id, for multi-touch. The first finger down is the primary pointer. Without debuff they're `pointerType: "touch"` pointer events plus touch events, with `pointerId` = id + 2 so no finger shares the mouse's pointerId 1 (touch events keep your id) |
 | `set("group.key", value)` / `set({ … })` | Set params |
 | `command(name, ...args)` | Run a game command |
 | `replay(fileOrScenario)` | Play a scenario's steps (see below) |
