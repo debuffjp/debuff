@@ -56,23 +56,35 @@ export interface PhaserExtern {
 /** The parts of `Phaser.Textures.TextureManager` the helper reads. */
 export interface PhaserTextureManager {
   getTextureKeys(): string[];
-  get(key: string): {
-    source: {
-      image: unknown;
-      glTexture: { webGLTexture: WebGLTexture | null; width: number; height: number; flipY: boolean; pma: boolean } | null;
-    }[];
-  };
+  get(key: string): { source: PhaserTextureSource[] };
+}
+
+interface PhaserTextureSource {
+  image: unknown;
+  glTexture: { webGLTexture: WebGLTexture | null; width: number; height: number; flipY: boolean; pma: boolean } | null;
 }
 
 /**
- * Phaser's texture for `src`, an image it loaded (`this.textures.get(key).getSourceImage()`), if it has a usable one.
+ * A lookup of Phaser's texture for an image it loaded (`this.textures.get(key).getSourceImage()`). spryte asks every
+ * frame, so the image's source is remembered and only its GL texture, which Phaser may re-create, is read fresh.
  * Unpremultiplied textures would blend differently from spryte's own uploads, so those get spryte's copy.
  */
-function phaserTexture(textures: PhaserTextureManager, src: unknown): BorrowedTexture | null {
-  for (const key of textures.getTextureKeys())
-    for (const { image, glTexture: t } of textures.get(key).source)
-      if (image === src && t?.webGLTexture && t.pma) return { texture: t.webGLTexture, width: t.width, height: t.height, flipY: t.flipY };
-  return null;
+function phaserTextures(textures: PhaserTextureManager): (src: object) => BorrowedTexture | null {
+  const sources = new WeakMap<object, PhaserTextureSource>();
+  const find = (src: object) => {
+    for (const key of textures.getTextureKeys()) for (const s of textures.get(key).source) if (s.image === src) return s;
+    return undefined;
+  };
+  return (src) => {
+    let s = sources.get(src);
+    if (!s) {
+      s = find(src);
+      if (!s) return null;
+      sources.set(src, s);
+    }
+    const t = s.glTexture;
+    return t?.webGLTexture && t.pma ? { texture: t.webGLTexture, width: t.width, height: t.height, flipY: t.flipY } : null;
+  };
 }
 
 export interface PhaserSpryte {
@@ -96,7 +108,7 @@ export function spryteExtern(extern: PhaserExtern, render: (draw: Draw) => void,
     if (typeof WebGL2RenderingContext === "undefined" || !(gl instanceof WebGL2RenderingContext))
       throw new Error("spryte/phaser: Phaser is on a WebGL1 context. Create the game with `...createPhaserContext()` in its config.");
     const textures = extern.scene?.sys.textures;
-    shared ??= createSharedRenderer(gl, textures ? { borrow: (src) => phaserTexture(textures, src), ...options } : options);
+    shared ??= createSharedRenderer(gl, textures ? { borrow: phaserTextures(textures), ...options } : options);
     // Phaser's full state for this destination, forced: it has only reset blend, VAO and textures for the Extern.
     renderer.glWrapper.update(context.state, true);
     shared.target(context.framebuffer?.webGLFramebuffer ?? null, context.width, context.height);

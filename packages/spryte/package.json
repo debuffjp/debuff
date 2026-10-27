@@ -34,6 +34,10 @@
     "./phaser": {
       "types": "./dist/phaser.d.ts",
       "default": "./dist/phaser.js"
+    },
+    "./pixi": {
+      "types": "./dist/pixi.d.ts",
+      "default": "./dist/pixi.js"
     }
   },
   "files": [
@@ -48,6 +52,8 @@
     "example": "vite examples/minimal",
     "example:phaser": "vite examples/phaser",
     "test:phaser": "node examples/phaser/check.mjs",
+    "example:pixi": "vite examples/pixi",
+    "test:pixi": "node examples/pixi/check.mjs",
     "test:browser": "node browser-test/run.mjs"
   },
   "publishConfig": {
