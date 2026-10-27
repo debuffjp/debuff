@@ -9,6 +9,8 @@
       /* The game scales the canvas to fit this container (see GameOptions.scale). */
       #app { position: fixed; inset: 0; display: grid; place-items: center; }
       canvas { display: block; outline: none; }
+      /* Hidden until the game sizes it: the browser paints a 300x150 canvas first, and its jump to full size counts as a layout shift. */
+      canvas:not([style*="width"]) { visibility: hidden; }
     </style>
   </head>
   <body>
