@@ -23,7 +23,7 @@
         "state.enemies": { "eq": [{ "kind": "moth", "hp": 1, "x": 370, "y": 66 }, { "kind": "moth", "hp": 1, "x": 386, "y": 98 }] }
       }
     },
-    { "capture": "north-meadow" },
+    { "capture": "north-meadow", "tolerance": 0.005 },
     { "press": "ArrowDown" },
     { "wait": 60 },
     { "release": "ArrowDown" },

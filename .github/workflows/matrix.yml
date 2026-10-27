@@ -36,6 +36,7 @@ jobs:
             templates/*/.debuff/
             templates/*/scenarios/__baselines__/
           if-no-files-found: ignore
+          include-hidden-files: true # .debuff/ holds the captures, diffs and reports
 
   package-managers:
     name: create + build with ${{ matrix.pm }} (${{ matrix.os }})
