@@ -1,5 +1,13 @@
 # @debuffjp/mcp
 
+## 0.18.0
+
+### Patch Changes
+
+- c7efeba: `debuff doctor --fix` applies the safe fixes it finds: install, dedupe, adding `@debuffjp/dev`, and writing a missing `.mcp.json`, in the project's package manager. Commands that fail on setup now end with a pointer to `debuff doctor`. The MCP server's instructions get a missing space back.
+- Updated dependencies [c7efeba]
+  - @debuffjp/cli@0.18.0
+
 ## 0.17.0
 
 ### Minor Changes
