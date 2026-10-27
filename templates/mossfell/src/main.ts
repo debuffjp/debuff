@@ -5,7 +5,7 @@ import { devOverlay, devTools } from "@debuffjp/dev";
 import { Input } from "@debuffjp/input";
 import { Particles, squash, Tweens } from "@debuffjp/juice";
 import { fromTiled, type MapObject, type Tilemap } from "@debuffjp/tilemap";
-import { panelAround, Transition } from "@debuffjp/ui";
+import { panelAround, squish as squishLook, Transition } from "@debuffjp/ui";
 import { bigText, C, drawFoe, drawGround, drawHero, drawSwing, heart, key, type Look, relic, seed, TILE } from "./art";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game");
@@ -584,14 +584,14 @@ const play: Scene = {
     if (titleTime > 0) {
       // A squish card over the fell, faded out once the player starts.
       draw.alpha = Math.min(1, titleTime * 2);
-      panelAround(draw, 128, mid - 14, 150, 50);
+      panelAround(draw, 128, mid - 14, 150, 50, squishLook);
       bigText(draw, "mossfell", 128, mid - 30, 2, C.lime);
       draw.text("find the mossheart", 128, mid - 8, { color: C.text, align: "center", baseline: "top" });
       draw.text("arrows move  ·  z swings", 128, mid + 4, { color: C.muted, align: "center", baseline: "top" });
       draw.alpha = 1;
     }
     if (state === "won") {
-      panelAround(draw, 128, mid - 5, 220, 26);
+      panelAround(draw, 128, mid - 5, 220, 26, squishLook);
       draw.text("the mossheart is yours", 128, mid - 12, { color: C.lime, align: "center" });
       draw.text(`seeds ${player.seeds}  best ${save.get("bestSeeds")}  ·  attack to play again`, 128, mid + 2, {
         color: C.text,
@@ -599,7 +599,7 @@ const play: Scene = {
       });
     }
     if (state === "lost") {
-      panelAround(draw, 128, mid - 5, 150, 26);
+      panelAround(draw, 128, mid - 5, 150, 26, squishLook);
       draw.text("you fell in the fell", 128, mid - 12, { color: C.pink, align: "center" });
       draw.text("attack to try again", 128, mid + 2, { color: C.text, align: "center" });
     }

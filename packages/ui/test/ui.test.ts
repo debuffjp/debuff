@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { bar, type DrawLike, debuffFrame, Menu, panel, panelAround, Transition } from "../src/index.js";
+import { bar, type DrawLike, Menu, neutral, panel, panelAround, squish, Transition } from "../src/index.js";
 
 function recorder() {
   const calls: { op: string; args: unknown[]; alpha: number }[] = [];
@@ -212,14 +212,22 @@ describe("panelAround", () => {
     expect(calls[0]?.args.slice(0, 4)).toEqual([1, 1, 19, 19]);
   });
 
-  it("gives an unstyled frame debuff's look: a round-cornered panel, no outline", () => {
+  it("gives an unstyled frame the neutral look: a thin border around a dark grey fill", () => {
     const { draw, calls } = recorder();
     const circles: unknown[][] = [];
-    const round = { ...draw, circle: (...args: unknown[]) => circles.push(args) };
-    panelAround(round, 50, 50, 20, 10);
+    panelAround({ ...draw, circle: (...args: unknown[]) => circles.push(args) }, 50, 50, 20, 10);
+    expect(circles.filter((c) => c[3] === neutral.borders[0])).toHaveLength(4);
+    expect(circles.filter((c) => c[3] === neutral.fill)).toHaveLength(4);
+    expect(calls.some((c) => c.args[4] === "#1b2014")).toBe(false);
+  });
+
+  it("draws squish when asked: round corners, no outline", () => {
+    const { draw, calls } = recorder();
+    const circles: unknown[][] = [];
+    panelAround({ ...draw, circle: (...args: unknown[]) => circles.push(args) }, 50, 50, 20, 10, squish);
     expect(circles).toHaveLength(4);
-    expect(circles.every((c) => c[2] === debuffFrame.radius && c[3] === debuffFrame.fill)).toBe(true);
-    expect(calls.every((c) => c.args[4] === debuffFrame.fill)).toBe(true);
+    expect(circles.every((c) => c[2] === squish.radius && c[3] === squish.fill)).toBe(true);
+    expect(calls.every((c) => c.args[4] === squish.fill)).toBe(true);
   });
 
   it("keeps a style that sets its own borders or fill exactly as set", () => {
@@ -262,15 +270,16 @@ describe("chamfer, shadow and bar", () => {
 });
 
 describe("menu highlight", () => {
-  it("squashes the focus pill when focus moves, then springs back", () => {
+  it("squashes the focus pill when focus moves with squash on, then springs back", () => {
     const menu = new Menu([{ label: "play" }, { label: "quit" }]);
-    const pillWidth = () => {
+    const pillWidth = (style = {}) => {
       const { draw, calls } = recorder();
-      menu.draw({ ...draw, circle: () => {} }, 0, 0);
-      return (calls.find((c) => c.op === "rect" && c.args[4] === "#2a3320")?.args[2] as number) ?? 0;
+      menu.draw({ ...draw, circle: () => {} }, 0, 0, { ...squish, ...style });
+      return (calls.find((c) => c.op === "rect" && c.args[4] === squish.highlight)?.args[2] as number) ?? 0;
     };
     const rest = pillWidth();
     menu.move(1);
+    expect(pillWidth({ squash: false })).toBeCloseTo(rest, 5);
     expect(pillWidth()).toBeGreaterThan(rest);
     const none = { pressed: () => false };
     for (let i = 0; i < 30; i++) menu.update(none);

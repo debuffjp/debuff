@@ -1,4 +1,5 @@
 import type { DrawLike } from "./draw-like.js";
+import { neutral, neutralBar, squish } from "./themes.js";
 
 /** A filled box with each corner cut by a `c`px pixel staircase (45°), drawn as a few rects. */
 function chamferedRect(draw: DrawLike, x: number, y: number, w: number, h: number, c: number, color: string | number): void {
@@ -80,21 +81,19 @@ export interface FrameStyle {
   shadowOffset?: number;
 }
 
-/**
- * debuff's own look ("squish"): a soft, round-cornered dark panel, no outlines. It's also what you get when
- * a style sets neither `borders` nor `fill`. Spread it into any `FrameStyle` or menu panel style:
- * `menu.drawPanel(draw, cx, cy, { ...debuffFrame, title: "paused" })`.
- */
+/** @deprecated Spread `squish` instead: it carries this frame plus squish's menu colours. */
 export const debuffFrame = {
-  borders: [],
-  fill: "#1b2014",
-  radius: 10,
-  padding: 10,
+  borders: squish.borders,
+  fill: squish.fill,
+  radius: squish.radius,
+  padding: squish.padding,
 } as const satisfies FrameStyle;
 
-/** A style that sets no frame of its own gets debuff's look; one that sets borders or a fill keeps exactly what it set. */
+/** A style that sets no frame of its own gets the default look (`neutral`); one that sets borders or a fill keeps exactly what it set. */
 export const frameDefaults = (style: FrameStyle): FrameStyle =>
-  style.borders === undefined && style.fill === undefined ? { ...debuffFrame, ...style } : style;
+  style.borders === undefined && style.fill === undefined
+    ? { borders: neutral.borders, fill: neutral.fill, radius: neutral.radius, padding: neutral.padding, ...style }
+    : style;
 
 /**
  * Draw a panel that fits content of `w`×`h` centred on (cx, cy), snapped to whole pixels.
@@ -130,9 +129,9 @@ export interface BarStyle {
   segments?: number;
   /** Pixels between cells. Default 1. */
   gap?: number;
-  /** Lit cells. Default debuff lime. */
+  /** Lit cells. Default a light grey (`neutralBar`). */
   fill?: string | number;
-  /** Unlit cells. Default a dark olive. */
+  /** Unlit cells. Default a dark grey. */
   empty?: string | number;
 }
 
@@ -146,8 +145,8 @@ export function bar(draw: DrawLike, x: number, y: number, w: number, h: number, 
   const n = Math.max(1, Math.floor(style.segments ?? 10));
   const gap = Math.max(0, style.gap ?? 1);
   const lit = Math.round(Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0)) * n);
-  const fill = style.fill ?? "#cffb2d";
-  const empty = style.empty ?? "#2e3a1c";
+  const fill = style.fill ?? neutralBar.fill;
+  const empty = style.empty ?? neutralBar.empty;
   const cell = Math.floor((w - gap * (n - 1)) / n);
   if (cell < 1) return 0;
   for (let i = 0; i < n; i++) draw.rect(x + i * (cell + gap), y, cell, h, i < lit ? fill : empty);

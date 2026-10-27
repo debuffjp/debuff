@@ -5,7 +5,7 @@ import { devOverlay, devTools } from "@debuffjp/dev";
 import { Input } from "@debuffjp/input";
 import { Particles, squash, Tweens } from "@debuffjp/juice";
 import { fromTiled, type MapObject } from "@debuffjp/tilemap";
-import { Menu, panelAround, Transition } from "@debuffjp/ui";
+import { Menu, panelAround, squish, Transition } from "@debuffjp/ui";
 import { AMBER, bigText, blob, drawLevel, INK, LIME, MINT, MUTED, PANEL, roundRect, SKY, TEXT } from "./look";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game");
@@ -298,14 +298,14 @@ const play: Scene = {
       roundRect(draw, 161, 5, 3, 8, 1.5, MUTED);
     }
     if (won) {
-      panelAround(draw, 160, 84, 150, 36);
+      panelAround(draw, 160, 84, 150, 36, squish);
       bigText(draw, "you made it!", 160, 70, 2, LIME);
       draw.text("jump to play again", 160, 92, { color: TEXT, align: "center" });
     }
     if (paused) {
       draw.rect(0, 0, game.width, game.height, "rgba(17,20,13,0.6)");
       const menu = paused === "settings" ? settingsMenu : pauseMenu;
-      menu.drawPanel(draw, game.width / 2, game.height / 2, { title: paused === "settings" ? "settings" : "paused" });
+      menu.drawPanel(draw, game.width / 2, game.height / 2, { ...squish, title: paused === "settings" ? "settings" : "paused" });
     }
     fade.draw(draw, 0, 0, game.width, game.height);
   },
