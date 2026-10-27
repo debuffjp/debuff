@@ -1,5 +1,16 @@
 # @debuffjp/mcp
 
+## 0.17.0
+
+### Minor Changes
+
+- ea43c61: `debuff doctor` checks a project's setup in one pass and prints a fix for each problem: Node version, debuff packages on one version, `node_modules` matching `package.json`, a nested copy of `@debuffjp/core`, `@debuffjp/dev` and TypeScript, `debuff.config.ts`, the asset pipeline, `saves.json`, agent files (`AGENTS.md`, `CLAUDE.md`, `.mcp.json`), the browser scenarios use, and a `NODE_ENV` left set in the shell. `--live` also starts the dev server and checks the game exposes its dev hooks. It exits 1 when a required check fails, and `--json` prints every check with an id. The MCP server gains a `doctor` tool, and new projects' `AGENTS.md` lists the command.
+
+### Patch Changes
+
+- Updated dependencies [ea43c61]
+  - @debuffjp/cli@0.17.0
+
 ## 0.16.0
 
 ### Minor Changes
