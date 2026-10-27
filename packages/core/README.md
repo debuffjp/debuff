@@ -70,7 +70,11 @@ With the `aseprite()` CLI plugin you can keep the source as `assets/font@6x9.ase
 
 - `fit` (default): fill the container, keep the aspect ratio.
 - `integer`: whole device-pixel scales for crisp pixel art.
+- `expand`: like `fit`, but the logical size grows along the spare axis instead of letterboxing.
+- `pixel`: each logical unit is `pixelSize` CSS pixels (default 3, snapped to whole device pixels), and the logical size grows with the container, so a bigger window or monitor shows more of the game instead of bigger pixels. `width`/`height` are the minimum.
 - `none`: logical size in CSS pixels.
+
+With `expand` and `pixel`, `game.width` and `game.height` change on resize (`game.hooks.resize`), so lay out from them each frame.
 
 Game code always uses logical units. The backing store follows `devicePixelRatio`.
 

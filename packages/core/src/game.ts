@@ -21,17 +21,23 @@ const REDUCED_SHAKE = 0.25;
  * - `expand`: like `fit`, but instead of letterboxing, the logical size grows along the spare axis to fill the
  *   container. `width`/`height` are the minimum; `game.width`/`game.height` change on resize (see `hooks.resize`),
  *   so lay out from them each frame. For responsive games: portrait on phones, landscape on desktop.
+ * - `pixel`: each logical unit is `pixelSize` CSS pixels (snapped to whole device pixels), and the logical size
+ *   grows with the container in both directions, so a bigger window or monitor shows more of the game rather
+ *   than bigger pixels. `width`/`height` are the minimum: a container too small for them at `pixelSize` scales
+ *   down by whole device pixels instead. Like `expand`, lay out from `game.width`/`game.height` each frame.
  * - `none`: canvas stays at its logical size in CSS pixels.
  */
-export type ScaleMode = "fit" | "integer" | "expand" | "none";
+export type ScaleMode = "fit" | "integer" | "expand" | "pixel" | "none";
 
 export interface GameOptions {
   canvas: HTMLCanvasElement;
-  /** Logical resolution. Game code always works in these units. With `scale: "expand"` it's the minimum size. */
+  /** Logical resolution. Game code always works in these units. With `scale: "expand"` or `"pixel"` it's the minimum size. */
   width: number;
   height: number;
   /** Default "fit". */
   scale?: ScaleMode;
+  /** CSS pixels per logical unit in `scale: "pixel"`. Default 3. */
+  pixelSize?: number;
   /** Element whose size drives scaling. Default: the canvas's parent. */
   container?: HTMLElement;
   /** Nearest-neighbour sampling for crisp pixel art. Default false. */
@@ -67,11 +73,11 @@ export class Game {
   readonly canvas: HTMLCanvasElement;
   /** Immediate-mode drawing API, passed to `Scene.render` and render hooks. */
   readonly draw: Draw;
-  /** Logical width. Fixed, except in `scale: "expand"`, where it grows to fill the container (never below the minimum). */
+  /** Logical width. Fixed, except in `scale: "expand"` and `"pixel"`, where it grows to fill the container (never below the minimum). */
   get width(): number {
     return this.logicalW;
   }
-  /** Logical height. Fixed, except in `scale: "expand"` (see `width`). */
+  /** Logical height. Fixed, except in `scale: "expand"` and `"pixel"` (see `width`). */
   get height(): number {
     return this.logicalH;
   }
@@ -85,6 +91,8 @@ export class Game {
   /** Named JSON snapshot providers for dev tools and scenarios. */
   readonly inspect = new InspectRegistry();
   readonly scaleMode: ScaleMode;
+  /** CSS pixels per logical unit in `scale: "pixel"`. */
+  readonly pixelSize: number;
   readonly pixelArt: boolean;
   background: string;
   /** Multiplier on simulation dt; 0.5 = slow motion. */
@@ -146,6 +154,7 @@ export class Game {
     this.minW = this.logicalW = options.width;
     this.minH = this.logicalH = options.height;
     this.scaleMode = options.scale ?? "fit";
+    this.pixelSize = options.pixelSize ?? 3;
     this.pixelArt = options.pixelArt ?? false;
     this.clock = new FixedClock(options.clock);
     this.random = new Random(options.seed ?? 1);
@@ -361,6 +370,11 @@ export class Game {
       const { clientWidth: cw, clientHeight: ch } = this.container;
       if (cw > 0 && ch > 0) {
         css = Math.min(cw / this.minW, ch / this.minH);
+        if (this.scaleMode === "pixel") {
+          // A fixed size per logical unit in whole device pixels, unless the minimum size wouldn't fit at it.
+          css = Math.max(1, Math.min(Math.round(this.pixelSize * dpr), Math.floor(css * dpr))) / dpr;
+          this.setLogical(Math.max(this.minW, Math.floor(cw / css)), Math.max(this.minH, Math.floor(ch / css)));
+        }
         if (this.scaleMode === "expand")
           this.setLogical(Math.max(this.minW, Math.round(cw / css)), Math.max(this.minH, Math.round(ch / css)));
         // Integer mode snaps in device pixels so each logical pixel maps to whole device pixels.
@@ -383,7 +397,7 @@ export class Game {
     if (!this.running) this.render(0);
   }
 
-  /** Change the logical size (expand mode): the camera follows, staying centred if it was. */
+  /** Change the logical size (expand and pixel modes): the camera follows, staying centred if it was. */
   private setLogical(w: number, h: number): void {
     if (w === this.logicalW && h === this.logicalH) return;
     const centred = this.camera.x === this.logicalW / 2 && this.camera.y === this.logicalH / 2;
