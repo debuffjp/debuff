@@ -1,5 +1,22 @@
 # @debuffjp/dev
 
+## 0.16.0
+
+### Minor Changes
+
+- efec916: The dev hooks' `pointerDown(x, y, kind?)` and `tap(x, y, kind?)` take what is pressing: `"mouse"` (the default, as before), `"touch"` or `"pen"`. The game sees it in `pointer.kind`. A touch or pen press is contact 1 in `pointer.touches` and the primary pointer, and a mouse press is only the primary pointer, so a dev drag no longer looks like both a mouse and a touch. Scenarios take `{ "pointerDown": [x, y, "touch"] }` and `{ "tap": [x, y, "pen"] }`, and keiko's `game.pointerDown(x, y, "touch")` does the same, through the dev hooks or as real touch events.
+- 96bebe8: The right and middle mouse buttons are bindable: `"PointerRight"` and `"PointerMiddle"`, so an action like right-click remove goes through `input.down/pressed/released`, scenarios and fuzz like any key. `input.pointer.right` and `input.pointer.middle` hold `down`, `pressed` and `released`, including buttons pressed while another is held; `pointer.pressButton("right")` and `releaseButton` simulate them. The dev hooks' `press("PointerRight")`, scenario `{ "press": "PointerRight" }` and `debuff fuzz --keys PointerRight` press the button, and recorded replays keep it. The primary pointer (`"Pointer"`) is unchanged.
+- 8e669fe: Tests and scenarios can press the right mouse button, scroll the wheel and touch with several fingers, all through the same paths as real input.
+  
+  - keiko: `game.press("PointerRight")` (and `"PointerMiddle"`), `game.wheel(dy, dx?)`, and `game.touchDown(id, x, y)`, `touchMove(id, x, y)` and `touchUp(id)`. debuff games are driven through their dev hooks. Other games get real DOM events: mouse button presses (a button pressed while another is held arrives as a `pointermove`, as in browsers, and the right button fires `contextmenu`), `wheel` events, and `pointerType: "touch"` pointer events with touch events. `game.replay()` plays the new scenario steps.
+  - Dev hooks: `wheel(dy, dx?)`, `touchDown(id, x, y, kind?)`, `touchMove(id, x, y)` and `touchUp(id)`. Recorded replays keep wheel scrolls and touches, so a session played on a phone replays exactly. They need `@debuffjp/input` 0.16 and say so on older versions.
+  - Scenarios: `{ "wheel": dy }` or `{ "wheel": [dy, dx] }`, `{ "touchDown": [id, x, y] }` (`[id, x, y, "pen"]` for a pen), `{ "touchMove": [id, x, y] }` and `{ "touchUp": id }`.
+
+### Patch Changes
+
+- Updated dependencies [70a00c9]
+  - myaku@0.5.1
+
 ## 0.15.0
 
 ### Minor Changes

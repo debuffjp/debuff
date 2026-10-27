@@ -1,5 +1,19 @@
 # @debuffjp/input
 
+## 0.16.0
+
+### Minor Changes
+
+- 96bebe8: The right and middle mouse buttons are bindable: `"PointerRight"` and `"PointerMiddle"`, so an action like right-click remove goes through `input.down/pressed/released`, scenarios and fuzz like any key. `input.pointer.right` and `input.pointer.middle` hold `down`, `pressed` and `released`, including buttons pressed while another is held; `pointer.pressButton("right")` and `releaseButton` simulate them. The dev hooks' `press("PointerRight")`, scenario `{ "press": "PointerRight" }` and `debuff fuzz --keys PointerRight` press the button, and recorded replays keep it. The primary pointer (`"Pointer"`) is unchanged.
+- 5874ea3: `input.pointer.kind` says what made the latest press: `"mouse"`, `"touch"` or `"pen"`, so games don't need their own `pointerdown` listener to read `pointerType`. Contacts in `pointer.touches` carry a `kind` too, and `pointer.touchesStarted` / `pointer.touchesEnded` list the contacts that started and ended this step, so games don't diff the map themselves. `pointer.touchStart(id, x, y, kind?)`, `touchMove` and `touchEnd` simulate contacts through the same path as real ones: the first contact also presses the primary pointer. `pointer.press(x, y, kind?)` takes an optional kind (default `"mouse"`).
+- 86eba07: `input.rebind(action, keys)` replaces an action's bindings, for controls menus. It takes a copy of `keys` and updates `input.keys.captured`, so newly bound keys stop scrolling the page and keys no longer bound scroll it again; keys the game added to `captured` itself are left alone. `input.bindings` is now Input's own copy of the map passed in, so rebinding never changes the caller's object. The lists inside it are still the caller's arrays until rebound, so existing code that edits them in place keeps working.
+- f9eb177: `input.pointer.wheel` and `input.pointer.wheelX`: the wheel or trackpad scroll over the canvas this step, in CSS pixels (line and page deltas are converted), reset after every step. `pointer.scroll(dy, dx)` simulates it. `new Input(game, { captureWheel: true })` stops the page scrolling while the wheel is over the game, for wheel zoom in embeds; by default the page still scrolls as before.
+
+### Patch Changes
+
+- dda5f57: Keyboard input works after clicking a game embedded in an iframe (game portals such as Wavedash). The pointer's `preventDefault` on `pointerdown` stopped the click focusing the frame, so keys went nowhere until the player clicked outside the game. A press now calls `window.focus()` when the document doesn't have focus.
+- fbd1160: A press is no longer dropped when `setPointerCapture` throws. Synthetic pointer events and unknown pointer ids make it throw `NotFoundError`, which stopped the press from registering. The pointer now tries to capture and carries on if it can't.
+
 ## 0.15.0
 
 No changes in this release.

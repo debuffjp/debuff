@@ -1,5 +1,24 @@
 # @debuffjp/mcp
 
+## 0.16.0
+
+### Minor Changes
+
+- fead3cd: `game_input` gains `wheel` (`dy`, `dx`), `touch_down` / `touch_move` / `touch_up` (by contact `id`, with `kind: "pen"` for a pen), and a `kind` on `tap` and `pointer_down`.
+
+### Patch Changes
+
+- Updated dependencies [efec916]
+- Updated dependencies [e17b3df]
+- Updated dependencies [96bebe8]
+- Updated dependencies [812b958]
+- Updated dependencies [068ed32]
+- Updated dependencies [70a00c9]
+- Updated dependencies [b87c265]
+- Updated dependencies [8e669fe]
+  - @debuffjp/cli@0.16.0
+  - keiko@0.7.0
+
 ## 0.15.0
 
 ### Patch Changes

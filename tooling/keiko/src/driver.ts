@@ -1,5 +1,8 @@
 import type { VirtualClock } from "./clock.js";
 
+/** What presses the pointer: a mouse, a finger or a pen. */
+export type PointerKind = "mouse" | "touch" | "pen";
+
 /** Thrown when a test uses something the game doesn't expose through `window.__KEIKO__`. */
 export class MissingHookError extends Error {
   override readonly name = "MissingHookError";
@@ -68,9 +71,16 @@ export interface Driver {
   press(code: string): void;
   release(code: string): void;
   tap(x: number, y: number): void;
-  pointerDown(x: number, y: number): void;
+  /** Press the primary pointer as a mouse, or as a `"touch"` or `"pen"` contact. */
+  pointerDown(x: number, y: number, kind?: PointerKind): void;
   pointerMove(x: number, y: number): void;
   pointerUp(): void;
+  /** Scroll the wheel by `dy` (and `dx`) CSS pixels over the game. */
+  wheel(dy: number, dx: number): void;
+  /** Touch contacts by id, in the game's coordinates. A `"pen"` contact is a stylus. */
+  touchDown(id: number, x: number, y: number, kind?: "pen"): void;
+  touchMove(id: number, x: number, y: number): void;
+  touchUp(id: number): void;
   params(): Record<string, Record<string, ParamValue>>;
   setParam(group: string, key: string, value: ParamValue): void;
   command(name: string, ...args: unknown[]): unknown;
@@ -84,9 +94,15 @@ export interface DebuffDevHooks {
   press(code: string): void;
   release(code: string): void;
   tap(x: number, y: number): void;
-  pointerDown(x: number, y: number): void;
+  /** `kind` needs @debuffjp/dev 0.16+; older versions press as a mouse. */
+  pointerDown(x: number, y: number, kind?: PointerKind): void;
   pointerMove(x: number, y: number): void;
   pointerUp(): void;
+  /** @debuffjp/dev 0.16+. */
+  wheel?(dy: number, dx?: number): void;
+  touchDown?(id: number, x: number, y: number, kind?: "touch" | "pen"): void;
+  touchMove?(id: number, x: number, y: number): void;
+  touchUp?(id: number): void;
   params(): Record<string, { values: Record<string, ParamValue> }>;
   setParam(group: string, key: string, value: never): void;
   command(name: string, ...args: unknown[]): unknown;
@@ -124,14 +140,30 @@ export function debuffDriver(hooks: DebuffDevHooks, clock?: VirtualClock): Drive
     press: (c) => hooks.press(c),
     release: (c) => hooks.release(c),
     tap: (x, y) => hooks.tap(x, y),
-    pointerDown: (x, y) => hooks.pointerDown(x, y),
+    pointerDown: (x, y, kind) => (kind && kind !== "mouse" ? hooks.pointerDown(x, y, kind) : hooks.pointerDown(x, y)),
     pointerMove: (x, y) => hooks.pointerMove(x, y),
     pointerUp: () => hooks.pointerUp(),
+    wheel: (dy, dx) => newer(hooks.wheel, "wheel").call(hooks, dy, dx),
+    touchDown: (id, x, y, kind) => newer(hooks.touchDown, "touchDown").call(hooks, id, x, y, kind),
+    touchMove: (id, x, y) => newer(hooks.touchMove, "touchMove").call(hooks, id, x, y),
+    touchUp: (id) => newer(hooks.touchUp, "touchUp").call(hooks, id),
     params: () => Object.fromEntries(Object.entries(hooks.params()).map(([g, d]) => [g, { ...d.values }])),
     setParam: (g, k, v) => hooks.setParam(g, k, v as never),
     command: (name, ...args) => hooks.command(name, ...args),
   };
 }
+
+/** A dev hook newer debuff versions have, or an error saying to update. */
+function newer<F>(fn: F | undefined, name: string): F {
+  if (!fn)
+    throw new MissingHookError(
+      `This game's @debuffjp/dev has no ${name}() hook. Update it to 0.16 or later (npm i -D @debuffjp/dev@latest).`,
+    );
+  return fn;
+}
+
+/** The right and middle mouse buttons, which tests press like keys by their binding names. */
+const MOUSE_BUTTONS: Readonly<Record<string, 1 | 2>> = { PointerRight: 2, PointerMiddle: 1 };
 
 /**
  * Any other game: `window.__KEIKO__` (looked up on every call, so hooks installed late still count)
@@ -141,6 +173,8 @@ export function genericDriver(window: Window & { __KEIKO__?: KeikoHooks }, clock
   const hooks = (): KeikoHooks => window.__KEIKO__ ?? {};
   const dom = domInput(window);
   let ownTicks = 0;
+  /** A touch or pen `pointerDown` is held as contact 1. */
+  let contact = false;
   const missing = (what: string, hook: string) =>
     new MissingHookError(`This game doesn't expose ${what}. Add \`${hook}\` to window.__KEIKO__ (in development builds).`);
   const stepSeconds = () => hooks().stepSeconds ?? clock.stepMs / 1000;
@@ -169,16 +203,33 @@ export function genericDriver(window: Window & { __KEIKO__?: KeikoHooks }, clock
         clock.advance(n);
       }
     },
-    press: (c) => (hooks().press ? hooks().press?.(c) : dom.key("keydown", c)),
-    release: (c) => (hooks().release ? hooks().release?.(c) : dom.key("keyup", c)),
+    press: (c) => (MOUSE_BUTTONS[c] ? dom.button("down", MOUSE_BUTTONS[c]) : hooks().press ? hooks().press?.(c) : dom.key("keydown", c)),
+    release: (c) => (MOUSE_BUTTONS[c] ? dom.button("up", MOUSE_BUTTONS[c]) : hooks().release ? hooks().release?.(c) : dom.key("keyup", c)),
     tap(x, y) {
       this.pointerDown(x, y);
       this.step(1);
       this.pointerUp();
     },
-    pointerDown: (x, y) => (hooks().pointerDown ? hooks().pointerDown?.(x, y) : dom.pointer("down", x, y)),
-    pointerMove: (x, y) => (hooks().pointerMove ? hooks().pointerMove?.(x, y) : dom.pointer("move", x, y)),
-    pointerUp: () => (hooks().pointerUp ? hooks().pointerUp?.() : dom.pointer("up")),
+    pointerDown(x, y, kind = "mouse") {
+      if (kind !== "mouse") {
+        dom.touch("down", 1, x, y, kind);
+        contact = true;
+      } else if (hooks().pointerDown) hooks().pointerDown?.(x, y);
+      else dom.pointer("down", x, y);
+    },
+    pointerMove: (x, y) =>
+      contact ? dom.touch("move", 1, x, y) : hooks().pointerMove ? hooks().pointerMove?.(x, y) : dom.pointer("move", x, y),
+    pointerUp() {
+      if (contact) {
+        contact = false;
+        dom.touch("up", 1);
+      } else if (hooks().pointerUp) hooks().pointerUp?.();
+      else dom.pointer("up");
+    },
+    wheel: (dy, dx) => dom.wheel(dy, dx),
+    touchDown: (id, x, y, kind) => dom.touch("down", id, x, y, kind),
+    touchMove: (id, x, y) => dom.touch("move", id, x, y),
+    touchUp: (id) => dom.touch("up", id),
     params: () => {
       const p = hooks().params;
       if (!p) throw missing("params", "params()");
@@ -206,6 +257,10 @@ function domInput(window: Window) {
   let last = { x: 0, y: 0 };
   let moved = false;
   let pressed = false;
+  /** Right (2) and middle (4) bits of `PointerEvent.buttons`. */
+  let aux = 0;
+  const touches = new Map<number, { x: number; y: number; type: "touch" | "pen" }>();
+  let primaryTouch: number | undefined;
   // Keys go where a player's would: the focused element, or the game's canvas (players click the game first).
   // They bubble up to document and window, so listeners anywhere hear them.
   const target = () => {
@@ -218,7 +273,18 @@ function domInput(window: Window) {
     KeyboardEvent: typeof KeyboardEvent;
     PointerEvent?: typeof PointerEvent;
     MouseEvent: typeof MouseEvent;
+    WheelEvent?: typeof WheelEvent;
+    TouchEvent?: typeof TouchEvent;
+    Touch?: typeof Touch;
   };
+  // The page doesn't scroll and the canvas sits at the origin, so every position field is the same point.
+  // DOM implementations often leave pageX/offsetX at 0, and engines read different ones (Phaser: pageX).
+  const positioned = <E extends Event>(event: E, x: number, y: number): E => {
+    for (const field of ["pageX", "offsetX", "screenX", "layerX", "x"]) Object.defineProperty(event, field, { value: x });
+    for (const field of ["pageY", "offsetY", "screenY", "layerY", "y"]) Object.defineProperty(event, field, { value: y });
+    return event;
+  };
+  const common = { bubbles: true, cancelable: true, composed: true };
   return {
     key(type: "keydown" | "keyup", code: string) {
       if (type === "keydown" && held.has(code)) return;
@@ -239,22 +305,82 @@ function domInput(window: Window) {
       moved = true;
       last = { x, y };
       if (kind !== "move") pressed = kind === "down";
-      const init = { clientX: x, clientY: y, button: 0, buttons: pressed ? 1 : 0, bubbles: true, cancelable: true, composed: true };
+      const init = { clientX: x, clientY: y, button: 0, buttons: (pressed ? 1 : 0) | aux, ...common };
       const el = canvas();
       const PointerCtor = W.PointerEvent ?? W.MouseEvent;
-      // The page doesn't scroll and the canvas sits at the origin, so every position field is the same point.
-      // DOM implementations often leave pageX/offsetX at 0, and engines read different ones (Phaser: pageX).
-      const positioned = <E extends Event>(event: E): E => {
-        for (const field of ["pageX", "offsetX", "screenX", "layerX", "x"]) Object.defineProperty(event, field, { value: x });
-        for (const field of ["pageY", "offsetY", "screenY", "layerY", "y"]) Object.defineProperty(event, field, { value: y });
-        return event;
-      };
-      el.dispatchEvent(positioned(new PointerCtor(`pointer${kind}`, { ...init, pointerId: 1, pointerType: "mouse", isPrimary: true })));
-      el.dispatchEvent(positioned(new W.MouseEvent(`mouse${kind}`, init)));
-      if (kind === "up") el.dispatchEvent(positioned(new W.MouseEvent("click", init)));
+      el.dispatchEvent(
+        positioned(new PointerCtor(`pointer${kind}`, { ...init, pointerId: 1, pointerType: "mouse", isPrimary: true }), x, y),
+      );
+      el.dispatchEvent(positioned(new W.MouseEvent(`mouse${kind}`, init), x, y));
+      if (kind === "up") el.dispatchEvent(positioned(new W.MouseEvent("click", init), x, y));
+    },
+    /** The right (`2`) or middle (`1`) mouse button, at the mouse's last position. */
+    button(kind: "down" | "up", button: 1 | 2) {
+      const bit = button === 2 ? 2 : 4;
+      if (kind === "down" ? aux & bit : !(aux & bit)) return;
+      const before = (pressed ? 1 : 0) | aux;
+      aux = kind === "down" ? aux | bit : aux & ~bit;
+      const buttons = (pressed ? 1 : 0) | aux;
+      // As in browsers, a button pressed or let go while another is held is a pointermove, not down or up.
+      const type = kind === "down" ? (before ? "pointermove" : "pointerdown") : buttons ? "pointermove" : "pointerup";
+      const { x, y } = last;
+      const init = { clientX: x, clientY: y, button, buttons, ...common };
+      const el = canvas();
+      const PointerCtor = W.PointerEvent ?? W.MouseEvent;
+      el.dispatchEvent(positioned(new PointerCtor(type, { ...init, pointerId: 1, pointerType: "mouse", isPrimary: true }), x, y));
+      el.dispatchEvent(positioned(new W.MouseEvent(`mouse${kind}`, init), x, y));
+      if (kind === "down" && button === 2) el.dispatchEvent(positioned(new W.MouseEvent("contextmenu", init), x, y));
+      if (kind === "up") el.dispatchEvent(positioned(new W.MouseEvent("auxclick", init), x, y));
+    },
+    /** Wheel scroll in pixels at the mouse's last position. */
+    wheel(dy: number, dx: number) {
+      const { x, y } = last;
+      const init = { clientX: x, clientY: y, deltaX: dx, deltaY: dy, deltaZ: 0, deltaMode: 0, ...common };
+      const event = W.WheelEvent
+        ? new W.WheelEvent("wheel", init)
+        : Object.assign(new W.MouseEvent("wheel", init), { deltaX: dx, deltaY: dy, deltaMode: 0 });
+      canvas().dispatchEvent(positioned(event, x, y));
+    },
+    /** A finger, as browsers report it: pointer events with `pointerType: "touch"`, then touch events. */
+    touch(kind: "down" | "move" | "up", id: number, x?: number, y?: number, pointerType: "touch" | "pen" = "touch") {
+      const known = touches.get(id);
+      const type = kind === "down" ? pointerType : (known?.type ?? "touch");
+      if (kind === "down" ? known : !known) return;
+      const at = { x: x ?? known?.x ?? 0, y: y ?? known?.y ?? 0 };
+      if (kind === "up") touches.delete(id);
+      else touches.set(id, { ...at, type });
+      if (kind === "down" && primaryTouch === undefined) primaryTouch = id;
+      const isPrimary = id === primaryTouch;
+      if (kind === "up" && isPrimary) primaryTouch = undefined;
+      const el = canvas();
+      const init = { clientX: at.x, clientY: at.y, button: kind === "move" ? -1 : 0, buttons: kind === "up" ? 0 : 1, ...common };
+      const PointerCtor = W.PointerEvent ?? W.MouseEvent;
+      // The mouse is pointerId 1, as in browsers, so contacts are shifted past it; touch events keep the caller's id.
+      const pointerId = id + TOUCH_POINTER_OFFSET;
+      el.dispatchEvent(positioned(new PointerCtor(`pointer${kind}`, { ...init, pointerId, pointerType: type, isPrimary }), at.x, at.y));
+      // Pens send pointer events only; fingers send touch events as well.
+      if (type === "pen" || !W.TouchEvent || !W.Touch) return;
+      const point = (i: number, p: { x: number; y: number }) =>
+        new (W.Touch as typeof Touch)({
+          identifier: i,
+          target: el,
+          clientX: p.x,
+          clientY: p.y,
+          pageX: p.x,
+          pageY: p.y,
+          screenX: p.x,
+          screenY: p.y,
+        });
+      const changed = point(id, at);
+      const active = [...touches].filter(([, p]) => p.type === "touch").map(([i, p]) => point(i, p));
+      const touchType = kind === "down" ? "touchstart" : kind === "move" ? "touchmove" : "touchend";
+      el.dispatchEvent(new W.TouchEvent(touchType, { touches: active, targetTouches: active, changedTouches: [changed], ...common }));
     },
   };
 }
+
+/** Added to a touch id to make its DOM `pointerId`, so no contact shares the mouse's id 1. */
+export const TOUCH_POINTER_OFFSET = 2;
 
 /** The legacy `KeyboardEvent.keyCode` for a `code`, which older engines (Phaser's key objects) still read. 0 if unknown. */
 export function keyCodeFor(code: string): number {

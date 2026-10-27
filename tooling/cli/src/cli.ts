@@ -256,7 +256,10 @@ cli
   .option("--seconds <n>", "Simulated seconds of play per run", { default: 60 })
   .option("--runs <n>", "Independent runs", { default: 3 })
   .option("--seed <n>", "Input seed, to repeat a run exactly")
-  .option("--keys <codes>", "Comma-separated KeyboardEvent.code values to press")
+  .option(
+    "--keys <codes>",
+    "Comma-separated KeyboardEvent.code values to press (PointerRight and PointerMiddle press mouse buttons; Wheel scrolls and Touch taps or drags a finger)",
+  )
   .option("--ignore <paths>", "Comma-separated state paths the loop check skips, e.g. state.shots")
   .option("--json", "Machine-readable output")
   .action(async (o: Common & { seconds: number; runs: number; seed?: number; keys?: string; ignore?: string }) => {

@@ -84,6 +84,16 @@ describe("debuff MCP server", () => {
     const moved = await data("game_step", { steps: 30 });
     expect(moved.state.player.x).toBeGreaterThan(160);
 
+    // Wheel, touch and pointer kinds reach the dev hooks; missing arguments are explained.
+    expect(await data("game_input", { action: "wheel", dy: 120 })).toEqual({ ok: true });
+    expect(await data("game_input", { action: "touch_down", id: 3, x: 10, y: 10 })).toEqual({ ok: true });
+    expect(await data("game_input", { action: "touch_move", id: 3, x: 20, y: 10 })).toEqual({ ok: true });
+    expect(await data("game_input", { action: "touch_up", id: 3 })).toEqual({ ok: true });
+    expect(await data("game_input", { action: "tap", x: 5, y: 5, kind: "pen" })).toEqual({ ok: true });
+    expect((await call("game_input", { action: "touch_down", x: 1, y: 1 })).content[0]?.text).toMatch(/needs id, x and y/);
+    expect((await call("game_input", { action: "wheel" })).isError).toBe(true);
+    await data("game_step", { steps: 1, quiet: true });
+
     await data("game_set_param", { group: "player", key: "speed", value: 400 });
     expect((await data("game_params")).player.values.speed).toBe(400);
     expect((await call("game_set_param", { group: "player", key: "speed", value: 99999 })).isError).toBe(true);

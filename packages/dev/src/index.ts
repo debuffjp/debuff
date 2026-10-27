@@ -1,13 +1,25 @@
 import type { Game, ParamDescription, ParamValue, Plugin } from "@debuffjp/core";
 import type { Report } from "myaku";
 import type { ExplainedError } from "./explain.js";
-import { type PadStep, type Replay, takeRewind, toPadState } from "./replay.js";
+import { type PadStep, pointerOp, pressSource, type Replay, releaseSource, takeRewind, toPadState } from "./replay.js";
 import { DevSession, type FrameSample, type GameEventRecord, gamePlugins, type Note, type TypeDiagnostic } from "./session.js";
 
 /** The parts of `@debuffjp/input`'s `Input` the hooks drive. Structural, so `dev` does not depend on `input`. */
 export interface DrivableInput {
   keys: { press(code: string): void; release(code: string): void };
-  pointer: { press(x: number, y: number): void; move(x: number, y: number): void; release(): void };
+  pointer: {
+    press(x: number, y: number): void;
+    move(x: number, y: number): void;
+    release(): void;
+    /** Right and middle buttons (`@debuffjp/input` 0.16+), pressed as `"PointerRight"` and `"PointerMiddle"`. */
+    pressButton?(button: "right" | "middle"): void;
+    releaseButton?(button: "right" | "middle"): void;
+    /** Wheel and touch (`@debuffjp/input` 0.16+). */
+    scroll?(dy: number, dx?: number): void;
+    touchStart?(id: number, x: number, y: number, kind?: PointerKind): void;
+    touchMove?(id: number, x: number, y: number): void;
+    touchEnd?(id: number): void;
+  };
   /** Gamepads (`@debuffjp/input`'s `Gamepads`): recorded per poll, and fed back on replay. */
   pads?: DrivablePads;
 }
@@ -23,6 +35,12 @@ export interface DrivablePads {
   fed: DrivablePadState | null | undefined;
   sample(): DrivablePadState | null;
 }
+
+/** What made a pointer press, as `@debuffjp/input` reports it in `pointer.kind`. */
+export type PointerKind = "mouse" | "touch" | "pen";
+
+/** The contact id a touch or pen `pointerDown` uses. */
+const DEV_CONTACT = 1;
 
 export interface DevState {
   scene: string | undefined;
@@ -75,13 +93,25 @@ export interface DevHooks {
   speed(scale: number): void;
   /** Force `game.reducedMotion` on or off; `null` restores what it was. Returns the new state. */
   reducedMotion(value: boolean | null): DevState;
+  /** Hold a key (`KeyboardEvent.code`), or the right or middle mouse button as `"PointerRight"` / `"PointerMiddle"`. */
   press(code: string): void;
   release(code: string): void;
-  /** Press and release the primary pointer at logical coordinates across one step. */
-  tap(x: number, y: number): void;
-  pointerDown(x: number, y: number): void;
+  /** Press and release the primary pointer at logical coordinates across one step, as a mouse unless `kind` says otherwise. */
+  tap(x: number, y: number, kind?: PointerKind): void;
+  /**
+   * Press the primary pointer at logical coordinates. `kind` (default `"mouse"`) is what the game sees in
+   * `pointer.kind`: a `"touch"` or `"pen"` press is also a contact in `pointer.touches` (id 1), and a mouse
+   * press is only the primary pointer, so a drag never shows up as both.
+   */
+  pointerDown(x: number, y: number, kind?: PointerKind): void;
   pointerMove(x: number, y: number): void;
   pointerUp(): void;
+  /** Scroll the wheel by `dy` (and `dx`) CSS pixels this step: positive scrolls down / right. */
+  wheel(dy: number, dx?: number): void;
+  /** Start a touch contact `id` at logical coordinates (a finger, or `"pen"`). The first contact also presses the primary pointer. */
+  touchDown(id: number, x: number, y: number, kind?: "touch" | "pen"): void;
+  touchMove(id: number, x: number, y: number): void;
+  touchUp(id: number): void;
   /** Feed gamepad state (pressed standard-mapping button indices, left stick axes); `null` = no pad, `undefined` = real pads again. */
   pad(state: PadStep | null | undefined): void;
   params(): Record<string, ParamDescription>;
@@ -211,6 +241,25 @@ function createHooks(game: Game, session: DevSession, options: DevHooksOptions, 
   };
 
   let motionBefore: boolean | undefined;
+  /** True while a `pointerDown` with a touch or pen kind holds the dev contact. */
+  let contact = false;
+  // Plain functions, not methods: callers (the agent link, scenario runners) call hooks without a `this`.
+  const pointerDown = (x: number, y: number, kind: PointerKind = "mouse") => {
+    if (kind === "mouse") {
+      input().pointer.press(x, y);
+      return;
+    }
+    pointerOp(input(), "touchStart")(DEV_CONTACT, x, y, kind);
+    contact = true;
+  };
+  const pointerUp = () => {
+    if (!contact) {
+      input().pointer.release();
+      return;
+    }
+    contact = false;
+    pointerOp(input(), "touchEnd")(DEV_CONTACT);
+  };
   const state = (): DevState => ({
     scene: game.scene?.id,
     tick: game.clock.tick,
@@ -262,16 +311,20 @@ function createHooks(game: Game, session: DevSession, options: DevHooksOptions, 
       }
       return state();
     },
-    press: (code) => input().keys.press(code),
-    release: (code) => input().keys.release(code),
-    tap(x, y) {
-      input().pointer.press(x, y);
+    press: (code) => pressSource(input(), code),
+    release: (code) => releaseSource(input(), code),
+    tap(x, y, kind = "mouse") {
+      pointerDown(x, y, kind);
       game.step(1);
-      input().pointer.release();
+      pointerUp();
     },
-    pointerDown: (x, y) => input().pointer.press(x, y),
-    pointerMove: (x, y) => input().pointer.move(x, y),
-    pointerUp: () => input().pointer.release(),
+    pointerDown,
+    pointerMove: (x, y) => (contact ? pointerOp(input(), "touchMove")(DEV_CONTACT, x, y) : input().pointer.move(x, y)),
+    pointerUp,
+    wheel: (dy, dx = 0) => pointerOp(input(), "scroll")(dy, dx),
+    touchDown: (id, x, y, kind = "touch") => pointerOp(input(), "touchStart")(id, x, y, kind),
+    touchMove: (id, x, y) => pointerOp(input(), "touchMove")(id, x, y),
+    touchUp: (id) => pointerOp(input(), "touchEnd")(id),
     pad(state) {
       const pads = input().pads;
       if (!pads) throw new Error("exposeDevHooks: this input has no gamepads");

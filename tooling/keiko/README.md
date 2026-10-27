@@ -182,10 +182,12 @@ Playing (each returns the playtest, so calls chain):
 | | |
 | --- | --- |
 | `wait(duration = 1)` | Play with the current input |
-| `press(code)` / `release(code)` | Hold or let go of a key (`KeyboardEvent.code`: `"ArrowLeft"`, `"KeyZ"`, `"Space"`) |
+| `press(code)` / `release(code)` | Hold or let go of a key (`KeyboardEvent.code`: `"ArrowLeft"`, `"KeyZ"`, `"Space"`), or the right or middle mouse button as `"PointerRight"` / `"PointerMiddle"` (at the mouse's last position) |
 | `hold(code, duration)` | Press, wait, release |
 | `tap(code)` / `tap(x, y)` | A key or pointer press for one step |
-| `pointerDown(x, y)`, `pointerMove(x, y)`, `pointerUp()` | The pointer |
+| `pointerDown(x, y, kind?)`, `pointerMove(x, y)`, `pointerUp()` | The pointer: a mouse, or `"touch"` / `"pen"` to press as a finger or stylus (contact 1) |
+| `wheel(dy, dx = 0)` | Scroll the mouse wheel over the game in CSS pixels (positive = down), at the mouse's last position |
+| `touchDown(id, x, y)`, `touchMove(id, x, y)`, `touchUp(id)` | Fingers by id, for multi-touch. The first finger down is the primary pointer. Without debuff they're `pointerType: "touch"` pointer events plus touch events, with `pointerId` = id + 2 so no finger shares the mouse's pointerId 1 (touch events keep your id) |
 | `set("group.key", value)` / `set({ … })` | Set params |
 | `command(name, ...args)` | Run a game command |
 | `replay(fileOrScenario)` | Play a scenario's steps (see below) |
@@ -280,7 +282,7 @@ Errors a game raises outside any test (say, an asset that fails to load after it
 
 ### Replaying scenarios
 
-`game.replay()` takes a JSON file (or object) of steps: `wait`, `press`, `release`, `tap`, `pointerDown`, `pointerMove`, `pointerUp`, `set`, `command`, `expect` and `until` (`within` in steps, default 600). It's the [debuff scenario format](https://debuff.jp/docs/scenarios), so debuff's overlay replays and fuzz findings play directly; any tool can write it. `capture` and `contrast` steps are skipped, and `flashes` only plays its frames, since nothing is drawn: those are checked by `debuff scenario`. Plugin steps (names with a `:`) are refused.
+`game.replay()` takes a JSON file (or object) of steps: `wait`, `press`, `release`, `tap` (`[x, y]`, or a key code such as `"KeyT"`), `pointerDown`, `pointerMove`, `pointerUp`, `wheel`, `touchDown`, `touchMove`, `touchUp`, `set`, `command`, `expect` and `until` (`within` in steps, default 600). It's the [debuff scenario format](https://debuff.jp/docs/scenarios), so debuff's overlay replays and fuzz findings play directly; any tool can write it. `capture` and `contrast` steps are skipped, and `flashes` only plays its frames, since nothing is drawn: those are checked by `debuff scenario`. Plugin steps (names with a `:`) are refused.
 
 ## The CLI
 
