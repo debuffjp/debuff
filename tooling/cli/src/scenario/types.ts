@@ -28,17 +28,29 @@ export interface Comparison {
   approx?: [number, number];
 }
 
+/** Logical `[x, y]`, or `[x, y, kind]` with what the game sees in `pointer.kind` (default `"mouse"`). */
+export type PointerPress = [number, number] | [number, number, "mouse" | "touch" | "pen"];
+
 export type Step =
   /** Advance N fixed simulation steps. */
   | { wait: number }
-  /** Hold a key (`KeyboardEvent.code`). */
+  /** Hold a key (`KeyboardEvent.code`), or the right or middle mouse button as `"PointerRight"` / `"PointerMiddle"`. */
   | { press: string }
   | { release: string }
-  /** Press and release the pointer at logical coordinates over one step. */
-  | { tap: [number, number] }
-  | { pointerDown: [number, number] }
+  /**
+   * Press and release the pointer at logical coordinates over one step (`[x, y, kind]` presses as `"touch"`
+   * or `"pen"` instead of a mouse), or tap a key for one step with its code: `{ "tap": "KeyT" }`.
+   */
+  | { tap: PointerPress | string }
+  | { pointerDown: PointerPress }
   | { pointerMove: [number, number] }
   | { pointerUp: true }
+  /** Scroll the wheel by `dy` CSS pixels (positive = down), or `[dy, dx]`. */
+  | { wheel: number | [number, number] }
+  /** Touch contacts by id at logical coordinates; `[id, x, y, "pen"]` for a pen. The first contact also presses the primary pointer. */
+  | { touchDown: [number, number, number] | [number, number, number, "pen"] }
+  | { touchMove: [number, number, number] }
+  | { touchUp: number }
   /** Gamepad state from now on (`null` = disconnected): pressed standard-mapping button indices, left stick axes. Recorded replays emit these. */
   | { pad: { buttons: number[]; axes: number[] } | null }
   /** Set params: `{ "player.speed": 300 }` sets group "player", key "speed". */

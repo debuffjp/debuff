@@ -22,8 +22,10 @@ All arguments and return values are JSON-serialisable.
 | `frames(n)` | the latest `n` frame breakdowns: interval, update and render ms, catch-up steps, quads, draw calls, long tasks |
 | `notes()` | moments flagged in the overlay, with state and frames |
 | `params()` / `setParam(group, key, value)` | typed parameter schemas and values |
-| `press(code)` / `release(code)` | keyboard |
-| `tap(x, y)` / `pointerDown` / `pointerMove` / `pointerUp` | pointer, in logical coordinates |
+| `press(code)` / `release(code)` | keyboard, plus `"PointerRight"` / `"PointerMiddle"` for the right and middle mouse buttons |
+| `tap(x, y, kind?)` / `pointerDown(x, y, kind?)` / `pointerMove` / `pointerUp` | pointer, in logical coordinates. `kind` is `"mouse"` (default), `"touch"` or `"pen"`: the game sees it in `pointer.kind`, and a touch or pen press is contact 1 in `pointer.touches` rather than a mouse press too |
+| `wheel(dy, dx?)` | wheel scroll in CSS pixels this step |
+| `touchDown(id, x, y, kind?)` / `touchMove(id, x, y)` / `touchUp(id)` | touch contacts (or `"pen"`); the first is the primary pointer. Recorded in replays |
 | `errors()` | runtime errors since load, explained: `kind` (`your-code`, `debuff-usage`, `debuff-bug`, `outside`), source-mapped `where`, `hint`, `count` |
 | `capture()` | PNG data URL of the current frame |
 | `keepForReload()` | save the session for a state-preserving reload; the `debuff dev` client calls it just before a code change reloads the page |

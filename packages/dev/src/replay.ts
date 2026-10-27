@@ -15,6 +15,12 @@ export type ReplayStep =
   | { pointerDown: [number, number] }
   | { pointerMove: [number, number] }
   | { pointerUp: true }
+  /** Wheel scroll in CSS pixels: `dy`, or `[dy, dx]`. */
+  | { wheel: number | [number, number] }
+  /** Touch contacts by id, in logical coordinates. A pen adds `"pen"`. */
+  | { touchDown: [number, number, number] | [number, number, number, "pen"] }
+  | { touchMove: [number, number, number] }
+  | { touchUp: number }
   /** The gamepad state from this tick's poll on (`null` = disconnected). Only changes are recorded. */
   | { pad: PadStep | null }
   | { set: Record<string, ParamValue> }
@@ -37,6 +43,35 @@ interface Recorded {
 
 const MAX_EVENTS = 200_000;
 
+/** Pointer buttons a scenario presses like keys, by their binding names. */
+const POINTER_BUTTONS: Readonly<Record<string, "right" | "middle">> = { PointerRight: "right", PointerMiddle: "middle" };
+
+/** Press a key, or the right or middle mouse button by its binding name (`"PointerRight"`, `"PointerMiddle"`). */
+export function pressSource(input: DrivableInput, code: string): void {
+  const button = POINTER_BUTTONS[code];
+  if (!button) input.keys.press(code);
+  else if (input.pointer.pressButton) input.pointer.pressButton(button);
+  else throw new Error(`press("${code}") needs @debuffjp/input 0.16 or later (pointer.pressButton)`);
+}
+
+/** Release what `pressSource` pressed. */
+export function releaseSource(input: DrivableInput, code: string): void {
+  const button = POINTER_BUTTONS[code];
+  if (!button) input.keys.release(code);
+  else input.pointer.releaseButton?.(button);
+}
+
+const BUTTON_CODES = { right: "PointerRight", middle: "PointerMiddle" } as const;
+
+type PointerOps = Required<Pick<DrivableInput["pointer"], "scroll" | "touchStart" | "touchMove" | "touchEnd">>;
+
+/** A wheel or touch method of the input's pointer, explained when the input is too old to have it. */
+export function pointerOp<K extends keyof PointerOps>(input: DrivableInput, name: K): PointerOps[K] {
+  const fn = input.pointer[name];
+  if (!fn) throw new Error(`pointer.${name} needs @debuffjp/input 0.16 or later`);
+  return fn.bind(input.pointer) as PointerOps[K];
+}
+
 /**
  * Records input and param changes per simulation tick from page load, so a live session can be turned
  * into a scenario that replays it exactly (the fixed-step clock and seeded RNG make runs deterministic).
@@ -53,12 +88,22 @@ export class InputRecording {
     private readonly game: Game,
     input: DrivableInput,
   ) {
-    const wrap = <T extends object, K extends keyof T>(target: T, key: K, record: (...args: never[]) => ReplayStep | undefined) => {
+    let nested = false;
+    const wrap = <T extends object, K extends keyof T>(target: T, key: K, record: (...args: never[]) => ReplayStep | null | undefined) => {
       const original = target[key] as unknown as (...args: unknown[]) => unknown;
       (target as Record<K, unknown>)[key] = ((...args: unknown[]) => {
-        const step = (record as (...a: unknown[]) => ReplayStep | undefined)(...args);
+        // `record` returns the step, `null` when it's already covered (a collapsed move), or undefined to
+        // leave the call unrecorded. A recorded call replays everything it does itself (a touch presses
+        // the pointer), so calls made inside it aren't recorded again.
+        const step = nested ? undefined : (record as (...a: unknown[]) => ReplayStep | null | undefined)(...args);
+        if (step === undefined) return original.apply(target, args);
         if (step) this.add(step);
-        return original.apply(target, args);
+        nested = true;
+        try {
+          return original.apply(target, args);
+        } finally {
+          nested = false;
+        }
       }) as T[K];
       this.restore.push(() => {
         (target as Record<K, unknown>)[key] = original as T[K];
@@ -93,6 +138,38 @@ export class InputRecording {
       pointerDown = false;
       return { pointerUp: true };
     });
+    if (input.pointer.pressButton && input.pointer.releaseButton) {
+      const buttons = new Set<string>();
+      wrap(input.pointer, "pressButton", (b: "right" | "middle") => {
+        if (buttons.has(b)) return undefined;
+        buttons.add(b);
+        return { press: BUTTON_CODES[b] };
+      });
+      wrap(input.pointer, "releaseButton", (b: "right" | "middle") => (buttons.delete(b) ? { release: BUTTON_CODES[b] } : undefined));
+    }
+    const { pointer } = input;
+    if (pointer.scroll) wrap(pointer, "scroll", (dy: number, dx = 0) => ({ wheel: dx ? [round(dy), round(dx)] : round(dy) }));
+    if (pointer.touchStart && pointer.touchMove && pointer.touchEnd) {
+      // Mouse contacts stay pointerDown / pointerMove / pointerUp, recorded by the calls they make.
+      const touching = new Set<number>();
+      wrap(pointer, "touchStart", (id: number, x: number, y: number, kind = "touch") => {
+        if (kind === "mouse" || touching.has(id)) return undefined;
+        touching.add(id);
+        return { touchDown: kind === "pen" ? [id, round(x), round(y), "pen"] : [id, round(x), round(y)] };
+      });
+      wrap(pointer, "touchMove", (id: number, x: number, y: number) => {
+        if (!touching.has(id)) return undefined;
+        const step: ReplayStep = { touchMove: [id, round(x), round(y)] };
+        // Keep the last move per contact per tick.
+        const last = this.events.at(-1);
+        if (last?.tick === this.game.clock.tick && "touchMove" in last.step && last.step.touchMove[0] === id) {
+          last.step = step;
+          return null;
+        }
+        return step;
+      });
+      wrap(pointer, "touchEnd", (id: number) => (touching.delete(id) ? { touchUp: id } : undefined));
+    }
     const pads = input.pads;
     if (pads) {
       const sample = pads.sample;
@@ -228,6 +305,7 @@ export interface ReplayTarget {
 export function fastForward({ game, input, command }: ReplayTarget, steps: ReplayStep[], toTick: number): void {
   const held = new Set<string>();
   let pointerHeld = false;
+  const touches = new Set<number>();
   // Recordings start with no pad (only changes are recorded): don't let a real one leak in.
   if (input.pads) input.pads.fed = null;
   for (const step of steps) {
@@ -235,10 +313,10 @@ export function fastForward({ game, input, command }: ReplayTarget, steps: Repla
     if ("wait" in step) game.step(Math.min(step.wait, toTick - game.clock.tick), false);
     else if ("press" in step) {
       held.add(step.press);
-      input.keys.press(step.press);
+      pressSource(input, step.press);
     } else if ("release" in step) {
       held.delete(step.release);
-      input.keys.release(step.release);
+      releaseSource(input, step.release);
     } else if ("pointerDown" in step) {
       pointerHeld = true;
       input.pointer.press(...step.pointerDown);
@@ -246,6 +324,17 @@ export function fastForward({ game, input, command }: ReplayTarget, steps: Repla
     else if ("pointerUp" in step) {
       pointerHeld = false;
       input.pointer.release();
+    } else if ("wheel" in step) {
+      const [dy, dx] = typeof step.wheel === "number" ? [step.wheel, 0] : step.wheel;
+      pointerOp(input, "scroll")(dy, dx);
+    } else if ("touchDown" in step) {
+      const [id, x, y, kind] = step.touchDown;
+      touches.add(id);
+      pointerOp(input, "touchStart")(id, x, y, kind ?? "touch");
+    } else if ("touchMove" in step) pointerOp(input, "touchMove")(...step.touchMove);
+    else if ("touchUp" in step) {
+      touches.delete(step.touchUp);
+      pointerOp(input, "touchEnd")(step.touchUp);
     } else if ("pad" in step) {
       if (input.pads) input.pads.fed = toPadState(step.pad);
     } else if ("set" in step)
@@ -257,7 +346,8 @@ export function fastForward({ game, input, command }: ReplayTarget, steps: Repla
   }
   if (game.clock.tick < toTick) game.step(toTick - game.clock.tick, false);
   // Nobody is physically holding these any more: let go, or they'd stay stuck down.
-  for (const code of held) input.keys.release(code);
+  for (const code of held) releaseSource(input, code);
+  for (const id of touches) input.pointer.touchEnd?.(id);
   if (pointerHeld) input.pointer.release();
   // Hand the pads back to the real Gamepad API.
   if (input.pads) input.pads.fed = undefined;

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { yieldTurn } from "./clock.js";
-import { type Driver, MissingHookError, type ParamValue } from "./driver.js";
+import { type Driver, MissingHookError, type ParamValue, type PointerKind } from "./driver.js";
 import { type Duration, describeSteps, toSteps } from "./duration.js";
 import type { EngineInfo, EngineTarget } from "./engines.js";
 import { Trace } from "./trace.js";
@@ -443,9 +443,12 @@ export class Playtest<S = any> {
     return this;
   }
 
-  /** Press the pointer (mouse or touch) at logical coordinates and keep it down. */
-  pointerDown(x: number, y: number): this {
-    this.driver.pointerDown(x, y);
+  /**
+   * Press the pointer at logical coordinates and keep it down: a mouse, or `"touch"` / `"pen"` for a
+   * finger or stylus (contact 1, as the game sees it in `pointer.kind` and `pointer.touches`).
+   */
+  pointerDown(x: number, y: number, kind: PointerKind = "mouse"): this {
+    this.driver.pointerDown(x, y, kind);
     return this;
   }
 
@@ -458,6 +461,36 @@ export class Playtest<S = any> {
   /** Release the pointer. */
   pointerUp(): this {
     this.driver.pointerUp();
+    return this;
+  }
+
+  /**
+   * Scroll the mouse wheel over the game by `dy` CSS pixels (positive scrolls down), and `dx` sideways.
+   * Put the mouse where it should scroll first with `pointerMove(x, y)`.
+   */
+  wheel(dy: number, dx = 0): this {
+    this.driver.wheel(dy, dx);
+    return this;
+  }
+
+  /**
+   * Put finger `id` down at the game's coordinates. Fingers are independent, so `touchDown` two ids for
+   * a pinch. The first finger down is the primary pointer, as on a real touch screen.
+   */
+  touchDown(id: number, x: number, y: number): this {
+    this.driver.touchDown(id, x, y);
+    return this;
+  }
+
+  /** Move finger `id`. */
+  touchMove(id: number, x: number, y: number): this {
+    this.driver.touchMove(id, x, y);
+    return this;
+  }
+
+  /** Lift finger `id`. */
+  touchUp(id: number): this {
+    this.driver.touchUp(id);
     return this;
   }
 
@@ -539,17 +572,43 @@ export class Playtest<S = any> {
       case "release":
         this.release(value as string);
         break;
-      case "tap":
-        this.tap(...pair(value));
+      case "tap": {
+        if (typeof value === "string") {
+          this.tap(value);
+          break;
+        }
+        if (!Array.isArray(value)) throw new Error(`tap: expected a key code like "KeyT" or a point [x, y], got ${show(value)}`);
+        const [x, y, kind] = value as [number, number, PointerKind?];
+        if (kind && kind !== "mouse") this.pointerDown(x, y, kind).wait(1).pointerUp();
+        else this.tap(x, y);
         break;
-      case "pointerDown":
-        this.pointerDown(...pair(value));
+      }
+      case "pointerDown": {
+        const [x, y, kind] = value as [number, number, PointerKind?];
+        this.pointerDown(x, y, kind);
         break;
+      }
       case "pointerMove":
         this.pointerMove(...pair(value));
         break;
       case "pointerUp":
         this.pointerUp();
+        break;
+      case "wheel": {
+        const [dy, dx = 0] = typeof value === "number" ? [value] : (value as [number, number]);
+        this.wheel(dy, dx);
+        break;
+      }
+      case "touchDown": {
+        const [id, x, y, kind] = value as [number, number, number, "pen"?];
+        this.driver.touchDown(id, x, y, kind);
+        break;
+      }
+      case "touchMove":
+        this.touchMove(...(value as [number, number, number]));
+        break;
+      case "touchUp":
+        this.touchUp(value as number);
         break;
       case "set":
         this.set(value as Record<string, ParamValue>);
@@ -638,6 +697,11 @@ interface Comparison {
 }
 
 function compare(actual: unknown, c: Comparison): string | undefined {
+  // A bare value, `{ "state.x": 0 }`, is the easy slip for `{ "state.x": { "eq": 0 } }`.
+  if (c === null || typeof c !== "object" || Array.isArray(c))
+    return `expected a comparison object like { "eq": ${show(c)} }, got ${show(c)}. Comparisons are eq, gt, gte, lt, lte and approx`;
+  if (!Object.keys(c).some((k) => ["eq", "gt", "gte", "lt", "lte", "approx"].includes(k)))
+    return `expected a comparison object with eq, gt, gte, lt, lte or approx, got ${show(c)}`;
   if ("eq" in c && JSON.stringify(actual) !== JSON.stringify(c.eq)) return `expected ${show(c.eq)}, got ${show(actual)}`;
   const numeric = c.gt !== undefined || c.gte !== undefined || c.lt !== undefined || c.lte !== undefined || c.approx;
   if (!numeric) return undefined;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findLoop } from "../src/fuzz.js";
+import { findLoop, fuzzGesture } from "../src/fuzz.js";
 
 const flipping = (a: string, b: string) => [a, b, a, b, a];
 
@@ -33,5 +33,29 @@ describe("findLoop", () => {
         ]),
       ),
     ).toBeUndefined();
+  });
+});
+
+describe("fuzzGesture", () => {
+  const seq = (...values: number[]) => {
+    let i = 0;
+    return () => values[i++ % values.length] ?? 0;
+  };
+
+  it("scrolls the wheel either way", () => {
+    expect(fuzzGesture("Wheel", seq(0, 0.9, 0), 320, 180)).toEqual([{ wheel: 40 }, { wait: 1 }]);
+    expect(fuzzGesture("Wheel", seq(1, 0.1, 0), 320, 180)[0]).toEqual({ wheel: -400 });
+  });
+
+  it("taps a finger inside the game, or drags it to another point", () => {
+    expect(fuzzGesture("Touch", seq(0.5, 0.5, 0, 0.9, 0), 320, 180)).toEqual([
+      { touchDown: [1, 160, 90] },
+      { wait: 1 },
+      { touchUp: 1 },
+      { wait: 1 },
+    ]);
+    const drag = fuzzGesture("Touch", seq(0, 0, 0, 0.1, 1, 1, 0), 320, 180);
+    expect(drag.filter((s) => "touchMove" in s).at(-1)).toEqual({ touchMove: [1, 320, 180] });
+    expect(drag.at(-2)).toEqual({ touchUp: 1 });
   });
 });

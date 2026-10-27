@@ -340,25 +340,55 @@ export function createServer(options: ServerOptions): McpServer {
       title: "Send input",
       annotations: { readOnlyHint: false, destructiveHint: false },
       description:
-        "Keyboard or pointer input. press/release take a KeyboardEvent.code (e.g. Space, ArrowLeft, KeyZ). tap/pointer_down/pointer_move take logical x, y. " +
-        "Input takes effect on the next game_step.",
+        "Keyboard, pointer, wheel or touch input. press/release take a KeyboardEvent.code (e.g. Space, ArrowLeft, KeyZ), or PointerRight / PointerMiddle for mouse buttons. " +
+        "tap/pointer_down/pointer_move take logical x, y; tap and pointer_down also take kind (mouse, touch or pen). wheel takes dy (and dx) in CSS pixels. " +
+        "touch_down/touch_move take id, x, y (touch_down also kind: touch or pen); touch_up takes id. Input takes effect on the next game_step.",
       inputSchema: {
-        action: z.enum(["press", "release", "tap", "pointer_down", "pointer_move", "pointer_up"]),
+        action: z.enum([
+          "press",
+          "release",
+          "tap",
+          "pointer_down",
+          "pointer_move",
+          "pointer_up",
+          "wheel",
+          "touch_down",
+          "touch_move",
+          "touch_up",
+        ]),
         code: z.string().optional().describe("For press/release."),
         x: z.number().optional(),
         y: z.number().optional(),
+        kind: z.enum(["mouse", "touch", "pen"]).optional().describe("Pointer kind for tap, pointer_down and touch_down."),
+        dy: z.number().optional().describe("For wheel: vertical scroll, positive = down."),
+        dx: z.number().optional().describe("For wheel: horizontal scroll."),
+        id: z.number().int().optional().describe("Touch contact id for touch_down/touch_move/touch_up."),
       },
     },
-    safely(async ({ action, code, x, y }) => {
+    safely(async ({ action, code, x, y, kind, dy, dx, id }) => {
       const s = live();
+      const kindArg = kind ? [kind] : [];
       if (action === "press" || action === "release") {
         if (!code) throw new Error(`${action} needs a key code`);
         await s.call(action, code);
       } else if (action === "pointer_up") {
         await s.call("pointerUp");
+      } else if (action === "wheel") {
+        if (dy === undefined && dx === undefined) throw new Error("wheel needs dy or dx");
+        await s.call("wheel", dy ?? 0, dx ?? 0);
+      } else if (action === "touch_up") {
+        if (id === undefined) throw new Error("touch_up needs id");
+        await s.call("touchUp", id);
+      } else if (action === "touch_down" || action === "touch_move") {
+        if (id === undefined || x === undefined || y === undefined) throw new Error(`${action} needs id, x and y`);
+        if (action === "touch_down") {
+          if (kind === "mouse") throw new Error("touch_down kind is touch or pen");
+          await s.call("touchDown", id, x, y, ...kindArg);
+        } else await s.call("touchMove", id, x, y);
       } else {
         if (x === undefined || y === undefined) throw new Error(`${action} needs x and y`);
-        await s.call({ tap: "tap", pointer_down: "pointerDown", pointer_move: "pointerMove" }[action], x, y);
+        if (action === "pointer_move") await s.call("pointerMove", x, y);
+        else await s.call(action === "tap" ? "tap" : "pointerDown", x, y, ...kindArg);
       }
       return json({ ok: true });
     }),
