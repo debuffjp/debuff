@@ -1,5 +1,25 @@
 # keiko
 
+## 0.7.0
+
+### Minor Changes
+
+- efec916: The dev hooks' `pointerDown(x, y, kind?)` and `tap(x, y, kind?)` take what is pressing: `"mouse"` (the default, as before), `"touch"` or `"pen"`. The game sees it in `pointer.kind`. A touch or pen press is contact 1 in `pointer.touches` and the primary pointer, and a mouse press is only the primary pointer, so a dev drag no longer looks like both a mouse and a touch. Scenarios take `{ "pointerDown": [x, y, "touch"] }` and `{ "tap": [x, y, "pen"] }`, and keiko's `game.pointerDown(x, y, "touch")` does the same, through the dev hooks or as real touch events.
+- 8e669fe: Tests and scenarios can press the right mouse button, scroll the wheel and touch with several fingers, all through the same paths as real input.
+  
+  - keiko: `game.press("PointerRight")` (and `"PointerMiddle"`), `game.wheel(dy, dx?)`, and `game.touchDown(id, x, y)`, `touchMove(id, x, y)` and `touchUp(id)`. debuff games are driven through their dev hooks. Other games get real DOM events: mouse button presses (a button pressed while another is held arrives as a `pointermove`, as in browsers, and the right button fires `contextmenu`), `wheel` events, and `pointerType: "touch"` pointer events with touch events. `game.replay()` plays the new scenario steps.
+  - Dev hooks: `wheel(dy, dx?)`, `touchDown(id, x, y, kind?)`, `touchMove(id, x, y)` and `touchUp(id)`. Recorded replays keep wheel scrolls and touches, so a session played on a phone replays exactly. They need `@debuffjp/input` 0.16 and say so on older versions.
+  - Scenarios: `{ "wheel": dy }` or `{ "wheel": [dy, dx] }`, `{ "touchDown": [id, x, y] }` (`[id, x, y, "pen"]` for a pen), `{ "touchMove": [id, x, y] }` and `{ "touchUp": id }`.
+
+### Patch Changes
+
+- 812b958: Without debuff, `touchDown(id, ...)` now sends `pointerId` id + 2, so a finger never shares the mouse's pointerId 1. Touch events keep the id you passed.
+- 70a00c9: npm homepage links to the package's page on debuff.jp.
+- b87c265: Scenario fixes in `debuff scenario` and keiko's `game.replay()`:
+  
+  - `{ "tap": "KeyT" }` taps the key for one step, as keiko's `game.tap("KeyT")` does. Before, `debuff scenario` silently spread the string into `tap(x, y)`, and keiko pressed the wrong key. The schema accepts a key code. A `tap` that is neither a code nor a point fails with an explanation.
+  - `{ "expect": { "state.x": 0 } }` (and the same in `until`) fails with `state.x: expected a comparison object like { "eq": 0 }, got 0`, instead of a TypeError or a silent pass. An object with none of `eq`, `gt`, `gte`, `lt`, `lte` and `approx` is reported the same way.
+
 ## 0.6.0
 
 ### Minor Changes
