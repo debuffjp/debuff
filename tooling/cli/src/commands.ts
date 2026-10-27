@@ -4,6 +4,7 @@
  * no brackets is a boolean flag, names become camelCase, numbers become numbers, and `[dir]` and
  * `[...files]` are positional arguments.
  */
+import { DebuffError } from "./errors.js";
 
 interface OptionDef {
   /** camelCase name. */
@@ -87,6 +88,7 @@ export class Cli {
     const known = cmd?.options ?? [];
     const options: Record<string, unknown> = {};
     const positional: string[] = [];
+    const unknown: string[] = [];
     for (let i = 0; i < rest.length; i++) {
       const t = rest[i] as string;
       if (t === "--") {
@@ -99,6 +101,7 @@ export class Cli {
         const [rawName = "", inline] = t.replace(/^--?/, "").split(/=(.*)/s, 2);
         const def = long ? known.find((o) => o.name === camel(rawName)) : known.find((o) => o.short === rawName);
         const key = def?.name ?? camel(rawName === "h" ? "help" : rawName === "v" ? "version" : rawName);
+        if (!def && key !== "help" && key !== "version") unknown.push(t.split("=")[0] as string);
         if (inline !== undefined) options[key] = coerce(inline);
         else if (
           (def ? def.takesValue : key !== "help" && key !== "version") &&
@@ -121,6 +124,12 @@ export class Cli {
     }
     this.matchedCommand = cmd;
     if (!cmd) return;
+    if (unknown.length)
+      throw new DebuffError(
+        "bad_option",
+        `Unknown option${unknown.length > 1 ? "s" : ""} for ${this.name} ${cmd.name}: ${unknown.join(", ")}`,
+        `Run \`npx ${this.name} ${cmd.name} --help\` for its options`,
+      );
     const args: unknown[] = cmd.positionals.map((p, i) => (p.rest ? positional.slice(i) : positional[i]));
     this.parsed = { args, options };
   }

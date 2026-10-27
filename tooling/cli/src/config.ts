@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { AtlasOptions } from "./assets/atlas.js";
+import { DebuffError } from "./errors.js";
 import type { LaunchConfig } from "./launch.js";
 import { TOOLING_API_VERSION, type ToolingPlugin } from "./plugin.js";
 
@@ -56,6 +57,14 @@ const NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export async function loadConfig(root: string): Promise<ResolvedConfig> {
   const file = CONFIG_FILES.map((f) => join(root, f)).find((f) => existsSync(f));
   if (!file) return { root, file: undefined, plugins: [], atlas: {}, launch: {}, typecheck: false };
+  try {
+    return await readConfig(root, file);
+  } catch (err) {
+    throw new DebuffError("config_invalid", err instanceof Error ? err.message : String(err), `Fix ${file}, then run the command again`);
+  }
+}
+
+async function readConfig(root: string, file: string): Promise<ResolvedConfig> {
   // Vite's module runner transpiles TypeScript without a separate loader dependency.
   const { runnerImport } = await import("vite");
   // runnerImport sets process.env.NODE_ENV to "development" for the whole process. Put it back, or a

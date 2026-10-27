@@ -4,6 +4,7 @@ import {
   buildReport,
   checkSaves,
   compileAssets,
+  describeError,
   findUnused,
   inspectProject,
   loadConfig,
@@ -22,6 +23,20 @@ type Content = { type: "text"; text: string } | { type: "image"; data: string; m
 
 const json = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }] });
 const fail = (message: string) => ({ isError: true, content: [{ type: "text" as const, text: message }] });
+
+/**
+ * A thrown error as the tool's text. Known failures (no browser, invalid config, missing dev hooks…) add the
+ * CLI's stable code, its fix and whether a retry can help, so an agent can act without parsing prose.
+ */
+function explain(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  const e = describeError(err);
+  if (e.code === "unexpected") return message;
+  const lines = [message, "", `code: ${e.code}`];
+  if (e.fix) lines.push(`fix: ${e.fix}`);
+  lines.push(e.transient ? "transient: retry the same call" : "not transient: fix it first, a retry gives the same result");
+  return lines.join("\n");
+}
 
 export interface ServerOptions {
   /** Default project root for tools that don't receive one. */
@@ -60,7 +75,7 @@ export function createServer(options: ServerOptions): McpServer {
       try {
         return await fn(args);
       } catch (err) {
-        return fail(err instanceof Error ? err.message : String(err));
+        return fail(explain(err));
       }
     };
   const root = {
