@@ -115,7 +115,7 @@ draw.withShader(wave, () => draw.sprite(hero, x, y));
 
 ## Inside another engine: createSharedRenderer(gl, options?)
 
-spryte on a WebGL2 context another engine owns, to draw the heaviest parts of a frame (bullets, particles) inside that engine's frame and draw order, on one GPU context with no overlay canvas. `options` has `smooth`. It returns `{ draw, target(framebuffer, width, height) }`.
+spryte on a WebGL2 context another engine owns, to draw the heaviest parts of a frame (bullets, particles) inside that engine's frame and draw order, on one GPU context with no overlay canvas. `options` has `smooth` and `borrow`. It returns `{ draw, target(framebuffer, width, height) }`.
 
 ```ts
 const shared = createSharedRenderer(gl);        // inside the host's slot for foreign drawing: creation changes GL state
@@ -129,6 +129,7 @@ shared.draw.end();
 
 - At `begin()` spryte binds its own program, vertex array and blend state, and resets depth test, face culling, colour mask and `UNPACK_FLIP_Y`. It keeps the host's scissor and stencil, so a camera viewport or mask applies to spryte too, and its own `clip()` intersects the host's scissor. At `end()` it gives the host's scissor back and unbinds sampler objects, which would otherwise override the texture filtering of a host written for WebGL1. It does not restore the host's program, vertex array, texture bindings or viewport: the host must rebind what it needs after the slot, as engines with cached GL state do (Phaser does).
 - Context loss belongs to the host: it must `preventDefault` on `webglcontextlost` for the browser to restore the context. spryte listens to both events without claiming them, draws nothing while lost, and rebuilds its GPU objects at the first `begin()` after the restore, inside the host's slot, even when the loss and restore both happened between two frames.
+- `borrow(image)` lends spryte the host's own GPU texture for an image, so a texture both draw isn't uploaded twice. Return `{ texture, width, height, flipY }`, or null for spryte to upload its own copy. spryte asks once per image per frame, so a texture the host frees or re-creates is never drawn stale; keep it cheap. The texture must hold premultiplied alpha. spryte never writes to or deletes it. `spryte/phaser` and `spryte/pixi` set it up for you.
 - The separate export costs nothing in apps that don't use it, and an app that only uses it never loads the Canvas 2D fallback.
 
 ### Phaser 4: `spryte/phaser`
@@ -151,7 +152,25 @@ class Bullets extends Phaser.Scene {
 | `spryteExtern(extern, render, options?)` | `render(draw)` runs each frame in the Extern's slot, with the Extern's `calcMatrix` (camera and any Container) applied, so coordinates are Phaser's world. Filters on the Extern or camera, camera viewports and `Stencil` masks apply. Returns `{ draw, dispose }`; `draw` exists from the first frame on, and `dispose` runs when the Extern is destroyed. |
 | `shimShaders(gl)` | Translates Phaser's GLSL ES 1.00 shaders to ES 3.00 as they compile. Without it, on a WebGL2 context Phaser 4.2.1's `Gradient`, noise objects with `noiseNormalMap` and `smoothPixelArt` fail to compile, since `OES_standard_derivatives` is a WebGL1 extension. Your own ES 1.00 shaders go through it too; ones that declare `#version 300 es` pass through. |
 
+Images Phaser loaded draw from Phaser's own GPU textures: pass `this.textures.get(key).getSourceImage()`.
+
 Tested with Phaser 4.2.1 (`npm run test:phaser` runs the example's real-GPU checks). Phaser 3 has an `Extern` with a different callback and state handling; it isn't supported.
+
+### PixiJS v8: `spryte/pixi`
+
+```ts
+import { RenderContainer } from "pixi.js";
+import { spryteContainer } from "spryte/pixi";
+
+// spryte draws where the container sits in the scene: over what's added before it, under what's added after.
+app.stage.addChild(spryteContainer(new RenderContainer({}), (draw) => draw.sprites(bullet, positions, count)));
+```
+
+| Function | |
+| --- | --- |
+| `spryteContainer(container, render, options?)` | `render(draw)` runs each frame in the `RenderContainer`'s slot, in the container's local coordinates: its transform, its parents' and its render group's apply. Masks, render textures and filters apply; a `RenderContainer` has no bounds, so give a filtered container a `filterArea`. Afterwards the helper resets Pixi's cached GL state, so Pixi rebinds what it needs. Images Pixi has uploaded (`texture.source.resource`) draw from Pixi's own GPU textures, and stay marked as used, so Pixi's texture GC keeps them. Returns the container, with `spryte: { draw, dispose }`; `dispose` runs when the container is destroyed. The container's alpha, tint and blend mode don't apply: set them in `draw` calls. |
+
+Needs Pixi's WebGL renderer, which runs on WebGL2 (`preference: "webgl"`; WebGPU isn't supported). Tested with PixiJS 8.22.0 (`npm run test:pixi` runs the example's real-GPU checks).
 
 ## Diagnostics and escape hatches
 

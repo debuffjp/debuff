@@ -1102,6 +1102,15 @@ export class WebGL2Backend implements Backend {
     return cached;
   }
 
+  /** Drop borrowed textures, so the next use asks the host again: it may have freed or replaced them since. */
+  protected forgetBorrowed(): void {
+    for (const [src, cached] of this.textures) if (cached.borrowed) this.textures.delete(src);
+    if (this.last?.borrowed) {
+      this.lastSrc = null;
+      this.last = undefined;
+    }
+  }
+
   /** A host's texture for `src`, drawn instead of an upload. None here; `SharedBackend` asks the host. */
   protected borrow(_src: ImageSource): BorrowedTexture | null {
     return null;

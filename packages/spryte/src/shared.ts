@@ -10,7 +10,8 @@ export interface SharedRendererOptions {
   smooth?: boolean;
   /**
    * The host's texture for an image, if it has one, so spryte draws it instead of uploading a second copy. Asked
-   * once per image (again after `draw.invalidate` or a context restore). It must hold premultiplied alpha.
+   * once per image per frame, so a texture the host frees or replaces is never drawn stale; keep it cheap. It must
+   * hold premultiplied alpha.
    */
   borrow?: (src: ImageSource) => BorrowedTexture | null;
 }
@@ -109,6 +110,8 @@ class SharedBackend extends WebGL2Backend {
       this.restored = false;
       this.onRestored();
     }
+    // The host may have freed or re-created its textures since (Pixi's texture GC does), so ask again this frame.
+    this.forgetBorrowed();
     // The host drew since last frame: rebind everything spryte otherwise assumes stays bound.
     gl.useProgram(this.active.program);
     gl.bindVertexArray(this.vao);
