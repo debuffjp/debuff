@@ -1,4 +1,5 @@
 import type { Draw } from "spryte";
+import { debuffSans } from "./render/debuff-sans.js";
 
 export interface SplashOptions {
   /** Seconds on screen before the game starts. Any key, click or tap skips it. Default 1.6. */
@@ -94,7 +95,7 @@ function drawCard(draw: Draw, width: number, height: number, t: number, reducedM
   draw.push();
   draw.translate(Math.round(cx), Math.round(top));
   draw.scale(textScale);
-  draw.text("made with", 0, 0, { color: MUTED, align: "center", baseline: "top" });
+  draw.text("made with", 0, 0, { font: debuffSans(), color: MUTED, align: "center", baseline: "top" });
   draw.pop();
 
   // The logo boils at ~8 frames a second like hand-drawn animation.
