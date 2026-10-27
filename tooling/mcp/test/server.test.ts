@@ -64,6 +64,12 @@ describe("debuff MCP server", () => {
     expect(info.name).toBe("@debuffjp/template-basic");
   });
 
+  it("checks the project's setup", async () => {
+    const result = await data("doctor");
+    expect(result.ok).toBe(true);
+    expect(result.checks.map((c: { id: string }) => c.id)).toEqual(expect.arrayContaining(["node-version", "debuff-versions", "browser"]));
+  });
+
   it("explains live tools need a running game", async () => {
     const result = await call("game_state");
     expect(result.isError).toBe(true);

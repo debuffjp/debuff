@@ -19,6 +19,7 @@ npx debuff --help
 | `debuff fuzz [--seconds] [--runs] [--seed] [--keys] [--ignore]` | Play headless with random but plausible input. Reports explained errors, stuck states and loops (the scene, or two state fields, flipping between the same two values), each saved as a scenario in `.debuff/fuzz/` that reproduces it. `--ignore state.shots` skips noisy fields. Exits 1 on errors |
 | `debuff telemetry [on\|off\|status]` | Anonymous build registration: after a successful build, `debuff build` sends a random project id, the package name and the debuff version to debuff.jp, so we can find games made with debuff. Off in CI, or with `debuff telemetry off` / `DEBUFF_TELEMETRY=0`. [What's sent](https://debuff.jp/docs/telemetry) |
 | `debuff inspect` | JSON summary of the project |
+| `debuff doctor [--live]` | Check the setup in one pass: Node version, debuff package versions, `node_modules`, `debuff.config.ts`, assets, `saves.json`, agent files and the browser scenarios use. Each problem comes with a fix. `--live` also starts the dev server and checks the game exposes its dev hooks. Exits 1 when a required check fails |
 
 Add `--json` for machine-readable output and `--root <dir>` to target another project.
 

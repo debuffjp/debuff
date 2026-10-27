@@ -307,6 +307,35 @@ cli
   });
 
 cli
+  .command("doctor", "Check the project's setup: Node, packages, config, assets, browser and agent files")
+  .option("--root <dir>", "Project root")
+  .option("--live", "Also start the dev server and check the game exposes its dev hooks")
+  .option("--json", "Machine-readable output")
+  .action(async (o: Common & { live?: boolean }) => {
+    const { runDoctor } = await import("./doctor.js");
+    if (!o.json) header("doctor", "checking under the hood");
+    const result = await runDoctor(rootOf(o), { live: o.live ?? false });
+    if (o.json) {
+      console.log(JSON.stringify(result, null, 2));
+      return result.ok ? 0 : 1;
+    }
+    for (const c of result.checks) {
+      const text = c.fix && !c.ok ? `${c.message}\n${pc.dim(`fix: ${c.fix}`)}` : c.message;
+      if (c.ok) p.log.success(text);
+      else if (c.required === false) p.log.warn(text);
+      else p.log.error(text);
+    }
+    const problems = result.checks.filter((c) => !c.ok && c.required !== false).length;
+    const advice = result.checks.filter((c) => !c.ok && c.required === false).length;
+    finish(
+      result.ok,
+      result.ok ? "all set" : `${problems} problem${problems === 1 ? "" : "s"} to fix`,
+      advice ? amber(`${advice} suggestion${advice === 1 ? "" : "s"}`) : o.live ? "" : pc.dim("--live also boots the game"),
+    );
+    return result.ok ? 0 : 1;
+  });
+
+cli
   .command("inspect", "JSON summary of the project for agents and tools")
   .option("--root <dir>", "Project root")
   .action(async (o: Common) => {

@@ -52,6 +52,7 @@ Standard Canvas 2D (see ADR 0001). The canvas is sized to its container with `Re
 | Need | Interface |
 | --- | --- |
 | What is in this project? | `debuff inspect --json` |
+| Why won't it start? | `debuff doctor --json` |
 | What can I tune? | `__DEBUFF_DEV__.params()` (typed, ranged, unit-annotated) |
 | What is happening now? | `__DEBUFF_DEV__.state()` → scene, tick, stats, `Scene.inspect()` |
 | Did my change work? | `debuff scenario --json` |
