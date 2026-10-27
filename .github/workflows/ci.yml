@@ -41,6 +41,7 @@ jobs:
             templates/*/.debuff/
             templates/*/scenarios/__baselines__/
           if-no-files-found: ignore
+          include-hidden-files: true # .debuff/ holds the captures, diffs and reports
       # Release dispatches this on the Version packages PR. A dispatched run's check isn't listed on the PR,
       # so report its result as a commit status, which is.
       - name: Report to the Version packages PR

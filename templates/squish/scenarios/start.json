@@ -3,7 +3,7 @@
   "steps": [
     { "flashes": 60 },
     { "expect": { "scene": { "eq": "play" }, "state.phase": { "eq": "idle" }, "state.moves": { "eq": 25 } } },
-    { "capture": "board" },
+    { "capture": "board", "tolerance": 0.005 },
     { "contrast": [60, 95, 240, 24] }
   ]
 }

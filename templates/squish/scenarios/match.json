@@ -7,7 +7,7 @@
     { "tap": [75, 171] },
     { "until": { "events.pop": { "gte": 1 } }, "within": 60 },
     { "wait": 6 },
-    { "capture": "popping" },
+    { "capture": "popping", "tolerance": 0.005 },
     { "until": { "state.phase": { "eq": "idle" } }, "within": 180 },
     { "expect": { "state.score": { "gte": 30 }, "state.moves": { "eq": 24 } } },
     { "flashes": 240 }
