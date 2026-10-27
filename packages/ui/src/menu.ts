@@ -1,5 +1,6 @@
 import type { DrawLike, FontLike, InputLike } from "./draw-like.js";
 import { type FrameStyle, panelAround } from "./panel.js";
+import { neutral } from "./themes.js";
 
 export interface MenuItem {
   label: string;
@@ -47,11 +48,10 @@ export interface MenuStyle {
   cursorGap?: number;
   /** Minimum pixels between the label column and the value column. Default 12. */
   valueGap?: number;
-  /**
-   * A soft pill behind the focused row that squashes and springs back when focus moves. Default on with
-   * debuff's look (a style that sets no `color`), off otherwise; `false` turns it off.
-   */
+  /** A pill behind the focused row. Default on with the default look (a style that sets no `color`), off otherwise; `false` turns it off. */
   highlight?: string | number | false;
+  /** The pill squashes wide and flat when focus moves, then springs back. Default false; `squish` turns it on. */
+  squash?: boolean;
 }
 
 export interface MenuPanelStyle extends MenuStyle, FrameStyle {
@@ -220,14 +220,15 @@ export class Menu<A extends string = string> {
     this.rows = [];
     const x0 = Math.round(x);
     const y0 = Math.round(y);
-    // debuff's look: light labels, lime focus, and a jelly pill behind the focused row.
-    const squish = style.color === undefined;
-    const pill = style.highlight === false ? undefined : (style.highlight ?? (squish ? "#2a3320" : undefined));
+    // A style with no colours of its own gets the default look; one that sets `color` keeps exactly what it set.
+    const own = style.color !== undefined;
+    const pill = style.highlight === false ? undefined : (style.highlight ?? (own ? undefined : neutral.highlight));
     if (pill !== undefined && draw.circle && this.items.length) {
       const ry = y0 + this.focus * (l.rowH + l.gap);
       // Wider and flatter right after focus moves, springing back to its rest size.
-      const sx = 1 + 0.12 * this.bump,
-        sy = 1 - 0.25 * this.bump;
+      const bump = style.squash ? this.bump : 0;
+      const sx = 1 + 0.12 * bump,
+        sy = 1 - 0.25 * bump;
       const pw = (l.w + 8) * sx,
         ph = (l.rowH + 4) * sy;
       const px = x0 + l.w / 2 - pw / 2,
@@ -246,10 +247,10 @@ export class Menu<A extends string = string> {
       const item = this.items[i] as MenuItem;
       const focused = i === this.focus;
       const color = item.disabled
-        ? (style.disabledColor ?? (squish ? "#6b7560" : "#666"))
+        ? (style.disabledColor ?? (own ? "#666" : neutral.disabledColor))
         : focused
-          ? (style.focusColor ?? (squish ? "#cffb2d" : "#fff"))
-          : (style.color ?? "#d3dcc2");
+          ? (style.focusColor ?? (own ? "#fff" : neutral.focusColor))
+          : (style.color ?? neutral.color);
       const offset = style.align === "center" ? Math.floor((l.labelW - (l.widths[i] ?? 0)) / 2) : 0;
       const lx = x0 + l.gutter + offset;
       const ry = y0 + i * (l.rowH + l.gap);
@@ -274,7 +275,7 @@ export class Menu<A extends string = string> {
     if (style.title)
       draw.text(style.title, at.x + Math.floor((w - title.w) / 2), at.y, {
         font: titleFont,
-        color: style.titleColor ?? style.focusColor ?? "#fff",
+        color: style.titleColor ?? style.focusColor ?? (style.color === undefined ? neutral.titleColor : "#fff"),
       });
     this.drawLayout(draw, at.x + Math.floor((w - menu.w) / 2), at.y + titleH, style, menu);
   }

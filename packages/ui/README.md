@@ -45,9 +45,20 @@ Text is measured with `draw.measure`, so nothing is positioned by guesswork:
 - `panelAround(draw, cx, cy, w, h, { borders, fill, padding, radius, chamfer, shadow, shadowOffset })`: a panel fitted around content, centred and pixel-snapped; returns the content's top-left
 - `bar(draw, x, y, w, h, value, { segments, gap, fill, empty })`: a segmented meter; `value` (0-1) lights whole cells only, all the same width; returns the width used
 
-Out of the box, panels and menus use debuff's own look ("squish"): a soft, round-cornered dark panel with no outline, light labels, lime focus and a jelly highlight that squashes when focus moves. Set your own `borders` or `fill` and you get exactly what you set. `debuffFrame` is that look as a style object, to spread into anything:
+Out of the box, panels, menus and bars use `neutral`: plain greys, a white focus, 4px corners and a thin border, so they sit under your game's art without bringing a style of their own. Set your own `borders` or `fill`, or your own `color`, and you get exactly what you set.
+
+Looks are style objects you spread in:
+
+| Look | What it is | Bars |
+| --- | --- | --- |
+| `neutral` | The default: dark greys, white focus | `neutralBar` |
+| `neutralLight` | The same for light games: a white panel, dark text | `neutralLightBar` |
+| `squish` | debuff's own look: a round dark-olive panel with no outline, lime focus, and a highlight that squashes when focus moves | `squishBar` |
 
 ```ts
-import { debuffFrame } from "@debuffjp/ui";
-pause.drawPanel(draw, game.width / 2, game.height / 2, { ...debuffFrame, title: "paused" });
+import { squish, squishBar } from "@debuffjp/ui";
+pause.drawPanel(draw, game.width / 2, game.height / 2, { ...squish, title: "paused" });
+bar(draw, 8, 8, 60, 4, hp / maxHp, squishBar);
 ```
+
+Before 0.19 the default was squish. To keep that look, spread `squish` (and `squishBar`) where you relied on the default. `debuffFrame` still works, as squish's frame alone.
