@@ -5,7 +5,7 @@
     "url": "https://debuff.jp"
   },
   "metadata": {
-    "description": "debuff: an open-source toolkit for making 2D browser games with AI agents"
+    "description": "debuff: an open-source framework for making 2D browser games with AI agents"
   },
   "plugins": [
     {

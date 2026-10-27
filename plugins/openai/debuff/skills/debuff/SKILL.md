@@ -5,7 +5,7 @@ description: Use when the user wants to make a 2D game that runs in the browser 
 
 # Making 2D browser games with debuff
 
-debuff is an open-source TypeScript toolkit for 2D browser games. It handles the game loop, input (keyboard, touch, gamepad), crisp pixel rendering, sound, Tiled and LDtk levels, testing and the web build. Its CLI gives you evidence about the game, so check your work against tests and captures instead of guessing from code.
+debuff is an open-source TypeScript framework for 2D browser games. It handles the game loop, input (keyboard, touch, gamepad), crisp pixel rendering, sound, Tiled and LDtk levels, testing and the web build. Its CLI gives you evidence about the game, so check your work against tests and captures instead of guessing from code.
 
 ## Starting a new game
 

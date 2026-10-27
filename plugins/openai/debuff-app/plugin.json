@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "debuff-app",
   "version": "0.18.0",
-  "description": "Make 2D browser games in chat and play them straight away from a link, or start a real project with debuff, an open-source TypeScript toolkit.",
+  "description": "Make 2D browser games in chat and play them straight away from a link, or start a real project with debuff, an open-source TypeScript framework.",
   "author": {
     "name": "debuff",
     "url": "https://debuff.jp"
@@ -28,7 +28,7 @@
       "interface": {
         "displayName": "debuff",
         "shortDescription": "Make and play 2D web games",
-        "longDescription": "debuff is a free, open-source toolkit for small, polished 2D web games. Ask for a game and get a link that runs it in your browser next to its code, with nothing to install. Start a real project from a platformer, top-down adventure or match-3 starter, or get answers from the debuff guides and API reference.\n\nThe app only reads public documentation and makes links. It can't see your files or accounts, and playground code travels inside the link, so nothing is stored.",
+        "longDescription": "debuff is a free, open-source framework for small, polished 2D web games. Ask for a game and get a link that runs it in your browser next to its code, with nothing to install. Start a real project from a platformer, top-down adventure or match-3 starter, or get answers from the debuff guides and API reference.\n\nThe app only reads public documentation and makes links. It can't see your files or accounts, and playground code travels inside the link, so nothing is stored.",
         "developerName": "debuff",
         "category": "Developer Tools",
         "capabilities": ["Read"],
