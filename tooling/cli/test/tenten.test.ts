@@ -1,11 +1,12 @@
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { compileAssets, findTenten, tenten } from "../src/index.js";
 
 function project(files: Record<string, string>): string {
-  const root = mkdtempSync(join(tmpdir(), "debuff-"));
+  // realpath: macOS's tmpdir is a symlink (/var -> /private/var), and module resolution returns the real path.
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "debuff-")));
   for (const [path, content] of Object.entries(files)) {
     const full = join(root, path);
     mkdirSync(join(full, ".."), { recursive: true });
@@ -106,9 +107,10 @@ describe("tenten importer", () => {
 
 describe("tenten by default", () => {
   it("imports .tt files with no plugin configured", async () => {
-    const root = project({ "assets/x.tt": "tt" });
+    // A tenten that exists and fails: a missing path would fall back to fetching tenten with npx.
+    const root = project({ "assets/x.tt": "tt", "fail.js": "process.exit(1);" });
     const prev = process.env.TENTEN;
-    process.env.TENTEN = join(root, "missing.js");
+    process.env.TENTEN = join(root, "fail.js");
     try {
       const { importedBy, warnings } = await compileAssets(root, { cache: false, atlas: false });
       expect(warnings[0]).toMatch(/Skipped x\.tt: tenten failed/);
