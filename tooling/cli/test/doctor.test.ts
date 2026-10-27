@@ -1,6 +1,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { writeProjectSkills } from "create-debuff";
 import { afterEach, describe, expect, it } from "vitest";
 import { type DoctorResult, repairDoctor, runDoctor } from "../src/index.js";
 
@@ -24,6 +25,7 @@ function project({ declared = version, installedAs = declared } = {}) {
   install(root, "@debuffjp/dev", installedAs);
   writeFileSync(join(root, "AGENTS.md"), "# Agent guide\n");
   writeFileSync(join(root, "CLAUDE.md"), "@AGENTS.md\n");
+  writeProjectSkills(root, version);
   writeFileSync(join(root, ".mcp.json"), JSON.stringify({ mcpServers: { debuff: { command: "npx", args: ["-y", "@debuffjp/mcp"] } } }));
   return root;
 }
@@ -86,7 +88,7 @@ describe("runDoctor", () => {
     writeFileSync(join(root, "debuff.config.mjs"), "export const nothing = 1;\n");
     writeFileSync(join(root, "saves.json"), "{ nope");
     const r = await runDoctor(root, { browser: false, env: { ...env, NODE_ENV: "production" } });
-    expect(failed(r)).toEqual(["node-env", "package-json", "config", "saves", "agent-files"]);
+    expect(failed(r)).toEqual(["node-env", "package-json", "config", "saves", "agent-files", "agent-skills"]);
     expect(check(r, "config")?.message).toContain("must `export default defineConfig({ ... })`");
     expect(check(r, "node-env")).toMatchObject({ required: false, message: expect.stringContaining("NODE_ENV=production") });
   });
@@ -124,5 +126,22 @@ describe("runDoctor", () => {
     project({ installedAs: "0.1.0" });
     const r = await runDoctor(root, { browser: false, env });
     expect(check(r, "installed")?.repair).toEqual({ run: ["install"] });
+  });
+
+  it("flags missing or stale agent skills as advice, and --fix writes them for the installed version", async () => {
+    project();
+    writeProjectSkills(root, "0.1.0");
+    let r = await runDoctor(root, { browser: false, env });
+    expect(check(r, "agent-skills")).toMatchObject({ ok: false, required: false, message: expect.stringContaining("debuff 0.1.0") });
+    expect(r.ok).toBe(true);
+    expect(repairDoctor(root, r)).toEqual([expect.stringContaining(`agent skills for debuff ${version}`)]);
+    for (const dir of [".claude/skills", ".agents/skills"])
+      expect(readFileSync(join(root, dir, "debuff", "SKILL.md"), "utf8")).toContain(`debuff-version: "${version}"`);
+    r = await runDoctor(root, { browser: false, env });
+    expect(check(r, "agent-skills")?.ok).toBe(true);
+
+    rmSync(join(root, ".claude"), { recursive: true });
+    r = await runDoctor(root, { browser: false, env });
+    expect(check(r, "agent-skills")?.message).toMatch(/^No agent skills/);
   });
 });

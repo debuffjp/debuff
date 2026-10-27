@@ -7,9 +7,13 @@ import {
   isRemoteTemplate,
   listTemplates,
   OFFICIAL_TEMPLATES,
+  ownVersion,
+  PROJECT_SKILLS,
   packageName,
   pinnedSource,
+  projectSkillsVersion,
   resolveTemplate,
+  SKILL_DIRS,
   scaffold,
   templateOptions,
   templatesDir,
@@ -30,6 +34,19 @@ describe("scaffold", () => {
     expect(existsSync(join(dest, "template.json"))).toBe(false);
     for (const skipped of ["node_modules", "dist", ".debuff"]) expect(existsSync(join(dest, skipped))).toBe(false);
     expect(JSON.parse(readFileSync(join(dest, "package.json"), "utf8")).name).toBe("my-game-");
+  });
+
+  it("writes the agent skills for this release into every agent's skills folder", () => {
+    const dest = join(tmp(), "skilled");
+    scaffold({ dir: dest });
+    const version = ownVersion();
+    for (const dir of SKILL_DIRS)
+      for (const name of PROJECT_SKILLS) {
+        const text = readFileSync(join(dest, dir, name, "SKILL.md"), "utf8");
+        expect(text).toMatch(new RegExp(`^---\\nname: ${name}\\n`));
+        expect(text).toContain(`metadata:\n  debuff-version: "${version}"\n---`);
+      }
+    expect(projectSkillsVersion(dest)).toBe(version);
   });
 
   it("refuses non-empty directories and unknown templates", () => {
