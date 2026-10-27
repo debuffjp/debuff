@@ -355,7 +355,9 @@ function domInput(window: Window) {
       const el = canvas();
       const init = { clientX: at.x, clientY: at.y, button: kind === "move" ? -1 : 0, buttons: kind === "up" ? 0 : 1, ...common };
       const PointerCtor = W.PointerEvent ?? W.MouseEvent;
-      el.dispatchEvent(positioned(new PointerCtor(`pointer${kind}`, { ...init, pointerId: id, pointerType: type, isPrimary }), at.x, at.y));
+      // The mouse is pointerId 1, as in browsers, so contacts are shifted past it; touch events keep the caller's id.
+      const pointerId = id + TOUCH_POINTER_OFFSET;
+      el.dispatchEvent(positioned(new PointerCtor(`pointer${kind}`, { ...init, pointerId, pointerType: type, isPrimary }), at.x, at.y));
       // Pens send pointer events only; fingers send touch events as well.
       if (type === "pen" || !W.TouchEvent || !W.Touch) return;
       const point = (i: number, p: { x: number; y: number }) =>
@@ -376,6 +378,9 @@ function domInput(window: Window) {
     },
   };
 }
+
+/** Added to a touch id to make its DOM `pointerId`, so no contact shares the mouse's id 1. */
+export const TOUCH_POINTER_OFFSET = 2;
 
 /** The legacy `KeyboardEvent.keyCode` for a `code`, which older engines (Phaser's key objects) still read. 0 if unknown. */
 export function keyCodeFor(code: string): number {

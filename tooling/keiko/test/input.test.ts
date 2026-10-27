@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { Pointer } from "../../../packages/input/src/pointer.js";
 import type { VirtualClock } from "../src/clock.js";
-import { type DebuffDevHooks, debuffDriver, genericDriver, MissingHookError } from "../src/driver.js";
+import { type DebuffDevHooks, debuffDriver, genericDriver, MissingHookError, TOUCH_POINTER_OFFSET } from "../src/driver.js";
 import { Playtest } from "../src/playtest.js";
 
 /** keiko's DOM driver against a page with a canvas, read back through @debuffjp/input's real Pointer. */
@@ -53,13 +53,22 @@ describe("DOM input: right button, wheel and touch", () => {
     expect(seen.filter((s) => s.startsWith("touchstart"))).toHaveLength(2);
     driver.touchMove(5, 60, 60);
     driver.touchMove(4, 12, 14);
-    expect([pointer.x, pointer.y, pointer.touches.get(5)?.x]).toEqual([12, 14, 60]);
+    expect([pointer.x, pointer.y, pointer.touches.get(5 + TOUCH_POINTER_OFFSET)?.x]).toEqual([12, 14, 60]);
     driver.touchUp(4);
     expect([pointer.down, pointer.touches.size]).toEqual([false, 1]);
     driver.touchUp(5);
     driver.touchUp(5); // already up: nothing sent
     expect(seen.filter((s) => s === "touchend")).toHaveLength(2);
-    expect(pointer.touchesEnded.map((t) => t.id)).toEqual([4, 5]);
+    expect(pointer.touchesEnded.map((t) => t.id)).toEqual([6, 7]);
+  });
+
+  it("keeps finger 1 apart from the mouse, which is pointerId 1", () => {
+    const { pointer, driver } = page();
+    driver.pointerDown(0, 0);
+    driver.touchDown(1, 3, 3);
+    expect([...pointer.touches.keys()]).toEqual([1, 1 + TOUCH_POINTER_OFFSET]);
+    driver.touchUp(1);
+    expect([...pointer.touches.keys()]).toEqual([1]);
   });
 
   it("sends a pen as pointer events only", () => {
@@ -132,7 +141,7 @@ describe("pointerDown with a kind", () => {
     const { pointer, driver, seen } = page();
     driver.pointerDown(10, 10, "touch");
     driver.pointerMove(20, 20);
-    expect([pointer.kind, pointer.x, pointer.touches.get(1)?.kind]).toEqual(["touch", 20, "touch"]);
+    expect([pointer.kind, pointer.x, pointer.touches.get(1 + TOUCH_POINTER_OFFSET)?.kind]).toEqual(["touch", 20, "touch"]);
     expect(seen.some((s) => s.endsWith(":mouse"))).toBe(false);
     driver.pointerUp();
     expect([pointer.down, pointer.touches.size]).toEqual([false, 0]);
