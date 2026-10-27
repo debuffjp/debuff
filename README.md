@@ -4,7 +4,7 @@
 
 **more room for play.** 
   
-debuff is an open-source toolkit for 2D browser games that handles the basics for you (the game loop, controls, sound, levels, testing, shipping) so you get to that game sooner and spend your time on what makes it yours.
+debuff is an open-source framework for 2D browser games that handles the basics for you (the game loop, controls, sound, levels, testing, shipping) so you get to that game sooner and spend your time on what makes it yours.
 
 - **The groundwork, done.** Start from a running game in under a minute. Crisp pixels on every screen, keyboard, touch and gamepad, sound that plays, levels from Tiled or LDtk, and a build you can put anywhere on the web, game portals like Poki and CrazyGames included ([publishing guide](https://debuff.jp/docs/publishing)).
 - **Tune it until it feels right.** Speeds, timings and other feel values become live sliders in the dev panel, with undo.

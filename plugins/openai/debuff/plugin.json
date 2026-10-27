@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "debuff",
   "version": "0.18.0",
-  "description": "Make 2D browser games with debuff, an open-source TypeScript toolkit. Start a playable platformer or top-down adventure in a minute, then build it with tests, scenario captures and fuzzing that prove each change works.",
+  "description": "Make 2D browser games with debuff, an open-source TypeScript framework. Start a playable platformer or top-down adventure in a minute, then build it with tests, scenario captures and fuzzing that prove each change works.",
   "author": {
     "name": "debuff",
     "url": "https://debuff.jp"
@@ -28,7 +28,7 @@
       "interface": {
         "displayName": "debuff",
         "shortDescription": "Make 2D browser games",
-        "longDescription": "Make 2D browser games with debuff, an open-source TypeScript toolkit that handles the game loop, keyboard, touch and gamepad input, crisp pixel rendering, sound, Tiled and LDtk levels, testing and the web build.\n\nAsk for a platformer, a top-down adventure or a blank start, and the agent scaffolds a running game in about a minute. As it builds, it proves each change with logic tests that run the real game in Node, scenario scripts with screenshot captures, and a fuzzer that plays the game with random input to find crashes and stuck states. Runtime errors come back explained: whose bug it is and which line.\n\nYou keep the creative calls: art, feel, difficulty and names. Requires Node.js 22 or newer.",
+        "longDescription": "Make 2D browser games with debuff, an open-source TypeScript framework that handles the game loop, keyboard, touch and gamepad input, crisp pixel rendering, sound, Tiled and LDtk levels, testing and the web build.\n\nAsk for a platformer, a top-down adventure or a blank start, and the agent scaffolds a running game in about a minute. As it builds, it proves each change with logic tests that run the real game in Node, scenario scripts with screenshot captures, and a fuzzer that plays the game with random input to find crashes and stuck states. Runtime errors come back explained: whose bug it is and which line.\n\nYou keep the creative calls: art, feel, difficulty and names. Requires Node.js 22 or newer.",
         "developerName": "debuff",
         "category": "Developer Tools",
         "capabilities": ["Interactive", "Read", "Write"],
