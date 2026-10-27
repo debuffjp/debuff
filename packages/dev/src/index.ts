@@ -419,30 +419,52 @@ export {
 
 let sampler: CanvasRenderingContext2D | null | undefined;
 
-/** Downscale the current frame onto a small canvas and convert each cell to WCAG relative luminance. */
+/**
+ * Average the current frame over a `cols` × `rows` grid and convert each cell to WCAG relative luminance. The
+ * averaging is done here rather than by a downscaling `drawImage`, which point-samples on some platforms (macOS)
+ * and turns fine detail scrolling past into flicker.
+ */
 function sampleLuminance(game: Game, cols: number, rows: number, region?: [number, number, number, number]): number[] {
   if (!(cols >= 1 && rows >= 1 && cols * rows <= 1_000_000)) throw new RangeError("luminance: cols and rows must be at least 1");
   game.redraw();
   sampler ??= document.createElement("canvas").getContext("2d", { willReadFrequently: true });
   if (!sampler) throw new Error("luminance: a 2D canvas is unavailable");
   const canvas = sampler.canvas;
-  canvas.width = cols;
-  canvas.height = rows;
-  sampler.imageSmoothingEnabled = true;
-  sampler.imageSmoothingQuality = "high";
   // Logical units to backing-store pixels.
   const sx = game.canvas.width / game.width;
   const sy = game.canvas.height / game.height;
   const [x, y, w, h] = region ?? [0, 0, game.width, game.height];
-  sampler.clearRect(0, 0, cols, rows);
-  sampler.drawImage(game.canvas, x * sx, y * sy, w * sx, h * sy, 0, 0, cols, rows);
-  const data = sampler.getImageData(0, 0, cols, rows).data;
+  const pw = Math.max(1, Math.round(w * sx));
+  const ph = Math.max(1, Math.round(h * sy));
+  canvas.width = pw;
+  canvas.height = ph;
+  sampler.clearRect(0, 0, pw, ph);
+  sampler.drawImage(game.canvas, x * sx, y * sy, w * sx, h * sy, 0, 0, pw, ph);
+  const data = sampler.getImageData(0, 0, pw, ph).data;
   const linear = (c: number) => {
     const v = c / 255;
     return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
   };
   const out: number[] = [];
-  for (let i = 0; i < data.length; i += 4)
-    out.push(0.2126 * linear(data[i] ?? 0) + 0.7152 * linear(data[i + 1] ?? 0) + 0.0722 * linear(data[i + 2] ?? 0));
+  for (let row = 0; row < rows; row++) {
+    const y0 = Math.min(ph - 1, Math.floor((row * ph) / rows));
+    const y1 = Math.max(y0 + 1, Math.floor(((row + 1) * ph) / rows));
+    for (let col = 0; col < cols; col++) {
+      const x0 = Math.min(pw - 1, Math.floor((col * pw) / cols));
+      const x1 = Math.max(x0 + 1, Math.floor(((col + 1) * pw) / cols));
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      for (let py = y0; py < y1; py++)
+        for (let px = x0; px < x1; px++) {
+          const i = (py * pw + px) * 4;
+          r += data[i] ?? 0;
+          g += data[i + 1] ?? 0;
+          b += data[i + 2] ?? 0;
+        }
+      const n = (y1 - y0) * (x1 - x0);
+      out.push(0.2126 * linear(r / n) + 0.7152 * linear(g / n) + 0.0722 * linear(b / n));
+    }
+  }
   return out;
 }
