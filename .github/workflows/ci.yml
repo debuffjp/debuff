@@ -1,7 +1,6 @@
 name: CI
 
-# One fast Linux job on every push and pull request. The full OS × Node and
-# package-manager matrix lives in matrix.yml (weekly and on demand).
+# One fast Linux job on every push and pull request.
 on:
   push:
     branches: [main]
