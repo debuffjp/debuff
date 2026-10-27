@@ -1,5 +1,15 @@
 # create-debuff
 
+## 0.20.0
+
+### Minor Changes
+
+- 4fb20f1: New projects carry agent skills for their own debuff version: `npm create debuff` writes the `debuff`, `debuff-setup`, `keiko` and `myaku` skills into `.claude/skills/` (Claude Code) and `.agents/skills/` (Codex, Gemini CLI, Cursor, Copilot), each stamped with `metadata.debuff-version`. `debuff doctor` flags missing or stale skills, and `--fix` rewrites them for the installed version, so an agent's instructions match the code it edits after an upgrade.
+
+### Patch Changes
+
+- b7f1dda: New games keep the canvas hidden until debuff sizes it. Browsers first paint a 300x150 canvas, and its jump to full screen counted as a layout shift (CLS 0.2-0.4 on a desktop window; 0 now).
+
 ## 0.19.0
 
 No changes in this release.
