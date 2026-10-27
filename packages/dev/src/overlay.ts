@@ -298,6 +298,8 @@ class Overlay {
   setCollapsed(collapsed: boolean): void {
     this.collapsed = collapsed;
     this.body.hidden = collapsed;
+    // Collapsed, the panel is just its header, so it shrinks to fit instead of keeping the full width.
+    this.root.style.width = collapsed ? "auto" : PANEL_WIDTH;
     this.collapseButton.textContent = collapsed ? "+" : "–";
     this.collapseButton.title = collapsed ? "Expand the dev panel" : "Collapse the dev panel";
     this.collapseButton.setAttribute("aria-expanded", String(!collapsed));
@@ -832,6 +834,7 @@ function format(n: number): string {
 }
 
 const COLLAPSED_KEY = "debuff:dev-overlay:collapsed";
+const PANEL_WIDTH = "290px";
 const TAB_KEY = "debuff:dev-overlay:tab";
 
 function readCollapsed(): boolean {
@@ -914,7 +917,7 @@ function panelStyle(position: NonNullable<DevOverlayOptions["position"]>): Parti
     [v]: "8px",
     [h]: "8px",
     zIndex: "2147483647",
-    width: "290px",
+    width: PANEL_WIDTH,
     maxHeight: "calc(100vh - 16px)",
     overflow: "auto",
     padding: "8px",
