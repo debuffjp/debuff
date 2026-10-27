@@ -126,6 +126,39 @@ describe("Game", () => {
     expect(sizes).toEqual([[360, 1280]]);
   });
 
+  it("pixel mode keeps a fixed size per unit and shows more of the game in a bigger container", () => {
+    const { canvas } = fakeCanvas();
+    const box = document.createElement("div");
+    let size = [1920, 1080];
+    Object.defineProperties(box, { clientWidth: { get: () => size[0] }, clientHeight: { get: () => size[1] } });
+    box.append(canvas);
+    const g = new Game({ canvas, width: 320, height: 180, scale: "pixel", pixelSize: 3, pixelArt: true });
+    expect([g.width, g.height]).toEqual([640, 360]);
+    expect(g.renderScale).toBe(3);
+    // A bigger window: same 3 pixels per unit, more units.
+    size = [2560, 1440];
+    g.resize();
+    expect([g.width, g.height]).toEqual([853, 480]);
+    expect(g.renderScale).toBe(3);
+    // A common laptop size with a 640x360 minimum would drop to 2 (see the next game); here 3 still fits.
+    size = [1366, 768];
+    g.resize();
+    expect([g.width, g.height]).toEqual([455, 256]);
+    // Too small for the 320x180 minimum at 3: it scales down by whole pixels and keeps the minimum.
+    size = [700, 400];
+    g.resize();
+    expect([g.width, g.height]).toEqual([350, 200]);
+    expect(g.renderScale).toBe(2);
+
+    // A 640x360 minimum at 1366x768 can't fit at 3, so it falls to 2: 683x384.
+    const { canvas: c2 } = fakeCanvas();
+    const box2 = document.createElement("div");
+    Object.defineProperties(box2, { clientWidth: { value: 1366 }, clientHeight: { value: 768 } });
+    box2.append(c2);
+    const wide = new Game({ canvas: c2, width: 640, height: 360, scale: "pixel", pixelSize: 3 });
+    expect([wide.width, wide.height, wide.renderScale]).toEqual([683, 384, 2]);
+  });
+
   it("maps client coordinates to logical coordinates", () => {
     const { game, canvas } = makeGame();
     canvas.getBoundingClientRect = () => ({ left: 10, top: 20, width: 640, height: 360 }) as DOMRect;
