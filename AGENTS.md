@@ -24,4 +24,5 @@ Instructions for AI agents working **on this repository**. (Agents working on a 
 - No dev-only code outside `import.meta.env.DEV` branches or `@debuffjp/dev`.
 - Never modify source assets. Generated files (asset manifests, reports) are not committed.
 - Don't make creative or art-direction decisions in templates or docs; ask instead.
+- Never delete docs for something deprecated, renamed or changed in behaviour: people on old versions still look it up. Keep the old docs and mark them with the version where it changed ("Before 0.19…", "Deprecated in 0.19: use `squish`"). This covers READMEs, JSDoc, skills and the debuff.jp site, English and Japanese.
 - `planning/` holds the maintainer's local planning notes. It's gitignored, so don't edit it.

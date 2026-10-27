@@ -129,9 +129,9 @@ export interface BarStyle {
   segments?: number;
   /** Pixels between cells. Default 1. */
   gap?: number;
-  /** Lit cells. Default a light grey (`neutralBar`). */
+  /** Lit cells. Default a light grey (`neutralBar`); debuff lime before 0.19. */
   fill?: string | number;
-  /** Unlit cells. Default a dark grey. */
+  /** Unlit cells. Default a dark grey; a dark olive before 0.19. */
   empty?: string | number;
 }
 

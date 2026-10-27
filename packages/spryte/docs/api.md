@@ -129,7 +129,7 @@ shared.draw.end();
 
 - At `begin()` spryte binds its own program, vertex array and blend state, and resets depth test, face culling, colour mask and `UNPACK_FLIP_Y`. It keeps the host's scissor and stencil, so a camera viewport or mask applies to spryte too, and its own `clip()` intersects the host's scissor. At `end()` it gives the host's scissor back and unbinds sampler objects, which would otherwise override the texture filtering of a host written for WebGL1. It does not restore the host's program, vertex array, texture bindings or viewport: the host must rebind what it needs after the slot, as engines with cached GL state do (Phaser does).
 - Context loss belongs to the host: it must `preventDefault` on `webglcontextlost` for the browser to restore the context. spryte listens to both events without claiming them, draws nothing while lost, and rebuilds its GPU objects at the first `begin()` after the restore, inside the host's slot, even when the loss and restore both happened between two frames.
-- `borrow(image)` lends spryte the host's own GPU texture for an image, so a texture both draw isn't uploaded twice. Return `{ texture, width, height, flipY }`, or null for spryte to upload its own copy. spryte asks once per image per frame, so a texture the host frees or re-creates is never drawn stale; keep it cheap. The texture must hold premultiplied alpha. spryte never writes to or deletes it. `spryte/phaser` and `spryte/pixi` set it up for you.
+- `borrow(image)` lends spryte the host's own GPU texture for an image, so a texture both draw isn't uploaded twice. Return `{ texture, width, height, flipY }`, or null for spryte to upload its own copy. spryte asks once per image per frame, so a texture the host frees or re-creates is never drawn stale; keep it cheap. (Added in 0.6, where it was asked once per image and the answer kept; from 0.7 it is asked every frame.) The texture must hold premultiplied alpha. spryte never writes to or deletes it. `spryte/phaser` and `spryte/pixi` set it up for you.
 - The separate export costs nothing in apps that don't use it, and an app that only uses it never loads the Canvas 2D fallback.
 
 ### Phaser 4: `spryte/phaser`
@@ -152,7 +152,7 @@ class Bullets extends Phaser.Scene {
 | `spryteExtern(extern, render, options?)` | `render(draw)` runs each frame in the Extern's slot, with the Extern's `calcMatrix` (camera and any Container) applied, so coordinates are Phaser's world. Filters on the Extern or camera, camera viewports and `Stencil` masks apply. Returns `{ draw, dispose }`; `draw` exists from the first frame on, and `dispose` runs when the Extern is destroyed. |
 | `shimShaders(gl)` | Translates Phaser's GLSL ES 1.00 shaders to ES 3.00 as they compile. Without it, on a WebGL2 context Phaser 4.2.1's `Gradient`, noise objects with `noiseNormalMap` and `smoothPixelArt` fail to compile, since `OES_standard_derivatives` is a WebGL1 extension. Your own ES 1.00 shaders go through it too; ones that declare `#version 300 es` pass through. |
 
-Images Phaser loaded draw from Phaser's own GPU textures: pass `this.textures.get(key).getSourceImage()`.
+Images Phaser loaded draw from Phaser's own GPU textures: pass `this.textures.get(key).getSourceImage()`. From spryte 0.6; earlier versions upload their own copy of every image.
 
 Tested with Phaser 4.2.1 (`npm run test:phaser` runs the example's real-GPU checks). Phaser 3 has an `Extern` with a different callback and state handling; it isn't supported.
 

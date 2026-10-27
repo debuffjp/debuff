@@ -19,11 +19,13 @@ npx debuff --help
 | `debuff fuzz [--seconds] [--runs] [--seed] [--keys] [--ignore]` | Play headless with random but plausible input. Reports explained errors, stuck states and loops (the scene, or two state fields, flipping between the same two values), each saved as a scenario in `.debuff/fuzz/` that reproduces it. `--keys` takes key codes, `PointerRight` / `PointerMiddle`, and the gestures `Wheel` (a scroll) and `Touch` (a finger tap or drag), e.g. `--keys Touch,Wheel,Space` for a touch game. `--ignore state.shots` skips noisy fields. Exits 1 on errors |
 | `debuff telemetry [on\|off\|status]` | Anonymous build registration: after a successful build, `debuff build` sends a random project id, the package name and the debuff version to debuff.jp, so we can find games made with debuff. Off in CI, or with `debuff telemetry off` / `DEBUFF_TELEMETRY=0`. [What's sent](https://debuff.jp/docs/telemetry) |
 | `debuff inspect` | JSON summary of the project |
-| `debuff doctor [--live] [--fix]` | Check the setup in one pass: Node version, debuff package versions, `node_modules`, `debuff.config.ts`, assets, `saves.json`, agent files and the browser scenarios use. Each problem comes with a fix. `--fix` applies the safe ones (install, dedupe, add `@debuffjp/dev`, write a missing `.mcp.json`, rewrite the agent skills for the installed version) in the project's package manager, then checks again. `--live` also starts the dev server and checks the game exposes its dev hooks. Exits 2 when a required check fails. Other commands that fail on setup point here |
+| `debuff doctor [--live] [--fix]` | Check the setup in one pass: Node version, debuff package versions, `node_modules`, `debuff.config.ts`, assets, `saves.json`, agent files and the browser scenarios use. Each problem comes with a fix. `--fix` applies the safe ones (install, dedupe, add `@debuffjp/dev`, write a missing `.mcp.json`, rewrite the agent skills for the installed version) in the project's package manager, then checks again. `--live` also starts the dev server and checks the game exposes its dev hooks. Exits 2 when a required check fails (1 before 0.20). Other commands that fail on setup point here |
 
 Add `--json` for machine-readable output and `--root <dir>` to target another project.
 
 ## Exit codes and errors
+
+From 0.20. Before that, every failure exited 1, `doctor` exited 1 when a required check failed, unknown options were ignored, and `--json` errors were printed as text.
 
 The exit code says what to do next, so scripts and agents can act without reading the output:
 
