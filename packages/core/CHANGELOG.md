@@ -1,5 +1,12 @@
 # @debuffjp/core
 
+## 0.19.0
+
+### Minor Changes
+
+- bcc4cb2: New `scale: "pixel"` mode: a fixed number of CSS pixels per logical unit (`pixelSize`, default 3, snapped to whole device pixels), with the logical size growing with the container. Bigger windows and monitors show more of the game instead of bigger pixels; `width`/`height` are the minimum.
+- 11d5ea1: The "made with debuff" splash switches on and off like an old TV: a dot of light stretches into a line, the line opens into the card with a flash, sun rays turn behind the logo over scanlines, and at the end the picture collapses back to a line and a dot. With reduced motion it fades in and out with still rays.
+
 ## 0.18.0
 
 ### Patch Changes
