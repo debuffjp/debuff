@@ -82,6 +82,7 @@ debuff test             logic tests (keiko): the real game in Node, no browser, 
 debuff scenario         run scenarios/*.json headless, compare captures
 debuff fuzz             random playtesting; crashes come back as replay files
 debuff inspect          JSON project summary for agents
+debuff doctor           check Node, package versions, config, assets and browser in one pass
 debuff report           size report for an existing dist/
 ```
 

@@ -7,6 +7,7 @@ import {
   findUnused,
   inspectProject,
   loadConfig,
+  runDoctor,
   runFuzz,
   runScenarios,
   typecheck,
@@ -37,7 +38,7 @@ export function createServer(options: ServerOptions): McpServer {
     { name: "debuff", version: options.version },
     {
       instructions:
-        "Tools for building 2D web games with debuff. Start with inspect_project. To see the game, call game_start, then game_state / game_capture. " +
+        "Tools for building 2D web games with debuff. Start with inspect_project; if a tool fails on setup (packages, config, browser), call doctor.To see the game, call game_start, then game_state / game_capture. " +
         "If the human has the game open under `debuff dev`, game_start attaches to it (mode live): they see your actions in their overlay, and their " +
         "flagged moments are in game_notes, so read those first. Otherwise you get a private paused copy (mode headless) where time only advances through game_step. " +
         "Use game_pause before inspecting a live game, and game_profile to explain stutter (game_frames for raw numbers). Prompts (playtest, fix-errors, tune-feel, add-mechanic, explain-stutter) give step-by-step workflows. Prefer tuning params (game_params, game_set_param) over code changes, " +
@@ -77,6 +78,20 @@ export function createServer(options: ServerOptions): McpServer {
       annotations: { readOnlyHint: true },
     },
     safely(async ({ root: r }) => json(await inspectProject(rootOf(r)))),
+  );
+
+  server.registerTool(
+    "doctor",
+    {
+      title: "Check setup",
+      description:
+        "Check the project's setup in one pass: Node, debuff package versions, node_modules, debuff.config.ts, assets, saves.json, agent files and the browser. " +
+        "Every check has an id, ok, a message and a fix; ok is false only when a required check failed. Call it when another tool fails on setup. " +
+        "live: true also starts the dev server and waits for the game's dev hooks (about 5 to 15 s).",
+      inputSchema: { ...root, live: z.boolean().optional().describe("Also boot the game and check its dev hooks. Default false.") },
+      annotations: { readOnlyHint: true },
+    },
+    safely(async ({ root: r, live }) => json(await runDoctor(rootOf(r), { live: live ?? false }))),
   );
 
   server.registerTool(

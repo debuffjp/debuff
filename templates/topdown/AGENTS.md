@@ -14,6 +14,7 @@ This is a top-down game made with **debuff** (https://debuff.jp). These notes ar
 | `npx debuff build --accept-saves` | Accept a change to the game's saves. **Only after the human has approved it**: players with an old save lose what no longer fits, unless `new Storage(key, defaults, { version, migrate })` carries it over |
 | `npm run assets` | Regenerates the asset manifest and lists unused assets |
 | `npx debuff inspect` | Project summary as JSON: packages, plugins, assets, last build size |
+| `npx debuff doctor` | Checks the setup in one pass when something won't start: Node, package versions, config, assets, browser, agent files. `--live` also boots the game |
 | `npx debuff scenario --update` | Accept new screenshot baselines. **Only after the human has approved the visual change** |
 
 ## Layout
