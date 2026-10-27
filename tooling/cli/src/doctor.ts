@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
+import { projectSkillsVersion, SKILL_DIRS, writeProjectSkills } from "create-debuff";
 import { compileAssets } from "./assets/index.js";
 import { loadConfig, type ResolvedConfig } from "./config.js";
 import { hooksReady } from "./scenario/browser.js";
@@ -25,7 +26,7 @@ export interface DoctorCheck {
   /** One command or edit that fixes it. */
   fix?: string;
   /** What `debuff doctor --fix` does about it, when that's safe without asking: a command, or a file to create. */
-  repair?: { run: string[] } | { write: string; content: string };
+  repair?: { run: string[] } | { write: string; content: string } | { skills: string };
 }
 
 export interface DoctorResult {
@@ -64,7 +65,7 @@ export async function runDoctor(root: string, options: DoctorOptions = {}): Prom
     checks.push({ id: "config", group: "config", ok: false, message: errorText(err) });
   }
   if (config) checks.push(...(await assets(root, config)));
-  checks.push(saves(root), agentFiles(root));
+  checks.push(saves(root), agentFiles(root), agentSkills(root));
   if (options.browser !== false) checks.push(await browser());
   if (options.live && config) checks.push(await runtimeHooks(root));
 
@@ -301,6 +302,24 @@ function agentFiles(root: string): DoctorCheck {
     : { id: "agent-files", group: "agents", ok: true, message: "AGENTS.md, CLAUDE.md and .mcp.json are set up for AI agents" };
 }
 
+/** The project's agent skills should describe the debuff it has installed, or agents follow instructions for another version. */
+function agentSkills(root: string): DoctorCheck {
+  const found = projectSkillsVersion(root);
+  const base = { id: "agent-skills", group: "agents" as const };
+  if (found === cli.version) return { ...base, ok: true, message: `Agent skills match debuff ${cli.version} (${SKILL_DIRS.join(", ")})` };
+  return {
+    ...base,
+    ok: false,
+    required: false,
+    message:
+      found === undefined
+        ? `No agent skills in ${SKILL_DIRS.join(" or ")}: agents work from general knowledge instead of this debuff version`
+        : `Agent skills are for debuff ${found}, but ${cli.version} is installed`,
+    fix: "npx debuff doctor --fix writes them for the installed version (it replaces debuff's own skill files only)",
+    repair: { skills: cli.version },
+  };
+}
+
 async function browser(): Promise<DoctorCheck> {
   try {
     const b = await launchBrowser();
@@ -382,6 +401,12 @@ export function repairDoctor(root: string, result: DoctorResult, log: (line: str
     if ("write" in c.repair) {
       writeFileSync(join(root, c.repair.write), c.repair.content);
       done.push(`wrote ${c.repair.write}`);
+      log(done.at(-1) as string);
+      continue;
+    }
+    if ("skills" in c.repair) {
+      writeProjectSkills(root, c.repair.skills);
+      done.push(`wrote the agent skills for debuff ${c.repair.skills} (${SKILL_DIRS.join(", ")})`);
       log(done.at(-1) as string);
       continue;
     }

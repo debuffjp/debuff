@@ -13,3 +13,5 @@ Options:
 - `--yes`: accept defaults without prompting (CI, agents)
 
 Runs without prompts when stdin isn't a TTY.
+
+Every new project also gets agent skills matched to this release, in `.claude/skills/` (Claude Code) and `.agents/skills/` (Codex, Gemini CLI, Cursor, Copilot), stamped with `metadata.debuff-version`. After upgrading debuff, `npx debuff doctor --fix` rewrites them.

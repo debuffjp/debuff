@@ -19,3 +19,4 @@ export {
   type TemplateKind,
   templatesDir,
 } from "./scaffold.js";
+export { PROJECT_SKILLS, projectSkillsVersion, SKILL_DIRS, skillsDir, stampSkill, writeProjectSkills } from "./skills.js";

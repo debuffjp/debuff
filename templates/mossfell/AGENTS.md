@@ -25,6 +25,7 @@ This is **mossfell**, a top-down action-adventure made with **debuff** (https://
 - `inspect()` is all that tests, scenarios, fuzzing, replay diffs and agents can see of the game, so report what a player reacts to, not counts: enemies, bullets and pickups as lists of `{ x, y }` in game coordinates with a few fields such as `kind` and `hp`, the player with position and velocity, and a board as rows. Cap large lists (the nearest 50 is plenty). Name the camera or board transform for what it is (`camera`, `view`), not like an entity.
 - `scenarios/`: JSON scripts run in a real browser. Prefer assertions on state over screenshots: `expect` and `until` read `state.*` (your `inspect()`) and `events.<name>`, the number of times the game called `game.emit("<name>")`. `{ "until": { "events.coin": { "gte": 1 } }, "within": 60 }` waits for a coin instead of guessing a wait. Add a capture only when a change is visual. When you add effects that flash or shake (hits, explosions, screen flashes), add a `{ "flashes": 240 }` step to check them for photosensitive safety, and a `{ "contrast": [x, y, w, h] }` step for new HUD text.
 - `.mcp.json`: connects the debuff MCP server, so you can play and inspect the running game, and the tenten server for drawing pixel art.
+- `.claude/skills/` and `.agents/skills/`: skills for this project's debuff version (`debuff`, `debuff-setup`, `keiko`, `myaku`), one copy for Claude Code and one for Codex, Gemini CLI, Cursor and Copilot. After upgrading debuff, `npx debuff doctor --fix` rewrites them.
 
 ## How the game is put together
 

@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { OFFICIAL_TEMPLATES } from "./official.js";
+import { writeProjectSkills } from "./skills.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -148,6 +149,8 @@ function copyTemplate(src: string, dest: string, name: string | undefined): stri
     }
   }
   writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
+  // Skills matched to this release, so the agent's instructions describe the debuff the project installs.
+  writeProjectSkills(dest, version);
   return dest;
 }
 

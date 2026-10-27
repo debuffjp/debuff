@@ -40,11 +40,12 @@
     "bin",
     "dist",
     "templates",
+    "skills",
     "README.md"
   ],
   "scripts": {
     "build": "tsc -b",
-    "prepack": "node scripts/copy-templates.mjs"
+    "prepack": "node scripts/copy-templates.mjs && node scripts/copy-skills.mjs"
   },
   "dependencies": {
     "@clack/prompts": "^1.8.1",
