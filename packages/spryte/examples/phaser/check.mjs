@@ -142,6 +142,24 @@ try {
     );
   }
 
+  // Images Phaser holds draw from Phaser's textures (flipped, premultiplied) exactly as from spryte's own uploads,
+  // through single sprites, frames, batches and per-copy rotation, with two fewer textures created.
+  {
+    const e1 = await open({ scene: "borrow", share: "0" });
+    const copied = await pixels();
+    const created0 = await page.evaluate(() => window.__check.created);
+    const e2 = await open({ scene: "borrow", share: "1" });
+    const shared = await pixels();
+    const created1 = await page.evaluate(() => window.__check.created);
+    const n = differing(shared.px, copied.px);
+    const top = at(shared.px, 60, 20);
+    check(
+      "spryte draws Phaser's own textures, no second copy",
+      n === 0 && created0 - created1 === 2 && top[0] > 200 && top[1] < 80 && !e1.length && !e2.length,
+      `${n} px differ, ${created0 - created1} fewer textures created, top of the sprite ${top}, errors: ${[...e1, ...e2].join(" | ") || "none"}`,
+    );
+  }
+
   // Phaser's derivative-using shaders (Gradient, noise normal map, smoothPixelArt) and lighting on the WebGL2
   // context from createPhaserContext render as they do on Phaser's own WebGL1 context; then, with spryte drawing
   // in the scene, everything Phaser draws around it is unchanged.

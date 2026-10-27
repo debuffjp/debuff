@@ -162,4 +162,37 @@ describe("spryteExtern", () => {
     expect(handle.draw).toBeNull();
     expect(() => draw?.begin(null, 1, 1, 1)).toThrow();
   });
+
+  it("draws Phaser's texture for an image it loaded, without uploading or deleting it", () => {
+    g.WebGL2RenderingContext = FakeWebGL2;
+    const calls: string[] = [];
+    const gl = fakeGL();
+    const record =
+      (name: string) =>
+      (...args: unknown[]) =>
+        calls.push(`${name}:${(args.at(-1) as { kind?: string })?.kind ?? ""}`);
+    Object.assign(gl, { texImage2D: record("upload"), deleteTexture: (t: { kind?: string }) => calls.push(`delete:${t.kind}`) });
+    const { renderer, context, extern, events } = phaser(gl);
+    const image = { naturalWidth: 32, naturalHeight: 16 } as HTMLImageElement;
+    const other = { naturalWidth: 8, naturalHeight: 8 } as HTMLImageElement;
+    const phaserTex = { kind: "phaser" } as unknown as WebGLTexture;
+    extern.scene = {
+      sys: {
+        textures: {
+          getTextureKeys: () => ["hero"],
+          get: () => ({ source: [{ image, glTexture: { webGLTexture: phaserTex, width: 32, height: 16, flipY: true, pma: true } }] }),
+        },
+      },
+    };
+    spryteExtern(extern, (draw) => {
+      draw.sprite(image, 0, 0);
+      draw.sprite(other, 0, 0);
+    });
+    extern.render(renderer, context, { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 });
+    // Only `other`, which Phaser doesn't hold, is uploaded (after the 1x1 white texture spryte always makes).
+    expect(calls.filter((c) => c.startsWith("upload")).length).toBe(2);
+    events.get("destroy")?.();
+    expect(calls).not.toContain("delete:phaser");
+    expect(calls.filter((c) => c === "delete:Texture").length).toBe(2);
+  });
 });
