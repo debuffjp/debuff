@@ -7,7 +7,10 @@ import { launchBrowser, VIEWPORT } from "./scenario/run.js";
 import type { Step } from "./scenario/types.js";
 import { createDevServer } from "./vite.js";
 
-/** Keys most small games use. Override with `keys` (KeyboardEvent.code values, or `"PointerRight"` / `"PointerMiddle"`). */
+/**
+ * Keys most small games use. Override with `keys`: KeyboardEvent.code values, `"PointerRight"` / `"PointerMiddle"` for
+ * mouse buttons, or the gestures `"Wheel"` (a scroll) and `"Touch"` (a finger tap or drag somewhere on the game).
+ */
 export const DEFAULT_FUZZ_KEYS = [
   "ArrowLeft",
   "ArrowRight",
@@ -23,6 +26,8 @@ export const DEFAULT_FUZZ_KEYS = [
   "KeyX",
 ];
 const MOVE_KEYS = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "KeyA", "KeyD", "KeyW", "KeyS"]);
+/** Pseudo-keys that play a whole gesture instead of pressing a key. */
+export const FUZZ_GESTURES = new Set(["Wheel", "Touch"]);
 /** Steps between state samples while fuzzing; loops shorter than this can slip through. */
 const SAMPLE_STEPS = 10;
 /** A field flipping between the same two values this many times with input unchanged counts as a loop. */
@@ -36,7 +41,7 @@ export interface FuzzOptions {
   runs?: number;
   /** Seed for the input generator. Same seed, same inputs. Default: random. */
   seed?: number;
-  /** Keys to press. Default: arrows, WASD, Space, Enter, Z, X. */
+  /** Keys to press, plus the gestures `"Wheel"` and `"Touch"`. Default: arrows, WASD, Space, Enter, Z, X. */
   keys?: string[];
   /** Flag a run as stuck when the scene's inspect() state doesn't change for this many seconds. Default 15. */
   stuckSeconds?: number;
@@ -86,6 +91,39 @@ export interface FuzzReport {
 }
 
 /** Small, fast, seeded PRNG (mulberry32): the same seed always gives the same inputs. */
+/**
+ * One random gesture as scenario steps, waits included: a wheel scroll, or a finger that taps or drags within the
+ * game's logical `width` × `height`. Steps that aren't waits are input for the dev hooks.
+ */
+export function fuzzGesture(name: string, random: () => number, width: number, height: number): Step[] {
+  if (name === "Wheel") {
+    const dy = Math.round((40 + random() * 360) * (random() < 0.5 ? -1 : 1));
+    return [{ wheel: dy }, { wait: 1 + Math.floor(random() * 10) }];
+  }
+  const point = (): [number, number] => [Math.round(random() * width), Math.round(random() * height)];
+  const [x, y] = point();
+  const steps: Step[] = [{ touchDown: [1, x, y] }, { wait: 1 + Math.floor(random() * 4) }];
+  // Half the time a drag: a few moves towards another point.
+  if (random() < 0.5) {
+    const [tx, ty] = point();
+    const moves = 2 + Math.floor(random() * 4);
+    for (let i = 1; i <= moves; i++) {
+      steps.push({ touchMove: [1, Math.round(x + ((tx - x) * i) / moves), Math.round(y + ((ty - y) * i) / moves)] }, { wait: 2 });
+    }
+  }
+  steps.push({ touchUp: 1 }, { wait: 1 + Math.floor(random() * 10) });
+  return steps;
+}
+
+/** The dev hook and arguments that play a gesture's input step. */
+function gestureCall(step: Step): [string, unknown[]] {
+  if ("wheel" in step) return ["wheel", typeof step.wheel === "number" ? [step.wheel, 0] : step.wheel];
+  if ("touchDown" in step) return ["touchDown", step.touchDown];
+  if ("touchMove" in step) return ["touchMove", step.touchMove];
+  if ("touchUp" in step) return ["touchUp", [step.touchUp]];
+  throw new Error(`Not a gesture step: ${JSON.stringify(step)}`);
+}
+
 function rng(seed: number): () => number {
   let a = seed >>> 0;
   return () => {
@@ -154,6 +192,9 @@ export async function runFuzz(options: FuzzOptions): Promise<FuzzReport> {
         await page.waitForFunction(hooksReady, undefined, { timeout: 15_000 });
 
         const steps: Step[] = [];
+        // The game's logical size, for where gestures land.
+        const shown = (await callSafe(page, "state", [])) as HookResult<{ width?: number; height?: number }>;
+        const size = { width: (shown.ok && shown.value.width) || width, height: (shown.ok && shown.value.height) || height };
         const ignore = new Set(options.ignore ?? []);
         const held = new Set<string>();
         let played = 0;
@@ -224,6 +265,19 @@ export async function runFuzz(options: FuzzOptions): Promise<FuzzReport> {
           let result: HookResult<unknown>;
           if (roll < 0.15) {
             result = await advance(1 + Math.floor(random() * 20));
+          } else if (FUZZ_GESTURES.has(key)) {
+            inputChanged();
+            result = { ok: true, value: undefined };
+            for (const step of fuzzGesture(key, random, size.width, size.height)) {
+              if ("wait" in step) result = await advance(step.wait);
+              else {
+                steps.push(step);
+                const [hook, args] = gestureCall(step);
+                await callSafe(page, hook, args);
+              }
+              if (!result.ok) break;
+            }
+            inputChanged();
           } else if (MOVE_KEYS.has(key) || roll < 0.35) {
             inputChanged();
             if (held.has(key)) {
