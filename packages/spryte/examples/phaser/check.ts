@@ -1,5 +1,6 @@
 // Scenes for check.mjs: each URL draws one situation with Phaser 4 and spryte, and exposes the frame's pixels.
-//   scene = state | filter | viewport | stencil | shaders
+//   scene = state | filter | viewport | stencil | shaders | borrow
+//   share = 0 (borrow: spryte draws its own copies of Phaser's images) | 1
 //   spryte = 0 (the Extern draws nothing) | 1
 //   ctx = gl2 (createPhaserContext) | gl1 (Phaser's own WebGL1 context, for a reference render)
 //   filter = extern | camera; smooth = 1 (render.smoothPixelArt)
@@ -18,6 +19,7 @@ const out = {
   parity: 0,
   errors: [] as string[],
   pixels: null as Uint8Array | null,
+  created: 0,
   wantPixels: false,
   game: null as Phaser.Game | null,
 };
@@ -78,9 +80,28 @@ for (let i = 0; i < 10000; i++) {
   POS[i * 2 + 1] = 120 + rnd() * 220;
 }
 
+// Lopsided and partly transparent, so a flipped or unpremultiplied texture shows. `share=0` draws copies Phaser
+// doesn't know, which spryte uploads itself.
+const art = canvas(32, 32, (c) => {
+  c.fillStyle = "#e33";
+  c.fillRect(0, 0, 32, 8);
+  c.fillStyle = "rgba(40,120,255,0.5)";
+  c.fillRect(0, 8, 12, 24);
+  c.fillStyle = "#3d3";
+  c.fillRect(20, 20, 12, 12);
+});
+const artUrl = art.toDataURL();
+const clone = () => canvas(32, 32, (c) => c.drawImage(art, 0, 0));
+const share = q.get("share") !== "0";
+let createdTextures = 0;
+
 let frameNo = 0;
 
 class Check extends Phaser.Scene {
+  preload() {
+    if (sceneName === "borrow") this.load.image("artImg", artUrl);
+  }
+
   liveTex!: Phaser.Textures.CanvasTexture;
 
   extern(depth: number, render: (draw: import("spryte").Draw) => void): Phaser.GameObjects.Extern {
@@ -97,9 +118,14 @@ class Check extends Phaser.Scene {
     t.addCanvas("checker", checker);
     t.get("checker").setFilter(Phaser.Textures.FilterMode.NEAREST);
     this.liveTex = t.addCanvas("live", live) as Phaser.Textures.CanvasTexture;
-    ({ state: this.state, filter: this.filter, viewport: this.viewport, stencil: this.stencil, shaders: this.shaders })[sceneName]?.call(
-      this,
-    );
+    ({
+      state: this.state,
+      filter: this.filter,
+      viewport: this.viewport,
+      stencil: this.stencil,
+      shaders: this.shaders,
+      borrow: this.borrow,
+    })[sceneName]?.call(this);
 
     const gl = (this.game.renderer as Phaser.Renderer.WebGL.WebGLRenderer).gl;
     this.game.events.on("postrender", () => {
@@ -109,6 +135,7 @@ class Check extends Phaser.Scene {
         gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, buf);
         out.pixels = buf;
         out.parity = frameNo % 2;
+        out.created = createdTextures;
         out.wantPixels = false;
       }
     });
@@ -173,6 +200,22 @@ class Check extends Phaser.Scene {
     this.extern(1, (d) => d.rect(0, 0, 640, 360, "#2d2"));
   }
 
+  /** spryte draws images Phaser holds (loaded, and a canvas texture) through every path that samples a texture. */
+  borrow() {
+    this.textures.addCanvas("artCanvas", art);
+    const loaded = share ? (this.textures.get("artImg").getSourceImage() as HTMLImageElement) : clone();
+    const own = share ? art : clone();
+    const pos = new Float32Array([340, 60, 400, 90, 460, 60]);
+    const rot = new Float32Array([0.3, -0.5, 1.2]);
+    this.extern(1, (d) => {
+      d.sprite(loaded, 60, 60, { scaleX: 3, scaleY: 3, smooth: false });
+      d.sprite(own, 180, 60, { scaleX: 3, scaleY: 3, smooth: false, tint: "#8f8" });
+      d.sprite({ image: loaded, x: 16, y: 0, w: 16, h: 16 }, 60, 220, { scaleX: 6, scaleY: 6, smooth: false });
+      d.sprites({ image: own, x: 0, y: 8, w: 32, h: 24 }, pos, 3, { scaleX: 1.5, scaleY: 1.5, smooth: false });
+      d.sprites(loaded, pos, 3, { smooth: false }, { rotation: rot });
+    });
+  }
+
   /** Phaser features whose shaders use derivatives, plus normal-mapped lighting, with spryte in the scene. */
   shaders() {
     (this.textures.addCanvas("rock", solid("#999", NM, NM)) as Phaser.Textures.CanvasTexture).setDataSource(normalMap);
@@ -203,5 +246,10 @@ const config: Phaser.Types.Core.GameConfig = {
   antialiasGL: false,
   render: { smoothPixelArt: q.get("smooth") === "1" },
 };
-if (q.get("ctx") !== "gl1") Object.assign(config, createPhaserContext(undefined, { antialias: false }));
+if (q.get("ctx") !== "gl1") {
+  const context = createPhaserContext(undefined, { antialias: false });
+  const create = context.gl.createTexture.bind(context.gl);
+  context.gl.createTexture = () => (createdTextures++, create());
+  Object.assign(config, context);
+}
 out.game = new Phaser.Game(config);

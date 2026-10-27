@@ -1,11 +1,18 @@
 import type { ClipRect } from "./backend.js";
 import { Draw } from "./draw.js";
 import type { RenderTarget } from "./target.js";
-import { WebGL2Backend } from "./webgl2.js";
+import { type BorrowedTexture, type ImageSource, WebGL2Backend } from "./webgl2.js";
+
+export type { BorrowedTexture };
 
 export interface SharedRendererOptions {
   /** Linear filtering for images by default. Pass false for pixel art. Default true. */
   smooth?: boolean;
+  /**
+   * The host's texture for an image, if it has one, so spryte draws it instead of uploading a second copy. Asked
+   * once per image (again after `draw.invalidate` or a context restore). It must hold premultiplied alpha.
+   */
+  borrow?: (src: ImageSource) => BorrowedTexture | null;
 }
 
 /** spryte drawing on a WebGL2 context another engine owns. See `createSharedRenderer`. */
@@ -32,7 +39,7 @@ export interface SharedRenderer {
  * for the browser to restore the context, and spryte rebuilds its GPU objects at the first `begin()` after.
  */
 export function createSharedRenderer(gl: WebGL2RenderingContext, options: SharedRendererOptions = {}): SharedRenderer {
-  const backend = new SharedBackend(gl);
+  const backend = new SharedBackend(gl, options.borrow);
   const draw = new Draw(backend, options.smooth ?? true);
   draw.resize(gl.drawingBufferWidth, gl.drawingBufferHeight);
   return {
@@ -68,7 +75,10 @@ class SharedBackend extends WebGL2Backend {
     this.restored = true;
   };
 
-  constructor(gl: WebGL2RenderingContext) {
+  constructor(
+    gl: WebGL2RenderingContext,
+    private readonly host?: SharedRendererOptions["borrow"],
+  ) {
     super(gl);
     this.fbW = gl.drawingBufferWidth;
     this.fbH = gl.drawingBufferHeight;
@@ -76,6 +86,10 @@ class SharedBackend extends WebGL2Backend {
     gl.canvas.removeEventListener("webglcontextrestored", this.onRestored);
     gl.canvas.addEventListener("webglcontextlost", this.noteLost);
     gl.canvas.addEventListener("webglcontextrestored", this.noteRestored);
+  }
+
+  protected override borrow(src: ImageSource): BorrowedTexture | null {
+    return this.host?.(src) ?? null;
   }
 
   override dispose(): void {

@@ -15,7 +15,7 @@
  * ```
  */
 import type { Draw } from "./draw.js";
-import { createSharedRenderer, type SharedRenderer, type SharedRendererOptions } from "./shared.js";
+import { type BorrowedTexture, createSharedRenderer, type SharedRenderer, type SharedRendererOptions } from "./shared.js";
 
 export interface PhaserDrawingContext {
   framebuffer: { webGLFramebuffer: WebGLFramebuffer | null } | null;
@@ -49,6 +49,30 @@ export interface PhaserExtern {
     displayListIndex?: number,
   ): void;
   once?(event: string, fn: () => void): unknown;
+  /** Its scene, whose texture manager lends spryte the textures Phaser already uploaded. */
+  scene?: { sys: { textures: PhaserTextureManager } };
+}
+
+/** The parts of `Phaser.Textures.TextureManager` the helper reads. */
+export interface PhaserTextureManager {
+  getTextureKeys(): string[];
+  get(key: string): {
+    source: {
+      image: unknown;
+      glTexture: { webGLTexture: WebGLTexture | null; width: number; height: number; flipY: boolean; pma: boolean } | null;
+    }[];
+  };
+}
+
+/**
+ * Phaser's texture for `src`, an image it loaded (`this.textures.get(key).getSourceImage()`), if it has a usable one.
+ * Unpremultiplied textures would blend differently from spryte's own uploads, so those get spryte's copy.
+ */
+function phaserTexture(textures: PhaserTextureManager, src: unknown): BorrowedTexture | null {
+  for (const key of textures.getTextureKeys())
+    for (const { image, glTexture: t } of textures.get(key).source)
+      if (image === src && t?.webGLTexture && t.pma) return { texture: t.webGLTexture, width: t.width, height: t.height, flipY: t.flipY };
+  return null;
 }
 
 export interface PhaserSpryte {
@@ -62,7 +86,8 @@ export interface PhaserSpryte {
  * Draw with spryte in an `Extern`'s slot: `render` is called each frame with a `Draw` whose transform is the
  * Extern's `calcMatrix` (the camera, and any Container it's in), so world coordinates are Phaser's. Filters on the
  * Extern or its camera, camera viewports and `Stencil` masks apply, since spryte draws into Phaser's drawing context
- * under its state. The game must run on a WebGL2 context (`createPhaserContext`).
+ * under its state. Images Phaser loaded draw from Phaser's own GPU textures, with no second upload. The game must
+ * run on a WebGL2 context (`createPhaserContext`).
  */
 export function spryteExtern(extern: PhaserExtern, render: (draw: Draw) => void, options: SharedRendererOptions = {}): PhaserSpryte {
   let shared: SharedRenderer | null = null;
@@ -70,7 +95,8 @@ export function spryteExtern(extern: PhaserExtern, render: (draw: Draw) => void,
     const gl = renderer.gl;
     if (typeof WebGL2RenderingContext === "undefined" || !(gl instanceof WebGL2RenderingContext))
       throw new Error("spryte/phaser: Phaser is on a WebGL1 context. Create the game with `...createPhaserContext()` in its config.");
-    shared ??= createSharedRenderer(gl, options);
+    const textures = extern.scene?.sys.textures;
+    shared ??= createSharedRenderer(gl, textures ? { borrow: (src) => phaserTexture(textures, src), ...options } : options);
     // Phaser's full state for this destination, forced: it has only reset blend, VAO and textures for the Extern.
     renderer.glWrapper.update(context.state, true);
     shared.target(context.framebuffer?.webGLFramebuffer ?? null, context.width, context.height);

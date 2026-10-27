@@ -213,6 +213,20 @@ interface CachedTexture {
   ih: number;
   /** v at the image's top row: 0, or 1 for render targets, which WebGL stores bottom row first (`ih` is then negative). */
   v0: number;
+  /** The host engine's texture (`borrow`): spryte samples it but never uploads to or deletes it. */
+  borrowed?: true;
+}
+
+/** Sources spryte uploads itself: every `TextureSource` but a render target. */
+export type ImageSource = HTMLImageElement | HTMLCanvasElement | OffscreenCanvas | ImageBitmap;
+
+/** A texture another engine on the same context already holds for a source, to draw instead of uploading a copy. */
+export interface BorrowedTexture {
+  texture: WebGLTexture;
+  width: number;
+  height: number;
+  /** Stored bottom row first (`UNPACK_FLIP_Y_WEBGL`), as Phaser stores images. */
+  flipY: boolean;
 }
 
 /** Instanced, multi-texture WebGL2 sprite batcher behind the `draw` API. */
@@ -678,7 +692,8 @@ export class WebGL2Backend implements Backend {
   update(dst: TextureSource, x: number, y: number, from: HTMLCanvasElement | OffscreenCanvas, w: number, h: number): void {
     // Not uploaded yet: its first use uploads the whole image, which already has this region.
     const cached = this.textures.get(dst);
-    if (!cached) return;
+    // A borrowed texture's contents are the host's to update.
+    if (!cached || cached.borrowed) return;
     // Quads already queued this frame read other regions of the texture, so there's no need to flush first.
     const gl = this.gl;
     gl.activeTexture(gl.TEXTURE0);
@@ -695,7 +710,7 @@ export class WebGL2Backend implements Backend {
     const cached = this.textures.get(src);
     if (!cached) return;
     this.flush();
-    this.gl.deleteTexture(cached.tex);
+    if (!cached.borrowed) this.gl.deleteTexture(cached.tex);
     this.textures.delete(src);
     if (this.lastSrc === src) this.lastSrc = null;
   }
@@ -706,7 +721,7 @@ export class WebGL2Backend implements Backend {
     gl.canvas.removeEventListener("webglcontextlost", this.onLost);
     gl.canvas.removeEventListener("webglcontextrestored", this.onRestored);
     if (!this.lost) {
-      for (const { tex } of this.textures.values()) gl.deleteTexture(tex);
+      for (const { tex, borrowed } of this.textures.values()) if (!borrowed) gl.deleteTexture(tex);
       gl.deleteTexture(this.white.tex);
       gl.deleteSampler(this.nearest);
       gl.deleteSampler(this.linear);
@@ -1065,6 +1080,14 @@ export class WebGL2Backend implements Backend {
     const h = "naturalHeight" in src ? src.naturalHeight : src.height;
     // An image still loading is 0×0: nothing to upload, and nothing to remember.
     if (w === 0 || h === 0) return this.white;
+    const b = this.borrow(src);
+    if (b) {
+      const cached: CachedTexture = b.flipY
+        ? { tex: b.texture, iw: 1 / b.width, ih: -1 / b.height, v0: 1, borrowed: true }
+        : { tex: b.texture, iw: 1 / b.width, ih: 1 / b.height, v0: 0, borrowed: true };
+      this.textures.set(src, cached);
+      return cached;
+    }
     const gl = this.gl;
     const tex = gl.createTexture();
     if (!tex) throw new Error("WebGL2: could not create texture");
@@ -1077,6 +1100,11 @@ export class WebGL2Backend implements Backend {
     this.textures.set(src, cached);
     // Unit 0 is now bound to this texture; the next flush rebinds whatever the batch needs.
     return cached;
+  }
+
+  /** A host's texture for `src`, drawn instead of an upload. None here; `SharedBackend` asks the host. */
+  protected borrow(_src: ImageSource): BorrowedTexture | null {
+    return null;
   }
 
   /** Texture parameters for the bound texture. Filtering comes from the samplers; this keeps the texture complete without them. */
