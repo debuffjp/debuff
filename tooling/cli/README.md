@@ -19,9 +19,28 @@ npx debuff --help
 | `debuff fuzz [--seconds] [--runs] [--seed] [--keys] [--ignore]` | Play headless with random but plausible input. Reports explained errors, stuck states and loops (the scene, or two state fields, flipping between the same two values), each saved as a scenario in `.debuff/fuzz/` that reproduces it. `--keys` takes key codes, `PointerRight` / `PointerMiddle`, and the gestures `Wheel` (a scroll) and `Touch` (a finger tap or drag), e.g. `--keys Touch,Wheel,Space` for a touch game. `--ignore state.shots` skips noisy fields. Exits 1 on errors |
 | `debuff telemetry [on\|off\|status]` | Anonymous build registration: after a successful build, `debuff build` sends a random project id, the package name and the debuff version to debuff.jp, so we can find games made with debuff. Off in CI, or with `debuff telemetry off` / `DEBUFF_TELEMETRY=0`. [What's sent](https://debuff.jp/docs/telemetry) |
 | `debuff inspect` | JSON summary of the project |
-| `debuff doctor [--live] [--fix]` | Check the setup in one pass: Node version, debuff package versions, `node_modules`, `debuff.config.ts`, assets, `saves.json`, agent files and the browser scenarios use. Each problem comes with a fix. `--fix` applies the safe ones (install, dedupe, add `@debuffjp/dev`, write a missing `.mcp.json`) in the project's package manager, then checks again. `--live` also starts the dev server and checks the game exposes its dev hooks. Exits 1 when a required check fails. Other commands that fail on setup point here |
+| `debuff doctor [--live] [--fix]` | Check the setup in one pass: Node version, debuff package versions, `node_modules`, `debuff.config.ts`, assets, `saves.json`, agent files and the browser scenarios use. Each problem comes with a fix. `--fix` applies the safe ones (install, dedupe, add `@debuffjp/dev`, write a missing `.mcp.json`) in the project's package manager, then checks again. `--live` also starts the dev server and checks the game exposes its dev hooks. Exits 2 when a required check fails. Other commands that fail on setup point here |
 
 Add `--json` for machine-readable output and `--root <dir>` to target another project.
+
+## Exit codes and errors
+
+The exit code says what to do next, so scripts and agents can act without reading the output:
+
+| Exit | Meaning | What to do |
+| --- | --- | --- |
+| 0 | Success | Carry on |
+| 1 | The run reported a failure (a test, scenario, fuzz finding or leak), or something unexpected broke | Read the report or the error |
+| 2 | The project or machine needs fixing first (no browser, invalid config, missing dev hooks, a busy port, a failing `doctor`) | Run `npx debuff doctor` and apply its fixes. A retry won't help |
+| 3 | Bad input: an unknown command or option, or a folder that isn't there | Fix the command line |
+
+With `--json` (and always for `inspect`), stdout carries exactly one JSON document: the result, or this when the command can't run:
+
+```json
+{ "error": { "code": "browser_not_found", "message": "…", "fix": "Install Chrome or Edge, or set DEBUFF_BROWSER…", "transient": false } }
+```
+
+`code` is one of `unknown_command`, `bad_option`, `not_a_project`, `config_invalid`, `browser_not_found`, `dev_hooks_missing`, `port_in_use`, `network` and `unexpected`, and keeps its meaning between releases. `transient: true` means the same command may work if run again (a network blip). Logs go to stderr. The MCP server's tools add the same `code` and `fix` to their errors.
 
 ## Scenarios
 

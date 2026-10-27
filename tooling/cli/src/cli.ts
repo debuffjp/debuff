@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import * as p from "@clack/prompts";
 import { amber, banner, lime, paint, pc, pink, sky } from "create-debuff";
 import { compileAssets, findUnused } from "./assets/index.js";
 import { Cli } from "./commands.js";
 import { loadConfig } from "./config.js";
+import { DebuffError, describeError, EXIT } from "./errors.js";
 import { inspectProject } from "./inspect.js";
 import type { ToolingPlugin } from "./plugin.js";
 import { type BuildReport, buildReport, formatReport } from "./report.js";
@@ -13,13 +14,29 @@ import { checkSaves, type SaveCheck } from "./saves.js";
 import { createDevServer, viteConfig } from "./vite.js";
 
 const cli = new Cli("debuff");
+
+// With --json (and for `inspect`), stdout carries exactly one JSON document: the command's result, or
+// { error } when it fails. Everything else written to stdout (logs, Vite's typecheck line) goes to stderr.
+// Plugin commands (`name:command`) print their own output, so they're left alone.
+const commandName = process.argv.slice(2).find((a) => !a.startsWith("-"));
+const jsonMode = (process.argv.includes("--json") || commandName === "inspect") && !commandName?.includes(":");
+const writeStdout = process.stdout.write.bind(process.stdout);
+if (jsonMode) process.stdout.write = process.stderr.write.bind(process.stderr) as typeof process.stdout.write;
+/** Print the command's machine-readable result: the one thing on stdout in JSON mode. */
+const emit = (value: unknown) =>
+  writeStdout(`${JSON.stringify(value, null, 2)}
+`);
 const version = (JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string }).version;
 
 interface Common {
   root?: string;
   json?: boolean;
 }
-const rootOf = (o: Common) => resolve(o.root ?? process.cwd());
+const rootOf = (o: Common) => {
+  const root = resolve(o.root ?? process.cwd());
+  if (!existsSync(root)) throw new DebuffError("not_a_project", `No such folder: ${root}`, "Pass --root <dir> with the project's folder");
+  return root;
+};
 /** Command header: buff beside the name, version, command and a tagline. */
 const header = (title: string, tagline: string) =>
   console.log(`\n${banner("idle", [`${lime(pc.bold("debuff"))} ${pc.dim(`v${version}`)}`, pc.bold(title), pc.dim(pc.italic(tagline))])}\n`);
@@ -98,7 +115,7 @@ cli
     const result = ship(root, known, (await loadConfig(root)).launch);
     const failed = shipFailed(result);
     if (o.json) {
-      console.log(JSON.stringify({ ...result, ok: !failed }, null, 2));
+      emit({ ...result, ok: !failed });
       return failed ? 1 : 0;
     }
     header(`ship ${target}`, "out the door");
@@ -145,7 +162,7 @@ cli
     const unused = findUnused(root, manifest);
     const count = Object.keys(manifest.assets).length;
     if (o.json) {
-      console.log(JSON.stringify({ manifest, importedBy, generated: [...outputs.keys()], warnings, unused }, null, 2));
+      emit({ manifest, importedBy, generated: [...outputs.keys()], warnings, unused });
       return 0;
     }
     header("assets", "your source files, never touched");
@@ -198,7 +215,7 @@ cli
     });
     finished = true;
     const failed = reports.filter((r) => !r.ok).length;
-    if (o.json) console.log(JSON.stringify(reports, null, 2));
+    if (o.json) emit(reports);
     else {
       for (const r of reports) {
         const text = formatScenario(r);
@@ -245,7 +262,7 @@ cli
             },
           }),
     });
-    if (o.json) console.log(JSON.stringify(report, null, 2));
+    if (o.json) emit(report);
     else finish(report.ok, report.ok ? "all good" : "some tests failed", formatSummary(report));
     return report.ok ? 0 : 1;
   });
@@ -291,7 +308,7 @@ cli
         : {}),
     });
     const errors = report.findings.filter((f) => f.kind === "error");
-    if (o.json) console.log(JSON.stringify(report, null, 2));
+    if (o.json) emit(report);
     else {
       for (const f of report.findings) {
         const where = (f.error as { where?: { file: string; line: number } } | undefined)?.where;
@@ -326,8 +343,8 @@ cli
       if (fixed.length) result = await runDoctor(root, { live: o.live ?? false });
     }
     if (o.json) {
-      console.log(JSON.stringify(o.fix ? { ...result, fixed } : result, null, 2));
-      return result.ok ? 0 : 1;
+      emit(o.fix ? { ...result, fixed } : result);
+      return result.ok ? EXIT.ok : EXIT.setup;
     }
     for (const c of result.checks) {
       const text = c.fix && !c.ok ? `${c.message}\n${pc.dim(`fix: ${c.fix}`)}` : c.message;
@@ -349,14 +366,14 @@ cli
             ? ""
             : pc.dim("--live also boots the game"),
     );
-    return result.ok ? 0 : 1;
+    return result.ok ? EXIT.ok : EXIT.setup;
   });
 
 cli
   .command("inspect", "JSON summary of the project for agents and tools")
   .option("--root <dir>", "Project root")
   .action(async (o: Common) => {
-    console.log(JSON.stringify(await inspectProject(rootOf(o)), null, 2));
+    emit(await inspectProject(rootOf(o)));
     return 0;
   });
 
@@ -366,7 +383,7 @@ function report(root: string, json: boolean, acceptSaves = false): number {
   if (saves) r.saves = saves;
   const saveErrors = saves?.issues.filter((i) => i.level === "error") ?? [];
   writeFileSync(join(root, "dist", "debuff-report.json"), `${JSON.stringify(r, null, 2)}\n`);
-  if (json) console.log(JSON.stringify(r, null, 2));
+  if (json) emit(r);
   else {
     console.log(formatReport(r));
     if (saves) printSaves(saves);
@@ -437,9 +454,11 @@ async function main(): Promise<void> {
     // parse() has already printed help or the version for these flags.
     if (cli.options.help || cli.options.version) return;
     if (process.argv.length > 2) {
-      console.error(pc.red(`unknown command: ${process.argv.slice(2).find((a) => !a.startsWith("-")) ?? process.argv[2]}\n`));
+      const name = commandName ?? process.argv[2];
+      if (jsonMode) fail(new DebuffError("unknown_command", `Unknown command: ${name}`, "Run `npx debuff --help` for the commands"));
+      console.error(pc.red(`unknown command: ${name}\n`));
       cli.outputHelp();
-      process.exit(1);
+      process.exit(EXIT.usage);
     }
     cli.outputHelp();
     return;
@@ -448,10 +467,22 @@ async function main(): Promise<void> {
   process.exit(code ?? 0);
 }
 
-main().catch((err: unknown) => {
-  // A command that throws instead of reporting failed on setup (browser, config, dev hooks), which doctor checks.
+/** Report what went wrong (one JSON error in JSON mode) and exit with the code that says what to do next. */
+function fail(err: unknown): never {
+  const e = describeError(err);
+  if (jsonMode) {
+    emit({ error: { code: e.code, message: e.message, ...(e.fix && { fix: e.fix }), transient: e.transient } });
+    process.exit(e.exit);
+  }
+  // Setup problems and the unexpected are what doctor checks; usage errors already say what to type.
   const name = cli.matchedCommand?.name;
-  const hint = name && name !== "doctor" && name !== "create" ? `\n${pc.dim("run `npx debuff doctor` to check the setup")}` : "";
-  p.log.error(`${err instanceof Error ? err.message : String(err)}${hint}`);
-  process.exit(1);
-});
+  const doctor = (e.exit === EXIT.setup || e.code === "unexpected") && name !== "doctor" && name !== "create";
+  const hints = [
+    e.fix && pc.dim(`fix: ${e.fix}`),
+    doctor && e.code !== "unexpected" && pc.dim("run `npx debuff doctor` to check the setup"),
+  ];
+  p.log.error([e.message, ...hints.filter(Boolean)].join("\n"));
+  process.exit(e.exit);
+}
+
+main().catch(fail);

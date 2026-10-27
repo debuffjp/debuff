@@ -20,7 +20,10 @@ describe("Cli", () => {
       .option("--max-steps <n>", "Steps")
       .option("--json", "JSON")
       .action((...a: unknown[]) => seen.push(a));
-    cli.command("scenario [...files]", "Scenarios").action((...a: unknown[]) => seen.push(a));
+    cli
+      .command("scenario [...files]", "Scenarios")
+      .option("--root <dir>", "Root")
+      .action((...a: unknown[]) => seen.push(a));
     return { cli, seen };
   }
 
@@ -35,6 +38,12 @@ describe("Cli", () => {
     cli.parse(argv("scenario", "a.json", "b.json", "--root", "x"));
     await cli.runMatchedCommand();
     expect(seen.at(-1)).toEqual([["a.json", "b.json"], { root: "x" }]);
+  });
+
+  it("refuses options a command doesn't declare, naming them", () => {
+    const { cli } = make();
+    expect(() => cli.parse(argv("fuzz", "--secnds", "5", "--json"))).toThrow(/Unknown option for debuff fuzz: --secnds/);
+    expect(() => cli.parse(argv("fuzz", "--seconds=5", "-q"))).toThrow(/-q/);
   });
 
   it("prints help and the version, and leaves unknown commands unmatched", () => {
