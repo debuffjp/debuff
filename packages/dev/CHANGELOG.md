@@ -1,5 +1,11 @@
 # @debuffjp/dev
 
+## 0.20.0
+
+### Patch Changes
+
+- c3f1aef: The collapsed dev overlay shrinks to fit its header (buff, badges, fps and the expand button) instead of keeping the full 290 px panel width.
+
 ## 0.19.0
 
 No changes in this release.
