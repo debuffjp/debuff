@@ -1,8 +1,22 @@
 # spryte benchmarks
 
-**Short version:** on the same machine, assets and simulation, spryte is **2.6-4.2x faster than PixiJS 8** on comparable APIs, and ships about **8x less JavaScript** at startup. A pixel-parity gate confirms both draw the same scene before anything is timed. These are one desktop machine's numbers. Across the other devices measured in [2dbench](https://github.com/debuffjp/2dbench#across-devices) (an RTX 4080 laptop on Linux, AMD integrated graphics, an Apple M5 Pro, iPhones in Safari and Chrome, an Android phone in Firefox), spryte's one-call-per-sprite path is ahead on every one.
+**Short version:** on the same machine, assets and simulation, spryte 0.7.2 is **2.4-4.5x faster than PixiJS 8** on comparable APIs, and ships about **7x less JavaScript** at startup. A pixel-parity gate confirms both draw the same scene before anything is timed. These are one desktop machine's numbers. Across the other devices measured in [2dbench](https://github.com/debuffjp/2dbench#across-devices) (an RTX 4080 laptop on Linux, AMD integrated graphics, an Apple M5 Pro, iPhones in Safari and Chrome, an Android phone in Firefox), spryte's one-call-per-sprite path is ahead on every one.
 
-## Results, 2026-10-20
+## Results, 2026-10-28 (spryte 0.7.2)
+
+Same machine, browser, power and method as the run below, with spryte 0.7.2 (PixiJS 8.22.0, Phaser 4.2.1) and 3-7 rounds per scene. spryte 0.7.2 does `draw.sprite`'s transform in the vertex shader, which is where the one-call-per-sprite rows moved. Raw data, all ten scenes: [`results/2026-10-28-win32-*.json`](https://github.com/debuffjp/2dbench/tree/main/results).
+
+| Workload | spryte | PixiJS 8 | spryte is |
+| --- | --- | --- | --- |
+| **Dynamic particles**: position, scale, rotation, tint and alpha all change per particle, 200k | `draw.sprites` with per-copy arrays: **6.3 ms** (5.5-6.4) | `ParticleContainer`, those properties dynamic: 23.5 ms (23.0-24.0) | **3.7x faster** |
+| **General sprites, mixed**: 4 textures, changing rotation, scale, tint and alpha, 50k | `draw.sprite`: **5.5 ms** (5.0-5.6) | `Sprite`: 20.2 ms (20.0-20.9) | **3.7x faster** |
+| **General sprites, particles**: one call per sprite, everything changing, 50k | `draw.sprite`: **4.6 ms** (4.1-4.9) | `Sprite`: 20.5 ms (20.0-22.4) | **4.5x faster** |
+| **General sprites, bunnymark**: one texture, position only, 50k | `draw.sprite`: **4.7 ms** (4.3-5.2) | `Sprite`: 11.3 ms (10.9-11.9) | **2.4x faster** |
+| **Bulk, position only**, 200k | `draw.sprites`: **2.7 ms** (2.4-3.1) | `ParticleContainer`: 7.7 ms (6.2-9.9) | **2.9x faster** |
+
+Largest count at 60 fps: bunny bulk **1,600,000** against `ParticleContainer`'s 400,000; particles bulk **400,000** against 100,000; `sprite()` against `Sprite` **100,000** against 20,000 (particles, mixed) and 50,000 (bunny); raycaster **10,000** enemies against 5,000. Parity passed in every scene with 0% of pixels differing inside sprites. Startup JS from [`bench/size`](https://github.com/debuffjp/debuff/tree/main/bench/size) (2026-10-28): spryte **12.7 kB**, PixiJS 87.8 kB, Phaser 276.6 kB.
+
+## Results, 2026-10-20 (spryte 0.2.1)
 
 | | |
 | --- | --- |

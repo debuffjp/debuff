@@ -1,0 +1,27 @@
+{
+  "date": "2026-10-28T20:57:11.467Z",
+  "method": "Vite production build of apps/<name> (one rotated sprite), JS only, brotli quality 11",
+  "versions": {
+    "spryte": "0.7.1",
+    "pixi.js": "8.22.0",
+    "phaser": "4.2.1",
+    "vite": "8.3.4"
+  },
+  "results": {
+    "spryte": {
+      "startupBrotliBytes": 12955,
+      "totalBrotliBytes": 14826,
+      "files": 2
+    },
+    "pixi": {
+      "startupBrotliBytes": 89934,
+      "totalBrotliBytes": 155600,
+      "files": 22
+    },
+    "phaser": {
+      "startupBrotliBytes": 283241,
+      "totalBrotliBytes": 283241,
+      "files": 1
+    }
+  }
+}
