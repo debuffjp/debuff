@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { projectSkillsVersion, SKILL_DIRS, writeProjectSkills } from "create-debuff";
@@ -63,7 +63,16 @@ export async function runDoctor(root: string, options: DoctorOptions = {}): Prom
     const message = config.file ? `${basename(config.file)} loaded${plugins}` : "No debuff.config.ts: defaults";
     checks.push({ id: "config", group: "config", ok: true, message });
   } catch (err) {
-    checks.push({ id: "config", group: "config", ok: false, message: errorText(err) });
+    const message = errorText(err);
+    // Usually the config imports @debuffjp/cli before anything is installed, which the install fixes.
+    const missing = /Cannot find (module|package)/.test(message);
+    checks.push({
+      id: "config",
+      group: "config",
+      ok: false,
+      message,
+      ...(missing ? { fix: "npm install (the config imports packages that aren't installed yet)" } : {}),
+    });
   }
   if (config) checks.push(...(await assets(root, config)));
   checks.push(saves(root), agentFiles(root), agentSkills(root));
@@ -419,7 +428,7 @@ export function repairDoctor(root: string, result: DoctorResult, log: (line: str
     runs.add(line);
     log(line);
     // Its output goes to stderr, so `--fix --json` still prints only JSON on stdout.
-    execFileSync(pm, args, { cwd: root, stdio: ["ignore", 2, 2], shell: process.platform === "win32" });
+    runPackageManager(root, pm, args);
     done.push(`ran ${line}`);
   }
   return done;
@@ -442,4 +451,15 @@ async function newest(): Promise<DoctorCheck> {
     message: `debuff ${latest} is out; this project has ${cli.version}`,
     fix: "npx debuff upgrade (it moves every debuff package together, installs, and rewrites the agent skills)",
   };
+}
+
+/**
+ * Run the package manager with its output on stderr, so `--json` keeps stdout to one document. Windows needs a
+ * shell to start npm's .cmd launcher; the arguments are fixed tokens (install, -D, a package name), so they go as
+ * one command line, which also keeps Node from warning about shell arguments (DEP0190).
+ */
+export function runPackageManager(root: string, pm: string, args: string[]): void {
+  const stdio: ["ignore", 2, 2] = ["ignore", 2, 2];
+  if (process.platform === "win32") execSync([pm, ...args].join(" "), { cwd: root, stdio });
+  else execFileSync(pm, args, { cwd: root, stdio });
 }

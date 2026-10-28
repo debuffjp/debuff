@@ -1,7 +1,7 @@
-import { execFileSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { inFixedGroup, packageCommand, packageManager } from "./doctor.js";
+import { inFixedGroup, packageCommand, packageManager, runPackageManager } from "./doctor.js";
 import { DebuffError } from "./errors.js";
 import { isNewer, latestVersion } from "./versions.js";
 
@@ -85,7 +85,7 @@ export async function runUpgrade(
   result.installed = [pm, ...args].join(" ");
   log(result.installed);
   // Output goes to stderr, so `--json` keeps stdout to one document.
-  execFileSync(pm, args, { cwd: root, stdio: ["ignore", 2, 2], shell: process.platform === "win32" });
+  runPackageManager(root, pm, args);
 
   // The new version's doctor knows the new version's checks and skills; this process is still the old CLI.
   const bin = join(root, "node_modules", "@debuffjp", "cli", "bin", "debuff.js");
