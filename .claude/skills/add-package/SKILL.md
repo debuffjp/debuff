@@ -14,7 +14,7 @@ A new package is a new public promise: a name on npm, a line in the docs and som
 | `packages/<name>` | Browser runtime | No Node APIs. `"sideEffects": false`. Dev-only code only inside `import.meta.env.DEV` or in `@debuffjp/dev`. |
 | `tooling/<name>` | Node CLI, MCP, scaffolder | Node APIs are fine. |
 
-Runtime dependencies need a trade-off note in the PR (AGENTS.md). Prefer writing the small piece yourself; if you must depend, wrap it so it can be replaced later.
+Runtime dependencies need a trade-off note in the PR (AGENTS.md). Prefer writing the small piece yourself; if you must depend, wrap it in one module of ours that every caller goes through, so replacing it later touches one file.
 
 If the package changes an architectural decision (a new layer, a new peer relationship), write an ADR in `docs/adr/` first.
 
