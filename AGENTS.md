@@ -15,7 +15,7 @@ Instructions for AI agents working **on this repository**. (Agents working on a 
 
 1. State a short plan and the files you expect to touch.
 2. Make the smallest change that works. Don't do broad rewrites or drive-by refactors.
-3. Run `npm run check`. All of it must pass.
+3. Run `npm run check`. All of it must pass. A new git worktree needs its own `npm ci` first; `check` stops with exit 2 if packages resolve from another checkout.
 4. If you changed runtime code, report the template's brotli size from the build output.
 5. If a capture changed on purpose, run `npx debuff scenario --update` in `templates/basic` and explain why.
 

@@ -16,6 +16,6 @@ pre-push:
   parallel: true
   jobs:
     - name: typecheck
-      run: npx --no-install tsc -b
+      run: node scripts/check-install.mjs && npx --no-install tsc -b
     - name: unit tests
-      run: npx --no-install vitest run
+      run: node scripts/check-install.mjs && npx --no-install vitest run
