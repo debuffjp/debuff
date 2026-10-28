@@ -21,7 +21,7 @@ Instructions for AI agents working **on this repository**. (Agents working on a 
 
 ## Hard rules
 
-- No new runtime dependencies without an explicit trade-off note in the PR.
+- No new runtime dependencies without an explicit trade-off note in the PR. The direction is fewer: wrap any dependency behind our own module so callers never import it directly, and replace it with our own code when that becomes cheap.
 - No dev-only code outside `import.meta.env.DEV` branches or `@debuffjp/dev`.
 - Never modify source assets. Generated files (asset manifests, reports) are not committed.
 - Don't make creative or art-direction decisions in templates or docs; ask instead.
