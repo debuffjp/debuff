@@ -7,6 +7,7 @@ import { loadConfig, type ResolvedConfig } from "./config.js";
 import { hooksReady } from "./scenario/browser.js";
 import { launchBrowser } from "./scenario/run.js";
 import { telemetryOff } from "./telemetry.js";
+import { isNewer, latestVersion, updateCheckOff } from "./versions.js";
 
 const cli = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as {
   version: string;
@@ -46,7 +47,7 @@ export interface DoctorOptions {
 }
 
 /** Packages released together at one version (`fixed` in .changeset/config.json). tenten ships on its own. */
-const inFixedGroup = (name: string) => (name.startsWith("@debuffjp/") && name !== "@debuffjp/tenten") || name === "create-debuff";
+export const inFixedGroup = (name: string) => (name.startsWith("@debuffjp/") && name !== "@debuffjp/tenten") || name === "create-debuff";
 
 /** Check the project's setup: every check runs, so one problem never hides the rest (`debuff doctor`, MCP `doctor`). */
 export async function runDoctor(root: string, options: DoctorOptions = {}): Promise<DoctorResult> {
@@ -68,6 +69,7 @@ export async function runDoctor(root: string, options: DoctorOptions = {}): Prom
   checks.push(saves(root), agentFiles(root), agentSkills(root));
   if (options.browser !== false) checks.push(await browser());
   if (options.live && config) checks.push(await runtimeHooks(root));
+  if (!updateCheckOff(env)) checks.push(await newest());
 
   const off = telemetryOff({ env });
   checks.push({
@@ -374,7 +376,7 @@ async function runtimeHooks(root: string): Promise<DoctorCheck> {
 }
 
 /** The package manager the project uses, from its lockfile. */
-function packageManager(root: string): string {
+export function packageManager(root: string): string {
   for (let dir = root; ; dir = dirname(dir)) {
     if (existsSync(join(dir, "pnpm-lock.yaml"))) return "pnpm";
     if (existsSync(join(dir, "yarn.lock"))) return "yarn";
@@ -384,7 +386,7 @@ function packageManager(root: string): string {
 }
 
 /** An npm command in the project's package manager: pnpm, yarn and bun add a package with `add`. */
-function command(pm: string, args: string[]): string[] {
+export function packageCommand(pm: string, args: string[]): string[] {
   return pm !== "npm" && args[0] === "install" && args.length > 1 ? ["add", ...args.slice(1)] : args;
 }
 
@@ -410,7 +412,7 @@ export function repairDoctor(root: string, result: DoctorResult, log: (line: str
       log(done.at(-1) as string);
       continue;
     }
-    const args = command(pm, c.repair.run);
+    const args = packageCommand(pm, c.repair.run);
     const line = [pm, ...args].join(" ");
     // A plain install after an install of one package is redundant.
     if (runs.has(line) || (line === `${pm} install` && runs.size)) continue;
@@ -427,3 +429,17 @@ export function repairDoctor(root: string, result: DoctorResult, log: (line: str
 const readJson = (file: string): unknown => JSON.parse(readFileSync(file, "utf8").replace(/^﻿/, ""));
 
 const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err));
+
+/** Whether a newer debuff is out: advice, since an older version still works. Skipped in CI and with DEBUFF_UPDATE_CHECK=0. */
+async function newest(): Promise<DoctorCheck> {
+  const base = { id: "latest-version", group: "packages" as const, required: false };
+  const latest = await latestVersion();
+  if (latest === undefined) return { ...base, ok: true, message: "Couldn't reach npm to check for a newer debuff" };
+  if (!isNewer(latest, cli.version)) return { ...base, ok: true, message: `debuff ${cli.version} is the latest release` };
+  return {
+    ...base,
+    ok: false,
+    message: `debuff ${latest} is out; this project has ${cli.version}`,
+    fix: "npx debuff upgrade (it moves every debuff package together, installs, and rewrites the agent skills)",
+  };
+}

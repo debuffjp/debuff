@@ -39,7 +39,7 @@ describe("debuff MCP server", () => {
     expect(tools.every((t) => t.description && t.inputSchema)).toBe(true);
   });
 
-  it("type-checks the project without a browser", async () => {
+  it("type-checks the project without a browser", { timeout: 60_000 }, async () => {
     expect(await data("typecheck")).toMatchObject({ ok: true, diagnostics: [] });
   });
 

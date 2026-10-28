@@ -67,6 +67,8 @@ Read the exit code of every debuff command before its output:
 
 With `--json`, stdout is one JSON document; a failure is `{ "error": { "code", "message", "fix", "transient" } }`. Retry only when `transient` is true.
 
+To move a project to the latest debuff, run `npx debuff upgrade` (`--dry-run` first to see the plan); ask the human before upgrading. It updates every debuff package together, installs, and rewrites the project's agent skills.
+
 Common causes:
 
 - **Versions differ:** every `@debuffjp/*` package must be on the same version. Set them all to the CLI's version, then `npm install`.

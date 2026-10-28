@@ -49,9 +49,10 @@ cli
   .command("create [dir]", "Scaffold a new game")
   .option("--template <id>", "Template to use")
   .option("-y, --yes", "Accept defaults without prompting")
-  .action(async (dir: string | undefined, o: { template?: string; yes?: boolean }) => {
+  .option("--no-git", "Don't start a git repository with a first commit")
+  .action(async (dir: string | undefined, o: { template?: string; yes?: boolean; noGit?: boolean }) => {
     const { runCreate } = await import("create-debuff");
-    return runCreate({ dir, template: o.template, yes: o.yes ?? false });
+    return runCreate({ dir, template: o.template, yes: o.yes ?? false, git: o.noGit !== true });
   });
 
 cli
@@ -370,6 +371,37 @@ cli
   });
 
 cli
+  .command("upgrade", "Move every debuff package to the latest release together, install, and refresh the agent skills")
+  .option("--root <dir>", "Project root")
+  .option("--to <version>", "A version to move to instead of the latest")
+  .option("--dry-run", "Show what would change without changing anything")
+  .option("--json", "Machine-readable output")
+  .action(async (o: Common & { to?: string; dryRun?: boolean }) => {
+    const { runUpgrade } = await import("./upgrade.js");
+    if (!o.json) header("upgrade", o.dryRun ? "what would change" : "moving to the latest");
+    const result = await runUpgrade(rootOf(o), {
+      ...(o.to !== undefined && { to: String(o.to) }),
+      dryRun: o.dryRun === true,
+      ...(!o.json && { log: (line: string) => p.log.step(line) }),
+    });
+    const ok = result.doctor?.ok !== false;
+    if (o.json) {
+      emit(result);
+      return ok ? EXIT.ok : EXIT.setup;
+    }
+    for (const pkg of result.packages)
+      p.log.info(pkg.from === pkg.to ? `${pkg.name} ${pkg.from}` : `${pkg.name} ${pkg.from} ${pc.dim("→")} ${lime(pkg.to)}`);
+    for (const line of result.doctor?.fixed ?? []) p.log.step(line);
+    finish(
+      ok,
+      !result.changes ? `already on ${result.to}` : o.dryRun ? `would move to ${result.to}` : `on ${result.to}`,
+      result.changes ? pc.dim(`what changed: ${result.changelog}`) : "",
+    );
+    if (result.doctor && !result.doctor.ok) p.log.warn("Some setup checks still fail: run `npx debuff doctor` for the fixes");
+    return ok ? EXIT.ok : EXIT.setup;
+  });
+
+cli
   .command("inspect", "JSON summary of the project for agents and tools")
   .option("--root <dir>", "Project root")
   .action(async (o: Common) => {
@@ -464,6 +496,14 @@ async function main(): Promise<void> {
     return;
   }
   const code = (await cli.runMatchedCommand()) as number | undefined;
+  // Once a day, one line on stderr when a newer debuff is out. Never in JSON mode, and not after commands
+  // that already cover it (doctor, upgrade) or that a human runs once (create).
+  const name = cli.matchedCommand.name;
+  if (!jsonMode && !["doctor", "upgrade", "create", "dev"].includes(name) && !name.includes(":")) {
+    const { updateHint } = await import("./versions.js");
+    const hint = await updateHint(version);
+    if (hint) console.error(pc.dim(hint));
+  }
   process.exit(code ?? 0);
 }
 

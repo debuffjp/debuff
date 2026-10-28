@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { type DoctorResult, repairDoctor, runDoctor } from "../src/index.js";
 
 const version = (JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string }).version;
-const env = { DEBUFF_TELEMETRY: "off" };
+const env = { DEBUFF_TELEMETRY: "off", DEBUFF_UPDATE_CHECK: "0" };
 let root: string;
 
 function install(dir: string, name: string, v: string) {
