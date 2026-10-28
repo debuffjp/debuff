@@ -14,7 +14,7 @@
     "test": "vitest run",
     "dev": "npm run dev -w templates/platformer",
     "check": "node scripts/check-install.mjs && npm run lint && npm run typecheck && npm run test:coverage && npm run build && npm run lint:packages && npm run test:scenarios",
-    "test:scenarios": "npm test -w templates/basic -w templates/topdown -w templates/isometric -w templates/sidescroller -w templates/pointclick -w templates/platformer -w templates/mossfell -w templates/squish && npm run test:browser -w spryte",
+    "test:scenarios": "node scripts/test-scenarios.mjs && npm run test:browser -w spryte",
     "lint": "biome check .",
     "format": "biome check --write .",
     "changeset": "changeset",

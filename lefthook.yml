@@ -13,9 +13,7 @@ pre-commit:
       stage_fixed: true
 
 pre-push:
-  parallel: true
   jobs:
-    - name: typecheck
-      run: node scripts/check-install.mjs && npx --no-install tsc -b
-    - name: unit tests
-      run: node scripts/check-install.mjs && npx --no-install vitest run
+    # One job, in order: a few tests run the built CLI, keiko and MCP binaries, so tsc builds them first.
+    - name: typecheck + unit tests
+      run: node scripts/check-install.mjs && npx --no-install tsc -b && npx --no-install vitest run
