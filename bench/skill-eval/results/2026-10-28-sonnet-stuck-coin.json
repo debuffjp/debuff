@@ -1,0 +1,375 @@
+{
+  "date": "2026-10-28T04:21:53.998Z",
+  "model": "sonnet",
+  "claude": "2.1.310 (Claude Code)",
+  "node": "24.15.0",
+  "platform": "win32",
+  "runs": 5,
+  "judged": false,
+  "overall": {
+    "skills": {
+      "n": 5,
+      "mean": 0.9333333333333332,
+      "sd": 0.149071198499986,
+      "min": 0.6666666666666666,
+      "max": 1
+    },
+    "noskills": {
+      "n": 5,
+      "mean": 0.7666666666666666,
+      "sd": 0.22360679774997896,
+      "min": 0.5,
+      "max": 1
+    }
+  },
+  "summary": {
+    "stuck-coin": {
+      "skills": {
+        "score": {
+          "n": 5,
+          "mean": 0.9333333333333332,
+          "sd": 0.149071198499986,
+          "min": 0.6666666666666666,
+          "max": 1
+        },
+        "items": {
+          "reproduced-first": "4/5",
+          "regression-test": "5/5",
+          "verified": "5/5"
+        },
+        "outcome": "5/5",
+        "cost": {
+          "n": 5,
+          "mean": 0.23833382000000003,
+          "sd": 0.0260882564999465,
+          "min": 0.20191309999999998,
+          "max": 0.26944480000000004
+        }
+      },
+      "noskills": {
+        "score": {
+          "n": 5,
+          "mean": 0.7666666666666666,
+          "sd": 0.22360679774997896,
+          "min": 0.5,
+          "max": 1
+        },
+        "items": {
+          "reproduced-first": "4/5",
+          "regression-test": "3/5",
+          "verified": "4/4"
+        },
+        "outcome": "5/5",
+        "cost": {
+          "n": 5,
+          "mean": 0.1786148,
+          "sd": 0.029121935522042484,
+          "min": 0.1486709,
+          "max": 0.22313429999999998
+        }
+      }
+    }
+  },
+  "runs_detail": [
+    {
+      "task": "stuck-coin",
+      "condition": "noskills",
+      "n": 1,
+      "model": "sonnet",
+      "ms": 107408,
+      "status": 0,
+      "cost": 0.18893210000000002,
+      "toolCalls": 10,
+      "skillCalls": [],
+      "outcome": true,
+      "items": [
+        {
+          "id": "reproduced-first",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "regression-test",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 0.6666666666666666
+    },
+    {
+      "task": "stuck-coin",
+      "condition": "noskills",
+      "n": 2,
+      "model": "sonnet",
+      "ms": 85795,
+      "status": 0,
+      "cost": 0.22313429999999998,
+      "toolCalls": 15,
+      "skillCalls": [],
+      "outcome": true,
+      "items": [
+        {
+          "id": "reproduced-first",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "regression-test",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "stuck-coin",
+      "condition": "noskills",
+      "n": 3,
+      "model": "sonnet",
+      "ms": 62872,
+      "status": 0,
+      "cost": 0.159188,
+      "toolCalls": 7,
+      "skillCalls": [],
+      "outcome": true,
+      "items": [
+        {
+          "id": "reproduced-first",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "regression-test",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 0.6666666666666666
+    },
+    {
+      "task": "stuck-coin",
+      "condition": "noskills",
+      "n": 4,
+      "model": "sonnet",
+      "ms": 118547,
+      "status": 0,
+      "cost": 0.1731487,
+      "toolCalls": 10,
+      "skillCalls": [],
+      "outcome": true,
+      "items": [
+        {
+          "id": "reproduced-first",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "regression-test",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "stuck-coin",
+      "condition": "noskills",
+      "n": 5,
+      "model": "sonnet",
+      "ms": 49564,
+      "status": 0,
+      "cost": 0.1486709,
+      "toolCalls": 7,
+      "skillCalls": [],
+      "outcome": true,
+      "items": [
+        {
+          "id": "reproduced-first",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "regression-test",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": null
+        }
+      ],
+      "score": 0.5
+    },
+    {
+      "task": "stuck-coin",
+      "condition": "skills",
+      "n": 1,
+      "model": "sonnet",
+      "ms": 176290,
+      "status": 0,
+      "cost": 0.23885920000000008,
+      "toolCalls": 16,
+      "skillCalls": ["debuff"],
+      "outcome": true,
+      "items": [
+        {
+          "id": "reproduced-first",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "regression-test",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "stuck-coin",
+      "condition": "skills",
+      "n": 2,
+      "model": "sonnet",
+      "ms": 122297,
+      "status": 0,
+      "cost": 0.26944480000000004,
+      "toolCalls": 19,
+      "skillCalls": ["debuff"],
+      "outcome": true,
+      "items": [
+        {
+          "id": "reproduced-first",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "regression-test",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 0.6666666666666666
+    },
+    {
+      "task": "stuck-coin",
+      "condition": "skills",
+      "n": 3,
+      "model": "sonnet",
+      "ms": 125509,
+      "status": 0,
+      "cost": 0.22629849999999999,
+      "toolCalls": 15,
+      "skillCalls": [],
+      "outcome": true,
+      "items": [
+        {
+          "id": "reproduced-first",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "regression-test",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "stuck-coin",
+      "condition": "skills",
+      "n": 4,
+      "model": "sonnet",
+      "ms": 158235,
+      "status": 0,
+      "cost": 0.2551535,
+      "toolCalls": 14,
+      "skillCalls": [],
+      "outcome": true,
+      "items": [
+        {
+          "id": "reproduced-first",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "regression-test",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "stuck-coin",
+      "condition": "skills",
+      "n": 5,
+      "model": "sonnet",
+      "ms": 101060,
+      "status": 0,
+      "cost": 0.20191309999999998,
+      "toolCalls": 12,
+      "skillCalls": ["rigor", "debuff"],
+      "outcome": true,
+      "items": [
+        {
+          "id": "reproduced-first",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "regression-test",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 1
+    }
+  ]
+}

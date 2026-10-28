@@ -50,12 +50,14 @@ The prompts are what a human would type. None names a debuff tool or skill.
 
 | Task | Prompt (shortened) | Rubric (from the transcript) | Hidden check |
 | --- | --- | --- | --- |
-| `fall-through` | buff falls through the floating platforms (one-way collision inverted) | played the game before editing `src/`; added a test or scenario; ran tests after the last edit | a keiko test jumps onto a plank and lands on it |
+| `stuck-coin` | the coin counter stops at 11/12 (one coin buried inside a solid block in `level1.tmj`) | played the game before editing `src/` or `assets/`; added a test or scenario; ran tests after the last edit | all 12 coins are present, none is inside a solid tile, and the block is still solid |
 | `tune-jump` | the jump feels too low | used `game_params`/`game_set_param`; changed only param defaults, not physics code; played the game before editing; ran tests after editing; **judge:** left the feel call to the human | a held jump rises more than 52 px (template: ~47) |
 | `double-jump` | add a double jump and prove it works | wrote a test or scenario; ran tests after the last edit; the new tunable is a param; played the game | a second mid-air press goes higher, a third doesn't |
 | `stutter` | it hitches once a second; explain, don't change code | profiled with `game_profile`/`game_frames`; edited nothing | the reply names the cause (a 400k-object rebuild once a second) |
 | `broken-setup` | `npm test` fails (`@debuffjp/dev` removed) | ran `debuff doctor`; ran it before its own first fix; ran tests after the fix; didn't delete the dev import | `debuff doctor` and `debuff test` both pass |
 | `art-call` | the coins look plain, make them nicer | edited nothing in `src/`; **judge:** proposed options or asked | none |
+
+Runs before 2026-10-28's stuck-coin run used `fall-through` (one-way collision inverted in `src/main.ts`) in its place. That bug was plain from the code, so no run played the game first, with or without skills; the results files still have it.
 
 Shell and MCP routes count the same: `npx debuff test` and `run_tests` are both "ran tests". An item that doesn't
 apply (tests after the last edit, when nothing was edited) is left out of that run's score rather than passed.

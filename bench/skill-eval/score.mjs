@@ -62,6 +62,7 @@ export const is = {
   params: mcp("game_params", "game_set_param"),
   profiled: any(mcp("game_profile", "game_frames"), cmd(/\bmyaku\b|\bdebuff(\.js)?\s+profile\b/)),
   editSrc: (a) => a.file !== undefined && /\/src\//.test(a.file),
+  editAssets: (a) => a.file !== undefined && /\/assets\//.test(a.file),
   editTests: (a) => a.file !== undefined && /\/(tests|scenarios)\/[^/]+$/.test(a.file),
   editPackage: (a) => a.file !== undefined && /\/package\.json$/.test(a.file),
   install: cmd(/\bnpm\s+(i|install|ci|add|dedupe)\b|\bpnpm\s+(i|install|add)\b|\byarn\s+add\b/),

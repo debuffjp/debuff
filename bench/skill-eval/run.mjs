@@ -285,7 +285,10 @@ console.log(`\n| Task | ${conditions.join(" | ")} |\n| --- |${conditions.map(() 
 for (const task of tasks) console.log(`| ${task.id} | ${conditions.map((c) => fmt(summary[task.id][c].score)).join(" | ")} |`);
 console.log(`| **all** | ${conditions.map((c) => fmt(overall[c])).join(" | ")} |`);
 
-const out = join(here, "results", `${new Date().toISOString().slice(0, 10)}-${model}.json`);
+// A second run on the same day gets -2, -3…, so it never overwrites the first.
+const stem = join(here, "results", `${new Date().toISOString().slice(0, 10)}-${model}`);
+let out = `${stem}.json`;
+for (let i = 2; existsSync(out); i++) out = `${stem}-${i}.json`;
 mkdirSync(dirname(out), { recursive: true });
 const claude = spawnSync("claude", ["--version"], { encoding: "utf8" }).stdout.trim();
 writeFileSync(

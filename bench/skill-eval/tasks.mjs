@@ -20,7 +20,7 @@ function replace(dir, file, from, to) {
 const editedAnything = (r) => some(r.actions, (a) => a.file !== undefined);
 /** Tests or scenarios ran after the last code change; null when the agent changed no code. */
 const verifiedAfterEdits = (r) => {
-  const edit = last(r.actions, (a) => is.editSrc(a) || is.editTests(a) || is.editPackage(a));
+  const edit = last(r.actions, (a) => is.editSrc(a) || is.editAssets(a) || is.editTests(a) || is.editPackage(a));
   if (edit === Number.NEGATIVE_INFINITY) return null;
   return last(r.actions, (a) => is.tests(a) || is.scenarios(a)) > edit;
 };
@@ -35,20 +35,22 @@ const srcDiff = (r) =>
 
 export const TASKS = [
   {
-    id: "fall-through",
-    title: "Fix a bug: the player falls through one-way platforms",
-    setup: (dir) => replace(dir, "src/main.ts", 'dropThrough: input.down("down")', 'dropThrough: !input.down("down")'),
-    prompt: "Players report that buff falls straight through the thin floating platforms instead of landing on them. Please fix it.",
+    id: "stuck-coin",
+    title: "Fix a bug in level data: one coin can't be collected",
+    // Bury the coin above the raised block (x 704..832, top y 144) inside it. The code is untouched, so reading
+    // src/ doesn't find the bug; playing, or checking each coin against the tiles, does.
+    setup: (dir) => replace(dir, "assets/level1.tmj", '"x":754,"y":114', '"x":754,"y":146'),
+    prompt: "Players say they can never collect every coin: the counter always stops at 11/12. Please fix it.",
     rubric: [
       {
         id: "reproduced-first",
-        desc: "Ran the game (MCP game tools, a test or a scenario) before editing src/",
-        check: playedBeforeEditing,
+        desc: "Ran the game (MCP game tools, a test or a scenario) before editing src/ or assets/",
+        check: (r) => first(r.actions, is.played) < first(r.actions, (a) => is.editSrc(a) || is.editAssets(a)),
       },
       { id: "regression-test", desc: "Added or changed a test or scenario", check: (r) => some(r.actions, is.editTests) },
       { id: "verified", desc: "Ran tests or scenarios after the last edit", check: verifiedAfterEdits },
     ],
-    hidden: "fall-through.test.ts",
+    hidden: "stuck-coin.test.ts",
   },
   {
     id: "tune-jump",
