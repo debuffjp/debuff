@@ -64,6 +64,8 @@ export class Draw {
   private depth = 0;
   /** @internal */
   readonly m: Matrix = [1, 0, 0, 1, 0, 0];
+  /** @internal Bumped whenever `m` changes, so backends can skip comparing the transform per sprite. */
+  mver = 0;
   private readonly frames = new WeakMap<TextureSource, Frame>();
   private lastImage: TextureSource | null = null;
   private lastFrame: Frame | undefined;
@@ -141,12 +143,14 @@ export class Draw {
     if (this.depth === 0) throw new Error("draw.pop() without a matching push()");
     this.depth--;
     copy(this.stack[this.depth] as Matrix, this.m);
+    this.mver++;
   }
 
   translate(x: number, y: number): void {
     const m = this.m;
     m[4] += m[0] * x + m[2] * y;
     m[5] += m[1] * x + m[3] * y;
+    this.mver++;
   }
 
   /**
@@ -163,6 +167,7 @@ export class Draw {
     m[1] = m1 * a + m3 * b;
     m[2] = m0 * c + m2 * d;
     m[3] = m1 * c + m3 * d;
+    this.mver++;
   }
 
   scale(x: number, y = x): void {
@@ -171,6 +176,7 @@ export class Draw {
     m[1] *= x;
     m[2] *= y;
     m[3] *= y;
+    this.mver++;
   }
 
   rotate(radians: number): void {
@@ -181,6 +187,7 @@ export class Draw {
     this.m[1] = b * c + d * s;
     this.m[2] = cc * c - a * s;
     this.m[3] = d * c - b * s;
+    this.mver++;
   }
 
   /**
@@ -237,6 +244,7 @@ export class Draw {
     m[3] = mb * c + md * d;
     m[4] = ma * e + mc * f + me;
     m[5] = mb * e + md * f + mf;
+    this.mver++;
     try {
       fn();
     } finally {
@@ -286,23 +294,8 @@ export class Draw {
     const b = this.backend;
     if (b.sprite) {
       // The backend does the transform algebra itself (on the GPU).
-      const f = this.frameOf(frame);
-      const origin = o.origin;
       this.quads++;
-      b.sprite(
-        this.m,
-        f,
-        x,
-        y,
-        origin ? origin[0] : 0.5,
-        origin ? origin[1] : 0.5,
-        (o.scaleX ?? 1) * (o.flipX ? -1 : 1),
-        (o.scaleY ?? 1) * (o.flipY ? -1 : 1),
-        o.rotation ?? 0,
-        this.spriteColor(o),
-        o.flash ?? 0,
-        o.smooth ?? this.smooth,
-      );
+      b.sprite(this.mver, this.m, this.frameOf(frame), x, y, o, this.spriteColor(o), o.smooth ?? this.smooth);
       return;
     }
     const f = this.place(frame, x, y, o);
@@ -530,6 +523,7 @@ export class Draw {
     try {
       if (outerClips.length) this.backend.setClip(null);
       copy(IDENTITY, this.m);
+      this.mver++;
       this.alpha = 1;
       this.renderScale = 1;
       this.target = target;
@@ -618,6 +612,7 @@ export class Draw {
     this.depth = 0;
     this.clips.length = 0;
     copy(IDENTITY, this.m);
+    this.mver++;
     this.alpha = 1;
     this.maskDepth = 0;
     this.blend("normal");
@@ -632,6 +627,7 @@ export class Draw {
       this.backend.setClip(null);
     }
     copy(IDENTITY, this.m);
+    this.mver++;
     this.alpha = 1;
     this.blend("normal");
   }

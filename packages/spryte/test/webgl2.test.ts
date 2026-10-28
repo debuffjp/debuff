@@ -247,6 +247,52 @@ describe("WebGL2Backend", () => {
       expect(info[0]).toBe(1 / 16);
     });
 
+    it("write the same instance on the short path as on the full one", () => {
+      const run = (warm: boolean) => {
+        const { gl, calls } = fakeGL();
+        const draw = new Draw(new WebGL2Backend(gl), true);
+        const img = image();
+        draw.begin("#000", 100, 50, 1);
+        // The first sprite opens the batch on the full path; the second takes the short one.
+        if (warm) draw.sprite(img, 1, 1);
+        draw.sprite(img, 10.4, 10.6, { rotation: 1, scaleX: 2, origin: [0, 1], flash: 0.5, tint: 0x80ff40ff });
+        draw.end();
+        return sprite(calls, warm ? 1 : 0);
+      };
+      expect(run(true)).toEqual(run(false));
+    });
+
+    it("move with a translate() between two sprites, without push or pop", () => {
+      const { gl, calls } = fakeGL();
+      const draw = new Draw(new WebGL2Backend(gl), false);
+      const img = image();
+      draw.begin("#000", 100, 50, 1);
+      draw.sprite(img, 10, 10);
+      draw.translate(20, 0);
+      draw.sprite(img, 10, 10);
+      draw.end();
+      // The first is a placed sprite at 10 - 8 = 2. The second, under a new transform, is a quad (no sprite flag)
+      // whose translation is 22: the transform change was seen.
+      const second = sprite(calls, 1);
+      expect([sprite(calls, 0)[0], second[2], second[12]]).toEqual([2, 22, 0]);
+    });
+
+    it("find a texture unit that a quad assigned", () => {
+      const { gl, calls } = fakeGL();
+      const draw = new Draw(new WebGL2Backend(gl), true);
+      const a = image();
+      const b = image(32, 32);
+      draw.begin("#000", 100, 50, 1);
+      draw.sprite(a, 10, 10, { rotation: 0.5 });
+      draw.push();
+      draw.translate(5, 0);
+      draw.sprite(b, 10, 10, { rotation: 0.5 }); // another transform: a quad, which gives b unit 1
+      draw.pop();
+      draw.sprite(b, 10, 10, { rotation: 0.5 }); // the short path must use b's unit, not a's
+      draw.end();
+      expect(sprite(calls, 2)[12]).toBe(1 + 16);
+    });
+
     it("land unrotated pixel art on whole pixels, rounded on the CPU", () => {
       const { gl, calls } = fakeGL();
       const draw = new Draw(new WebGL2Backend(gl), false);

@@ -1,6 +1,6 @@
 import type { Backend, BlendMode, ClipRect, Matrix, RawContext, TextureSource } from "./backend.js";
 import { type CopySpec, copyAt, frameAt, placeAt } from "./copies.js";
-import type { Frame } from "./draw.js";
+import type { Frame, SpriteDrawOptions } from "./draw.js";
 import type { Shader } from "./shader.js";
 import type { ShapeBuffer } from "./shapes.js";
 import { RenderTarget } from "./target.js";
@@ -315,6 +315,7 @@ export class WebGL2Backend implements Backend {
     // preventDefault tells the browser we will handle restoration.
     e.preventDefault();
     this.lost = true;
+    this.armed = false;
   };
   protected readonly onRestored = () => {
     // Every GPU object died with the context. Sources are still in memory, so textures re-upload lazily.
@@ -329,6 +330,7 @@ export class WebGL2Backend implements Backend {
     this.count = 0;
     this.unitCount = 0;
     this.sprites = false;
+    this.armed = false;
     this.setup();
     this.lost = false;
     if (shader) this.setShader(shader);
@@ -345,6 +347,14 @@ export class WebGL2Backend implements Backend {
   private sprites = false;
   private readonly bm: Matrix = [1, 0, 0, 1, 0, 0];
   private readonly unitInfo: (CachedTexture | undefined)[] = new Array(UNITS).fill(undefined);
+  /** The source each unit was assigned for, so a sprite can find its unit without the texture lookup. */
+  private readonly unitSrc: (TextureSource | null)[] = new Array(UNITS).fill(null);
+  /**
+   * True while a sprite batch is open under the transform version `bver`, with no shapes pending: the next sprite
+   * under that version only needs its unit found. Everything that ends or changes the batch clears it.
+   */
+  private armed = false;
+  private bver = -1;
   private readonly texInfo = new Float32Array(UNITS * 3);
   private readonly fallback: Matrix = [1, 0, 0, 1, 0, 0];
   private blend: BlendMode | "mask" = "normal";
@@ -476,7 +486,7 @@ export class WebGL2Backend implements Backend {
     this.lastSrc = src;
     this.last = t;
     if (this.count === this.capacity) this.flush();
-    const unit = this.unitFor(t, smooth, sameAsLast);
+    const unit = this.unitFor(t, smooth, sameAsLast, src);
     const shapes = this.shapes;
     if (shapes && shapes.count > 0 && !this.shader) {
       // Shapes pending: join their batch instead of breaking it.
@@ -511,7 +521,40 @@ export class WebGL2Backend implements Backend {
     this.count++;
   }
 
-  sprite(
+  sprite(ver: number, m: Matrix, fr: Frame, x: number, y: number, o: SpriteDrawOptions, color: number, smooth: boolean): void {
+    const origin = o.origin;
+    const ox = origin ? origin[0] : 0.5;
+    const oy = origin ? origin[1] : 0.5;
+    const sx = (o.scaleX ?? 1) * (o.flipX ? -1 : 1);
+    const sy = (o.scaleY ?? 1) * (o.flipY ? -1 : 1);
+    const r = o.rotation ?? 0;
+    const flash = o.flash ?? 0;
+    if (this.armed && ver === this.bver && this.count < this.capacity) {
+      const src = fr.image;
+      const us = this.unitSrc;
+      const sm = this.unitSmooth;
+      for (let i = 0; i < this.unitCount; i++)
+        if (us[i] === src && sm[i] === smooth) {
+          this.write(i, m, fr, x, y, ox, oy, sx, sy, r, color, flash, smooth);
+          return;
+        }
+    }
+    this.place(m, fr, x, y, ox, oy, sx, sy, r, color, flash, smooth);
+    const bm = this.bm;
+    this.armed =
+      this.sprites &&
+      !(this.shapes && this.shapes.count > 0) &&
+      m[0] === bm[0] &&
+      m[1] === bm[1] &&
+      m[2] === bm[2] &&
+      m[3] === bm[3] &&
+      m[4] === bm[4] &&
+      m[5] === bm[5];
+    this.bver = ver;
+  }
+
+  /** The full path for a sprite: falls back to a quad, joins shapes, assigns units, starts the batch transform. */
+  private place(
     m: Matrix,
     fr: Frame,
     x: number,
@@ -551,11 +594,30 @@ export class WebGL2Backend implements Backend {
     this.lastSrc = src;
     this.last = t;
     if (this.count === this.capacity) this.flush();
-    const unit = this.unitFor(t, smooth, sameAsLast);
+    const unit = this.unitFor(t, smooth, sameAsLast, src);
     if (!this.sprites) {
       for (let i = 0; i < 6; i++) bm[i] = m[i] as number;
       this.sprites = true;
     }
+    this.write(unit, m, fr, x, y, ox, oy, sx, sy, r, color, flash, smooth);
+  }
+
+  /** One sprite instance at the batch's next slot. */
+  private write(
+    unit: number,
+    m: Matrix,
+    fr: Frame,
+    x: number,
+    y: number,
+    ox: number,
+    oy: number,
+    sx: number,
+    sy: number,
+    r: number,
+    color: number,
+    flash: number,
+    smooth: boolean,
+  ): void {
     const f = this.count * (STRIDE / 4);
     const { f32 } = this;
     let flags = unit + SPRITE;
@@ -586,7 +648,7 @@ export class WebGL2Backend implements Backend {
   }
 
   /** The batch's texture unit for `t` with this filtering, adding one (or flushing a full batch first). */
-  private unitFor(t: CachedTexture, smooth: boolean, sameAsLast: boolean): number {
+  private unitFor(t: CachedTexture, smooth: boolean, sameAsLast: boolean, src: TextureSource | null): number {
     // Same texture and filter as the previous quad in this batch: same unit.
     let unit =
       sameAsLast && smooth === this.lastSmooth && this.lastUnit < this.unitCount && this.units[this.lastUnit] === t.tex
@@ -605,6 +667,7 @@ export class WebGL2Backend implements Backend {
       this.units[unit] = t.tex;
       this.unitSmooth[unit] = smooth;
       this.unitInfo[unit] = t;
+      this.unitSrc[unit] = src;
     }
     this.lastUnit = unit;
     this.lastSmooth = smooth;
@@ -1095,6 +1158,7 @@ export class WebGL2Backend implements Backend {
       gl.bindSampler(i, this.unitSmooth[i] ? this.linear : this.nearest);
     }
     this.unitCount = 0;
+    this.armed = false;
     gl.useProgram(p.program);
     gl.bindVertexArray(p.vao);
     this.syncView(p);
@@ -1139,6 +1203,7 @@ export class WebGL2Backend implements Backend {
     if (this.lost || this.count === 0) {
       this.count = 0;
       this.unitCount = 0;
+      this.armed = false;
       this.sprites = false;
       return;
     }
@@ -1171,6 +1236,7 @@ export class WebGL2Backend implements Backend {
     this.submitted++;
     this.count = 0;
     this.unitCount = 0;
+    this.armed = false;
   }
 
   /** Upload `u_view` to a program if the destination size changed since it last drew. The program must be bound. */
