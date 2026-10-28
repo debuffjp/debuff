@@ -1,5 +1,12 @@
 # create-debuff
 
+## 0.21.1
+
+### Patch Changes
+
+- cb68bb7: The `debuff` agent skill now also loads when asked to make the player jump higher or run faster, make the game look nicer, or when `npm test`, a build or a debuff command fails. A new section near the top tells agents not to edit art or feel until the human picks one of two or three options. Before this, agents in the skill eval read the old line ("propose options and let them choose") and redrew the art anyway.
+- bc9cfa2: The `debuff` agent skill now loads for everyday work in a debuff project (fixing a bug, tuning feel, adding a mechanic, changing art), not only when starting a new game. Before 0.21.1 its description led with making a new game, and in a skill eval Claude Code never loaded it for those tasks. Run `npx debuff doctor --fix` to update a project's skills.
+
 ## 0.21.0
 
 ### Minor Changes
