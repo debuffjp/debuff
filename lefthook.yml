@@ -12,6 +12,11 @@ pre-commit:
       run: npx --no-install biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
       stage_fixed: true
 
+commit-msg:
+  jobs:
+    - name: prose
+      run: node scripts/lint-prose.mjs --message {1}
+
 pre-push:
   jobs:
     # One job, in order: a few tests run the built CLI, keiko and MCP binaries, so tsc builds them first.

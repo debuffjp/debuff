@@ -19,6 +19,20 @@ Instructions for AI agents working **on this repository**. (Agents working on a 
 4. If you changed runtime code, report the template's brotli size from the build output.
 5. If a capture changed on purpose, run `npx debuff scenario --update` in `templates/basic` and explain why.
 
+## Logs
+
+- `docs/decisions.md`: add an entry when you make a choice that the code and the ADRs don't settle, with the options you considered.
+- `docs/papercuts.md`: add an entry when a tool costs you time, with the workaround. Remove it when the cause is fixed.
+
+## Writing
+
+`npm run lint:prose` (part of `npm run check`) and the commit-msg hook check Markdown, comments and commit messages for the patterns below that a regular expression can find. The rules live in `scripts/lint-prose.mjs`.
+
+- No em dashes. Use a colon, a comma, parentheses or a new sentence.
+- No AI vocabulary (delve, crucial, leverage, seamless, robust, comprehensive and the rest of the list in the script) and no filler such as "it's worth noting". Say the specific thing.
+- No "not just X but Y". State Y.
+- Lists don't need a serial comma ("a, b and c"), matching the rest of the repo.
+
 ## Hard rules
 
 - No new runtime dependencies without an explicit trade-off note in the PR. The direction is fewer: wrap any dependency behind our own module so callers never import it directly, and replace it with our own code when that becomes cheap.
