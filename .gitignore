@@ -13,6 +13,8 @@ coverage/
 .DS_Store
 Thumbs.db
 .vscode/
+# Templates ship editor tasks for new projects.
+!templates/*/.vscode/
 .idea/
 *.log
 dist-types/

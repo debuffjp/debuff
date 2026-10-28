@@ -15,6 +15,7 @@ This is a point-and-click adventure base made with **debuff** (https://debuff.jp
 | `npm run assets` | Regenerates the asset manifest and lists unused assets |
 | `npx debuff inspect` | Project summary as JSON: packages, plugins, assets, last build size |
 | `npx debuff doctor` | Checks the setup in one pass when something won't start: Node, package versions, config, assets, browser, agent files. `--live` also boots the game |
+| `npx debuff upgrade` | Moves every debuff package to the latest release together, installs, and refreshes the agent skills. `--dry-run` shows what would change. Ask the human before upgrading |
 | `npx debuff scenario --update` | Accept new screenshot baselines. **Only after the human has approved the visual change** |
 
 ## Layout
@@ -26,6 +27,7 @@ This is a point-and-click adventure base made with **debuff** (https://debuff.jp
 - `scenarios/`: JSON scripts run in a real browser. Prefer assertions on state over screenshots: `expect` and `until` read `state.*` (your `inspect()`) and `events.<name>`, the number of times the game called `game.emit("<name>")`. `{ "until": { "events.coin": { "gte": 1 } }, "within": 60 }` waits for a coin instead of guessing a wait. Add a capture only when a change is visual. When you add effects that flash or shake (hits, explosions, screen flashes), add a `{ "flashes": 240 }` step to check them for photosensitive safety, and a `{ "contrast": [x, y, w, h] }` step for new HUD text.
 - `.mcp.json`: connects the debuff MCP server, so you can play and inspect the running game, and the tenten server for drawing pixel art.
 - `.claude/skills/` and `.agents/skills/`: skills for this project's debuff version (`debuff`, `debuff-setup`, `keiko`, `myaku`), one copy for Claude Code and one for Codex, Gemini CLI, Cursor and Copilot. After upgrading debuff, `npx debuff doctor --fix` rewrites them.
+- `.vscode/tasks.json`: editor tasks for the dev server, tests, build and doctor.
 
 ## Work loop
 
