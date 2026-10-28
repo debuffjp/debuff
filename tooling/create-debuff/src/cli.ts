@@ -14,6 +14,7 @@ Scaffold a new debuff game in [dir] (prompts for it when omitted).
 Options:
   --template <id>  Template to use (prompts when omitted)
   -y, --yes        Accept defaults without prompting
+  --no-git         Don't start a git repository with a first commit
   --color          Force coloured output
   --no-color       Disable coloured output
   -h, --help       Show this help`);
@@ -21,7 +22,7 @@ Options:
 }
 const dir = args.find((a, i) => !a.startsWith("-") && !args[i - 1]?.startsWith("--"));
 
-runCreate({ dir, template: flag("template"), yes: args.includes("--yes") || args.includes("-y") }).then(
+runCreate({ dir, template: flag("template"), yes: args.includes("--yes") || args.includes("-y"), git: !args.includes("--no-git") }).then(
   (code) => process.exit(code),
   (err: unknown) => {
     console.error(err instanceof Error ? err.message : err);

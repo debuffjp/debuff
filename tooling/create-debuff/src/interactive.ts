@@ -3,6 +3,7 @@ import { join, relative } from "node:path";
 import * as p from "@clack/prompts";
 import pc from "./ansi.js";
 import { banner, lime, pink, sky } from "./brand.js";
+import { initGit } from "./git.js";
 import {
   create,
   detectPackageManager,
@@ -19,6 +20,8 @@ export interface CreateOptions {
   template?: string | undefined;
   /** Accept defaults without prompting (CI, agents). */
   yes?: boolean;
+  /** Start a git repository with a first commit. Default true; `--no-git` turns it off. */
+  git?: boolean;
 }
 
 /** The template list as select options, under a heading per kind. Headings are disabled rows, so the cursor skips them. */
@@ -82,6 +85,12 @@ export async function runCreate(options: CreateOptions): Promise<number> {
   s.start(resolved.kind === "remote" ? `Downloading ${resolved.source}` : "Scaffolding");
   const dest = await create({ dir, ...(template ? { template } : {}) });
   s.stop(`Created ${lime(relative(process.cwd(), dest) || ".")}`);
+  if (options.git !== false) {
+    const git = initGit(dest, `New debuff game from the ${template ?? "basic"} template`);
+    if (git.status === "committed") p.log.step("Started a git repository with a first commit");
+    else if (git.status === "initialised") p.log.warn(`Started a git repository, but didn't commit: ${git.reason}`);
+    else p.log.info(pc.dim(`No git repository: ${git.reason}`));
+  }
 
   const pm = detectPackageManager();
   const run = pm === "npm" ? "npm run" : pm;
