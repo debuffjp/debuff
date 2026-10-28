@@ -2,16 +2,28 @@
 
 A living document. Items move up only with evidence from real games, jams and first-run tests.
 
-**Status:** 0.1 is on npm (`npm create debuff@latest`), and [debuff.jp](https://debuff.jp) is live.
+**Status:** 0.22 is on npm (`npm create debuff@latest`), spryte 0.7.2 is on npm, and [debuff.jp](https://debuff.jp) is live. Last reassessed 2026-10-29, against what the dogfooding games (burrowball, conveyor, gloop, overbuffed) had to write themselves.
 
 ## Up next (in order)
 
+Evidence for each item is what our own games hand-rolled. Nothing here comes from issue requests yet: the repos have none, so the order will change as people use debuff.
+
 1. **First-run fixes.** Run the agent first-run test (a fresh agent goes from debuff.jp to a playable game), then fix every blocker it finds before anything else.
-2. **Releases from CI.** npm trusted publishing with provenance from the release workflow, so publishes no longer need local 2FA or manual staging approval.
-3. **Deterministic replays.** Record a session's inputs plus its seed, then replay it exactly, scrub through it in the dev panel and attach it to bug reports. (See *Differentiators*.)
-4. **`debuff publish`.** One command to ship: itch.io (via butler), static web hosts, and desktop through Tauri. Size budget enforced.
-5. **Finish plugin phase 2b.** `@debuffjp/plugin-aseprite` as the reference importer, `sheet` manifest entries, per-frame durations, and JSON Schemas for the manifest, `SourceFile` and `ImportResult`, with contract tests (ADR 0005).
-6. **SEO and agent discovery, phase 2.** Comparison pages, recipes, the jam kit and a showcase. Registry listings: MCP registries, npm keywords, awesome lists.
+2. **Smooth rendering between fixed steps.** `render` already gets the leftover `alpha`, but three games each wrote their own previous-position bookkeeping and lerp. A small opt-in helper for that. Evidence: overbuffed, conveyor, burrowball.
+3. **Spatial hash.** A uniform grid for "what's near this" queries (enemies, bullets, turret ranges), deterministic and allocation-free, next to `overlaps` and `circlesOverlap` in core. Evidence: overbuffed's hand-rolled grid, conveyor's plan.
+4. **On-screen touch controls.** A virtual stick and buttons that feed the same actions as keys and pads, testable headlessly. Evidence: conveyor, burrowball, overbuffed's mobile notes.
+5. **Word wrap.** `draw.text` wrapped to a width in spryte, used by `ui`. Evidence: conveyor's hand-written wrap, and the spryte gap below.
+6. **Pixel buffers as textures.** Draw an `ImageData`-style buffer and re-upload only its changed rectangle. Evidence: burrowball (two friction entries); it also lowers the upload cost the renderer research found.
+7. **`debuff publish`.** `debuff ship` covers itch.io today; static web hosts and desktop through Tauri remain. Size budget enforced.
+8. **Plugin phase 2b.** `sheet` manifest entries, per-frame durations, and JSON Schemas for the manifest, `SourceFile` and `ImportResult`, with contract tests (ADR 0005). Before 2026-10-29 this item led with `@debuffjp/plugin-aseprite` as the reference importer; that importer is no longer planned for now (grid sheets already load through `name@WxH.png` and are atlased at build time, and the house art pipeline is tenten), so the contract tests will use an importer that exists.
+9. **SEO and agent discovery, phase 2.** Comparison pages, recipes, the jam kit and a showcase. A reviewed, machine-readable list of plugins and community projects that debuff.jp, the MCP server and the agent skill all read. Registry listings: MCP registries, npm keywords, awesome lists.
+
+Done since the 0.1 list:
+
+- [x] **Releases from CI** (was item 2): npm trusted publishing with provenance from the release workflow.
+- [x] **Deterministic replays** (was item 3): see *Differentiators*.
+
+Considered, not scheduled until a game needs it: localisation, a dialogue runner (likely an inkjs adapter), rigid-body physics (likely a planck adapter), grid pathfinding and seeded noise (one game plans them). Each would follow the same rules: seeded through `Random`, stepped on the fixed clock, opt-in.
 
 ## Done in 0.1
 
@@ -27,7 +39,7 @@ A living document. Items move up only with evidence from real games, jams and fi
 - [x] New projects ship `AGENTS.md`, `CLAUDE.md` and `.mcp.json`
 - [x] "Made with debuff" splash (any input skips it, `splash: false` removes it)
 - [x] Plugins: runtime contract; `debuff.config.ts`, asset importers, CLI commands, scenario steps; templates from git
-- [x] Templates: basic (bundled) and platformer (downloaded on demand)
+- [x] Templates: basic (bundled) and platformer (downloaded on demand); since then isometric, mossfell, pointclick, sidescroller, squish and topdown
 - [x] debuff.jp: guides, API reference, `llms.txt` and `llms-full.txt`, sitemap, structured data, playable plinko demo
 - [x] Desktop builds with Tauri (guide; tested on Windows)
 
@@ -51,7 +63,7 @@ spryte stays immediate mode: no scene graph, nothing retained between frames. Wh
 
 ### Gaps against PixiJS
 
-What stops spryte replacing PixiJS's renderer in a typical game today, as of 0.2.1. Each item gets an immediate-mode design (opt-in, tree-shakeable, no retained objects), pixel-checked tests, and a 2dbench scene where it touches performance. Order follows demand.
+What stops spryte replacing PixiJS's renderer in a typical game today, as of 0.7.2 (first written for 0.2.1). Each item gets an immediate-mode design (opt-in, tree-shakeable, no retained objects), pixel-checked tests, and a 2dbench scene where it touches performance. Order follows demand.
 
 - [ ] **Interaction.** `draw.pick` (above).
 - [x] **Optional features stay out of the core.** Shapes, masks, filters, `nineSlice` and `tiled` are imported functions taking the `Draw`, so startup stays at 12.7 kB unless they're used (11.3 kB before 0.7.2).
@@ -61,10 +73,10 @@ What stops spryte replacing PixiJS's renderer in a typical game today, as of 0.2
 - [x] **Filters.** `filter(draw, [blur(4), grayscale()], fn)` chains passes; colour filters match CSS on Canvas 2D. Glow is a recipe (additive blurred copy). Displacement stays a custom shader.
 - [ ] **Text layout.** Today: CSS and bitmap fonts, `align`, `baseline`, line breaks and `measure`. Missing: word wrap to a width, and mixed styles in one string.
 - [x] **Sprite variants.** `nineSlice` (UI panels) and `tiled` (repeating fills that work inside atlases). Meshes and ropes are left out of scope.
-- [ ] **Sheets and animation.** Loading texture atlases (Aseprite and TexturePacker JSON) into frames, and a small frame-animation helper. debuff's asset pipeline covers this for debuff games; standalone spryte users write their own today.
+- [ ] **Sheets and animation.** Loading texture atlases (Aseprite and TexturePacker JSON) into frames, and a small frame-animation helper. debuff's asset pipeline covers this for debuff games; standalone spryte users write their own today. Lower priority since 2026-10-29: no user has asked for it yet.
 - [ ] **Accessibility.** A pattern or helper for exposing canvas content to screen readers (PixiJS has an accessibility plugin).
 - [ ] **Migration tooling.** More of the [migration guide](https://debuff.jp/spryte/migrating-from-pixijs) as runnable examples, and side-by-side ports of common PixiJS examples.
-- [ ] **WebGPU backend.** Only if it beats WebGL2 on 2dbench; PixiJS's WebGPU renderer is slower than its WebGL one there today.
+- [ ] **WebGPU backend.** Only if it beats WebGL2 on 2dbench; PixiJS's WebGPU renderer is slower than its WebGL one there today. A test port (2026-10-28) drew identical pixels but was no faster on one-call-per-sprite drawing; what it found (the transform maths) shipped on WebGL2 in 0.7.2 instead. Worth revisiting for static layers (render bundles) and GPU particles (compute), which need new opt-in APIs rather than a second backend.
 
 Not planned, by design: a scene graph or display-object tree, nested containers with inherited transforms, and an event system that hangs handlers on retained objects. Those are what make per-sprite cost high; spryte's answer is the immediate-mode equivalents above.
 
