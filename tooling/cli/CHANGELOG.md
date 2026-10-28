@@ -1,5 +1,19 @@
 # @debuffjp/cli
 
+## 0.21.0
+
+### Minor Changes
+
+- 6b68789: `debuff upgrade` moves every debuff package to the latest release together (or `--to <version>`), keeping each range's style, installs with the project's package manager, then runs the new version's `doctor --fix`, which rewrites the agent skills for it. `--dry-run` shows the plan; it never downgrades without `--to`. `debuff doctor` now says when a newer debuff is out, and once a day the CLI prints one line on stderr when there is one (never with `--json`; off in CI and with `DEBUFF_UPDATE_CHECK=0`).
+
+### Patch Changes
+
+- dbb1861: `debuff doctor` gives the fix (`npm install`) when `debuff.config.ts` fails only because nothing is installed yet, and `doctor --fix` and `upgrade` no longer print a Node deprecation warning (DEP0190) while installing on Windows.
+- 024d1b1: New projects start as a git repository with one first commit, so every change an agent makes shows as a diff to review or undo. `--no-git` (also on `debuff create`) turns it off; it's skipped when git isn't installed or the folder is already inside a repository, and it never sets a git identity. Projects also get `.vscode/tasks.json` with tasks for the dev server, tests, build and doctor.
+- 6b1c064: A command with nothing to act on now says so with its own code: `scenario` in a project with no scenarios and `report` with no build exit 2 with `nothing_to_run` and a fix, instead of `unexpected`.
+- Updated dependencies [024d1b1]
+  - create-debuff@0.21.0
+
 ## 0.20.0
 
 ### Minor Changes
