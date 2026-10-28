@@ -17,6 +17,7 @@
     "debuff"
   ],
   "license": "MIT",
+  "funding": "https://github.com/sponsors/debuffjp",
   "homepage": "https://debuff.jp/plonk/",
   "bugs": "https://github.com/debuffjp/debuff/issues",
   "repository": {

@@ -15,6 +15,7 @@
     "browser-game"
   ],
   "license": "MIT",
+  "funding": "https://github.com/sponsors/debuffjp",
   "homepage": "https://debuff.jp/spryte/",
   "bugs": "https://github.com/debuffjp/spryte/issues",
   "repository": {
