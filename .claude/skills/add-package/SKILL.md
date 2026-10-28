@@ -22,7 +22,7 @@ If the package changes an architectural decision (a new layer, a new peer relati
 
 Copy the shape of `packages/juice` (the plainest runtime package):
 
-- `package.json`: name `@debuffjp/<name>`, the shared `keywords`, `license`, `homepage`, `bugs`, `repository.directory`, `"type": "module"`, `exports` with `types` before `default`, `files: ["dist", "README.md"]`, `scripts.build: "tsc -b"`, `publishConfig.access: "public"`. Start at the current version of the other `@debuffjp/*` packages: changesets keeps them `fixed` together.
+- `package.json`: name `@debuffjp/<name>`, the shared `keywords`, `license`, `homepage`, `bugs`, `funding`, `repository.directory`, `"type": "module"`, `exports` with `types` before `default`, `files: ["dist", "README.md"]`, `scripts.build: "tsc -b"`, `publishConfig.access: "public"`. Start at the current version of the other `@debuffjp/*` packages: changesets keeps them `fixed` together.
 - Other debuff packages it needs at runtime are `peerDependencies` (see `docs/architecture.md`), not `dependencies`.
 - `tsconfig.json` extending `../../tsconfig.base.json` with `rootDir: src`, `outDir: dist`.
 - `src/index.ts` as the only entry unless there is a reason for subpath exports.
@@ -35,8 +35,10 @@ Each of these is a place that lists packages by hand:
 
 - [ ] Root `tsconfig.json` `references`.
 - [ ] Package table in the root `README.md`.
-- [ ] The package map in `docs/architecture.md`.
-- [ ] `D:/docs-live/typedoc.json` `entryPoints` if it has public API (runtime packages do).
+- [ ] The runtime package list in `docs/architecture.md` (runtime packages only).
+- [ ] `D:/docs-live/typedoc.json` `entryPoints` for runtime packages.
+
+A standalone spin-off with its own name (myaku, plonkjs, keiko) skips the last two. It gets its own section on debuff.jp instead, and its README row says "Standalone".
 - [ ] Templates that should use it: their `package.json` (then `npm install` at the root).
 - [ ] The agent skill `plugins/debuff/skills/debuff/SKILL.md` (and its copy under `plugins/openai/`), if game authors should reach for the package.
 

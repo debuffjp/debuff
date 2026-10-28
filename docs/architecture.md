@@ -20,8 +20,12 @@ The boundary is enforced: `debuff build` scans output for dev-only tokens and fa
 @debuffjp/tilemap  Tilemap, move (collision), fromTiled, fromLdtk (peer: core)
 @debuffjp/juice    Tweens, Particles, Trail, squash (no deps)
 @debuffjp/ui       Transition, Menu, panel (no deps)
+@debuffjp/share    ClipRecorder, share, screenshot, challengeLink (no deps)
 @debuffjp/dev      devTools plugin, exposeDevHooks (depends on core; dev builds only)
+spryte             createRenderer, BitmapFont, Shader, RenderTarget (no deps; core depends on it and re-exports it)
 ```
+
+myaku, plonkjs and keiko are standalone tools with their own sections on debuff.jp, so they aren't listed here.
 
 Packages other than `dev` don't depend on each other unless they must. Games compose them, so a game that skips audio pays nothing for it.
 
@@ -38,7 +42,7 @@ Packages other than `dev` don't depend on each other unless they must. Games com
 
 ### Rendering
 
-Standard Canvas 2D (see ADR 0001). The canvas is sized to its container with `ResizeObserver`. The backing store tracks `devicePixelRatio`, game code always works in logical units, and `scale: "integer"` gives crisp pixel art.
+`game.draw` uses WebGL2 instanced batching with an automatic Canvas 2D fallback (`renderer: "auto" | "webgl2" | "2d"`, ADR 0007). Since 0.9.0 the renderer is the standalone [spryte](../packages/spryte) package, which core re-exports (ADR 0013). The original plan was plain Canvas 2D (ADR 0001), which is what the fallback still uses. The canvas is sized to its container with `ResizeObserver`. The backing store tracks `devicePixelRatio`, game code always works in logical units, and `scale: "integer"` gives crisp pixel art.
 
 ## Tooling
 
