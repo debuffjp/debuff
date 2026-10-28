@@ -55,7 +55,7 @@ game.start();
 
 ### Pixel fonts
 
-`draw.text` uses **debuff sans** unless you pass a `font`, so text is crisp pixel art out of the box. Its source and a PNG sheet for other engines are in [fonts/debuff-sans](https://github.com/debuffjp/debuff/tree/main/fonts/debuff-sans). To use your own:
+`draw.text` uses **debuff sans** unless you pass a `font`, so text is crisp pixel art out of the box. Before 0.6 the default was the browser's `8px monospace`; pass `font: "8px monospace"` to keep that look. Its source and a PNG sheet for other engines are in [fonts/debuff-sans](https://github.com/debuffjp/debuff/tree/main/fonts/debuff-sans). To use your own:
 
 Draw glyphs on a grid in Aseprite (or any editor), one cell per character in `BitmapFont.ASCII` order (space to `~`, left to right), and save the sheet as `assets/font@6x9.png` with your cell size. Draw each glyph from its cell's left edge; the advance is measured from the rightmost opaque column.
 
@@ -80,7 +80,7 @@ Game code always uses logical units. The backing store follows `devicePixelRatio
 
 ## Start-up splash
 
-Production builds open with a short "made with debuff" card. It lasts 1.6 seconds and any key skips it. A click or tap skips it too. It has no links or URLs, so games stay within portal rules (Poki, CrazyGames and others forbid links out of the game). **Publishing on Poki?** Poki requires games to have no splash screens at all, so turn it off with `splash: false`. It never shows in dev, or when time is driven by `step()` (scenarios and agents). To remove it:
+Production builds open with a short "made with debuff" card. It lasts 1.6 seconds and any key skips it. A click or tap skips it too (before 0.5, a click opened debuff.jp and the card showed its URL). It has no links or URLs, so games stay within portal rules (Poki, CrazyGames and others forbid links out of the game). **Publishing on Poki?** Poki requires games to have no splash screens at all, so turn it off with `splash: false`. It never shows in dev, or when time is driven by `step()` (scenarios and agents). To remove it:
 
 ```ts
 new Game({ canvas, width, height, splash: false });
