@@ -20,6 +20,7 @@ export interface ClipRect {
 export type RawContext = { kind: "webgl2"; gl: WebGL2RenderingContext } | { kind: "2d"; ctx: CanvasRenderingContext2D };
 
 import type { CopySpec } from "./copies.js";
+import type { Frame } from "./draw.js";
 import type { Shader } from "./shader.js";
 import type { ShapeBuffer } from "./shapes.js";
 import type { RenderTarget } from "./target.js";
@@ -75,6 +76,25 @@ export interface Backend {
     flash: number,
     smooth: boolean,
     snap: boolean,
+  ): void;
+  /**
+   * One frame at `x, y` under `m`, anchored at `ox, oy` (fractions of the frame), scaled by `sx, sy` (flips
+   * folded in) and rotated by `r`: `draw.sprite` for backends that do the transform algebra themselves. Unrotated
+   * pixel art (`smooth` false) must land on whole pixels, as `Draw` rounds it for `quad`. Without it, `Draw` calls `quad`.
+   */
+  sprite?(
+    m: Matrix,
+    f: Frame,
+    x: number,
+    y: number,
+    ox: number,
+    oy: number,
+    sx: number,
+    sy: number,
+    r: number,
+    color: number,
+    flash: number,
+    smooth: boolean,
   ): void;
   /** Copies of one frame with per-copy scale, rotation or colour (`draw.sprites` with `each`). */
   copies(spec: CopySpec): void;

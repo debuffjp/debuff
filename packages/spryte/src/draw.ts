@@ -1,7 +1,7 @@
 import type { Backend, BlendMode, ClipRect, Matrix, RawContext, TextureSource } from "./backend.js";
 import type { BitmapFont } from "./bitmap-font.js";
 import { type Color, toRGBA } from "./color.js";
-import type { SpritesEach } from "./copies.js";
+import { placeAt, type SpritesEach } from "./copies.js";
 import { Shader } from "./shader.js";
 import { RenderTarget } from "./target.js";
 
@@ -283,6 +283,28 @@ export class Draw {
 
   /** Draw an image frame (or a whole image) at `x, y`, anchored by `origin`. Allocation-free hot path. */
   sprite(frame: Frame | TextureSource, x: number, y: number, o: SpriteDrawOptions = NO_OPTIONS): void {
+    const b = this.backend;
+    if (b.sprite) {
+      // The backend does the transform algebra itself (on the GPU).
+      const f = this.frameOf(frame);
+      const origin = o.origin;
+      this.quads++;
+      b.sprite(
+        this.m,
+        f,
+        x,
+        y,
+        origin ? origin[0] : 0.5,
+        origin ? origin[1] : 0.5,
+        (o.scaleX ?? 1) * (o.flipX ? -1 : 1),
+        (o.scaleY ?? 1) * (o.flipY ? -1 : 1),
+        o.rotation ?? 0,
+        this.spriteColor(o),
+        o.flash ?? 0,
+        o.smooth ?? this.smooth,
+      );
+      return;
+    }
     const f = this.place(frame, x, y, o);
     const t = this.tmp;
     const smooth = o.smooth ?? this.smooth;
@@ -394,37 +416,27 @@ export class Draw {
 
   /** tmp = M · T(x, y) · R(rotation) · S(sx, sy) · T(ox, oy) · S(w, h), expanded by hand. Returns the frame. */
   private place(frame: Frame | TextureSource, x: number, y: number, o: SpriteDrawOptions): Frame {
-    // Check the repeat-image cache before `in`: on a DOM image, `in` walks a long prototype chain per call.
-    const f = frame === this.lastImage && this.lastFrame ? this.lastFrame : "image" in frame ? frame : this.wholeImage(frame);
+    const f = this.frameOf(frame);
     const origin = o.origin;
-    const ox = -(origin ? origin[0] : 0.5) * f.w;
-    const oy = -(origin ? origin[1] : 0.5) * f.h;
-    const sx = (o.scaleX ?? 1) * (o.flipX ? -1 : 1);
-    const sy = (o.scaleY ?? 1) * (o.flipY ? -1 : 1);
-    const m = this.m;
-    let a = sx;
-    let b = 0;
-    let c = 0;
-    let d = sy;
-    const r = o.rotation;
-    if (r) {
-      const cos = Math.cos(r);
-      const sin = Math.sin(r);
-      a = cos * sx;
-      b = sin * sx;
-      c = -sin * sy;
-      d = cos * sy;
-    }
-    const lx = a * ox + c * oy + x;
-    const ly = b * ox + d * oy + y;
-    const t = this.tmp;
-    t[0] = (m[0] * a + m[2] * b) * f.w;
-    t[1] = (m[1] * a + m[3] * b) * f.w;
-    t[2] = (m[0] * c + m[2] * d) * f.h;
-    t[3] = (m[1] * c + m[3] * d) * f.h;
-    t[4] = m[0] * lx + m[2] * ly + m[4];
-    t[5] = m[1] * lx + m[3] * ly + m[5];
+    placeAt(
+      this.m,
+      f.w,
+      f.h,
+      x,
+      y,
+      origin ? origin[0] : 0.5,
+      origin ? origin[1] : 0.5,
+      (o.scaleX ?? 1) * (o.flipX ? -1 : 1),
+      (o.scaleY ?? 1) * (o.flipY ? -1 : 1),
+      o.rotation ?? 0,
+      this.tmp,
+    );
     return f;
+  }
+
+  private frameOf(frame: Frame | TextureSource): Frame {
+    // Check the repeat-image cache before `in`: on a DOM image, `in` walks a long prototype chain per call.
+    return frame === this.lastImage && this.lastFrame ? this.lastFrame : "image" in frame ? frame : this.wholeImage(frame);
   }
 
   /** @internal */

@@ -1,5 +1,6 @@
 import type { Backend, BlendMode, ClipRect, Matrix, RawContext, TextureSource } from "./backend.js";
-import { type CopySpec, copyAt, frameAt } from "./copies.js";
+import { type CopySpec, copyAt, frameAt, placeAt } from "./copies.js";
+import type { Frame } from "./draw.js";
 import type { Shader } from "./shader.js";
 import type { ShapeBuffer } from "./shapes.js";
 import { RenderTarget } from "./target.js";
@@ -7,26 +8,59 @@ import { RenderTarget } from "./target.js";
 /** Texture units sampled per batch. 8 is guaranteed on every WebGL2 implementation's fragment stage (min 16). */
 const UNITS = 8;
 
+/** Added to an instance's texture unit: a sprite (`SPRITE`), and one whose position is already whole pixels (`PLACED`). */
+const SPRITE = 16;
+const PLACED = 32;
+
+/**
+ * One instance format for quads and sprites, so both share a batch. A quad carries its finished matrix and UVs.
+ * A sprite carries `draw.sprite`'s own values, and the vertex shader does the transform algebra under the
+ * batch's transform (`u_linear`, `u_mt`), which saves the CPU a cos, a sin and a matrix product per sprite.
+ */
 const VERT = `#version 300 es
 layout(location=0) in vec2 a_corner;
-layout(location=1) in vec3 a_m0;       // a, c, e
-layout(location=2) in vec3 a_m1;       // b, d, f
-layout(location=3) in vec4 a_uv;       // u0, v0, u1, v1 (normalised)
-layout(location=4) in vec2 a_extra;    // flash, texture unit
-layout(location=5) in vec4 a_color;    // normalised RGBA
+layout(location=1) in vec4 a_0;      // quad: a, c, e, b    sprite: x, y, rotation, scaleX
+layout(location=2) in vec4 a_1;      // quad: d, f, u0, v0  sprite: scaleY, originX, originY, flash
+layout(location=3) in vec4 a_2;      // quad: u1, v1, flash sprite: frame x, y, w, h (pixels)
+layout(location=4) in float a_flags; // texture unit, + ${SPRITE} for a sprite, + ${PLACED} when x, y are snapped pixels
+layout(location=5) in vec4 a_color;  // normalised RGBA
 uniform vec2 u_view;
+uniform vec4 u_linear;               // the batch's transform, for sprites
+uniform vec2 u_mt;
+uniform vec3 u_texinfo[${UNITS}];    // 1 / width, 1 / height (negative for targets), v at the top row, per unit
 out highp vec2 v_uv;
 out vec4 v_color;
 out float v_flash;
 flat out int v_unit;
 void main() {
-  vec2 p = vec2(dot(a_m0, vec3(a_corner, 1.0)), dot(a_m1, vec3(a_corner, 1.0)));
+  int flags = int(a_flags + 0.5);
+  int unit = flags & 7;
+  vec2 p;
+  if ((flags & ${SPRITE}) == 0) {
+    p = vec2(dot(a_0.xyz, vec3(a_corner, 1.0)), dot(vec3(a_0.w, a_1.xy), vec3(a_corner, 1.0)));
+    v_uv = mix(a_1.zw, a_2.xy, a_corner);
+    v_flash = a_2.z;
+  } else {
+    float cs = cos(a_0.z);
+    float sn = sin(a_0.z);
+    vec2 ab = vec2(cs, sn) * a_0.w;
+    vec2 cd = vec2(-sn, cs) * a_1.x;
+    vec2 size = a_2.zw;
+    mat2 M = mat2(u_linear.xy, u_linear.zw);
+    vec2 e = a_0.xy;
+    if ((flags & ${PLACED}) == 0) {
+      vec2 off = -a_1.yz * size;
+      e = M * (ab * off.x + cd * off.y + a_0.xy) + u_mt;
+    }
+    p = (M * ab) * (size.x * a_corner.x) + (M * cd) * (size.y * a_corner.y) + e;
+    vec3 t = u_texinfo[unit];
+    v_uv = vec2((a_2.x + a_corner.x * size.x) * t.x, t.z + (a_2.y + a_corner.y * size.y) * t.y);
+    v_flash = a_1.w;
+  }
   vec2 clip = p / u_view * 2.0 - 1.0;
   gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);
-  v_uv = mix(a_uv.xy, a_uv.zw, a_corner);
   v_color = vec4(a_color.rgb * a_color.a, a_color.a);
-  v_flash = a_extra.x;
-  v_unit = int(a_extra.y);
+  v_unit = unit;
 }`;
 
 /** Copies of one quad that differ only in position (`draw.sprites`): 8 bytes per copy instead of 52. */
@@ -198,12 +232,19 @@ interface ProgramInfo {
   h: number;
 }
 
-interface CustomProgram extends ProgramInfo {
+/** A program on the shared instance format: `ProgramInfo` plus the uniforms sprites read. */
+interface BatchProgram extends ProgramInfo {
+  linear: WebGLUniformLocation | null;
+  mt: WebGLUniformLocation | null;
+  texinfo: WebGLUniformLocation | null;
+}
+
+interface CustomProgram extends BatchProgram {
   locations: Map<string, WebGLUniformLocation | null>;
 }
 
 /** Floats per instance before the 4-byte colour. */
-const FLOATS = 12;
+const FLOATS = 13;
 const STRIDE = FLOATS * 4 + 4;
 
 interface CachedTexture {
@@ -245,9 +286,9 @@ export class WebGL2Backend implements Backend {
   /** Filtering lives in sampler objects, so one upload serves smooth and pixelated draws. */
   private nearest!: WebGLSampler;
   private linear!: WebGLSampler;
-  private main!: ProgramInfo;
+  private main!: BatchProgram;
   /** The program sprite batches draw with: `main`, or a custom shader's inside `withShader`. */
-  protected active!: ProgramInfo;
+  protected active!: BatchProgram;
   private shader: Shader | null = null;
   private readonly customs = new Map<Shader, CustomProgram>();
   protected vao!: WebGLVertexArrayObject;
@@ -287,6 +328,7 @@ export class WebGL2Backend implements Backend {
     this.last = undefined;
     this.count = 0;
     this.unitCount = 0;
+    this.sprites = false;
     this.setup();
     this.lost = false;
     if (shader) this.setShader(shader);
@@ -299,6 +341,12 @@ export class WebGL2Backend implements Backend {
   private lastSrc: TextureSource | null = null;
   private last: CachedTexture | undefined;
   private count = 0;
+  /** True when the pending batch holds sprites, which read the batch's transform `bm` and `unitInfo`. */
+  private sprites = false;
+  private readonly bm: Matrix = [1, 0, 0, 1, 0, 0];
+  private readonly unitInfo: (CachedTexture | undefined)[] = new Array(UNITS).fill(undefined);
+  private readonly texInfo = new Float32Array(UNITS * 3);
+  private readonly fallback: Matrix = [1, 0, 0, 1, 0, 0];
   private blend: BlendMode | "mask" = "normal";
   private submitted = 0;
 
@@ -325,7 +373,7 @@ export class WebGL2Backend implements Backend {
     const gl = this.gl;
     this.outH = gl.drawingBufferHeight;
     const program = link(gl, VERT, FRAG);
-    this.main = { program, view: gl.getUniformLocation(program, "u_view"), w: -1, h: -1 };
+    this.main = batchProgram(gl, program);
     this.active = this.main;
     this.shader = null;
     gl.useProgram(program);
@@ -353,11 +401,11 @@ export class WebGL2Backend implements Backend {
       gl.vertexAttribPointer(loc, size, type, normalise, STRIDE, offset);
       gl.vertexAttribDivisor(loc, 1);
     };
-    attr(1, 3, gl.FLOAT, false, 0);
-    attr(2, 3, gl.FLOAT, false, 12);
-    attr(3, 4, gl.FLOAT, false, 24);
-    attr(4, 2, gl.FLOAT, false, 40);
-    attr(5, 4, gl.UNSIGNED_BYTE, true, 48);
+    attr(1, 4, gl.FLOAT, false, 0);
+    attr(2, 4, gl.FLOAT, false, 16);
+    attr(3, 4, gl.FLOAT, false, 32);
+    attr(4, 1, gl.FLOAT, false, 48);
+    attr(5, 4, gl.UNSIGNED_BYTE, true, 52);
 
     gl.enable(gl.BLEND);
     this.applyBlend();
@@ -428,26 +476,7 @@ export class WebGL2Backend implements Backend {
     this.lastSrc = src;
     this.last = t;
     if (this.count === this.capacity) this.flush();
-    // Same texture and filter as the previous quad in this batch: same unit.
-    let unit =
-      sameAsLast && smooth === this.lastSmooth && this.lastUnit < this.unitCount && this.units[this.lastUnit] === t.tex
-        ? this.lastUnit
-        : -1;
-    if (unit < 0)
-      for (let i = 0; i < this.unitCount; i++) {
-        if (this.units[i] === t.tex && this.unitSmooth[i] === smooth) {
-          unit = i;
-          break;
-        }
-      }
-    if (unit < 0) {
-      if (this.unitCount === UNITS) this.flush();
-      unit = this.unitCount++;
-      this.units[unit] = t.tex;
-      this.unitSmooth[unit] = smooth;
-    }
-    this.lastUnit = unit;
-    this.lastSmooth = smooth;
+    const unit = this.unitFor(t, smooth, sameAsLast);
     const shapes = this.shapes;
     if (shapes && shapes.count > 0 && !this.shader) {
       // Shapes pending: join their batch instead of breaking it.
@@ -476,10 +505,110 @@ export class WebGL2Backend implements Backend {
     f32[f + 8] = (sx + sw) * t.iw;
     f32[f + 9] = t.v0 + (sy + sh) * t.ih;
     f32[f + 10] = flash;
-    f32[f + 11] = unit;
+    f32[f + 12] = unit;
     // Bytes in memory must read R, G, B, A; Uint32 is little-endian.
-    this.u32[f + 12] = color === 0xffffffff ? color : bytes(color);
+    this.u32[f + 13] = color === 0xffffffff ? color : bytes(color);
     this.count++;
+  }
+
+  sprite(
+    m: Matrix,
+    fr: Frame,
+    x: number,
+    y: number,
+    ox: number,
+    oy: number,
+    sx: number,
+    sy: number,
+    r: number,
+    color: number,
+    flash: number,
+    smooth: boolean,
+  ): void {
+    if (this.lost) return;
+    const bm = this.bm;
+    const shapes = this.shapes;
+    // A sprite under a different transform than the batch's, or joining pending shapes, goes as a quad: same batch.
+    if (
+      (this.sprites && (m[0] !== bm[0] || m[1] !== bm[1] || m[2] !== bm[2] || m[3] !== bm[3] || m[4] !== bm[4] || m[5] !== bm[5])) ||
+      (shapes && shapes.count > 0 && !this.shader)
+    ) {
+      const q = this.fallback;
+      placeAt(m, fr.w, fr.h, x, y, ox, oy, sx, sy, r, q);
+      if (!smooth && q[1] === 0 && q[2] === 0) {
+        q[4] = Math.round(q[4]);
+        q[5] = Math.round(q[5]);
+      }
+      this.quad(q, fr.image, fr.x, fr.y, fr.w, fr.h, color, flash, smooth);
+      return;
+    }
+    // Under a custom shader shapes don't take sprites: draw them first, keeping order.
+    if (shapes && shapes.count > 0) this.flushShapes();
+    const src = fr.image;
+    if (src === this.target) throw new Error("spryte: can't draw a render target into itself");
+    const t = src === this.lastSrc && this.last ? this.last : this.texture(src);
+    const sameAsLast = t === this.last;
+    this.lastSrc = src;
+    this.last = t;
+    if (this.count === this.capacity) this.flush();
+    const unit = this.unitFor(t, smooth, sameAsLast);
+    if (!this.sprites) {
+      for (let i = 0; i < 6; i++) bm[i] = m[i] as number;
+      this.sprites = true;
+    }
+    const f = this.count * (STRIDE / 4);
+    const { f32 } = this;
+    let flags = unit + SPRITE;
+    if (!smooth && r === 0 && m[1] === 0 && m[2] === 0) {
+      // Unrotated pixel art: whole pixels, rounded here in double precision as quad callers do.
+      const lx = sx * (-ox * fr.w) + x;
+      const ly = sy * (-oy * fr.h) + y;
+      f32[f] = Math.round(m[0] * lx + m[4]);
+      f32[f + 1] = Math.round(m[3] * ly + m[5]);
+      flags += PLACED;
+    } else {
+      f32[f] = x;
+      f32[f + 1] = y;
+    }
+    f32[f + 2] = r;
+    f32[f + 3] = sx;
+    f32[f + 4] = sy;
+    f32[f + 5] = ox;
+    f32[f + 6] = oy;
+    f32[f + 7] = flash;
+    f32[f + 8] = fr.x;
+    f32[f + 9] = fr.y;
+    f32[f + 10] = fr.w;
+    f32[f + 11] = fr.h;
+    f32[f + 12] = flags;
+    this.u32[f + 13] = color === 0xffffffff ? color : bytes(color);
+    this.count++;
+  }
+
+  /** The batch's texture unit for `t` with this filtering, adding one (or flushing a full batch first). */
+  private unitFor(t: CachedTexture, smooth: boolean, sameAsLast: boolean): number {
+    // Same texture and filter as the previous quad in this batch: same unit.
+    let unit =
+      sameAsLast && smooth === this.lastSmooth && this.lastUnit < this.unitCount && this.units[this.lastUnit] === t.tex
+        ? this.lastUnit
+        : -1;
+    if (unit < 0)
+      for (let i = 0; i < this.unitCount; i++) {
+        if (this.units[i] === t.tex && this.unitSmooth[i] === smooth) {
+          unit = i;
+          break;
+        }
+      }
+    if (unit < 0) {
+      if (this.unitCount === UNITS) this.flush();
+      unit = this.unitCount++;
+      this.units[unit] = t.tex;
+      this.unitSmooth[unit] = smooth;
+      this.unitInfo[unit] = t;
+    }
+    this.lastUnit = unit;
+    this.lastSmooth = smooth;
+    return unit;
   }
 
   quads(
@@ -1007,13 +1136,10 @@ export class WebGL2Backend implements Backend {
 
   protected flush(): void {
     this.flushShapes();
-    if (this.lost) {
+    if (this.lost || this.count === 0) {
       this.count = 0;
       this.unitCount = 0;
-      return;
-    }
-    if (this.count === 0) {
-      this.unitCount = 0;
+      this.sprites = false;
       return;
     }
     const gl = this.gl;
@@ -1022,8 +1148,23 @@ export class WebGL2Backend implements Backend {
       gl.bindTexture(gl.TEXTURE_2D, this.units[i] ?? null);
       gl.bindSampler(i, this.unitSmooth[i] ? this.linear : this.nearest);
     }
-    this.syncView(this.active);
-    if (this.shader) this.syncUniforms(this.shader, this.active as CustomProgram);
+    const p = this.active;
+    this.syncView(p);
+    if (this.sprites) {
+      const bm = this.bm;
+      gl.uniform4f(p.linear, bm[0], bm[1], bm[2], bm[3]);
+      gl.uniform2f(p.mt, bm[4], bm[5]);
+      const info = this.texInfo;
+      for (let i = 0; i < this.unitCount; i++) {
+        const t = this.unitInfo[i] as CachedTexture;
+        info[i * 3] = t.iw;
+        info[i * 3 + 1] = t.ih;
+        info[i * 3 + 2] = t.v0;
+      }
+      gl.uniform3fv(p.texinfo, info);
+      this.sprites = false;
+    }
+    if (this.shader) this.syncUniforms(this.shader, p as CustomProgram);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.instanceBuffer);
     gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.f32, 0, this.count * (STRIDE / 4));
     gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, this.count);
@@ -1067,7 +1208,7 @@ export class WebGL2Backend implements Backend {
       gl.getUniformLocation(program, "u_tex"),
       Array.from({ length: UNITS }, (_, i) => i),
     );
-    p = { program, view: gl.getUniformLocation(program, "u_view"), w: -1, h: -1, locations: new Map() };
+    p = { ...batchProgram(gl, program), locations: new Map() };
     this.customs.set(shader, p);
     return p;
   }
@@ -1151,6 +1292,11 @@ function sampler(gl: WebGL2RenderingContext, filter: number): WebGLSampler {
   gl.samplerParameteri(s, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.samplerParameteri(s, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   return s;
+}
+
+function batchProgram(gl: WebGL2RenderingContext, program: WebGLProgram): BatchProgram {
+  const at = (name: string) => gl.getUniformLocation(program, name);
+  return { program, view: at("u_view"), w: -1, h: -1, linear: at("u_linear"), mt: at("u_mt"), texinfo: at("u_texinfo[0]") };
 }
 
 function link(gl: WebGL2RenderingContext, vs: string, fs: string, label = "WebGL2"): WebGLProgram {

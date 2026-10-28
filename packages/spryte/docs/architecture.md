@@ -15,7 +15,11 @@ Every draw becomes `quad(matrix, source, srcRect, rgba, flash, smooth)`: a 2x3 a
 
 ## WebGL2 backend
 
-- **Instancing.** A static 4-vertex quad, plus one 52-byte instance per sprite: matrix (6 floats), UV rect (4), flash and texture unit (2), RGBA8 colour. The buffer holds 16,384 instances and is flushed when full.
+- **Instancing.** A static 4-vertex quad, plus one 56-byte instance per draw (13 floats and an RGBA8 colour). The buffer holds 16,384 instances and is flushed when full. An instance is one of two kinds, told apart by flags added to its texture unit, and both share a batch:
+  - **Quad** (rects, text, shapes' sprites, panels): the finished matrix (6 floats), UV rect (4) and flash.
+  - **Sprite** (`draw.sprite`): the call's own values, which are position, rotation, scale, origin, frame rect and flash. The vertex shader does `sprite()`'s transform algebra under the batch's transform (`u_linear`, `u_mt`) and works out UVs from each unit's texture size (`u_texinfo`), so the CPU skips a cos, a sin and a matrix product per sprite. Unrotated pixel art is rounded to whole pixels on the CPU in double precision, as before, and flagged so the shader uses that position as is. A sprite under a different transform than the batch's, or one that joins a pending shape batch, is sent as a quad instead, so neither breaks the batch.
+
+  Before 0.7.2, every draw was a 52-byte quad instance: matrix (6 floats), UV rect (4), flash and texture unit (2), RGBA8 colour, with `sprite()`'s algebra done on the CPU.
 - **Multi-texture batches.** Up to 8 (texture, filter) pairs per draw call. Sampler objects carry the filtering, so one upload serves both smooth and pixelated draws.
 - **What breaks a batch:** a 9th distinct texture/filter pair, a full buffer, a blend change, a clip change, `invalidate()`, and `end()`.
 - **Per-copy pipeline** (`draw.sprites` with `each`): a third program that takes optional per-copy scale, rotation and packed RGBA8 colour as separate buffers. Absent ones read constant attribute defaults, so you only upload what you use. It runs `sprite()`'s transform algebra in the vertex shader, and snapping is decided per copy.

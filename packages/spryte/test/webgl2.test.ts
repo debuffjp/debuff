@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { Matrix, TextureSource } from "../src/backend.js";
 import { Draw } from "../src/draw.js";
 import { blur, filter } from "../src/filters.js";
+import { Shader } from "../src/shader.js";
+import { ring, roundRect } from "../src/shapes.js";
 import { WebGL2Backend } from "../src/webgl2.js";
 
 /**
@@ -190,6 +192,83 @@ describe("WebGL2Backend", () => {
     draw.end();
   });
 
+  describe("sprites", () => {
+    const sprite = (calls: { name: string; args: unknown[] }[], i = 0) => {
+      const f = calls.findLast((c) => c.name === "bufferSubData")?.args[2] as Float32Array;
+      return Array.from(f.subarray(i * 14, i * 14 + 13));
+    };
+
+    it("share one batch with quads (rects, text) drawn between them", () => {
+      const { gl, count } = fakeGL();
+      const draw = new Draw(new WebGL2Backend(gl), false);
+      const img = image();
+      draw.begin("#000", 100, 50, 1);
+      for (let i = 0; i < 10; i++) {
+        draw.sprite(img, i * 10, 10, { rotation: 0.5 });
+        draw.rect(i * 10, 30, 8, 2, "#f00");
+      }
+      draw.end();
+      expect(count("drawArraysInstanced")).toBe(1);
+    });
+
+    it("stay in the batch under a transform that changes per sprite, sent as finished quads", () => {
+      const { gl, calls, count } = fakeGL();
+      const draw = new Draw(new WebGL2Backend(gl), false);
+      const img = image();
+      draw.begin("#000", 100, 50, 1);
+      for (let i = 0; i < 3; i++) {
+        draw.push();
+        draw.translate(i * 20, 0);
+        draw.sprite(img, 10, 10, { rotation: 0.5 });
+        draw.pop();
+      }
+      draw.end();
+      expect(count("drawArraysInstanced")).toBe(1);
+      // The first sets the batch's transform; the others are quads (no sprite flag) with the same corners.
+      expect(sprite(calls, 0)[12]).toBeGreaterThanOrEqual(16);
+      expect(sprite(calls, 1)[12]).toBeLessThan(16);
+    });
+
+    it("keep their texture and order around shapes under a custom shader, which shapes can't batch with", () => {
+      const { gl, calls } = fakeGL();
+      const draw = new Draw(new WebGL2Backend(gl), false);
+      const identity = new Shader("vec4 effect(vec4 color, vec2 uv) { return source(uv) * color; }");
+      draw.begin("#000", 100, 50, 1);
+      draw.withShader(identity, () => {
+        roundRect(draw, 0, 0, 20, 20, 4, "#e23");
+        draw.sprite(image(), 10, 10, { rotation: 0.5 });
+        ring(draw, 10, 10, 5, 1, "#ffd36b");
+      });
+      draw.end();
+      const draws = calls.filter((c) => c.name === "drawElements" || c.name === "drawArraysInstanced").map((c) => c.name);
+      expect(draws).toEqual(["drawElements", "drawArraysInstanced", "drawElements"]);
+      // Flushing the shapes frees their texture units; the sprite's unit must outlive that.
+      const info = calls.findLast((c) => c.name === "uniform3fv")?.args[1] as Float32Array;
+      expect(info[0]).toBe(1 / 16);
+    });
+
+    it("land unrotated pixel art on whole pixels, rounded on the CPU", () => {
+      const { gl, calls } = fakeGL();
+      const draw = new Draw(new WebGL2Backend(gl), false);
+      draw.begin("#000", 100, 50, 1);
+      draw.translate(0.3, 0);
+      draw.sprite(image(), 10.4, 10.6);
+      draw.end();
+      // Anchored at its centre: 0.3 + 10.4 - 8 = 2.7 → 3, and 10.6 - 8 = 2.6 → 3. Flags: unit 0 + sprite + placed.
+      const f = sprite(calls);
+      expect([f[0], f[1], f[12]]).toEqual([3, 3, 48]);
+    });
+
+    it("keep their own position for the GPU when rotated or smooth", () => {
+      const { gl, calls } = fakeGL();
+      const draw = new Draw(new WebGL2Backend(gl), true);
+      draw.begin("#000", 100, 50, 1);
+      draw.sprite(image(), 10.4, 10.6, { rotation: 1, scaleX: 2, origin: [0, 1] });
+      draw.end();
+      expect(sprite(calls).map((v) => Math.round(v * 1000) / 1000)).toEqual([10.4, 10.6, 1, 2, 1, 0, 1, 0, 0, 0, 16, 16, 16]);
+    });
+  });
+
   describe("render targets", () => {
     it("draws into a framebuffer at the target's size and switches back to the canvas", () => {
       const { gl, calls } = fakeGL();
@@ -223,9 +302,9 @@ describe("WebGL2Backend", () => {
       draw.into(t, () => {});
       draw.sprite(t, 5, 5);
       draw.end();
-      const upload = calls.findLast((c) => c.name === "bufferSubData") as { args: unknown[] };
-      const f = upload.args[2] as Float32Array;
-      expect([f[6], f[7], f[8], f[9]]).toEqual([0, 1, 1, 0]);
+      // Sprites read each unit's texture size and top-row v from u_texinfo: v starts at 1 and runs down.
+      const info = calls.findLast((c) => c.name === "uniform3fv")?.args[1] as Float32Array;
+      expect([info[0], info[1], info[2]]).toEqual([0.1, -0.1, 1].map(Math.fround));
     });
 
     it("refuses to draw a target into itself, or dispose it while drawing into it", () => {

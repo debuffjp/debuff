@@ -57,37 +57,66 @@ export function frameAt(c: CopySpec, i: number): Frame {
 }
 
 /**
- * Copy `i`'s quad matrix (the same algebra as `draw.sprite`) and colour, for backends without a GPU path.
- * Returns the colour; writes the matrix into `out`.
+ * The quad matrix for one sprite (`draw.sprite`'s algebra): the unit square onto a `w × h` frame at `x, y` under
+ * `m`, anchored at `ox, oy` (fractions of the frame), scaled by `sx, sy` and rotated by `r` radians. Writes `out`.
  */
-export function copyAt(c: CopySpec, i: number, out: Matrix, f: Frame): number {
-  const k = c.each.scale ? (c.each.scale[i] as number) : 1;
-  const r = c.rotation + (c.each.rotation ? (c.each.rotation[i] as number) : 0);
-  const sx = c.scaleX * k;
-  const sy = c.scaleY * k;
+export function placeAt(
+  m: Matrix,
+  w: number,
+  h: number,
+  x: number,
+  y: number,
+  ox: number,
+  oy: number,
+  sx: number,
+  sy: number,
+  r: number,
+  out: Matrix,
+): void {
   let a = sx;
   let b = 0;
-  let cc = 0;
+  let c = 0;
   let d = sy;
   if (r) {
     const cos = Math.cos(r);
     const sin = Math.sin(r);
     a = cos * sx;
     b = sin * sx;
-    cc = -sin * sy;
+    c = -sin * sy;
     d = cos * sy;
   }
-  const ox = -c.originX * f.w;
-  const oy = -c.originY * f.h;
-  const lx = a * ox + cc * oy + (c.positions[i * 2] as number);
-  const ly = b * ox + d * oy + (c.positions[i * 2 + 1] as number);
-  const m = c.m;
-  out[0] = (m[0] * a + m[2] * b) * f.w;
-  out[1] = (m[1] * a + m[3] * b) * f.w;
-  out[2] = (m[0] * cc + m[2] * d) * f.h;
-  out[3] = (m[1] * cc + m[3] * d) * f.h;
+  const px = -ox * w;
+  const py = -oy * h;
+  const lx = a * px + c * py + x;
+  const ly = b * px + d * py + y;
+  out[0] = (m[0] * a + m[2] * b) * w;
+  out[1] = (m[1] * a + m[3] * b) * w;
+  out[2] = (m[0] * c + m[2] * d) * h;
+  out[3] = (m[1] * c + m[3] * d) * h;
   out[4] = m[0] * lx + m[2] * ly + m[4];
   out[5] = m[1] * lx + m[3] * ly + m[5];
+}
+
+/**
+ * Copy `i`'s quad matrix (the same algebra as `draw.sprite`) and colour, for backends without a GPU path.
+ * Returns the colour; writes the matrix into `out`.
+ */
+export function copyAt(c: CopySpec, i: number, out: Matrix, f: Frame): number {
+  const k = c.each.scale ? (c.each.scale[i] as number) : 1;
+  const r = c.rotation + (c.each.rotation ? (c.each.rotation[i] as number) : 0);
+  placeAt(
+    c.m,
+    f.w,
+    f.h,
+    c.positions[i * 2] as number,
+    c.positions[i * 2 + 1] as number,
+    c.originX,
+    c.originY,
+    c.scaleX * k,
+    c.scaleY * k,
+    r,
+    out,
+  );
   if (c.snap && !r) {
     out[4] = Math.round(out[4]);
     out[5] = Math.round(out[5]);
