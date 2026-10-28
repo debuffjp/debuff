@@ -9,7 +9,10 @@ debuff is an open-source TypeScript framework for 2D browser games. It handles t
 
 ## Before you change how it looks or feels
 
-Art, colours, effects, UI style, feel, difficulty and names are the human's call, even when they ask you to "make it nicer" or "make it higher". Don't edit code for these first. Try values live through params where you can, then reply with two or three options and what each one changes (numbers for feel, a short description for looks), and wait for the human to pick. Make the change they choose.
+Art, colours, effects, UI style, feel, difficulty and names are the human's call.
+
+- **Feel with a clear direction** ("jump higher", "run faster", "less floaty"): make the change, through params. Try values live with `game_set_param` and measure them with `game_step` and `game_state` (or a logic test), then set the param's default in `game.params.define(...)`. Reply with the before and after numbers (jump height in pixels, top speed, time to apex) and two alternatives, one smaller and one bigger, so the human can pick a different one.
+- **Open-ended looks or feel** ("make it nicer", "make it feel better", a new art style): don't edit yet. Reply with two or three options and what each one changes, and wait for the human to pick. Make the change they choose.
 
 ## Starting a new game
 

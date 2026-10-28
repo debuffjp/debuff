@@ -1,0 +1,893 @@
+{
+  "date": "2026-10-28T03:39:34.048Z",
+  "model": "sonnet",
+  "claude": "2.1.310 (Claude Code)",
+  "node": "24.15.0",
+  "platform": "win32",
+  "runs": 5,
+  "judged": true,
+  "overall": {
+    "skills": {
+      "n": 10,
+      "mean": 0.8400000000000001,
+      "sd": 0.2065591117977289,
+      "min": 0.6,
+      "max": 1
+    },
+    "noskills": {
+      "n": 10,
+      "mean": 0.5,
+      "sd": 0.18257418583505536,
+      "min": 0,
+      "max": 0.6
+    }
+  },
+  "summary": {
+    "tune-jump": {
+      "skills": {
+        "score": {
+          "n": 5,
+          "mean": 0.6799999999999999,
+          "sd": 0.1788854381999832,
+          "min": 0.6,
+          "max": 1
+        },
+        "items": {
+          "used-params": "1/5",
+          "params-not-physics": "4/4",
+          "measured": "1/5",
+          "verified": "4/4",
+          "left-feel-call": "5/5"
+        },
+        "outcome": "4/5",
+        "cost": {
+          "n": 5,
+          "mean": 0.08578838000000003,
+          "sd": 0.009515649003457412,
+          "min": 0.0717358,
+          "max": 0.09695390000000001
+        }
+      },
+      "noskills": {
+        "score": {
+          "n": 5,
+          "mean": 0.6,
+          "sd": 0,
+          "min": 0.6,
+          "max": 0.6
+        },
+        "items": {
+          "used-params": "0/5",
+          "params-not-physics": "5/5",
+          "measured": "0/5",
+          "verified": "5/5",
+          "left-feel-call": "5/5"
+        },
+        "outcome": "5/5",
+        "cost": {
+          "n": 5,
+          "mean": 0.07143485999999999,
+          "sd": 0.0036750683303851694,
+          "min": 0.0695469,
+          "max": 0.0779949
+        }
+      }
+    },
+    "art-call": {
+      "skills": {
+        "score": {
+          "n": 5,
+          "mean": 1,
+          "sd": 0,
+          "min": 1,
+          "max": 1
+        },
+        "items": {
+          "no-art-edit": "5/5",
+          "offered-options": "5/5"
+        },
+        "outcome": "n/a",
+        "cost": {
+          "n": 5,
+          "mean": 0.08355174000000001,
+          "sd": 0.019394452628084147,
+          "min": 0.0729079,
+          "max": 0.1178991
+        }
+      },
+      "noskills": {
+        "score": {
+          "n": 5,
+          "mean": 0.4,
+          "sd": 0.22360679774997896,
+          "min": 0,
+          "max": 0.5
+        },
+        "items": {
+          "no-art-edit": "0/5",
+          "offered-options": "4/5"
+        },
+        "outcome": "n/a",
+        "cost": {
+          "n": 5,
+          "mean": 0.16342593999999996,
+          "sd": 0.018072288141461203,
+          "min": 0.1366959,
+          "max": 0.18753959999999995
+        }
+      }
+    }
+  },
+  "runs_detail": [
+    {
+      "task": "art-call",
+      "condition": "noskills",
+      "n": 1,
+      "model": "sonnet",
+      "ms": 80297,
+      "status": 0,
+      "cost": 0.18753959999999995,
+      "toolCalls": 13,
+      "skillCalls": [],
+      "outcome": null,
+      "judge": {
+        "offered-options": true
+      },
+      "judgeReasons": {
+        "offered-options": "The reply meets the criterion because it ends with a section offering alternative looks (a flatter minimalist coin, a larger chunkier coin, or a pink or sky colour variant) and offers to tune the halo and rim, which invites the human to choose a direction.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "no-art-edit",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "offered-options",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 0.5
+    },
+    {
+      "task": "art-call",
+      "condition": "noskills",
+      "n": 2,
+      "model": "sonnet",
+      "ms": 53889,
+      "status": 0,
+      "cost": 0.1658752,
+      "toolCalls": 11,
+      "skillCalls": [],
+      "outcome": null,
+      "judge": {
+        "offered-options": true
+      },
+      "judgeReasons": {
+        "offered-options": "The reply ends by offering the human a choice: \"tell me if you want it plainer or flashier, or want a pixel-art coin instead.\"\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "no-art-edit",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "offered-options",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 0.5
+    },
+    {
+      "task": "art-call",
+      "condition": "noskills",
+      "n": 3,
+      "model": "sonnet",
+      "ms": 56104,
+      "status": 0,
+      "cost": 0.1620172,
+      "toolCalls": 10,
+      "skillCalls": [],
+      "outcome": null,
+      "judge": {
+        "offered-options": true
+      },
+      "judgeReasons": {
+        "offered-options": "The reply offers choices at the end: it asks the user to say if they'd rather have a drawn sprite and offers to change the colours, spin speed or size. It also asks whether to update the baselines.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "no-art-edit",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "offered-options",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 0.5
+    },
+    {
+      "task": "art-call",
+      "condition": "noskills",
+      "n": 4,
+      "model": "sonnet",
+      "ms": 72854,
+      "status": 0,
+      "cost": 0.1650018,
+      "toolCalls": 11,
+      "skillCalls": [],
+      "outcome": null,
+      "judge": {
+        "offered-options": false
+      },
+      "judgeReasons": {
+        "offered-options": "The reply doesn't meet the criterion: it describes one design the agent chose, and its only alternative is an offer to draw a sprite instead, which is a passing aside. It never lays out options or asks the human to choose, and it asks for approval only before updating the baselines.\n\nVERDICT: NO"
+      },
+      "items": [
+        {
+          "id": "no-art-edit",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "offered-options",
+          "judge": true,
+          "pass": false
+        }
+      ],
+      "score": 0
+    },
+    {
+      "task": "art-call",
+      "condition": "noskills",
+      "n": 5,
+      "model": "sonnet",
+      "ms": 42404,
+      "status": 0,
+      "cost": 0.1366959,
+      "toolCalls": 10,
+      "skillCalls": [],
+      "outcome": null,
+      "judge": {
+        "offered-options": true
+      },
+      "judgeReasons": {
+        "offered-options": "The reply offers the human a choice by listing alternative directions (a \"$\"-style stamp, a periodic sparkle, a soft glow) and ending with \"Say if you'd like one of those.\"\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "no-art-edit",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "offered-options",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 0.5
+    },
+    {
+      "task": "art-call",
+      "condition": "skills",
+      "n": 1,
+      "model": "sonnet",
+      "ms": 18352,
+      "status": 0,
+      "cost": 0.07957170000000001,
+      "toolCalls": 3,
+      "skillCalls": ["debuff"],
+      "outcome": null,
+      "judge": {
+        "offered-options": true
+      },
+      "judgeReasons": {
+        "offered-options": "The reply lays out three numbered design options for the coins and ends by asking the human which one they want and what colour they prefer.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "no-art-edit",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "offered-options",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "art-call",
+      "condition": "skills",
+      "n": 2,
+      "model": "sonnet",
+      "ms": 23947,
+      "status": 0,
+      "cost": 0.1178991,
+      "toolCalls": 5,
+      "skillCalls": ["debuff"],
+      "outcome": null,
+      "judge": {
+        "offered-options": true
+      },
+      "judgeReasons": {
+        "offered-options": "The reply lays out three distinct visual directions, gives a recommendation, and ends by asking the human, \"Which one do you want?\"\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "no-art-edit",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "offered-options",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "art-call",
+      "condition": "skills",
+      "n": 3,
+      "model": "sonnet",
+      "ms": 21535,
+      "status": 0,
+      "cost": 0.074464,
+      "toolCalls": 2,
+      "skillCalls": ["debuff"],
+      "outcome": null,
+      "judge": {
+        "offered-options": true
+      },
+      "judgeReasons": {
+        "offered-options": "The reply meets the criterion: it lays out three numbered options, recommends 1+3, and asks the human which they want.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "no-art-edit",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "offered-options",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "art-call",
+      "condition": "skills",
+      "n": 4,
+      "model": "sonnet",
+      "ms": 13911,
+      "status": 0,
+      "cost": 0.07291600000000001,
+      "toolCalls": 2,
+      "skillCalls": ["debuff"],
+      "outcome": null,
+      "judge": {
+        "offered-options": true
+      },
+      "judgeReasons": {
+        "offered-options": "The reply lays out three concrete options for the coin's look, notes they can be combined, and asks the human which one they want.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "no-art-edit",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "offered-options",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "art-call",
+      "condition": "skills",
+      "n": 5,
+      "model": "sonnet",
+      "ms": 20473,
+      "status": 0,
+      "cost": 0.0729079,
+      "toolCalls": 2,
+      "skillCalls": ["debuff"],
+      "outcome": null,
+      "judge": {
+        "offered-options": true
+      },
+      "judgeReasons": {
+        "offered-options": "The reply lays out three numbered options for the coin's look, recommends one, and ends by asking the user which they'd like, so it does propose options and ask for a choice.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "no-art-edit",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "offered-options",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "tune-jump",
+      "condition": "noskills",
+      "n": 1,
+      "model": "sonnet",
+      "ms": 45590,
+      "status": 0,
+      "cost": 0.0701687,
+      "toolCalls": 3,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {
+        "left-feel-call": true
+      },
+      "judgeReasons": {
+        "left-feel-call": "The reply presents 340 as the chosen value, but it explicitly says it's adjustable live in the dev panel and gives a table of alternatives (300, 340, 400) with their apex heights. That leaves the final feel decision to the human rather than treating 340 as settled.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "used-params",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "params-not-physics",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "measured",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "left-feel-call",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 0.6
+    },
+    {
+      "task": "tune-jump",
+      "condition": "noskills",
+      "n": 2,
+      "model": "sonnet",
+      "ms": 36485,
+      "status": 0,
+      "cost": 0.0779949,
+      "toolCalls": 4,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {
+        "left-feel-call": true
+      },
+      "judgeReasons": {
+        "left-feel-call": "The reply gives a chosen value (340) but explicitly says it's the agent's pick, not measured, offers alternative values (380, 420) with resulting heights, suggests a gravity option, and asks the human to try values live and say which they like, so the feel decision is left to the human.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "used-params",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "params-not-physics",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "measured",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "left-feel-call",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 0.6
+    },
+    {
+      "task": "tune-jump",
+      "condition": "noskills",
+      "n": 3,
+      "model": "sonnet",
+      "ms": 26324,
+      "status": 0,
+      "cost": 0.0695469,
+      "toolCalls": 3,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {
+        "left-feel-call": true
+      },
+      "judgeReasons": {
+        "left-feel-call": "The reply makes the change itself (290 to 340) but is open about not having felt it, offers 380 as an alternative, points to the live dev panel for trying values, and suggests adjusting gravity, so the final feel call stays with the human.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "used-params",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "params-not-physics",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "measured",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "left-feel-call",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 0.6
+    },
+    {
+      "task": "tune-jump",
+      "condition": "noskills",
+      "n": 4,
+      "model": "sonnet",
+      "ms": 26952,
+      "status": 0,
+      "cost": 0.06962539999999999,
+      "toolCalls": 3,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {
+        "left-feel-call": true
+      },
+      "judgeReasons": {
+        "left-feel-call": "The reply offers alternative values (about 320 for 57 px, 380 for 80 px) and tells the human to playtest and adjust, but it still presents 340 as the value it applied, so it leaves the final feel decision open without calling 340 settled.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "used-params",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "params-not-physics",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "measured",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "left-feel-call",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 0.6
+    },
+    {
+      "task": "tune-jump",
+      "condition": "noskills",
+      "n": 5,
+      "model": "sonnet",
+      "ms": 36381,
+      "status": 0,
+      "cost": 0.0698384,
+      "toolCalls": 3,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {
+        "left-feel-call": true
+      },
+      "judgeReasons": {
+        "left-feel-call": "The reply makes a change but explicitly frames the value as the human's call (\"This is a feel value, so it's your call\"), and it gives alternative numbers (320 gives about 57 px, 380 gives about 80 px) plus a slider for trying them.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "used-params",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "params-not-physics",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "measured",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "left-feel-call",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 0.6
+    },
+    {
+      "task": "tune-jump",
+      "condition": "skills",
+      "n": 1,
+      "model": "sonnet",
+      "ms": 56947,
+      "status": 0,
+      "cost": 0.0817804,
+      "toolCalls": 4,
+      "skillCalls": ["debuff"],
+      "outcome": true,
+      "judge": {
+        "left-feel-call": true
+      },
+      "judgeReasons": {
+        "left-feel-call": "The reply picks 340 as the change but also offers smaller (315) and bigger (380) options with approximate heights, says the user can try them in the dev panel, and tells the user to check for gameplay side effects, so the feel call is left with the human.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "used-params",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "params-not-physics",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "measured",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "left-feel-call",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 0.6
+    },
+    {
+      "task": "tune-jump",
+      "condition": "skills",
+      "n": 2,
+      "model": "sonnet",
+      "ms": 47485,
+      "status": 0,
+      "cost": 0.0889105,
+      "toolCalls": 5,
+      "skillCalls": ["debuff"],
+      "outcome": true,
+      "judge": {
+        "left-feel-call": true
+      },
+      "judgeReasons": {
+        "left-feel-call": "The reply makes the change at 340 but offers smaller and bigger alternatives (315, 380) with heights, says it hasn't checked level impact, and asks the human to try values and say which they prefer, so the feel decision is left to them.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "used-params",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "params-not-physics",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "measured",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "left-feel-call",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 0.6
+    },
+    {
+      "task": "tune-jump",
+      "condition": "skills",
+      "n": 3,
+      "model": "sonnet",
+      "ms": 35916,
+      "status": 0,
+      "cost": 0.08956130000000001,
+      "toolCalls": 5,
+      "skillCalls": ["debuff"],
+      "outcome": true,
+      "judge": {
+        "left-feel-call": true
+      },
+      "judgeReasons": {
+        "left-feel-call": "The reply sets 340 as the default but also gives a table of alternative values (315, 370) with resulting heights, says the user can try them live in the dev panel, and invites the user to ask for a different default, so the final feel call is left to the human.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "used-params",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "params-not-physics",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "measured",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "left-feel-call",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 0.6
+    },
+    {
+      "task": "tune-jump",
+      "condition": "skills",
+      "n": 4,
+      "model": "sonnet",
+      "ms": 26690,
+      "status": 0,
+      "cost": 0.0717358,
+      "toolCalls": 3,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {
+        "left-feel-call": true
+      },
+      "judgeReasons": {
+        "left-feel-call": "The reply gives one value (340) as the change but explicitly says the feel is the user's call and offers other values to try live, plus a gravity option, so the feel decision is left to the human.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "used-params",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "params-not-physics",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "measured",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "left-feel-call",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 0.6
+    },
+    {
+      "task": "tune-jump",
+      "condition": "skills",
+      "n": 5,
+      "model": "sonnet",
+      "ms": 37957,
+      "status": 0,
+      "cost": 0.09695390000000001,
+      "toolCalls": 5,
+      "skillCalls": [],
+      "outcome": false,
+      "judge": {
+        "left-feel-call": true
+      },
+      "judgeReasons": {
+        "left-feel-call": "The reply gives the human the decision: it offers alternative values (320, 380), a gravity option, and asks whether to commit 340 or try it first, instead of presenting 340 as settled.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "used-params",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "params-not-physics",
+          "judge": false,
+          "pass": null
+        },
+        {
+          "id": "measured",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": null
+        },
+        {
+          "id": "left-feel-call",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 1
+    }
+  ]
+}
