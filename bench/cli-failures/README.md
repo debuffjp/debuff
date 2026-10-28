@@ -1,7 +1,7 @@
 # How CLIs fail
 
 What does a command-line tool tell a script or a coding agent when it can't do what it was asked? This installs the
-current release of 13 JavaScript CLIs (and debuff before and after its failure contract), runs each against small
+current release of 12 JavaScript CLIs (and debuff before and after its failure contract), runs each against small
 fixture projects, and records four things the same way for every tool.
 
 ```bash
