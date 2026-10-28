@@ -1,6 +1,6 @@
 ---
 name: debuff
-description: Use when the user wants to make a 2D game that runs in the browser (a platformer, top-down adventure, arcade game, pixel-art game, game jam entry or quick prototype), or is working on a project that depends on @debuffjp/core. Starts a playable game in about a minute with debuff, then builds it with logic tests, scenario captures and fuzzing that prove each change works.
+description: Use for any work on a 2D browser game made with debuff (package.json depends on @debuffjp/core, or AGENTS.md says debuff): fixing a bug, tuning how it feels (jump, speed, gravity, timing), adding a mechanic, changing art, levels or UI, chasing a stutter, or checking a change works. Also use when the user wants to make a new 2D game that runs in the browser (a platformer, top-down adventure, arcade game, pixel-art game, game jam entry or quick prototype). Proves each change with logic tests, scenario captures and fuzzing instead of guessing from code.
 ---
 
 # Making 2D browser games with debuff
