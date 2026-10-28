@@ -63,8 +63,10 @@ More in [Why debuff](https://debuff.jp/docs/why). Agents can start from [llms.tx
 | [`@debuffjp/tilemap`](./packages/tilemap) | Tilemaps: culled batched rendering, tile collision, Tiled and LDtk import |
 | [`@debuffjp/ui`](./packages/ui) | Screen transitions, menus and framed panels |
 | [`@debuffjp/juice`](./packages/juice) | Tweens, easing, pooled particles, trails, squash-and-stretch |
+| [`@debuffjp/share`](./packages/share) | Clips of the last few seconds, the system share sheet, screenshots and "beat my run" challenge links |
 | [`@debuffjp/dev`](./packages/dev) | Dev panel (perf, tune, state, explained errors, replays, rewind) and `window.__DEBUFF_DEV__`, stripped from production |
 | [`@debuffjp/cli`](./tooling/cli) | `debuff dev · build · assets · test · scenario · fuzz · inspect · report` |
+| [`spryte`](./packages/spryte) | 2D renderer: WebGL2 with a Canvas 2D fallback, plus Phaser and PixiJS adapters. Standalone; core draws with it |
 | [`myaku`](./packages/myaku) | Frame profiler for any web game: finds the hitches players feel and says why in plain words. Standalone; `debuff dev` runs it for you |
 | [`plonkjs`](./packages/plonk) | Game music made in code: songs as text, synthesized live with Web Audio, under 4 kB brotli. Standalone; plays through `audio.bus("music")` |
 | [`keiko`](./tooling/keiko) | Fast, deterministic logic tests for any web game: the real game in Node, no browser. Standalone; debuff integrates it |
