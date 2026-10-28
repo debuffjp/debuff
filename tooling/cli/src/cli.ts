@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import * as p from "@clack/prompts";
 import { amber, banner, lime, paint, pc, pink, sky } from "create-debuff";
-import { compileAssets, findUnused } from "./assets/index.js";
+import { compileAssets, findUnused, writeAssetTypes } from "./assets/index.js";
 import { Cli } from "./commands.js";
 import { loadConfig } from "./config.js";
 import { DebuffError, describeError, EXIT } from "./errors.js";
@@ -160,6 +160,7 @@ cli
     const root = rootOf(o);
     const config = await loadConfig(root);
     const { manifest, warnings, importedBy, outputs } = await compileAssets(root, { plugins: config.plugins, atlas: config.atlas });
+    writeAssetTypes(root, manifest);
     const unused = findUnused(root, manifest);
     const count = Object.keys(manifest.assets).length;
     if (o.json) {

@@ -4,6 +4,7 @@ import type { Plugin, PluginOption } from "vite";
 import { attachAgentLink } from "./agent-link.js";
 import type { AtlasOptions } from "./assets/atlas.js";
 import { type CompileResult, compileAssets } from "./assets/compile.js";
+import { writeAssetTypes } from "./assets/types.js";
 import type { ToolingPlugin } from "./plugin.js";
 import { findSaves, type SavesFound, writeSavesFound } from "./saves.js";
 import { createTypeChecker } from "./typecheck.js";
@@ -103,6 +104,7 @@ export function debuff(options: DebuffViteOptions = {}): PluginOption[] {
       ...(options.atlas === undefined ? {} : { atlas: options.atlas }),
     }).then((r) => {
       for (const w of r.warnings) console.warn(`[debuff] ${w}`);
+      writeAssetTypes(root, r.manifest);
       return r;
     });
     return current;

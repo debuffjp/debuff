@@ -22,6 +22,27 @@ export interface AssetManifest {
   assets: Record<string, AssetEntry>;
 }
 
+/**
+ * The project's assets, filled in by the `.debuff/assets.d.ts` file the CLI generates from `assets/`:
+ * one key per asset id, with its manifest type and preload group. While it is empty (no generated file),
+ * asset ids and groups are plain strings.
+ */
+// biome-ignore lint/suspicious/noEmptyInterface: augmented by the generated declaration file
+export interface AssetRegistry {}
+
+type Registered = keyof AssetRegistry extends never ? false : true;
+type Described = { type: string; group: string };
+
+/** An asset id from `assets/`, optionally only those of one manifest type. A plain string until types are generated. */
+export type AssetId<T extends string = string> = Registered extends true
+  ? { [K in keyof AssetRegistry]: AssetRegistry[K] extends Described & { type: T } ? K : never }[keyof AssetRegistry] & string
+  : string;
+
+/** A preload group name from `assets/`. A plain string until types are generated. */
+export type AssetGroup = Registered extends true
+  ? { [K in keyof AssetRegistry]: AssetRegistry[K] extends Described ? AssetRegistry[K]["group"] : never }[keyof AssetRegistry] & string
+  : string;
+
 export interface LoadProgress {
   loaded: number;
   total: number;
@@ -108,7 +129,7 @@ export class Assets {
   }
 
   /** Load every asset in the given groups (default: "default"). */
-  async load(groups: string | readonly string[] = "default", onProgress?: (p: LoadProgress) => void): Promise<void> {
+  async load(groups: AssetGroup | readonly AssetGroup[] = "default", onProgress?: (p: LoadProgress) => void): Promise<void> {
     const wanted = new Set(typeof groups === "string" ? [groups] : groups);
     const ids = Object.entries(this.manifest.assets)
       .filter(([, e]) => wanted.has(e.group ?? "default"))
@@ -123,7 +144,7 @@ export class Assets {
     );
   }
 
-  has(id: string): boolean {
+  has(id: AssetId): boolean {
     return this.cache.has(id);
   }
 
@@ -131,7 +152,7 @@ export class Assets {
    * The whole image element. For images packed into an atlas this would be the atlas, so it throws;
    * use `frame(id)` (works for both) with `draw.sprite`.
    */
-  image(id: string): HTMLImageElement {
+  image(id: AssetId<"image">): HTMLImageElement {
     if (this.entry(id).rect) {
       throw new AssetError(
         id,
@@ -142,7 +163,7 @@ export class Assets {
   }
 
   /** The image region for an asset: `{ image, x, y, w, h }`, ready for `draw.sprite`. Works whether or not it was atlased. */
-  frame(id: string): ImageFrame {
+  frame(id: AssetId<"image">): ImageFrame {
     const image = this.get(id, "image") as HTMLImageElement;
     const rect = this.entry(id).rect;
     return rect ? { image, ...rect } : { image, x: 0, y: 0, w: image.naturalWidth || image.width, h: image.naturalHeight || image.height };
@@ -152,7 +173,7 @@ export class Assets {
    * Frames of a sprite sheet declared with the `name@WxH.png` convention, row-major, ready for
    * `new Sprite({ frames })`. Works whether or not the sheet was atlased.
    */
-  frames(id: string): ImageFrame[] {
+  frames(id: AssetId<"image">): ImageFrame[] {
     const whole = this.frame(id);
     const grid = this.entry(id).grid;
     if (!grid) return [whole];
@@ -165,16 +186,16 @@ export class Assets {
     return out;
   }
 
-  json<T = unknown>(id: string): T {
+  json<T = unknown>(id: AssetId<"json">): T {
     return this.get(id, "json") as T;
   }
 
   /** Raw encoded audio; decode with `@debuffjp/audio`. */
-  audio(id: string): ArrayBuffer {
+  audio(id: AssetId<"audio">): ArrayBuffer {
     return this.get(id, "audio") as ArrayBuffer;
   }
 
-  text(id: string): string {
+  text(id: AssetId<"text">): string {
     return this.get(id, "text") as string;
   }
 
@@ -182,19 +203,19 @@ export class Assets {
    * The asset's URL without downloading it, for streaming: `audio.stream(assets.url("music/theme"))`.
    * Keep long tracks in a group you never `load()` (e.g. `assets/music/`) so they aren't fetched twice.
    */
-  url(id: string): string {
+  url(id: AssetId): string {
     const e = this.entry(id);
     return this.base + e.src + (e.hash ? `?v=${e.hash}` : "");
   }
 
-  entry(id: string): AssetEntry {
+  entry(id: AssetId): AssetEntry {
     const e = this.manifest.assets[id];
     if (!e) throw new AssetError(id, `Unknown asset "${id}". ${suggest(id, Object.keys(this.manifest.assets))}`);
     return e;
   }
 
   /** Fetch a single asset (lazy loading). Concurrent calls share one request. */
-  fetch(id: string): Promise<Loaded> {
+  fetch(id: AssetId): Promise<Loaded> {
     if (this.cache.has(id)) return Promise.resolve(this.cache.get(id));
     const existing = this.pending.get(id);
     if (existing) return existing;
@@ -226,7 +247,7 @@ export class Assets {
    * Fetch an asset again, replacing the cached value, and tell `onChange` listeners. `debuff dev` calls this when
    * the file changes on disk; call it yourself to pick up a file your game wrote.
    */
-  async reload(id: string): Promise<Loaded> {
+  async reload(id: AssetId): Promise<Loaded> {
     const entry = this.entry(id);
     const url = this.url(id);
     this.byUrl.delete(url);
@@ -256,7 +277,7 @@ export class Assets {
   }
 
   /** Be told after `reload(id)` replaced the asset. Returns the unsubscribe function. */
-  onChange(id: string, listener: (id: string) => void): () => void {
+  onChange(id: AssetId, listener: (id: string) => void): () => void {
     this.entry(id);
     let set = this.listeners.get(id);
     if (!set) {

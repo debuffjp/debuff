@@ -29,6 +29,10 @@ draw.sprite(assets.frame("coin"), x, y); // any image, atlased or not
 - `frames(id)`: sprite-sheet frames from the `name@WxH` grid
 - `image(id)` (standalone images only), `json(id)`, `audio(id)`, `text(id)`, `entry(id)`, `has(id)`
 
+## Typed asset ids
+
+`debuff dev`, `debuff build` and `npx debuff assets` write `.debuff/assets.d.ts`, which fills the `AssetRegistry` interface with every asset id, its type and its group. Include that file in `tsconfig.json` and a misspelt id, an id of the wrong type or an unknown group is a compile error. Without it, ids are plain strings (as before 0.22). `AssetId<"image">` and `AssetGroup` are exported for your own signatures.
+
 ## Atlases
 
 The CLI packs PNGs into atlases per preload group, in dev and in builds, so a level loads one texture instead of dozens. It's lossless, with padding that prevents edge bleeding. Images over half the atlas size stay standalone. Configure or disable it in `debuff.config.ts`:

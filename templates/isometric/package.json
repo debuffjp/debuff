@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "debuff dev",
-    "build": "tsc --noEmit && debuff build",
+    "build": "debuff build && tsc --noEmit",
     "assets": "debuff assets",
     "test": "debuff test && debuff scenario"
   },

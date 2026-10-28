@@ -49,6 +49,8 @@ Node.js 22 or newer is required. The new project has an `AGENTS.md` with its com
 
 Errors come back explained: `kind` says whose bug it is (`your-code`, `debuff-usage`, `debuff-bug`, `outside`) and `where` gives the source line. For `debuff-bug`, tell the human and share its `reportUrl` instead of working around debuff.
 
+Asset ids are typed from `.debuff/assets.d.ts`, which the dev server and `npx debuff assets` regenerate. When `tsc` rejects an asset id, check the spelling against that file instead of casting it away; add the file under `assets/` if the asset is missing.
+
 Creative direction belongs to the human. For art, feel, difficulty and names, propose two or three options and let them choose. Don't run `npx debuff scenario --update` to accept new screenshots without their approval.
 
 Docs: https://debuff.jp · API: https://debuff.jp/api/ · Community: https://discord.gg/jshbDHSpCY

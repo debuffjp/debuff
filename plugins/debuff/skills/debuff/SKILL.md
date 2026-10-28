@@ -52,4 +52,6 @@ Creative direction belongs to the human. For art, feel, difficulty and names, pr
 
 When the game needs pixel art drawn and the human hasn't named a tool, draw it with tenten, the pixel-art MCP server listed next to debuff in `.mcp.json` (`tt_new`, `tt_draw`, `tt_render`, then `tt_save` to `assets/<name>.tt`, which the dev server turns into a sprite sheet, and `tt_preview` so they can see it). If they draw in Aseprite or another tool, leave the art to them and load what they export.
 
+Asset ids are typed from `.debuff/assets.d.ts`, which the dev server and `npx debuff assets` regenerate. When `tsc` rejects an asset id, check the spelling against that file instead of casting it away; add the file under `assets/` if the asset is missing.
+
 Docs: https://debuff.jp · Community: https://discord.gg/jshbDHSpCY
