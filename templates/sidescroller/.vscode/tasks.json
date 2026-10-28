@@ -1,0 +1,44 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "debuff: dev server",
+      "type": "npm",
+      "script": "dev",
+      "isBackground": true,
+      "problemMatcher": [],
+      "detail": "Hot-reloading dev server; press ` in the game for the dev panel"
+    },
+    {
+      "label": "debuff: test",
+      "type": "npm",
+      "script": "test",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": [],
+      "detail": "Logic tests, then scenarios in a headless browser"
+    },
+    {
+      "label": "debuff: logic tests",
+      "type": "shell",
+      "command": "npx debuff test",
+      "group": "test",
+      "problemMatcher": [],
+      "detail": "The real game in Node, no browser, in milliseconds"
+    },
+    {
+      "label": "debuff: build",
+      "type": "npm",
+      "script": "build",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": [],
+      "detail": "Production build and size report"
+    },
+    {
+      "label": "debuff: doctor",
+      "type": "shell",
+      "command": "npx debuff doctor",
+      "problemMatcher": [],
+      "detail": "Check the setup and print a fix for each problem"
+    }
+  ]
+}
