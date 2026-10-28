@@ -8,6 +8,7 @@ Instructions for AI agents working **on this repository**. (Agents working on a 
 - `tooling/*`: Node CLI and scaffolder. Node APIs are fine here.
 - `templates/basic`: the reference project. It's a workspace, so changes to it are built and scenario-tested by `npm run check`.
 - `docs/adr/`: read the relevant ADR before changing an architectural decision.
+- `.claude/skills/`: contributor skills. Use `add-package` before creating a workspace and `write-docs` for any change to public API, CLI, MCP tools or behaviour.
 - `.mcp.json` connects the debuff MCP server (`tooling/mcp`) to `templates/platformer`, so agents can dogfood it. Run `npm run build` first. With `npx debuff dev` running in that template and the game open in a browser, `game_start` attaches to the live tab.
 
 ## Loop
