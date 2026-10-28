@@ -16,6 +16,7 @@ export type ErrorCode =
   | "unknown_command"
   | "bad_option"
   | "not_a_project"
+  | "nothing_to_run"
   | "config_invalid"
   | "browser_not_found"
   | "dev_hooks_missing"
@@ -49,6 +50,7 @@ const EXITS: Record<ErrorCode, 1 | 2 | 3> = {
   unknown_command: 3,
   bad_option: 3,
   not_a_project: 3,
+  nothing_to_run: 2,
   config_invalid: 2,
   browser_not_found: 2,
   dev_hooks_missing: 2,

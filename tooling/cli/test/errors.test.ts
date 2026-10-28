@@ -1,4 +1,7 @@
 import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { DebuffError, describeError, EXIT } from "../src/errors.js";
@@ -54,5 +57,13 @@ describe("the CLI's failure contract", () => {
     });
     expect(r.status).toBe(2);
     expect(error(r.stdout)).toBe("browser_not_found");
+  }, 60_000);
+
+  it("exits 2 with nothing_to_run when a project has no scenarios", () => {
+    const empty = mkdtempSync(join(tmpdir(), "debuff-empty-"));
+    writeFileSync(join(empty, "package.json"), JSON.stringify({ name: "empty", private: true }));
+    const r = run(["scenario", "--root", empty, "--json"]);
+    rmSync(empty, { recursive: true, force: true });
+    expect([r.status, error(r.stdout)]).toEqual([2, "nothing_to_run"]);
   }, 60_000);
 });

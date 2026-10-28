@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, extname, join, relative, sep } from "node:path";
 import { brotliCompressSync, gzipSync } from "node:zlib";
 import { lime, paint, pc, pink, sky } from "create-debuff";
+import { DebuffError } from "./errors.js";
 
 export interface FileReport {
   path: string;
@@ -43,7 +44,7 @@ function kindOf(path: string): FileReport["kind"] {
 }
 
 export function buildReport(dir: string): BuildReport {
-  if (!existsSync(dir)) throw new Error(`No build output at ${dir}. Run \`debuff build\` first.`);
+  if (!existsSync(dir)) throw new DebuffError("nothing_to_run", `No build output at ${dir}.`, "Run `npx debuff build` first");
   const files: FileReport[] = [];
   const leaks: BuildReport["leaks"] = [];
   for (const file of walk(dir).sort()) {

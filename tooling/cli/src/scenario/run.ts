@@ -3,6 +3,7 @@ import { basename, join, relative } from "node:path";
 import { amber, lime, paint, pc } from "create-debuff";
 import type { Browser, Page } from "playwright-core";
 import { checkViewport } from "../config.js";
+import { DebuffError } from "../errors.js";
 import type { StepDef } from "../plugin.js";
 import { createDevServer } from "../vite.js";
 import { analyzeFlashes, contrastGrid, contrastRatio, FLASH_GRID } from "./a11y.js";
@@ -85,7 +86,12 @@ export async function launchBrowser(): Promise<Browser> {
 
 export async function runScenarios(options: RunOptions): Promise<ScenarioReport[]> {
   const files = findScenarios(options.root, options.files);
-  if (!files.length) throw new Error(`No scenarios found. Add JSON files to ${join(options.root, "scenarios")}.`);
+  if (!files.length)
+    throw new DebuffError(
+      "nothing_to_run",
+      `No scenarios found. Add JSON files to ${join(options.root, "scenarios")}.`,
+      "Add a scenario such as scenarios/smoke.json; the format is in https://debuff.jp/docs/scenarios",
+    );
   const server = await createDevServer(options.root, { port: 0, logLevel: "error" });
   await server.listen();
   const base = server.resolvedUrls?.local[0];
