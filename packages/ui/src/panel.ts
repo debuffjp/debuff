@@ -81,7 +81,7 @@ export interface FrameStyle {
   shadowOffset?: number;
 }
 
-/** @deprecated Spread `squish` instead: it carries this frame plus squish's menu colours. */
+/** @deprecated Since 0.19: spread `squish` instead: it carries this frame plus squish's menu colours. */
 export const debuffFrame = {
   borders: squish.borders,
   fill: squish.fill,

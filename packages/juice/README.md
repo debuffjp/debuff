@@ -25,4 +25,4 @@ particles.update(dt);
 - `ease`: `linear`, `in/out/inOutQuad`, `in/out/inOutCubic`, `outBack`, `outElastic`, `outBounce`
 - `Particles`: `emit({ x, y, count, speed, angle, spread, life, size, sizeEnd, colors, gravity, drag, shape, additive })`, `update(dt)`, `draw(draw)`, `clear()`
 - `Trail`: `push(x, y)`, `draw(draw)`, `clear()`
-- `squash(tweens, target, amount?, duration?)`
+- `squash(tweens, target, amount?, duration?)`: replaces only the scale tweens on `target`, so a move or fade on it keeps running. Before 0.8 it stopped every tween on the target.
