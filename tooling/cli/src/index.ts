@@ -22,5 +22,7 @@ export {
 export * from "./scenario/index.js";
 export { SHIP_TARGETS, type ShipCheck, type ShipResult, type ShipTarget, ship, shipFailed, zip } from "./ship.js";
 export { parseTscOutput, type TypeCheckResult, type TypeDiagnostic, typecheck } from "./typecheck.js";
+export { CHANGELOG, planUpgrade, runUpgrade, type UpgradePlan, type UpgradeResult } from "./upgrade.js";
+export { isNewer, latestVersion, updateHint } from "./versions.js";
 export { createDevServer, viteConfig } from "./vite.js";
 export { ASSETS_DIR, type DebuffViteOptions, debuff } from "./vite-plugin.js";
