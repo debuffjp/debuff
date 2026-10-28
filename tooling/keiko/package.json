@@ -18,6 +18,7 @@
     "debuff"
   ],
   "license": "MIT",
+  "funding": "https://github.com/sponsors/debuffjp",
   "homepage": "https://debuff.jp/keiko/",
   "bugs": "https://github.com/debuffjp/debuff/issues",
   "repository": {
