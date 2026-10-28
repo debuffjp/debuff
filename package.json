@@ -33,7 +33,7 @@
     "@biomejs/biome": "^2.5.15",
     "@changesets/cli": "^3.0.3",
     "@vitest/coverage-v8": "^5.0.5",
-    "happy-dom": "^21.0.3",
+    "happy-dom": "^21.0.4",
     "lefthook": "^2.2.2",
     "opentype.js": "^2.0.0",
     "phaser": "4.2.1",
