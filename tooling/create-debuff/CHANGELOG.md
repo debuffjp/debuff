@@ -1,5 +1,15 @@
 # create-debuff
 
+## 0.22.0
+
+### Minor Changes
+
+- 0d86d43: Asset ids are typed. `debuff dev`, `debuff build` and `npx debuff assets` write `.debuff/assets.d.ts`, which lists every asset id with its type and preload group, so a misspelt id (`assets.json("levle1")`), an id of the wrong type or an unknown group fails to compile. New templates include the file in `tsconfig.json` and run `debuff build` before `tsc`. In an existing project, add `".debuff/assets.d.ts"` to `include` and run `debuff build` before `tsc`; without the file, ids stay plain strings as before. `AssetId<T>` and `AssetGroup` are exported for your own signatures.
+
+### Patch Changes
+
+- af2583c: The `debuff` agent skill now splits feel and look requests in two. A clear direction ("jump higher", "run faster") gets the change, made through params and measured, with before and after numbers and two alternatives. An open-ended ask ("make it nicer") still gets two or three options before any edit. Before this, the skill told agents to offer options for both.
+
 ## 0.21.1
 
 ### Patch Changes
