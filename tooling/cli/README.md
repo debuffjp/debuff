@@ -45,7 +45,7 @@ With `--json` (and always for `inspect`), stdout carries exactly one JSON docume
 { "error": { "code": "browser_not_found", "message": "…", "fix": "Install Chrome or Edge, or set DEBUFF_BROWSER…", "transient": false } }
 ```
 
-`code` is one of `unknown_command`, `bad_option`, `not_a_project`, `config_invalid`, `browser_not_found`, `dev_hooks_missing`, `port_in_use`, `network` and `unexpected`, and keeps its meaning between releases. `transient: true` means the same command may work if run again (a network blip). Logs go to stderr. The MCP server's tools add the same `code` and `fix` to their errors.
+`code` is one of `unknown_command`, `bad_option`, `not_a_project`, `nothing_to_run` (from 0.21: no scenarios, or no build to report on), `config_invalid`, `browser_not_found`, `dev_hooks_missing`, `port_in_use`, `network` and `unexpected`, and keeps its meaning between releases. `transient: true` means the same command may work if run again (a network blip). Logs go to stderr. The MCP server's tools add the same `code` and `fix` to their errors.
 
 ## Scenarios
 
