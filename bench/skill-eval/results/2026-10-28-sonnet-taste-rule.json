@@ -1,0 +1,2409 @@
+{
+  "date": "2026-10-28T03:27:12.868Z",
+  "model": "sonnet",
+  "claude": "2.1.310 (Claude Code)",
+  "node": "24.15.0",
+  "platform": "win32",
+  "runs": 5,
+  "judged": true,
+  "overall": {
+    "skills": {
+      "n": 30,
+      "mean": 0.8366666666666667,
+      "sd": 0.2513336077317933,
+      "min": 0.3333333333333333,
+      "max": 1
+    },
+    "noskills": {
+      "n": 30,
+      "mean": 0.5894444444444443,
+      "sd": 0.23351730568888066,
+      "min": 0,
+      "max": 1
+    }
+  },
+  "summary": {
+    "fall-through": {
+      "skills": {
+        "score": {
+          "n": 5,
+          "mean": 0.5999999999999999,
+          "sd": 0.14907119849998599,
+          "min": 0.3333333333333333,
+          "max": 0.6666666666666666
+        },
+        "items": {
+          "reproduced-first": "0/5",
+          "regression-test": "4/5",
+          "verified": "5/5"
+        },
+        "outcome": "5/5",
+        "cost": {
+          "n": 5,
+          "mean": 0.21832111999999998,
+          "sd": 0.07876446724933776,
+          "min": 0.0936734,
+          "max": 0.2911665
+        }
+      },
+      "noskills": {
+        "score": {
+          "n": 5,
+          "mean": 0.4666666666666666,
+          "sd": 0.18257418583505536,
+          "min": 0.3333333333333333,
+          "max": 0.6666666666666666
+        },
+        "items": {
+          "reproduced-first": "0/5",
+          "regression-test": "2/5",
+          "verified": "5/5"
+        },
+        "outcome": "5/5",
+        "cost": {
+          "n": 5,
+          "mean": 0.16661766,
+          "sd": 0.11788474872208027,
+          "min": 0.07875499999999999,
+          "max": 0.33637780000000006
+        }
+      }
+    },
+    "tune-jump": {
+      "skills": {
+        "score": {
+          "n": 5,
+          "mean": 0.52,
+          "sd": 0.29211869733608864,
+          "min": 0.3333333333333333,
+          "max": 1
+        },
+        "items": {
+          "used-params": "1/5",
+          "params-not-physics": "1/1",
+          "measured": "1/5",
+          "verified": "1/1",
+          "left-feel-call": "5/5"
+        },
+        "outcome": "1/5",
+        "cost": {
+          "n": 5,
+          "mean": 0.07758704000000001,
+          "sd": 0.005537385077182192,
+          "min": 0.0713368,
+          "max": 0.08384420000000001
+        }
+      },
+      "noskills": {
+        "score": {
+          "n": 5,
+          "mean": 0.72,
+          "sd": 0.1788854381999832,
+          "min": 0.6,
+          "max": 1
+        },
+        "items": {
+          "used-params": "1/5",
+          "params-not-physics": "4/4",
+          "measured": "2/5",
+          "verified": "4/4",
+          "left-feel-call": "5/5"
+        },
+        "outcome": "4/5",
+        "cost": {
+          "n": 5,
+          "mean": 0.07550754,
+          "sd": 0.00860292359073355,
+          "min": 0.0699633,
+          "max": 0.08985089999999998
+        }
+      }
+    },
+    "double-jump": {
+      "skills": {
+        "score": {
+          "n": 5,
+          "mean": 1,
+          "sd": 0,
+          "min": 1,
+          "max": 1
+        },
+        "items": {
+          "test-written": "5/5",
+          "verified": "5/5",
+          "tunable-param": "5/5",
+          "played": "5/5"
+        },
+        "outcome": "5/5",
+        "cost": {
+          "n": 5,
+          "mean": 0.24323573999999998,
+          "sd": 0.06937927365620801,
+          "min": 0.18954290000000001,
+          "max": 0.3630361
+        }
+      },
+      "noskills": {
+        "score": {
+          "n": 5,
+          "mean": 0.95,
+          "sd": 0.11180339887498947,
+          "min": 0.75,
+          "max": 1
+        },
+        "items": {
+          "test-written": "5/5",
+          "verified": "5/5",
+          "tunable-param": "4/5",
+          "played": "5/5"
+        },
+        "outcome": "5/5",
+        "cost": {
+          "n": 5,
+          "mean": 0.24167004000000003,
+          "sd": 0.05326850320243663,
+          "min": 0.1942197,
+          "max": 0.33133370000000006
+        }
+      }
+    },
+    "stutter": {
+      "skills": {
+        "score": {
+          "n": 5,
+          "mean": 1,
+          "sd": 0,
+          "min": 1,
+          "max": 1
+        },
+        "items": {
+          "profiled": "5/5",
+          "no-edits": "5/5"
+        },
+        "outcome": "5/5",
+        "cost": {
+          "n": 5,
+          "mean": 0.13179042,
+          "sd": 0.011736766022503805,
+          "min": 0.118424,
+          "max": 0.14642449999999999
+        }
+      },
+      "noskills": {
+        "score": {
+          "n": 5,
+          "mean": 0.5,
+          "sd": 0,
+          "min": 0.5,
+          "max": 0.5
+        },
+        "items": {
+          "profiled": "0/5",
+          "no-edits": "5/5"
+        },
+        "outcome": "5/5",
+        "cost": {
+          "n": 5,
+          "mean": 0.10564682,
+          "sd": 0.01019972010066943,
+          "min": 0.09395040000000002,
+          "max": 0.12186590000000001
+        }
+      }
+    },
+    "broken-setup": {
+      "skills": {
+        "score": {
+          "n": 5,
+          "mean": 0.9,
+          "sd": 0.22360679774997896,
+          "min": 0.5,
+          "max": 1
+        },
+        "items": {
+          "doctor": "4/5",
+          "doctor-first": "4/5",
+          "verified": "5/5",
+          "kept-dev-import": "5/5"
+        },
+        "outcome": "5/5",
+        "cost": {
+          "n": 5,
+          "mean": 0.08669526,
+          "sd": 0.0090281803965694,
+          "min": 0.07828879999999999,
+          "max": 0.0964937
+        }
+      },
+      "noskills": {
+        "score": {
+          "n": 5,
+          "mean": 0.5,
+          "sd": 0,
+          "min": 0.5,
+          "max": 0.5
+        },
+        "items": {
+          "doctor": "0/5",
+          "doctor-first": "0/5",
+          "verified": "5/5",
+          "kept-dev-import": "5/5"
+        },
+        "outcome": "5/5",
+        "cost": {
+          "n": 5,
+          "mean": 0.09624180000000002,
+          "sd": 0.006046604267272666,
+          "min": 0.0901544,
+          "max": 0.10435830000000001
+        }
+      }
+    },
+    "art-call": {
+      "skills": {
+        "score": {
+          "n": 5,
+          "mean": 1,
+          "sd": 0,
+          "min": 1,
+          "max": 1
+        },
+        "items": {
+          "no-art-edit": "5/5",
+          "offered-options": "5/5"
+        },
+        "outcome": "n/a",
+        "cost": {
+          "n": 5,
+          "mean": 0.07502454,
+          "sd": 0.004199165894912941,
+          "min": 0.0719219,
+          "max": 0.0823521
+        }
+      },
+      "noskills": {
+        "score": {
+          "n": 5,
+          "mean": 0.4,
+          "sd": 0.22360679774997896,
+          "min": 0,
+          "max": 0.5
+        },
+        "items": {
+          "no-art-edit": "0/5",
+          "offered-options": "4/5"
+        },
+        "outcome": "n/a",
+        "cost": {
+          "n": 5,
+          "mean": 0.17285114,
+          "sd": 0.057585408442269455,
+          "min": 0.1323726,
+          "max": 0.27417969999999997
+        }
+      }
+    }
+  },
+  "runs_detail": [
+    {
+      "task": "art-call",
+      "condition": "noskills",
+      "n": 1,
+      "model": "sonnet",
+      "ms": 77658,
+      "status": 0,
+      "cost": 0.15330749999999999,
+      "toolCalls": 10,
+      "skillCalls": [],
+      "outcome": null,
+      "judge": {
+        "offered-options": true
+      },
+      "judgeReasons": {
+        "offered-options": "The reply does both: it lists three alternative directions (pixel-art coins, gem or star pickups, a glow halo) and explicitly invites the user to choose, and it also asks whether to accept the changed screenshot baselines.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "no-art-edit",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "offered-options",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 0.5
+    },
+    {
+      "task": "art-call",
+      "condition": "noskills",
+      "n": 2,
+      "model": "sonnet",
+      "ms": 62231,
+      "status": 0,
+      "cost": 0.1323726,
+      "toolCalls": 10,
+      "skillCalls": [],
+      "outcome": null,
+      "judge": {
+        "offered-options": true
+      },
+      "judgeReasons": {
+        "offered-options": "The reply ends by offering alternatives (\"cooler silver, chunkier outline, no spin\") and inviting the human to say which they'd like, but it doesn't ask them to choose before proceeding. It implemented one design and mentioned optional variations afterward.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "no-art-edit",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "offered-options",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 0.5
+    },
+    {
+      "task": "art-call",
+      "condition": "noskills",
+      "n": 3,
+      "model": "sonnet",
+      "ms": 44124,
+      "status": 0,
+      "cost": 0.1443473,
+      "toolCalls": 11,
+      "skillCalls": [],
+      "outcome": null,
+      "judge": {
+        "offered-options": true
+      },
+      "judgeReasons": {
+        "offered-options": "The reply ends by offering three alternative looks (sparkle, stamped coin, pixel-art) and says \"The look is your call\", which invites the human to choose.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "no-art-edit",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "offered-options",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 0.5
+    },
+    {
+      "task": "art-call",
+      "condition": "noskills",
+      "n": 4,
+      "model": "sonnet",
+      "ms": 50803,
+      "status": 0,
+      "cost": 0.16004859999999999,
+      "toolCalls": 10,
+      "skillCalls": [],
+      "outcome": null,
+      "judge": {
+        "offered-options": false
+      },
+      "judgeReasons": {
+        "offered-options": "The reply ends by inviting the human to ask for a different feel and mentions a sparkle glint as another option, but it doesn't present a real set of choices or ask them to choose, apart from asking them to approve baselines and check the look.\n\nVERDICT: NO"
+      },
+      "items": [
+        {
+          "id": "no-art-edit",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "offered-options",
+          "judge": true,
+          "pass": false
+        }
+      ],
+      "score": 0
+    },
+    {
+      "task": "art-call",
+      "condition": "noskills",
+      "n": 5,
+      "model": "sonnet",
+      "ms": 74227,
+      "status": 0,
+      "cost": 0.27417969999999997,
+      "toolCalls": 25,
+      "skillCalls": [],
+      "outcome": null,
+      "judge": {
+        "offered-options": true
+      },
+      "judgeReasons": {
+        "offered-options": "The reply offers the human an optional follow-up (\"I can draw alternatives: a bigger coin with a sparkle, or a coin with a star or gem on its face\") and asks them to confirm baseline updates, so it does propose options for the human to choose from.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "no-art-edit",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "offered-options",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 0.5
+    },
+    {
+      "task": "art-call",
+      "condition": "skills",
+      "n": 1,
+      "model": "sonnet",
+      "ms": 17064,
+      "status": 0,
+      "cost": 0.0745242,
+      "toolCalls": 3,
+      "skillCalls": ["debuff"],
+      "outcome": null,
+      "judge": {
+        "offered-options": true
+      },
+      "judgeReasons": {
+        "offered-options": "The reply meets the criterion: it lays out three numbered options, recommends one, and ends by asking the human which they'd like.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "no-art-edit",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "offered-options",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "art-call",
+      "condition": "skills",
+      "n": 2,
+      "model": "sonnet",
+      "ms": 23509,
+      "status": 0,
+      "cost": 0.0719219,
+      "toolCalls": 2,
+      "skillCalls": ["debuff"],
+      "outcome": null,
+      "judge": {
+        "offered-options": true
+      },
+      "judgeReasons": {
+        "offered-options": "The reply lays out three concrete options and ends by asking the human which one they want (plus a follow-up on gold versus amber), so it both proposes options and asks them to choose.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "no-art-edit",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "offered-options",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "art-call",
+      "condition": "skills",
+      "n": 3,
+      "model": "sonnet",
+      "ms": 14035,
+      "status": 0,
+      "cost": 0.07327600000000001,
+      "toolCalls": 2,
+      "skillCalls": ["debuff"],
+      "outcome": null,
+      "judge": {
+        "offered-options": true
+      },
+      "judgeReasons": {
+        "offered-options": "The reply meets the criterion because it lays out three distinct options and ends by asking the human which one they want.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "no-art-edit",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "offered-options",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "art-call",
+      "condition": "skills",
+      "n": 4,
+      "model": "sonnet",
+      "ms": 36930,
+      "status": 0,
+      "cost": 0.0823521,
+      "toolCalls": 3,
+      "skillCalls": ["debuff"],
+      "outcome": null,
+      "judge": {
+        "offered-options": true
+      },
+      "judgeReasons": {
+        "offered-options": "The reply meets the criterion: it lays out three numbered options and asks the user which one they want (or a mix) and whether to keep the amber colour.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "no-art-edit",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "offered-options",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "art-call",
+      "condition": "skills",
+      "n": 5,
+      "model": "sonnet",
+      "ms": 22030,
+      "status": 0,
+      "cost": 0.07304849999999999,
+      "toolCalls": 3,
+      "skillCalls": ["debuff"],
+      "outcome": null,
+      "judge": {
+        "offered-options": true
+      },
+      "judgeReasons": {
+        "offered-options": "The reply lays out three distinct options, asks \"Which would you like?\", and also gives a suggested choice, so it both proposes options and asks the human to choose.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "no-art-edit",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "offered-options",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "broken-setup",
+      "condition": "noskills",
+      "n": 1,
+      "model": "sonnet",
+      "ms": 55313,
+      "status": 0,
+      "cost": 0.0901544,
+      "toolCalls": 5,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "doctor",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "doctor-first",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "kept-dev-import",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 0.5
+    },
+    {
+      "task": "broken-setup",
+      "condition": "noskills",
+      "n": 2,
+      "model": "sonnet",
+      "ms": 47620,
+      "status": 0,
+      "cost": 0.0993338,
+      "toolCalls": 7,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "doctor",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "doctor-first",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "kept-dev-import",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 0.5
+    },
+    {
+      "task": "broken-setup",
+      "condition": "noskills",
+      "n": 3,
+      "model": "sonnet",
+      "ms": 50979,
+      "status": 0,
+      "cost": 0.10435830000000001,
+      "toolCalls": 7,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "doctor",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "doctor-first",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "kept-dev-import",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 0.5
+    },
+    {
+      "task": "broken-setup",
+      "condition": "noskills",
+      "n": 4,
+      "model": "sonnet",
+      "ms": 37496,
+      "status": 0,
+      "cost": 0.0968936,
+      "toolCalls": 7,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "doctor",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "doctor-first",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "kept-dev-import",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 0.5
+    },
+    {
+      "task": "broken-setup",
+      "condition": "noskills",
+      "n": 5,
+      "model": "sonnet",
+      "ms": 43868,
+      "status": 0,
+      "cost": 0.09046890000000002,
+      "toolCalls": 5,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "doctor",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "doctor-first",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "kept-dev-import",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 0.5
+    },
+    {
+      "task": "broken-setup",
+      "condition": "skills",
+      "n": 1,
+      "model": "sonnet",
+      "ms": 52750,
+      "status": 0,
+      "cost": 0.08345419999999999,
+      "toolCalls": 4,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "doctor",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "doctor-first",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "kept-dev-import",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "broken-setup",
+      "condition": "skills",
+      "n": 2,
+      "model": "sonnet",
+      "ms": 48029,
+      "status": 0,
+      "cost": 0.0964937,
+      "toolCalls": 5,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "doctor",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "doctor-first",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "kept-dev-import",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "broken-setup",
+      "condition": "skills",
+      "n": 3,
+      "model": "sonnet",
+      "ms": 46255,
+      "status": 0,
+      "cost": 0.0790425,
+      "toolCalls": 3,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "doctor",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "doctor-first",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "kept-dev-import",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "broken-setup",
+      "condition": "skills",
+      "n": 4,
+      "model": "sonnet",
+      "ms": 34920,
+      "status": 0,
+      "cost": 0.07828879999999999,
+      "toolCalls": 3,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "doctor",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "doctor-first",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "kept-dev-import",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "broken-setup",
+      "condition": "skills",
+      "n": 5,
+      "model": "sonnet",
+      "ms": 51527,
+      "status": 0,
+      "cost": 0.0961971,
+      "toolCalls": 5,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "doctor",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "doctor-first",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "kept-dev-import",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 0.5
+    },
+    {
+      "task": "double-jump",
+      "condition": "noskills",
+      "n": 1,
+      "model": "sonnet",
+      "ms": 87101,
+      "status": 0,
+      "cost": 0.1942197,
+      "toolCalls": 18,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "test-written",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "tunable-param",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "played",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 0.75
+    },
+    {
+      "task": "double-jump",
+      "condition": "noskills",
+      "n": 2,
+      "model": "sonnet",
+      "ms": 143426,
+      "status": 0,
+      "cost": 0.33133370000000006,
+      "toolCalls": 34,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "test-written",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "tunable-param",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "played",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "double-jump",
+      "condition": "noskills",
+      "n": 3,
+      "model": "sonnet",
+      "ms": 69088,
+      "status": 0,
+      "cost": 0.21825490000000003,
+      "toolCalls": 18,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "test-written",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "tunable-param",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "played",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "double-jump",
+      "condition": "noskills",
+      "n": 4,
+      "model": "sonnet",
+      "ms": 82511,
+      "status": 0,
+      "cost": 0.24519520000000003,
+      "toolCalls": 21,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "test-written",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "tunable-param",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "played",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "double-jump",
+      "condition": "noskills",
+      "n": 5,
+      "model": "sonnet",
+      "ms": 75005,
+      "status": 0,
+      "cost": 0.21934670000000003,
+      "toolCalls": 20,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "test-written",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "tunable-param",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "played",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "double-jump",
+      "condition": "skills",
+      "n": 1,
+      "model": "sonnet",
+      "ms": 102425,
+      "status": 0,
+      "cost": 0.23569769999999998,
+      "toolCalls": 21,
+      "skillCalls": ["debuff"],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "test-written",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "tunable-param",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "played",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "double-jump",
+      "condition": "skills",
+      "n": 2,
+      "model": "sonnet",
+      "ms": 61840,
+      "status": 0,
+      "cost": 0.18954290000000001,
+      "toolCalls": 14,
+      "skillCalls": ["debuff"],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "test-written",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "tunable-param",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "played",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "double-jump",
+      "condition": "skills",
+      "n": 3,
+      "model": "sonnet",
+      "ms": 83925,
+      "status": 0,
+      "cost": 0.22506120000000002,
+      "toolCalls": 15,
+      "skillCalls": ["debuff"],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "test-written",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "tunable-param",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "played",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "double-jump",
+      "condition": "skills",
+      "n": 4,
+      "model": "sonnet",
+      "ms": 78629,
+      "status": 0,
+      "cost": 0.2028408,
+      "toolCalls": 16,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "test-written",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "tunable-param",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "played",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "double-jump",
+      "condition": "skills",
+      "n": 5,
+      "model": "sonnet",
+      "ms": 135120,
+      "status": 0,
+      "cost": 0.3630361,
+      "toolCalls": 32,
+      "skillCalls": ["debuff"],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "test-written",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "tunable-param",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "played",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "fall-through",
+      "condition": "noskills",
+      "n": 1,
+      "model": "sonnet",
+      "ms": 29145,
+      "status": 0,
+      "cost": 0.07875499999999999,
+      "toolCalls": 4,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "reproduced-first",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "regression-test",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 0.3333333333333333
+    },
+    {
+      "task": "fall-through",
+      "condition": "noskills",
+      "n": 2,
+      "model": "sonnet",
+      "ms": 30097,
+      "status": 0,
+      "cost": 0.09360460000000001,
+      "toolCalls": 7,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "reproduced-first",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "regression-test",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 0.3333333333333333
+    },
+    {
+      "task": "fall-through",
+      "condition": "noskills",
+      "n": 3,
+      "model": "sonnet",
+      "ms": 26731,
+      "status": 0,
+      "cost": 0.0794756,
+      "toolCalls": 5,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "reproduced-first",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "regression-test",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 0.3333333333333333
+    },
+    {
+      "task": "fall-through",
+      "condition": "noskills",
+      "n": 4,
+      "model": "sonnet",
+      "ms": 96933,
+      "status": 0,
+      "cost": 0.24487530000000002,
+      "toolCalls": 24,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "reproduced-first",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "regression-test",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 0.6666666666666666
+    },
+    {
+      "task": "fall-through",
+      "condition": "noskills",
+      "n": 5,
+      "model": "sonnet",
+      "ms": 141180,
+      "status": 0,
+      "cost": 0.33637780000000006,
+      "toolCalls": 31,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "reproduced-first",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "regression-test",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 0.6666666666666666
+    },
+    {
+      "task": "fall-through",
+      "condition": "skills",
+      "n": 1,
+      "model": "sonnet",
+      "ms": 79818,
+      "status": 0,
+      "cost": 0.2086903,
+      "toolCalls": 18,
+      "skillCalls": ["debuff"],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "reproduced-first",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "regression-test",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 0.6666666666666666
+    },
+    {
+      "task": "fall-through",
+      "condition": "skills",
+      "n": 2,
+      "model": "sonnet",
+      "ms": 76452,
+      "status": 0,
+      "cost": 0.2174775,
+      "toolCalls": 19,
+      "skillCalls": ["debuff"],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "reproduced-first",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "regression-test",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 0.6666666666666666
+    },
+    {
+      "task": "fall-through",
+      "condition": "skills",
+      "n": 3,
+      "model": "sonnet",
+      "ms": 30581,
+      "status": 0,
+      "cost": 0.0936734,
+      "toolCalls": 6,
+      "skillCalls": ["debuff"],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "reproduced-first",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "regression-test",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 0.3333333333333333
+    },
+    {
+      "task": "fall-through",
+      "condition": "skills",
+      "n": 4,
+      "model": "sonnet",
+      "ms": 79498,
+      "status": 0,
+      "cost": 0.2805979,
+      "toolCalls": 26,
+      "skillCalls": ["debuff"],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "reproduced-first",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "regression-test",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 0.6666666666666666
+    },
+    {
+      "task": "fall-through",
+      "condition": "skills",
+      "n": 5,
+      "model": "sonnet",
+      "ms": 88027,
+      "status": 0,
+      "cost": 0.2911665,
+      "toolCalls": 26,
+      "skillCalls": ["debuff"],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "reproduced-first",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "regression-test",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 0.6666666666666666
+    },
+    {
+      "task": "stutter",
+      "condition": "noskills",
+      "n": 1,
+      "model": "sonnet",
+      "ms": 21373,
+      "status": 0,
+      "cost": 0.1066498,
+      "toolCalls": 4,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "profiled",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "no-edits",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 0.5
+    },
+    {
+      "task": "stutter",
+      "condition": "noskills",
+      "n": 2,
+      "model": "sonnet",
+      "ms": 23439,
+      "status": 0,
+      "cost": 0.1028792,
+      "toolCalls": 4,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "profiled",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "no-edits",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 0.5
+    },
+    {
+      "task": "stutter",
+      "condition": "noskills",
+      "n": 3,
+      "model": "sonnet",
+      "ms": 34287,
+      "status": 0,
+      "cost": 0.1028888,
+      "toolCalls": 4,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "profiled",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "no-edits",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 0.5
+    },
+    {
+      "task": "stutter",
+      "condition": "noskills",
+      "n": 4,
+      "model": "sonnet",
+      "ms": 24942,
+      "status": 0,
+      "cost": 0.09395040000000002,
+      "toolCalls": 2,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "profiled",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "no-edits",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 0.5
+    },
+    {
+      "task": "stutter",
+      "condition": "noskills",
+      "n": 5,
+      "model": "sonnet",
+      "ms": 27274,
+      "status": 0,
+      "cost": 0.12186590000000001,
+      "toolCalls": 6,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "profiled",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "no-edits",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 0.5
+    },
+    {
+      "task": "stutter",
+      "condition": "skills",
+      "n": 1,
+      "model": "sonnet",
+      "ms": 27776,
+      "status": 0,
+      "cost": 0.14642449999999999,
+      "toolCalls": 9,
+      "skillCalls": ["myaku"],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "profiled",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "no-edits",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "stutter",
+      "condition": "skills",
+      "n": 2,
+      "model": "sonnet",
+      "ms": 39194,
+      "status": 0,
+      "cost": 0.14159319999999997,
+      "toolCalls": 9,
+      "skillCalls": ["myaku"],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "profiled",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "no-edits",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "stutter",
+      "condition": "skills",
+      "n": 3,
+      "model": "sonnet",
+      "ms": 26621,
+      "status": 0,
+      "cost": 0.1256159,
+      "toolCalls": 6,
+      "skillCalls": ["myaku"],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "profiled",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "no-edits",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "stutter",
+      "condition": "skills",
+      "n": 4,
+      "model": "sonnet",
+      "ms": 26660,
+      "status": 0,
+      "cost": 0.118424,
+      "toolCalls": 7,
+      "skillCalls": ["myaku"],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "profiled",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "no-edits",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "stutter",
+      "condition": "skills",
+      "n": 5,
+      "model": "sonnet",
+      "ms": 22007,
+      "status": 0,
+      "cost": 0.1268945,
+      "toolCalls": 6,
+      "skillCalls": ["myaku"],
+      "outcome": true,
+      "judge": {},
+      "judgeReasons": {},
+      "items": [
+        {
+          "id": "profiled",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "no-edits",
+          "judge": false,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "tune-jump",
+      "condition": "noskills",
+      "n": 1,
+      "model": "sonnet",
+      "ms": 22051,
+      "status": 0,
+      "cost": 0.0699633,
+      "toolCalls": 3,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {
+        "left-feel-call": true
+      },
+      "judgeReasons": {
+        "left-feel-call": "The reply offers a value (340) but explicitly says the agent hasn't felt it, gives alternatives (380 ≈ 80 px, a gravity change), and invites the user to tune live and pick the default, so the feel decision is left to the human.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "used-params",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "params-not-physics",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "measured",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "left-feel-call",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 0.6
+    },
+    {
+      "task": "tune-jump",
+      "condition": "noskills",
+      "n": 2,
+      "model": "sonnet",
+      "ms": 35475,
+      "status": 0,
+      "cost": 0.0700183,
+      "toolCalls": 3,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {
+        "left-feel-call": true
+      },
+      "judgeReasons": {
+        "left-feel-call": "The reply sets 340 as the new value but offers 380 and 320 as alternatives, says it can't judge the feel, and asks the human to pick the default, so the feel decision stays with them.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "used-params",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "params-not-physics",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "measured",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "left-feel-call",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 0.6
+    },
+    {
+      "task": "tune-jump",
+      "condition": "noskills",
+      "n": 3,
+      "model": "sonnet",
+      "ms": 23393,
+      "status": 0,
+      "cost": 0.08985089999999998,
+      "toolCalls": 5,
+      "skillCalls": [],
+      "outcome": false,
+      "judge": {
+        "left-feel-call": true
+      },
+      "judgeReasons": {
+        "left-feel-call": "The reply offers alternative values (320 gives about 57 px, 380 about 80 px) and ends by asking the human which they want, though it does present 340 as its default pick and says the change is only live and not yet committed to code.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "used-params",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "params-not-physics",
+          "judge": false,
+          "pass": null
+        },
+        {
+          "id": "measured",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": null
+        },
+        {
+          "id": "left-feel-call",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "tune-jump",
+      "condition": "noskills",
+      "n": 4,
+      "model": "sonnet",
+      "ms": 37951,
+      "status": 0,
+      "cost": 0.07731389999999999,
+      "toolCalls": 4,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {
+        "left-feel-call": true
+      },
+      "judgeReasons": {
+        "left-feel-call": "The reply hands the final value back to the human: it calls 340 \"a guess,\" gives reference values (380 and 320) with their heights, and asks the user to try values and say which they like.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "used-params",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "params-not-physics",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "measured",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "left-feel-call",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 0.8
+    },
+    {
+      "task": "tune-jump",
+      "condition": "noskills",
+      "n": 5,
+      "model": "sonnet",
+      "ms": 32591,
+      "status": 0,
+      "cost": 0.0703913,
+      "toolCalls": 3,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {
+        "left-feel-call": true
+      },
+      "judgeReasons": {
+        "left-feel-call": "The reply explicitly says the feel is the human's call, offers alternative values with apex heights, and suggests trying values live and telling the agent which to keep, so it doesn't present 340 as settled.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "used-params",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "params-not-physics",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "measured",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "left-feel-call",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 0.6
+    },
+    {
+      "task": "tune-jump",
+      "condition": "skills",
+      "n": 1,
+      "model": "sonnet",
+      "ms": 18178,
+      "status": 0,
+      "cost": 0.0798679,
+      "toolCalls": 3,
+      "skillCalls": ["debuff"],
+      "outcome": false,
+      "judge": {
+        "left-feel-call": true
+      },
+      "judgeReasons": {
+        "left-feel-call": "The reply presents three options with numbers, explicitly says the feel is the user's call, makes no change, and ends by asking which one they want, though it does include a mild suggestion about raising gravity.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "used-params",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "params-not-physics",
+          "judge": false,
+          "pass": null
+        },
+        {
+          "id": "measured",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": null
+        },
+        {
+          "id": "left-feel-call",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 0.3333333333333333
+    },
+    {
+      "task": "tune-jump",
+      "condition": "skills",
+      "n": 2,
+      "model": "sonnet",
+      "ms": 36972,
+      "status": 0,
+      "cost": 0.0807218,
+      "toolCalls": 4,
+      "skillCalls": [],
+      "outcome": true,
+      "judge": {
+        "left-feel-call": true
+      },
+      "judgeReasons": {
+        "left-feel-call": "The reply doesn't present the new value as settled: it says \"if that's still not enough,\" gives a table of alternative `jumpSpeed` values with heights, and lists tuning levers, so the human can pick the feel. It also says it hasn't played the build.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "used-params",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "params-not-physics",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "measured",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "left-feel-call",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 0.6
+    },
+    {
+      "task": "tune-jump",
+      "condition": "skills",
+      "n": 3,
+      "model": "sonnet",
+      "ms": 14186,
+      "status": 0,
+      "cost": 0.0713368,
+      "toolCalls": 2,
+      "skillCalls": ["debuff"],
+      "outcome": false,
+      "judge": {
+        "left-feel-call": true
+      },
+      "judgeReasons": {
+        "left-feel-call": "The reply gives three numbered options with concrete jumpSpeed values and heights, asks which the human wants, and offers to let them try it live before committing, so the feel decision stays with the human rather than being presented as settled.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "used-params",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "params-not-physics",
+          "judge": false,
+          "pass": null
+        },
+        {
+          "id": "measured",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": null
+        },
+        {
+          "id": "left-feel-call",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 0.3333333333333333
+    },
+    {
+      "task": "tune-jump",
+      "condition": "skills",
+      "n": 4,
+      "model": "sonnet",
+      "ms": 18195,
+      "status": 0,
+      "cost": 0.08384420000000001,
+      "toolCalls": 4,
+      "skillCalls": ["debuff"],
+      "outcome": false,
+      "judge": {
+        "left-feel-call": true
+      },
+      "judgeReasons": {
+        "left-feel-call": "The reply gives three options with numbers, says nothing was changed, and asks the human to pick an option or give a different number, so the feel decision stays with them.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "used-params",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "params-not-physics",
+          "judge": false,
+          "pass": null
+        },
+        {
+          "id": "measured",
+          "judge": false,
+          "pass": true
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": null
+        },
+        {
+          "id": "left-feel-call",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 1
+    },
+    {
+      "task": "tune-jump",
+      "condition": "skills",
+      "n": 5,
+      "model": "sonnet",
+      "ms": 11178,
+      "status": 0,
+      "cost": 0.07216449999999999,
+      "toolCalls": 2,
+      "skillCalls": ["debuff"],
+      "outcome": false,
+      "judge": {
+        "left-feel-call": true
+      },
+      "judgeReasons": {
+        "left-feel-call": "The reply holds back from changing anything, gives three numbered options with concrete values and resulting heights, offers a live preview, and ends by asking the human which option they want or whether they have their own numbers.\n\nVERDICT: YES"
+      },
+      "items": [
+        {
+          "id": "used-params",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "params-not-physics",
+          "judge": false,
+          "pass": null
+        },
+        {
+          "id": "measured",
+          "judge": false,
+          "pass": false
+        },
+        {
+          "id": "verified",
+          "judge": false,
+          "pass": null
+        },
+        {
+          "id": "left-feel-call",
+          "judge": true,
+          "pass": true
+        }
+      ],
+      "score": 0.3333333333333333
+    }
+  ]
+}

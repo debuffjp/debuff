@@ -1,11 +1,15 @@
 ---
 name: debuff
-description: Use for any work on a 2D browser game made with debuff (package.json depends on @debuffjp/core, or AGENTS.md says debuff): fixing a bug, tuning how it feels (jump, speed, gravity, timing), adding a mechanic, changing art, levels or UI, chasing a stutter, or checking a change works. Also use when the user wants to make a new 2D game that runs in the browser (a platformer, top-down adventure, arcade game, pixel-art game, game jam entry or quick prototype). Proves each change with logic tests, scenario captures and fuzzing instead of guessing from code.
+description: Use for any work on a 2D browser game made with debuff (package.json depends on @debuffjp/core, or AGENTS.md says debuff): fixing a bug, making the player jump higher, run faster or feel better, adding a mechanic, making it look nicer, changing levels or UI, chasing a stutter, checking a change works, or when `npm test`, a build or a debuff command fails. Also use when the user wants to make a new 2D game that runs in the browser (a platformer, top-down adventure, arcade game, pixel-art game, game jam entry or quick prototype). Proves each change with logic tests, scenario captures and fuzzing instead of guessing from code.
 ---
 
 # Making 2D browser games with debuff
 
 debuff is an open-source TypeScript framework for 2D browser games. It handles the game loop, input (keyboard, touch, gamepad), crisp pixel rendering, sound, Tiled and LDtk levels, testing and the web build. Its CLI gives you evidence about the game, so check your work against tests and captures instead of guessing from code.
+
+## Before you change how it looks or feels
+
+Art, colours, effects, UI style, feel, difficulty and names are the human's call, even when they ask you to "make it nicer" or "make it higher". Don't edit code for these first. Try values live through params where you can, then reply with two or three options and what each one changes (numbers for feel, a short description for looks), and wait for the human to pick. Make the change they choose.
 
 ## Starting a new game
 
