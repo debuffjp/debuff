@@ -16,7 +16,7 @@
 // Writes results/<date>-<model>.json and prints a table. Needs `npm run build` first (create-debuff's dist).
 import { spawn, spawnSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseTranscript, scoreRun, stats } from "./score.mjs";
@@ -51,6 +51,13 @@ const gitEnv = {
   GIT_COMMITTER_NAME: "eval",
   GIT_COMMITTER_EMAIL: "eval@localhost",
 };
+// The agent gets a config folder of its own: `--setting-sources` keeps user settings out but not ~/.claude/skills or
+// ~/.claude/CLAUDE.md. Only the sign-in is copied in. (On macOS the sign-in is in the keychain; set ANTHROPIC_API_KEY.)
+const claudeHome = join(work, "claude-home");
+mkdirSync(claudeHome, { recursive: true });
+const credentials = join(process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), ".claude"), ".credentials.json");
+if (existsSync(credentials)) cpSync(credentials, join(claudeHome, ".credentials.json"));
+const agentEnv = { ...env, CLAUDE_CONFIG_DIR: claudeHome };
 // One command string, not an args array: Node deprecates args with `shell: true` (DEP0190). No argument here has spaces.
 const sh = (cmd, args, cwd, extra = {}) =>
   spawnSync(win ? [cmd, ...args].join(" ") : cmd, win ? [] : args, { cwd, encoding: "utf8", shell: win, env, timeout: 600_000, ...extra });
@@ -60,9 +67,9 @@ const must = (r, what) => {
 };
 
 /** Run a command asynchronously, feeding `input` on stdin and collecting stdout. */
-function run(cmd, args, { cwd, input, ms }) {
+function run(cmd, args, { cwd, input, ms, env: runEnv = env }) {
   return new Promise((resolve) => {
-    const child = spawn(cmd, args, { cwd, env, shell: false, windowsHide: true });
+    const child = spawn(cmd, args, { cwd, env: runEnv, shell: false, windowsHide: true });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (d) => (stdout += d));
@@ -136,7 +143,8 @@ async function agent(task, dir) {
     "--mcp-config",
     ".mcp.json",
     "--strict-mcp-config",
-    // User-level settings, plugins and skills stay out, so the only debuff skills are the project's own.
+    // With CLAUDE_CONFIG_DIR (agentEnv), user-level settings, plugins, skills and CLAUDE.md stay out, so the only
+    // debuff skills are the project's own.
     "--setting-sources",
     "project,local",
     // No permission bypass: file edits are accepted, and only the commands a debuff project needs are allowed.
@@ -149,7 +157,7 @@ async function agent(task, dir) {
     budget,
     "--no-session-persistence",
   ];
-  const r = await run("claude", args, { cwd: dir, input: task.prompt, ms: timeout });
+  const r = await run("claude", args, { cwd: dir, input: task.prompt, ms: timeout, env: agentEnv });
   writeFileSync(join(dir, ".eval-transcript.jsonl"), r.stdout);
   writeFileSync(join(dir, ".eval-stderr.txt"), r.stderr);
   return { ms: Date.now() - started, status: r.status };

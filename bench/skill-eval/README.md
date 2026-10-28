@@ -32,8 +32,8 @@ server. Writes `results/<date>-<model>.json`. Transcripts, diffs and the project
 1. `create-debuff` from this checkout makes a `platformer` project once; `npm install`.
 2. Per run: copy it, `npm ci`, apply the condition, break it the way the task says, `git commit` the starting point.
 3. `claude -p` gets the task's prompt on stdin, with the project's `.mcp.json` (`--strict-mcp-config`) and
-   `--setting-sources project,local`, so user-level plugins and skills stay out and the only debuff skills are the
-   project's own. Permissions aren't bypassed: edits are accepted, and `npm`, `npx`, `node`, read-only `git` and a few
+   `--setting-sources project,local`, in its own config folder (caveats below), so user-level settings, plugins,
+   skills and `CLAUDE.md` stay out and the only debuff skills are the project's own. Permissions aren't bypassed: edits are accepted, and `npm`, `npx`, `node`, read-only `git` and a few
    read commands are allowed. Anything else is denied, which shows in the transcript.
 4. The scorer reads the `stream-json` transcript and the `git diff`, then a hidden check runs (below).
 
@@ -76,7 +76,8 @@ follow every step and still ship a wrong fix, or the reverse.
 
 - Headless `claude -p` has no human to answer, so a run that asks a question and stops is the right behaviour for
   `art-call` and a partial one for the others. The prompts are written so a capable agent can finish without asking.
-- The user's own `~/.claude/CLAUDE.md` still loads (`--setting-sources` doesn't cover it). It's the same in both
-  conditions; note what it says when comparing machines.
+- Each agent runs with its own `CLAUDE_CONFIG_DIR` (`<work>/claude-home`, only the sign-in copied in), so your
+  `~/.claude` skills, plugins and `CLAUDE.md` stay out. Before 2026-10-28's last runs they leaked in: one stuck-coin
+  run loaded a user-level skill. On macOS the sign-in is in the keychain and isn't copied; set `ANTHROPIC_API_KEY`.
 - Small n. Three runs per cell shows direction, not a precise rate; raise `--runs` before quoting a number.
 - One agent (Claude Code). Other agents read `.agents/skills/`; adding them means another `agent()` in `run.mjs`.
