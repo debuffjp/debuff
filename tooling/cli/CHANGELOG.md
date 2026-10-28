@@ -1,5 +1,11 @@
 # @debuffjp/cli
 
+## 0.22.1
+
+### Patch Changes
+
+- create-debuff@0.22.1
+
 ## 0.22.0
 
 ### Minor Changes
