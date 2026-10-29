@@ -1,17 +1,16 @@
 // Particles drifting through a flow field, leaving glowing trails. The trails live in a render
 // target that is faded a little and drawn over again every frame; the particles are added on top
 // with additive blending in one sprites() call; a grain shader finishes the frame on WebGL2.
-// In 3D the particles run along the contour lines of a rolling terrain, projected with perspective
-// each frame: elevation sets each copy's colour, depth its size and brightness. Additive blending
-// ignores draw order, so nothing needs sorting by depth.
+// The other modes (waves.ts, river.ts, galaxy.ts) simulate and project their own particles and are
+// drawn straight to the screen.
 import { createRenderer, type Draw, polygon, type RenderTarget, type Shader } from "spryte";
-import { css, PALETTES, ramp } from "./palettes.ts";
+import * as galaxy from "./galaxy.ts";
+import { css, PALETTES } from "./palettes.ts";
 import * as river from "./river.ts";
 import * as waves from "./waves.ts";
 
 const BG = "#11140d";
 const FADE = "#11140d26"; // how much of the old frame each new frame covers: lower is longer trails
-const FADE_3D = "#11140d30"; // shorter trails in 3D, where the camera moves
 // Flat mode's colours: it starts with stops 2 and 1, and clicks cycle through the others.
 let PALETTE = PALETTES[0].stops;
 const MAX = 1_000_000;
@@ -21,24 +20,12 @@ const positions = new Float32Array(MAX * 2); // target pixels
 const colors = new Uint32Array(MAX);
 const life = new Float32Array(MAX); // seconds left before a particle respawns somewhere random
 let n = 60_000;
-type Mode = "2d" | "3d" | "waves" | "river";
+type Mode = "2d" | "galaxy" | "waves" | "river";
 const startMode = new URLSearchParams(location.search).get("mode");
-let mode: Mode = startMode === "3d" || startMode === "waves" || startMode === "river" ? startMode : "2d";
+let mode: Mode = startMode === "galaxy" || startMode === "waves" || startMode === "river" ? startMode : "2d";
 
-// 3D state: positions on a terrain, u and v in [0, 1), projected to screen pixels every frame.
-const TAU = Math.PI * 2;
-const world = new Float32Array(MAX * 2);
-const projected = new Float32Array(MAX * 2);
-const scales = new Float32Array(MAX);
-const colors3d = new Uint32Array(MAX);
+// The 3D modes share one orbiting camera.
 const camera = { yaw: 0.6, pitch: 0.75, spin: 0.08 };
-// Terrain's elevation colours, low to high.
-let RAMP = ramp(PALETTES[0].stops.slice(0, 4));
-function spawn3d(i: number): void {
-  world[i * 2] = Math.random();
-  world[i * 2 + 1] = Math.random();
-  life[i] = 3 + Math.random() * 6;
-}
 let seed = Math.random() * 1000;
 
 const params = new URLSearchParams(location.search);
@@ -52,7 +39,8 @@ const CAPTIONS: Record<Mode, string> = {
   waves:
     "An ocean of particles: four Gerstner waves sharpen into crests that throw spray, colour shows height. Click the water to skip a pebble; each touch drives a ripple simulation. Drag to turn the camera.",
   "2d": "Drag to stir the field. Click to drop a colour. Each particle is one copy in a single sprites() call, its trail a render target that fades a little every frame.",
-  "3d": "The same particles on a rolling terrain, running along its contour lines, so they trace a glowing topographic map. Colour shows elevation. Drag to turn the camera.",
+  galaxy:
+    "Two spiral galaxies collide. Every star orbits both cores as they swing past each other, tearing the discs into tidal tails. Click for a new encounter; drag to turn the camera.",
 };
 let canvas = document.createElement("canvas");
 let draw: Draw;
@@ -152,6 +140,7 @@ stage.addEventListener("pointermove", (e) => {
 });
 stage.addEventListener("pointerup", (e) => {
   river.release();
+  if (down && !down.moved && mode === "galaxy") galaxy.reset();
   if (down && !down.moved && mode === "waves") {
     const [x, y] = local(e);
     waves.throwPebble(x, y);
@@ -186,7 +175,7 @@ document.getElementById("modes")?.addEventListener("click", (e) => {
 });
 
 // Palettes: each mode remembers its own, so switching modes keeps what you picked for each.
-const chosen: Record<Mode, number> = { "2d": 0, "3d": 0, waves: 1, river: 1 };
+const chosen: Record<Mode, number> = { "2d": 0, galaxy: 3, waves: 1, river: 1 };
 const swatches = document.getElementById("palettes") as HTMLElement;
 for (const [i, p] of PALETTES.entries()) {
   const b = document.createElement("button");
@@ -212,13 +201,13 @@ function applyPalette(): void {
     colourIndex = 1;
     for (let i = 0; i < MAX; i++) paint(i, PALETTE[2 - (i % 2)]);
     trails = null;
-  } else if (mode === "3d") RAMP = ramp(stops.slice(0, 4));
+  } else if (mode === "galaxy") galaxy.setPalette(stops);
   else if (mode === "waves") waves.setPalette(stops);
   else river.setPalette(stops);
 }
 document.getElementById("seed")?.addEventListener("click", () => {
   seed = Math.random() * 1000;
-  for (let i = 0; i < MAX; i++) spawn3d(i);
+  galaxy.reset();
   trails = null; // start from a clean canvas
 });
 let saveNext = false;
@@ -277,9 +266,9 @@ function frame(now: number): void {
     fresh = true;
   }
 
-  if (mode === "waves" || mode === "river") {
+  if (mode !== "2d") {
     if (!down) camera.yaw += dt * camera.spin * 0.5;
-    const scene = mode === "waves" ? waves : river;
+    const scene = mode === "waves" ? waves : mode === "river" ? river : galaxy;
     // The fluid is far more expensive per particle, so it gets a fifth of the count.
     const count = scene.step(mode === "river" ? Math.round(n / 5) : n, dt, now, W, H, dpr, camera, reducedMotion);
     const d0 = performance.now();
@@ -287,7 +276,18 @@ function frame(now: number): void {
     draw.push();
     draw.scale(1 / dpr);
     if (mode === "river") river.drawScene(draw, (points, color) => polygon(draw, points, color));
-    draw.sprites(mode === "river" ? disc : dot, scene.positions, count, undefined, { color: scene.colors, scale: scene.scales });
+    if (mode === "galaxy") {
+      // Stars glow where they pile up; dim each one as the count grows so the cores don't go white.
+      draw.blend("add");
+      draw.sprites(
+        dot,
+        scene.positions,
+        count,
+        { alpha: Math.min(1, Math.sqrt(40_000 / count)) },
+        { color: scene.colors, scale: scene.scales },
+      );
+      draw.blend("normal");
+    } else draw.sprites(mode === "river" ? disc : dot, scene.positions, count, undefined, { color: scene.colors, scale: scene.scales });
     draw.pop();
     draw.end();
     drawMs += (performance.now() - d0 - drawMs) * 0.05;
@@ -297,16 +297,15 @@ function frame(now: number): void {
     requestAnimationFrame(frame);
     return;
   }
-  if (mode === "3d") step3d(dt, W, H, dpr, now);
-  else step2d(dt, W, H, dpr, now);
+  step2d(dt, W, H, dpr, now);
 
   draw.begin(BG, W / dpr, H / dpr, dpr);
-  const pts = mode === "3d" ? projected : positions;
-  const each = mode === "3d" ? { color: colors3d, scale: scales } : { color: colors };
+  const pts = positions;
+  const each = { color: colors };
   draw.into(
     trails,
     () => {
-      if (!fresh) draw.rect(0, 0, W, H, mode === "3d" ? FADE_3D : FADE);
+      if (!fresh) draw.rect(0, 0, W, H, FADE);
       draw.blend("add");
       // Additive dots overexpose to white as they pile up, so dim each one as the count grows.
       draw.sprites(dot, pts, n, { alpha: Math.min(1, Math.sqrt(60_000 / n)) }, each);
@@ -403,104 +402,6 @@ function step2d(dt: number, W: number, H: number, dpr: number, now: number): voi
   }
 }
 
-// Terrain height and flow, sampled on a grid (see step3d).
-const TERRAIN = 192;
-const terrainH = new Float32Array((TERRAIN + 1) ** 2);
-const terrainU = new Float32Array((TERRAIN + 1) ** 2);
-const terrainV = new Float32Array((TERRAIN + 1) ** 2);
-
-function step3d(dt: number, W: number, H: number, dpr: number, now: number): void {
-  // Height: three overlapping waves with phases from the seed, so "New field" makes new terrain.
-  // Particles move along the contours (perpendicular to the slope), plus a little drift so they
-  // cross between lines instead of circling one forever.
-  const p1 = seed;
-  const p2 = seed * 1.7;
-  const p3 = seed * 2.3;
-  const p4 = seed * 3.1;
-  const drift = now / 20000;
-  const speed = reducedMotion ? 0.02 : 0.045;
-  if (!down) camera.yaw += dt * camera.spin;
-  const cy = Math.cos(camera.yaw);
-  const sy = Math.sin(camera.yaw);
-  const cp = Math.cos(camera.pitch);
-  const sp = Math.sin(camera.pitch);
-  const size = 6; // the terrain is size x size world units
-  const rise = 1.4; // world units from the lowest point to the highest
-  const unit = Math.min(W, H) * 0.12; // pixels per world unit at the centre
-  const eye = 10; // camera distance in world units
-  // Height and flow are smooth, so they're worked out on a TERRAIN x TERRAIN grid once per frame
-  // (the terrain drifts) and each particle reads them back bilinearly instead of eight trig calls.
-  for (let gv = 0; gv <= TERRAIN; gv++) {
-    const v = gv / TERRAIN;
-    for (let gu = 0; gu <= TERRAIN; gu++) {
-      const u = gu / TERRAIN;
-      const A = TAU * 2 * u + p1;
-      const B = TAU * v + p2;
-      const C = TAU * (3 * u + 2 * v) + p3 + drift;
-      const D = TAU * (4 * v - u) + p4;
-      const sA = Math.sin(A);
-      const cA = Math.cos(A);
-      const sB = Math.sin(B);
-      const cB = Math.cos(B);
-      const sC = Math.sin(C);
-      const cC = Math.cos(C);
-      const sD = Math.sin(D);
-      const cD = Math.cos(D);
-      const du = TAU * (0.9 * cA * cB + 0.9 * cC + 0.25 * sD);
-      const dv = TAU * (-0.45 * sA * sB + 0.6 * cC - sD);
-      const g = Math.hypot(du, dv) || 1;
-      const c = gv * (TERRAIN + 1) + gu;
-      terrainH[c] = 0.45 * sA * cB + 0.3 * sC + 0.25 * cD; // -1 to 1
-      terrainU[c] = (-dv / g) * speed + du * 0.0004;
-      terrainV[c] = (du / g) * speed + dv * 0.0004;
-    }
-  }
-  const row = TERRAIN + 1;
-  for (let i = 0; i < n; i++) {
-    const k = i * 2;
-    let u = world[k];
-    let v = world[k + 1];
-    const fu = u * TERRAIN;
-    const fv = v * TERRAIN;
-    const cu = Math.min(TERRAIN - 1, fu | 0);
-    const cv = Math.min(TERRAIN - 1, fv | 0);
-    const au = fu - cu;
-    const av = fv - cv;
-    const c0 = cv * row + cu;
-    const c1 = c0 + row;
-    const w00 = (1 - au) * (1 - av);
-    const w10 = au * (1 - av);
-    const w01 = (1 - au) * av;
-    const w11 = au * av;
-    const h = terrainH[c0] * w00 + terrainH[c0 + 1] * w10 + terrainH[c1] * w01 + terrainH[c1 + 1] * w11;
-    u += (terrainU[c0] * w00 + terrainU[c0 + 1] * w10 + terrainU[c1] * w01 + terrainU[c1 + 1] * w11) * dt;
-    v += (terrainV[c0] * w00 + terrainV[c0 + 1] * w10 + terrainV[c1] * w01 + terrainV[c1 + 1] * w11) * dt;
-    life[i] -= dt;
-    if (life[i] <= 0 || u < 0 || v < 0 || u >= 1 || v >= 1) {
-      spawn3d(i);
-      u = world[k];
-      v = world[k + 1];
-    } else {
-      world[k] = u;
-      world[k + 1] = v;
-    }
-    // Lay the terrain flat, turn it by the camera, then project with perspective. Height is up.
-    const X = (u - 0.5) * size;
-    const Y = (v - 0.5) * size;
-    const Z = h * rise * 0.5;
-    const rx = X * cy - Y * sy;
-    const ry = X * sy + Y * cy;
-    const up = Z * cp - ry * sp;
-    const depth = ry * cp + Z * sp; // toward the camera is positive
-    const f = eye / (eye - depth);
-    projected[i * 2] = W / 2 + rx * f * unit;
-    projected[i * 2 + 1] = H / 2 - up * f * unit;
-    scales[i] = 0.45 * f * dpr;
-    const near = Math.max(0, Math.min(1, (depth + 4) / 8));
-    colors3d[i] = ((RAMP[Math.min(63, Math.floor((h * 0.5 + 0.5) * 64))] << 8) | (24 + Math.round(near * 60))) >>> 0;
-  }
-}
-
 function report(now: number, dt: number): void {
   if (saveNext) {
     saveNext = false;
@@ -514,14 +415,16 @@ function report(now: number, dt: number): void {
     });
   }
   if (Math.floor(now / 250) !== Math.floor((now - dt * 1000) / 250)) {
-    const sim = mode === "waves" ? waves.timing.sim : mode === "river" ? river.timing.sim : 0;
-    const split = mode === "waves" || mode === "river" ? ` (simulate ${sim.toFixed(1)}, spryte ${drawMs.toFixed(1)})` : "";
+    const sim = mode === "waves" ? waves.timing.sim : mode === "river" ? river.timing.sim : galaxy.timing.sim;
+    const split = mode !== "2d" ? ` (simulate ${sim.toFixed(1)}, spryte ${drawMs.toFixed(1)})` : "";
     const count =
       mode === "waves"
         ? `${drawn.toLocaleString()} particles (${waves.side()}² surface + spray)`
         : mode === "river"
           ? `${drawn.toLocaleString()} particles (${river.census()})`
-          : `${n.toLocaleString()} particles`;
+          : mode === "galaxy"
+            ? `${drawn.toLocaleString()} stars`
+            : `${n.toLocaleString()} particles`;
     stats.textContent = `${count} · ${Math.round(fps)} fps · ${work.toFixed(1)} ms of JS per frame${split} · ${draw.kind} · ${draw.drawCalls} draw calls`;
   }
 }
@@ -534,7 +437,6 @@ resize();
 for (let i = 0; i < MAX; i++) {
   spawn(i, canvas.width, canvas.height);
   paint(i, PALETTE[2 - (i % 2)]); // two colours to start; clicks bring in the rest
-  spawn3d(i);
 }
 applyPalette();
 requestAnimationFrame(frame);

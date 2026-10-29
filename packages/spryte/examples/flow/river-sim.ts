@@ -9,6 +9,19 @@ const STIFF = 0.025;
 const STIFF_NEAR = 0.15;
 const GRAVITY = 0.12; // world units per step²
 export const MAX_FLUID = 200_000;
+// No particle moves more than this per step. The falls drop far enough to hit the pool at almost a
+// whole interaction radius per step, which crushed particles together on impact and blasted them
+// back up as spray; capping speed at about half the radius keeps every impact resolvable.
+export const MAX_SPEED = H * 0.45;
+/** Scales a velocity down to MAX_SPEED. */
+export function clampSpeed(vxs: Float32Array, vys: Float32Array, i: number): void {
+  const s2 = vxs[i] * vxs[i] + vys[i] * vys[i];
+  if (s2 > MAX_SPEED * MAX_SPEED) {
+    const f = MAX_SPEED / Math.sqrt(s2);
+    vxs[i] *= f;
+    vys[i] *= f;
+  }
+}
 // The scene is laid out for BASE particles. More would overfill the basin and blow the fluid apart,
 // so the whole scene grows by k = sqrt(count / BASE) instead, keeping the water at the same density.
 export const BASE = 6_000; // about what the k = 1 scene holds at rest
@@ -78,6 +91,10 @@ function setScale(next: number): void {
   GW = Math.ceil(g.WORLD_W / H) + 2;
   GH = Math.ceil(g.WORLD_H / H) + 2;
   CELLS = GW * GH;
+}
+
+function limit(i: number): void {
+  clampSpeed(vx, vy, i);
 }
 
 function emit(i: number): void {
@@ -228,6 +245,7 @@ export function tick(count: number, rocks: Rock[]): void {
     collide(i, rocks);
     vx[i] = (x[i] - prevX[i]) * 0.998;
     vy[i] = (y[i] - prevY[i]) * 0.998;
+    limit(i);
     if (x[i] > g.WORLD_W + 10 || y[i] > g.WORLD_H + 40) emit(i);
   }
 }

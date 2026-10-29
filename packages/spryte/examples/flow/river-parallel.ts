@@ -6,7 +6,7 @@
 // The single-worker version lets each particle push its neighbours directly, which two workers can't
 // do at once. Here each particle sums the push it receives from every neighbour (its own pressure
 // and theirs, half each) and writes only to itself: the same pair forces, applied all at once.
-import { BASE, geometry, H, MAX_FLUID, type Rock, scaleFor } from "./river-sim.ts";
+import { BASE, clampSpeed, geometry, H, MAX_FLUID, type Rock, scaleFor } from "./river-sim.ts";
 
 const REST = 4.2;
 const STIFF = 0.025;
@@ -289,6 +289,7 @@ export function run(b: Buffers, index: number): void {
       collide(i, g, rocks, k);
       vx[i] = (x[i] - px[i]) * 0.998;
       vy[i] = (y[i] - py[i]) * 0.998;
+      clampSpeed(vx, vy, i);
       if (x[i] > g.WORLD_W + 10 || y[i] > g.WORLD_H + 40) x[i] = -1e9; // joins the inlet queue next step
       const o = back + i * SNAP_FLOATS;
       snaps[o] = px[i];
