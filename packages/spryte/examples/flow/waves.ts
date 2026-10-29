@@ -2,11 +2,9 @@
 // crests, and pebbles that skip across it, each touch driving a ripple simulation. Everything the
 // mode draws (surface, spray, pebbles) goes into one set of arrays for a single sprites() call.
 import { PALETTES, ramp } from "./palettes.ts";
+import { type Camera, project, type View, view } from "./project3d.ts";
 
-export interface Camera {
-  yaw: number;
-  pitch: number;
-}
+export type { Camera };
 
 const TAU = Math.PI * 2;
 const SIZE = 8; // the water is SIZE x SIZE world units
@@ -174,12 +172,9 @@ export function step(
 ): number {
   const t0 = performance.now();
   const t = (now / 1000) * (reducedMotion ? 0.4 : 1);
-  const cy = Math.cos(camera.yaw);
-  const sny = Math.sin(camera.yaw);
-  const cp = Math.cos(camera.pitch);
-  const sp = Math.sin(camera.pitch);
   const unit = Math.min(W, H) * 0.1;
   lastProjection = { W, H, unit, camera: { ...camera } };
+  const v3 = view(camera, W, H, unit, EYE);
 
   rippleTime += dt;
   while (rippleTime > 1 / 60) {
@@ -265,7 +260,7 @@ export function step(
       z += rippleAt(u, v);
       // Spray: a few particles leave the highest crests every frame.
       if (z > PEAK * 0.7 && Math.random() < 0.012) emit(x, y, z, WAVES[0].dx * 1.2, WAVES[0].dy * 1.2, 0.8 + Math.random());
-      count = project(count, x, y, z, cy, sny, cp, sp, unit, W, H, dpr, 0.5);
+      count = put(v3, count, x, y, z, 0.5 * dpr);
       const e = Math.max(0, Math.min(63, Math.floor((z / PEAK) * 32 + 32)));
       colors[count - 1] = ((RAMP[e] << 8) | (0x50 + e * 2)) >>> 0;
     }
@@ -280,7 +275,7 @@ export function step(
     spray.y[i] += spray.vy[i] * dt;
     spray.z[i] += spray.vz[i] * dt;
     if (spray.z[i] < -PEAK) spray.life[i] = 0;
-    count = project(count, spray.x[i], spray.y[i], spray.z[i], cy, sny, cp, sp, unit, W, H, dpr, 0.35);
+    count = put(v3, count, spray.x[i], spray.y[i], spray.z[i], 0.35 * dpr);
     colors[count - 1] = 0xffffff00 | Math.round(Math.min(1, spray.life[i]) * 0xb0);
   }
 
@@ -288,36 +283,15 @@ export function step(
   for (const pb of pebbles) {
     const f = pb.travelled / pb.hop;
     const arc = Math.sin(f * Math.PI) * pb.hop * 0.25;
-    count = project(count, pb.x + pb.dx * pb.travelled, pb.y + pb.dy * pb.travelled, arc, cy, sny, cp, sp, unit, W, H, dpr, 1.6);
+    count = put(v3, count, pb.x + pb.dx * pb.travelled, pb.y + pb.dy * pb.travelled, arc, 1.6 * dpr);
     colors[count - 1] = 0xe8ecdfff;
   }
   timing.sim += (performance.now() - t0 - timing.sim) * 0.05;
   return count;
 }
 
-function project(
-  i: number,
-  x: number,
-  y: number,
-  z: number,
-  cy: number,
-  sny: number,
-  cp: number,
-  sp: number,
-  unit: number,
-  W: number,
-  H: number,
-  dpr: number,
-  size: number,
-): number {
-  const rx = x * cy - y * sny;
-  const ry = x * sny + y * cy;
-  const up = z * cp - ry * sp;
-  const depth = ry * cp + z * sp;
-  const f = EYE / (EYE - depth);
-  positions[i * 2] = W / 2 + rx * f * unit;
-  positions[i * 2 + 1] = H / 2 - up * f * unit;
-  scales[i] = size * f * dpr;
+function put(v3: View, i: number, x: number, y: number, z: number, size: number): number {
+  project(v3, positions, scales, i, x, y, z, size);
   return i + 1;
 }
 

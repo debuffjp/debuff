@@ -409,7 +409,7 @@ function report(now: number, dt: number): void {
       if (!blob) return;
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = "spryte-flow-field.png";
+      a.download = `spryte-${mode === "2d" ? "flow-field" : mode}.png`;
       a.click();
       URL.revokeObjectURL(a.href);
     });

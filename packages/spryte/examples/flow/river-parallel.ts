@@ -6,15 +6,26 @@
 // The single-worker version lets each particle push its neighbours directly, which two workers can't
 // do at once. Here each particle sums the push it receives from every neighbour (its own pressure
 // and theirs, half each) and writes only to itself: the same pair forces, applied all at once.
-import { BASE, clampSpeed, geometry, H, MAX_FLUID, type Rock, scaleFor } from "./river-sim.ts";
+import {
+  admit,
+  clampSpeed,
+  collide,
+  GONE,
+  GRAVITY,
+  geometry,
+  H,
+  type Inlet,
+  MAX_CELLS,
+  MAX_FLUID,
+  type Particles,
+  REST,
+  type Rock,
+  rescale,
+  STIFF,
+  STIFF_NEAR,
+  scaleFor,
+} from "./river-sim.ts";
 
-const REST = 4.2;
-const STIFF = 0.025;
-const STIFF_NEAR = 0.15;
-const GRAVITY = 0.12;
-// Lattice spacing for new and re-entering water, near the rest spacing, and the inlet speed.
-const SPACING = H * 0.4;
-const INLET_SPEED = 1.8;
 // How much of the pair push to apply per step. Every particle moves at once from densities taken at
 // the start of the step, so full strength overshoots and the water boils into spray; damping it
 // stands in for the settling the one-at-a-time version gets for free.
@@ -41,8 +52,7 @@ export const C = {
 export const CONTROL_INTS = 32;
 export const ROCK_FLOATS = 4 * 3; // up to 4 rocks: x, y, r in k = 1 units
 export const SNAP_FLOATS = 5; // per particle: x0, y0, x1, y1, speed
-const MAX_K = Math.sqrt(MAX_FLUID / BASE);
-export const MAX_CELLS = (Math.ceil((720 * MAX_K) / H) + 3) * (Math.ceil((400 * MAX_K) / H) + 3);
+export { MAX_CELLS };
 
 export interface Buffers {
   fields: SharedArrayBuffer; // Float32, FIELD_COUNT * MAX_FLUID
@@ -77,6 +87,7 @@ export function run(b: Buffers, index: number): void {
   const ddx = f(F.DX);
   const ddy = f(F.DY);
   const all = [x, y, vx, vy, px, py];
+  const particles: Particles = { x, y, vx, vy, px, py };
   const snaps = new Float32Array(b.snaps);
   const cells = new Int32Array(b.cells);
   const cellOf = cells.subarray(0, MAX_FLUID);
@@ -103,8 +114,7 @@ export function run(b: Buffers, index: number): void {
   }
 
   let k = 1;
-  let inletDue = 0;
-  let inletSlot = 0;
+  const inlet: Inlet = { due: 0, slot: 0, total: 0 };
   for (;;) {
     const t0 = performance.now();
     // Worker 0: pacing, scale and pouring, while the others wait at the barrier.
@@ -113,52 +123,13 @@ export function run(b: Buffers, index: number): void {
       let live = Atomics.load(ctl, C.LIVE);
       const next = scaleFor(count);
       if (next !== k) {
-        const s = next / k;
-        for (let i = 0; i < live; i++) {
-          x[i] *= s;
-          y[i] *= s;
-          px[i] *= s;
-          py[i] *= s;
-        }
+        rescale(particles, live, next / k);
         k = next;
         rockData[ROCK_FLOATS] = k;
       }
-      // Water that left over the weir last step (marked offscreen) joins the queue at the inlet:
-      // swap it out past the live particles.
-      for (let i = 0; i < live; ) {
-        if (x[i] < -1e8) {
-          live--;
-          for (const a of all) a[i] = a[live];
-        } else i++;
-      }
-      // More water wanted: drop it in as an evenly spaced block over the scene, never on top of
-      // other particles. Less: just stop simulating the extra.
-      let total = Atomics.load(ctl, C.TOTAL);
-      if (count > total) {
-        live = addBlock(live, count - total, k);
-        total = count;
-      } else if (count < total) {
-        total = count;
-        live = Math.min(live, count);
-      }
-      // Queued water re-enters on a column of evenly spaced slots, only as fast as the river carries
-      // it away. Dropping it in at random spots is what used to boil the inlet into spray.
-      const g0 = geometry(k);
-      const rows = Math.max(1, Math.floor((60 * k) / SPACING));
-      inletDue += (rows * INLET_SPEED) / SPACING;
-      while (inletDue >= 1 && live < total) {
-        inletDue--;
-        const i = live++;
-        x[i] = 4 * k + (Math.random() - 0.5) * 0.2;
-        y[i] = Math.min(g0.shelf(0) - SPACING, 60 * k + (inletSlot++ % rows) * SPACING);
-        vx[i] = INLET_SPEED;
-        vy[i] = 0;
-        px[i] = x[i];
-        py[i] = y[i];
-      }
-      if (inletDue > rows) inletDue = rows; // the queue is empty: don't bank releases
+      live = admit(particles, live, count, k, inlet);
       Atomics.store(ctl, C.LIVE, live);
-      Atomics.store(ctl, C.TOTAL, total);
+      Atomics.store(ctl, C.TOTAL, inlet.total);
       Atomics.store(ctl, C.PAIRS, 0);
     }
     barrier();
@@ -286,11 +257,12 @@ export function run(b: Buffers, index: number): void {
     for (let i = lo; i < hi; i++) {
       x[i] += ddx[i];
       y[i] += ddy[i];
-      collide(i, g, rocks, k);
-      vx[i] = (x[i] - px[i]) * 0.998;
-      vy[i] = (y[i] - py[i]) * 0.998;
-      clampSpeed(vx, vy, i);
-      if (x[i] > g.WORLD_W + 10 || y[i] > g.WORLD_H + 40) x[i] = -1e9; // joins the inlet queue next step
+      collide(particles, i, g, rocks, k); // past the weir, it's marked GONE and queues next step
+      if (x[i] !== GONE) {
+        vx[i] = (x[i] - px[i]) * 0.998;
+        vy[i] = (y[i] - py[i]) * 0.998;
+        clampSpeed(vx, vy, i);
+      }
       const o = back + i * SNAP_FLOATS;
       snaps[o] = px[i];
       snaps[o + 1] = py[i];
@@ -316,65 +288,5 @@ export function run(b: Buffers, index: number): void {
         // spin
       }
     }
-  }
-
-  /** Places n new particles on a lattice from the top of the scene down, above the ground. */
-  function addBlock(live: number, n: number, k: number): number {
-    const g = geometry(k);
-    let placed = 0;
-    for (let row = 0; placed < n && row < 10_000; row++) {
-      const py0 = 10 * k + row * SPACING;
-      if (py0 > g.FLOOR - SPACING) break;
-      for (let qx = SPACING + (row % 2) * SPACING * 0.5; qx < g.WEIR_X - SPACING && placed < n; qx += SPACING) {
-        const ground = qx < g.LIP_X ? g.shelf(qx) : g.FLOOR;
-        if (py0 > ground - SPACING) continue;
-        const i = live + placed++;
-        x[i] = qx;
-        y[i] = py0;
-        vx[i] = 0;
-        vy[i] = 0;
-        px[i] = qx;
-        py[i] = py0;
-      }
-    }
-    return live + placed;
-  }
-
-  function collide(i: number, g: ReturnType<typeof geometry>, rocks: Rock[], k: number): void {
-    let qx = x[i];
-    let qy = y[i];
-    if (qx < 2) qx = 2;
-    if (qy > g.FLOOR) qy = g.FLOOR;
-    if (qy < -200) qy = -200;
-    if (qx < g.LIP_X) {
-      const top = g.shelf(qx);
-      if (qy > top) {
-        if (g.LIP_X - qx < qy - top) qx = g.LIP_X;
-        else qy = top;
-      }
-    }
-    if (qx > g.WEIR_X && qx < g.WEIR_X + g.WEIR_W && qy > g.WEIR_TOP) {
-      const dLeft = qx - g.WEIR_X;
-      const dRight = g.WEIR_X + g.WEIR_W - qx;
-      const dTop = qy - g.WEIR_TOP;
-      if (dTop < dLeft && dTop < dRight) qy = g.WEIR_TOP;
-      else if (dLeft < dRight) qx = g.WEIR_X;
-      else qx = g.WEIR_X + g.WEIR_W;
-    }
-    for (const r of rocks) {
-      const rx = r.x * k;
-      const ry = r.y * k;
-      const rr = r.r * k;
-      const dx = qx - rx;
-      const dy = qy - ry;
-      const d2 = dx * dx + dy * dy;
-      if (d2 < rr * rr) {
-        const d = Math.sqrt(d2) || 1;
-        qx = rx + (dx / d) * rr;
-        qy = ry + (dy / d) * rr;
-      }
-    }
-    x[i] = qx;
-    y[i] = qy;
   }
 }

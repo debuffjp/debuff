@@ -5,7 +5,7 @@
 // sprites() call, coloured by which galaxy they started in and how far from its core.
 
 import { PALETTES, ramp } from "./palettes.ts";
-import type { Camera } from "./waves.ts";
+import { type Camera, project, view } from "./project3d.ts";
 
 const MAX_STARS = 1_000_000;
 const EYE = 14;
@@ -145,11 +145,7 @@ export function step(
   const cmy = (A.y * A.m + B.y * B.m) / (A.m + B.m);
   const cmz = (A.z * A.m + B.z * B.m) / (A.m + B.m);
 
-  const cy = Math.cos(camera.yaw);
-  const sy = Math.sin(camera.yaw);
-  const cp = Math.cos(camera.pitch);
-  const sp = Math.sin(camera.pitch);
-  const unit = Math.min(W, H) * 0.2;
+  const v3 = view(camera, W, H, Math.min(W, H) * 0.2, EYE);
   const size = 0.32 * dpr;
   for (let i = 0; i < count; i++) {
     let x = px[i];
@@ -183,18 +179,8 @@ export function step(
     px[i] = x;
     py[i] = y;
     pz[i] = z;
-    // Project around the centre of mass, the orbit plane lying flat.
-    const X = x - cmx;
-    const Y = y - cmy;
-    const Z = z - cmz;
-    const rx = X * cy - Y * sy;
-    const ry = X * sy + Y * cy;
-    const up = Z * cp - ry * sp;
-    const depth = ry * cp + Z * sp;
-    const f = EYE / (EYE - depth);
-    positions[i * 2] = W / 2 + rx * f * unit;
-    positions[i * 2 + 1] = H / 2 - up * f * unit;
-    scales[i] = size * f;
+    // Project around the centre of mass, so the pair stays centred.
+    project(v3, positions, scales, i, x - cmx, y - cmy, z - cmz, size);
   }
   timing.sim += (performance.now() - t0 - timing.sim) * 0.05;
   return count;
