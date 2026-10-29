@@ -11,7 +11,7 @@ const GRAVITY = 0.12; // world units per step²
 export const MAX_FLUID = 200_000;
 // The scene is laid out for BASE particles. More would overfill the basin and blow the fluid apart,
 // so the whole scene grows by k = sqrt(count / BASE) instead, keeping the water at the same density.
-const BASE = 14_000;
+export const BASE = 6_000; // about what the k = 1 scene holds at rest
 const MAX_K = Math.sqrt(MAX_FLUID / BASE);
 
 /** Scene geometry in world units at scale k. Rocks are kept in k = 1 units and scaled here too. */
