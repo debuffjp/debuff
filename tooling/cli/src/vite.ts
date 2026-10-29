@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { InlineConfig, ViteDevServer } from "vite";
 import { loadConfig, type ResolvedConfig } from "./config.js";
+import { isolationHeaders } from "./isolation.js";
 import { debuff } from "./vite-plugin.js";
 
 const VITE_CONFIG_FILES = ["vite.config.ts", "vite.config.mts", "vite.config.js", "vite.config.mjs"];
@@ -15,6 +16,7 @@ export async function viteConfig(
 ): Promise<InlineConfig> {
   const resolved = config ?? (await loadConfig(root));
   const hasViteConfig = VITE_CONFIG_FILES.some((f) => existsSync(join(root, f)));
+  const headers = resolved.isolation ? isolationHeaders(resolved.isolation.embed) : undefined;
   return {
     root,
     // Relative asset URLs, so a build works from any folder (itch.io, GitHub Pages, a /play/ subpath).
@@ -26,6 +28,10 @@ export async function viteConfig(
       typecheck: resolved.typecheck,
     }),
     ...extra,
+    // Merged after `extra`, which may set its own server options (port, host).
+    ...(headers
+      ? { server: { ...extra.server, headers: { ...headers, ...extra.server?.headers } }, preview: { ...extra.preview, headers } }
+      : {}),
   };
 }
 

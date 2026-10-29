@@ -93,6 +93,15 @@ cli
       if (o.json) console.error(`launch: ${w}`);
       else p.log.warn(`launch: ${w}`);
     }
+    if (config.isolation) {
+      const { writeHeadersFile } = await import("./isolation.js");
+      const file = writeHeadersFile(join(root, "dist"), config.isolation.embed);
+      const note = file
+        ? "isolation: wrote dist/_headers (Cloudflare, Netlify); other hosts need their own headers"
+        : "isolation: your dist/_headers already sets Cross-Origin-Embedder-Policy, left as is";
+      if (o.json) console.error(note);
+      else p.log.info(note);
+    }
     const code = report(root, o.json ?? false, o.acceptSaves ?? false);
     if (code === 0) {
       const { reportBuild } = await import("./telemetry.js");
@@ -113,7 +122,8 @@ cli
       return 1;
     }
     const root = rootOf(o);
-    const result = ship(root, known, (await loadConfig(root)).launch);
+    const config = await loadConfig(root);
+    const result = ship(root, known, config.launch, config.isolation !== null);
     const failed = shipFailed(result);
     if (o.json) {
       emit({ ...result, ok: !failed });
