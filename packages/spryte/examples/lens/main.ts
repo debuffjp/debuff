@@ -1,19 +1,24 @@
 // NASA's recorded meteorite landings, every one a dot that flies between a world map, a histogram
-// of mass and a timeline. A lens highlights the dots under it and summarises them. All the dots
+// of mass, a timeline and a year-by-year replay of the map. A lens highlights the dots under it and summarises them. All the dots
 // are drawn with one sprites() call, and the header switches to the Canvas 2D fallback or
 // multiplies the data so you can see where each renderer runs out.
 // Data: NASA Open Data Portal, from The Meteoritical Society (see convert.mjs).
 import { createRenderer, type Draw, ring } from "spryte";
 
-type View = "map" | "mass" | "year";
+type View = "map" | "replay" | "mass" | "year";
 const FELL = 0xffc94d;
 const FOUND = 0x5ab4ff;
 const MIN_LOG = -2; // 0.01 g
 const MAX_LOG = 8; // 100 t
 const FIRST_YEAR = 1900; // earlier years share the first column
 const LAST_YEAR = 2013;
+const REPLAY_FROM = 1880;
+const REPLAY_YEARS_PER_SECOND = 9;
+const REPLAY_HOLD = 2.5; // seconds on the finished map before the replay loops
 const CAPTIONS: Record<View, string> = {
-  map: "Where they landed. The dense patches in Antarctica, the Sahara and Oman are search areas, not places that get hit more.",
+  map: "Where they were found. Over two thirds are from Antarctica, piled onto a few dozen collection sites along the bottom edge: aim the lens there.",
+  replay:
+    "Year by year since 1880. Antarctica fills in from the 1970s, the Sahara in the 1990s and Oman in the 2000s, as searches reached each one.",
   mass: "How heavy they are, from 0.01 g to 60 t, on a log scale. Falls (yellow) skew heavier: someone has to see them.",
   year: "When they were recorded. Most arrived after 1975, when expeditions started combing the Antarctic ice.",
 };
@@ -63,6 +68,7 @@ for (let i = 0; i < CAP; i++) {
 const positions = new Float32Array(CAP * 2);
 const targets = new Float32Array(CAP * 2);
 const colors = new Uint32Array(CAP);
+const scales = new Float32Array(CAP).fill(0.5);
 const BINS = 57;
 const counts = new Uint32Array(BINS);
 const filled = new Uint32Array(BINS);
@@ -86,6 +92,7 @@ let n = BASE;
 let auto = true; // views cycle and the lens drifts until someone takes over
 let lastInput = -1e9;
 let viewSince = 0;
+let replayYear = REPLAY_FROM;
 const lens = { x: 0, y: 0, r: 60, on: false };
 
 const stage = document.getElementById("stage") as HTMLDivElement;
@@ -111,6 +118,7 @@ function press(group: string, attr: string, value: string): void {
 function setView(v: View, now: number): void {
   view = v;
   viewSince = now;
+  replayYear = REPLAY_FROM;
   caption.textContent = CAPTIONS[v];
   press("views", "view", v);
   layoutKey = "";
@@ -170,7 +178,7 @@ stage.addEventListener(
   { passive: false },
 );
 addEventListener("keydown", (e) => {
-  const v = ({ "1": "map", "2": "mass", "3": "year" } as Record<string, View>)[e.key];
+  const v = ({ "1": "map", "2": "replay", "3": "mass", "4": "year" } as Record<string, View>)[e.key];
   if (v) {
     takeOver();
     setView(v, performance.now());
@@ -186,7 +194,7 @@ function layout(w: number, h: number): void {
   layoutKey = key;
   const pad = 16;
   const bottom = 22; // room for axis labels
-  if (view === "map") {
+  if (view === "map" || view === "replay") {
     // An equirectangular map keeps its 2:1 shape.
     const mw = Math.min(w - pad * 2, (h - pad - bottom) * 2);
     box.w = mw;
@@ -238,7 +246,7 @@ function axes(): void {
   const font = "11px sans-serif";
   const label = { font, color: "#777", align: "center" as const };
   const y = box.y + box.h + 6;
-  if (view === "map") {
+  if (view === "map" || view === "replay") {
     for (let d = -150; d <= 150; d += 30) {
       const x = box.x + ((d + 180) / 360) * box.w;
       draw.rect(x, box.y, 1, box.h, "#1c1c1c");
@@ -276,13 +284,24 @@ function frame(now: number): void {
 
   if (!auto && now - lastInput > 12000) auto = true;
   if (auto) {
-    if (now - viewSince > 5000) setView(view === "map" ? "mass" : view === "mass" ? "year" : "map", now);
+    const replayLength = ((LAST_YEAR + 1 - REPLAY_FROM) / REPLAY_YEARS_PER_SECOND + REPLAY_HOLD) * 1000;
+    if (now - viewSince > (view === "replay" ? replayLength : 5000)) {
+      const next: Record<View, View> = { map: "replay", replay: "mass", mass: "year", year: "map" };
+      setView(next[view], now);
+    }
     const s = now / 1000;
     lens.x = w * (0.5 + 0.3 * Math.sin(s * 0.37));
     lens.y = h * (0.5 + 0.25 * Math.sin(s * 0.61 + 1));
     lens.on = true;
   }
   layout(w, h);
+  const replaying = view === "replay";
+  if (replaying) {
+    replayYear += dt * REPLAY_YEARS_PER_SECOND;
+    if (replayYear > LAST_YEAR + 1 + REPLAY_HOLD * REPLAY_YEARS_PER_SECOND) replayYear = REPLAY_FROM;
+  }
+  const shownYear = Math.min(replayYear, LAST_YEAR + 1);
+  let shown = 0;
 
   // Every point eases toward its target; the lens tallies what it covers and lights it up.
   const r2 = lens.r * lens.r;
@@ -297,6 +316,19 @@ function frame(now: number): void {
     const y = positions[j + 1] + (targets[j + 1] - positions[j + 1]) * k;
     positions[j] = x;
     positions[j + 1] = y;
+    let scale = 0.5;
+    if (replaying) {
+      // Not recorded yet: hidden. Just recorded: a bright pop that settles over about two years.
+      const age = shownYear - year[i % BASE];
+      if (age < 0) {
+        colors[i] = 0;
+        scales[i] = 0;
+        continue;
+      }
+      shown++;
+      if (age < 2) scale = 0.5 + (1 - age / 2) * 1.5;
+    }
+    scales[i] = scale;
     const dx = x - lens.x;
     const dy = y - lens.y;
     if (lens.on && dx * dx + dy * dy < r2) {
@@ -304,12 +336,20 @@ function frame(now: number): void {
       if (fell[i % BASE]) underFell++;
       massBins[Math.floor(mass[i] * 100)]++;
       colors[i] = ((base[i] << 8) | 0xff) >>> 0;
-    } else colors[i] = ((base[i] << 8) | dim) >>> 0;
+    } else colors[i] = ((base[i] << 8) | (scale > 0.5 ? 0xff : dim)) >>> 0;
   }
 
   draw.begin("#111", w, h, dpr);
   axes();
-  draw.sprites(dot, positions, n, { scaleX: 0.5, scaleY: 0.5 }, { color: colors });
+  draw.sprites(dot, positions, n, undefined, { color: colors, scale: scales });
+  if (replaying) {
+    const y = Math.floor(shownYear);
+    draw.text(String(Math.min(y, LAST_YEAR)), box.x + 8, box.y + 6, { font: "bold 28px sans-serif", color: "#ddd" });
+    draw.text(`${shown.toLocaleString()} recorded`, box.x + 8, box.y + 40, { font: "12px sans-serif", color: "#888" });
+    const t = (shownYear - REPLAY_FROM) / (LAST_YEAR + 1 - REPLAY_FROM);
+    draw.rect(box.x, box.y + box.h + 8, box.w, 2, "#2a2a2a");
+    draw.rect(box.x, box.y + box.h + 8, box.w * Math.max(0, t), 2, "#999");
+  }
   if (lens.on) ring(draw, lens.x, lens.y, lens.r, 1.5, "#ffffffaa");
   draw.end();
   work += (performance.now() - t0 - work) * 0.05;
