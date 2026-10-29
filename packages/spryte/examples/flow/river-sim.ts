@@ -2,12 +2,13 @@
 // ?worker=0, on the main thread. Double density relaxation (Clavet et al. 2005) over a uniform grid
 // rebuilt every step with a counting sort; particle arrays are reordered into cell order so the
 // neighbour loops read memory in order, and each particle's neighbours are found once per step.
+// The scene, the inlet and collisions are shared with the multi-worker version (river-parallel.ts).
 
 export const H = 9; // interaction radius in world units
-const REST = 4.2; // rest density
-const STIFF = 0.025;
-const STIFF_NEAR = 0.15;
-const GRAVITY = 0.12; // world units per step²
+export const REST = 4.2; // rest density
+export const STIFF = 0.025;
+export const STIFF_NEAR = 0.15;
+export const GRAVITY = 0.12; // world units per step²
 export const MAX_FLUID = 200_000;
 // No particle moves more than this per step. The falls drop far enough to hit the pool at almost a
 // whole interaction radius per step, which crushed particles together on impact and blasted them
@@ -25,7 +26,8 @@ export function clampSpeed(vxs: Float32Array, vys: Float32Array, i: number): voi
 // The scene is laid out for BASE particles. More would overfill the basin and blow the fluid apart,
 // so the whole scene grows by k = sqrt(count / BASE) instead, keeping the water at the same density.
 export const BASE = 6_000; // about what the k = 1 scene holds at rest
-const MAX_K = Math.sqrt(MAX_FLUID / BASE);
+export const MAX_K = Math.sqrt(MAX_FLUID / BASE);
+export const MAX_CELLS = (Math.ceil((720 * MAX_K) / H) + 3) * (Math.ceil((400 * MAX_K) / H) + 3);
 
 /** Scene geometry in world units at scale k. Rocks are kept in k = 1 units and scaled here too. */
 export function geometry(k: number) {
@@ -43,6 +45,7 @@ export function geometry(k: number) {
     shelf: (x: number): number => (150 + (x / k) * 0.06) * k,
   };
 }
+export type Geometry = ReturnType<typeof geometry>;
 export const scaleFor = (count: number): number => Math.max(1, Math.sqrt(Math.min(count, MAX_FLUID) / BASE));
 
 export interface Rock {
@@ -51,26 +54,167 @@ export interface Rock {
   r: number;
 }
 
-export const x = new Float32Array(MAX_FLUID);
-export const y = new Float32Array(MAX_FLUID);
-export const vx = new Float32Array(MAX_FLUID);
-export const vy = new Float32Array(MAX_FLUID);
-export const prevX = new Float32Array(MAX_FLUID);
-export const prevY = new Float32Array(MAX_FLUID);
+/** The particle arrays both versions work on. */
+export interface Particles {
+  x: Float32Array;
+  y: Float32Array;
+  vx: Float32Array;
+  vy: Float32Array;
+  px: Float32Array; // position at the start of the step
+  py: Float32Array;
+}
+const fieldsOf = (p: Particles) => [p.x, p.y, p.vx, p.vy, p.px, p.py];
+
+// Water that leaves over the weir is marked with this x and waits in a queue at the inlet.
+export const GONE = -1e9;
+// Lattice spacing for new and re-entering water (near the rest spacing), and the inlet speed.
+const SPACING = H * 0.4;
+const INLET_SPEED = 1.8;
+
+/** The inlet's state between steps: queued releases owed, the next slot, water in the scene. */
+export interface Inlet {
+  due: number;
+  slot: number;
+  total: number;
+}
+
+/**
+ * Before a step: retire water marked GONE into the queue, add or drop water to match `count`, and
+ * let queued water back in on evenly spaced inlet slots at the rate the river carries it away.
+ * Random drop points used to land on other particles and boil the inlet into spray.
+ * Returns the new number of live particles.
+ */
+export function admit(p: Particles, live: number, count: number, k: number, inlet: Inlet): number {
+  const all = fieldsOf(p);
+  for (let i = 0; i < live; ) {
+    if (p.x[i] < GONE / 2) {
+      live--;
+      for (const a of all) a[i] = a[live];
+    } else i++;
+  }
+  if (count > inlet.total) {
+    live = addBlock(p, live, count - inlet.total, k);
+    inlet.total = count;
+  } else if (count < inlet.total) {
+    inlet.total = count;
+    live = Math.min(live, count);
+  }
+  const g = geometry(k);
+  const rows = Math.max(1, Math.floor((60 * k) / SPACING));
+  inlet.due += (rows * INLET_SPEED) / SPACING;
+  while (inlet.due >= 1 && live < inlet.total) {
+    inlet.due--;
+    const i = live++;
+    p.x[i] = 4 * k + (Math.random() - 0.5) * 0.2;
+    p.y[i] = Math.min(g.shelf(0) - SPACING, 60 * k + (inlet.slot++ % rows) * SPACING);
+    p.vx[i] = INLET_SPEED;
+    p.vy[i] = 0;
+    p.px[i] = p.x[i];
+    p.py[i] = p.y[i];
+  }
+  if (inlet.due > rows) inlet.due = rows; // the queue is empty: don't bank releases
+  return live;
+}
+
+/** Places n new particles on a lattice from the top of the scene down, above the ground. */
+function addBlock(p: Particles, live: number, n: number, k: number): number {
+  const g = geometry(k);
+  let placed = 0;
+  for (let row = 0; placed < n; row++) {
+    const y = 10 * k + row * SPACING;
+    if (y > g.FLOOR - SPACING) break;
+    for (let x = SPACING + (row % 2) * SPACING * 0.5; x < g.WEIR_X - SPACING && placed < n; x += SPACING) {
+      const ground = x < g.LIP_X ? g.shelf(x) : g.FLOOR;
+      if (y > ground - SPACING) continue;
+      const i = live + placed++;
+      p.x[i] = x;
+      p.y[i] = y;
+      p.vx[i] = 0;
+      p.vy[i] = 0;
+      p.px[i] = x;
+      p.py[i] = y;
+    }
+  }
+  return live + placed;
+}
+
+/** Pushes particle i out of the walls, shelf, weir and rocks, and marks it GONE once past the weir. */
+export function collide(p: Particles, i: number, g: Geometry, rocks: Rock[], k: number): void {
+  let qx = p.x[i];
+  let qy = p.y[i];
+  if (qx > g.WORLD_W + 10 || qy > g.WORLD_H + 40) {
+    p.x[i] = GONE;
+    return;
+  }
+  if (qx < 2) qx = 2;
+  if (qy > g.FLOOR) qy = g.FLOOR;
+  if (qy < -200) qy = -200;
+  if (qx < g.LIP_X) {
+    const top = g.shelf(qx);
+    if (qy > top) {
+      if (g.LIP_X - qx < qy - top) qx = g.LIP_X;
+      else qy = top;
+    }
+  }
+  if (qx > g.WEIR_X && qx < g.WEIR_X + g.WEIR_W && qy > g.WEIR_TOP) {
+    const dLeft = qx - g.WEIR_X;
+    const dRight = g.WEIR_X + g.WEIR_W - qx;
+    const dTop = qy - g.WEIR_TOP;
+    if (dTop < dLeft && dTop < dRight) qy = g.WEIR_TOP;
+    else if (dLeft < dRight) qx = g.WEIR_X;
+    else qx = g.WEIR_X + g.WEIR_W;
+  }
+  for (const r of rocks) {
+    const rx = r.x * k;
+    const ry = r.y * k;
+    const rr = r.r * k;
+    const dx = qx - rx;
+    const dy = qy - ry;
+    const d2 = dx * dx + dy * dy;
+    if (d2 < rr * rr) {
+      const d = Math.sqrt(d2) || 1;
+      qx = rx + (dx / d) * rr;
+      qy = ry + (dy / d) * rr;
+    }
+  }
+  p.x[i] = qx;
+  p.y[i] = qy;
+}
+
+/** Rescales live particles when the scene grows or shrinks. */
+export function rescale(p: Particles, live: number, f: number): void {
+  for (let i = 0; i < live; i++) {
+    p.x[i] *= f;
+    p.y[i] *= f;
+    p.px[i] *= f;
+    p.py[i] *= f;
+  }
+}
+
+// Single-thread state, used by river-worker.ts and the ?worker=0 path.
+export const particles: Particles = {
+  x: new Float32Array(MAX_FLUID),
+  y: new Float32Array(MAX_FLUID),
+  vx: new Float32Array(MAX_FLUID),
+  vy: new Float32Array(MAX_FLUID),
+  px: new Float32Array(MAX_FLUID),
+  py: new Float32Array(MAX_FLUID),
+};
+export const { x, y, vx, vy, px: prevX, py: prevY } = particles;
 export const state = { k: 1, live: 0, pairs: 0, reorder: true };
+const inlet: Inlet = { due: 0, slot: 0, total: 0 };
 let g = geometry(1);
 
 let GW = Math.ceil(g.WORLD_W / H) + 2;
 let GH = Math.ceil(g.WORLD_H / H) + 2;
 let CELLS = GW * GH;
-const MAX_CELLS = (Math.ceil((720 * MAX_K) / H) + 3) * (Math.ceil((400 * MAX_K) / H) + 3);
 const cellStart = new Int32Array(MAX_CELLS + 1);
 const cursor = new Int32Array(MAX_CELLS + 1);
 const cellOf = new Int32Array(MAX_FLUID);
 const sorted = new Int32Array(MAX_FLUID);
 const scratch = new Float32Array(MAX_FLUID);
 const scratchCells = new Int32Array(MAX_FLUID);
-const fields = [x, y, vx, vy, prevX, prevY];
+const fields = fieldsOf(particles);
 const MAX_NEIGHBOURS = 96;
 const nbJ = new Int32Array(MAX_NEIGHBOURS);
 const nbQ = new Float32Array(MAX_NEIGHBOURS);
@@ -79,71 +223,12 @@ const nbY = new Float32Array(MAX_NEIGHBOURS);
 
 function setScale(next: number): void {
   if (next === state.k) return;
-  const f = next / state.k;
-  for (let i = 0; i < state.live; i++) {
-    x[i] *= f;
-    y[i] *= f;
-    prevX[i] *= f;
-    prevY[i] *= f;
-  }
+  rescale(particles, state.live, next / state.k);
   state.k = next;
   g = geometry(next);
   GW = Math.ceil(g.WORLD_W / H) + 2;
   GH = Math.ceil(g.WORLD_H / H) + 2;
   CELLS = GW * GH;
-}
-
-function limit(i: number): void {
-  clampSpeed(vx, vy, i);
-}
-
-function emit(i: number): void {
-  const k = state.k;
-  x[i] = (6 + Math.random() * 30) * k;
-  y[i] = (60 + Math.random() * 60) * k;
-  vx[i] = 1.6 + Math.random() * 0.4;
-  vy[i] = 0;
-  prevX[i] = x[i];
-  prevY[i] = y[i];
-}
-
-function collide(i: number, rocks: Rock[]): void {
-  const k = state.k;
-  let px = x[i];
-  let py = y[i];
-  if (px < 2) px = 2;
-  if (py > g.FLOOR) py = g.FLOOR;
-  if (py < -200) py = -200;
-  if (px < g.LIP_X) {
-    const top = g.shelf(px);
-    if (py > top) {
-      if (g.LIP_X - px < py - top) px = g.LIP_X;
-      else py = top;
-    }
-  }
-  if (px > g.WEIR_X && px < g.WEIR_X + g.WEIR_W && py > g.WEIR_TOP) {
-    const dLeft = px - g.WEIR_X;
-    const dRight = g.WEIR_X + g.WEIR_W - px;
-    const dTop = py - g.WEIR_TOP;
-    if (dTop < dLeft && dTop < dRight) py = g.WEIR_TOP;
-    else if (dLeft < dRight) px = g.WEIR_X;
-    else px = g.WEIR_X + g.WEIR_W;
-  }
-  for (const r of rocks) {
-    const rx = r.x * k;
-    const ry = r.y * k;
-    const rr = r.r * k;
-    const dx = px - rx;
-    const dy = py - ry;
-    const d2 = dx * dx + dy * dy;
-    if (d2 < rr * rr) {
-      const d = Math.sqrt(d2) || 1;
-      px = rx + (dx / d) * rr;
-      py = ry + (dy / d) * rr;
-    }
-  }
-  x[i] = px;
-  y[i] = py;
 }
 
 function buildGrid(n: number): void {
@@ -224,13 +309,11 @@ function relax(n: number): number {
   return pairs;
 }
 
-/** One simulation step: pour, integrate, relax, collide. */
+/** One simulation step: admit water, integrate, relax, collide. */
 export function tick(count: number, rocks: Rock[]): void {
   const n = Math.min(count, MAX_FLUID);
   setScale(scaleFor(n));
-  const pour = Math.max(0, Math.min(n - state.live, Math.round(400 * state.k * state.k)));
-  for (let p = 0; p < pour; p++) emit(state.live++);
-  if (state.live > n) state.live = n;
+  state.live = admit(particles, state.live, n, state.k, inlet);
   const live = state.live;
   for (let i = 0; i < live; i++) {
     vy[i] += GRAVITY;
@@ -242,10 +325,10 @@ export function tick(count: number, rocks: Rock[]): void {
   buildGrid(live);
   state.pairs = relax(live);
   for (let i = 0; i < live; i++) {
-    collide(i, rocks);
+    collide(particles, i, g, rocks, state.k);
+    if (x[i] === GONE) continue;
     vx[i] = (x[i] - prevX[i]) * 0.998;
     vy[i] = (y[i] - prevY[i]) * 0.998;
-    limit(i);
-    if (x[i] > g.WORLD_W + 10 || y[i] > g.WORLD_H + 40) emit(i);
+    clampSpeed(vx, vy, i);
   }
 }
