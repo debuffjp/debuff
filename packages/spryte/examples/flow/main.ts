@@ -308,7 +308,8 @@ function frame(now: number): void {
     () => {
       if (!fresh) draw.rect(0, 0, W, H, mode === "3d" ? FADE_3D : FADE);
       draw.blend("add");
-      draw.sprites(dot, pts, n, undefined, each);
+      // Additive dots overexpose to white as they pile up, so dim each one as the count grows.
+      draw.sprites(dot, pts, n, { alpha: Math.min(1, Math.sqrt(60_000 / n)) }, each);
       draw.blend("normal");
     },
     fresh ? BG : null,
@@ -324,6 +325,11 @@ function frame(now: number): void {
   requestAnimationFrame(frame);
 }
 
+// Flat mode's field, sampled on a grid this many CSS pixels apart (see step2d).
+const FIELD_CELL = 8;
+let fieldX = new Float32Array(0);
+let fieldY = new Float32Array(0);
+
 function step2d(dt: number, W: number, H: number, dpr: number, now: number): void {
   // The field: an angle at every point from a few slow, overlapping waves, so it bends and drifts.
   const t = now / 1000 + seed;
@@ -332,25 +338,59 @@ function step2d(dt: number, W: number, H: number, dpr: number, now: number): voi
   for (const s of swirls) s.age += dt;
   while (swirls.length && (swirls[0]?.age ?? 0) > 1.5) swirls.shift();
   const swirlR = 140 * dpr;
+  // The field changes slowly across the screen, so work it out (stirring included) on a coarse grid
+  // once per frame, and have each particle read it back with a bilinear lookup: a handful of
+  // multiplies per particle instead of five trig calls and a loop over every swirl.
+  const cell = FIELD_CELL * dpr;
+  const gw = Math.ceil(W / cell) + 2;
+  const gh = Math.ceil(H / cell) + 2;
+  if (fieldX.length < gw * gh) {
+    fieldX = new Float32Array(gw * gh);
+    fieldY = new Float32Array(gw * gh);
+  }
+  for (let gy = 0; gy < gh; gy++) {
+    const y = gy * cell;
+    const sy = y * scale;
+    for (let gx = 0; gx < gw; gx++) {
+      const x = gx * cell;
+      const sx = x * scale;
+      const a =
+        Math.sin(sx * 1.7 + t * 0.21) * 1.6 + Math.cos(sy * 2.3 - t * 0.17) * 1.6 + Math.sin((sx + sy) * 3.1 + seed + t * 0.11) * 1.2;
+      let vx = Math.cos(a) * speed;
+      let vy = Math.sin(a) * speed;
+      for (const s of swirls) {
+        const dx = x - s.x;
+        const dy = y - s.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < swirlR * swirlR) {
+          const f = (1 - d2 / (swirlR * swirlR)) * (1 - s.age / 1.5);
+          vx += (s.dx * 18 - dy * 2) * f;
+          vy += (s.dy * 18 + dx * 2) * f;
+        }
+      }
+      fieldX[gy * gw + gx] = vx;
+      fieldY[gy * gw + gx] = vy;
+    }
+  }
+  const inv = 1 / cell;
   for (let i = 0; i < n; i++) {
     const j = i * 2;
     let x = positions[j];
     let y = positions[j + 1];
-    const sx = x * scale;
-    const sy = y * scale;
-    const a = Math.sin(sx * 1.7 + t * 0.21) * 1.6 + Math.cos(sy * 2.3 - t * 0.17) * 1.6 + Math.sin((sx + sy) * 3.1 + seed + t * 0.11) * 1.2;
-    let vx = Math.cos(a) * speed;
-    let vy = Math.sin(a) * speed;
-    for (const s of swirls) {
-      const dx = x - s.x;
-      const dy = y - s.y;
-      const d2 = dx * dx + dy * dy;
-      if (d2 < swirlR * swirlR) {
-        const f = (1 - d2 / (swirlR * swirlR)) * (1 - s.age / 1.5);
-        vx += (s.dx * 18 - dy * 2) * f;
-        vy += (s.dy * 18 + dx * 2) * f;
-      }
-    }
+    const fx = x * inv;
+    const fy = y * inv;
+    const cx = Math.min(gw - 2, Math.max(0, fx | 0));
+    const cy = Math.min(gh - 2, Math.max(0, fy | 0));
+    const ux = fx - cx;
+    const uy = fy - cy;
+    const c0 = cy * gw + cx;
+    const c1 = c0 + gw;
+    const top = fieldX[c0] + (fieldX[c0 + 1] - fieldX[c0]) * ux;
+    const bottom = fieldX[c1] + (fieldX[c1 + 1] - fieldX[c1]) * ux;
+    const vx = top + (bottom - top) * uy;
+    const topY = fieldY[c0] + (fieldY[c0 + 1] - fieldY[c0]) * ux;
+    const bottomY = fieldY[c1] + (fieldY[c1 + 1] - fieldY[c1]) * ux;
+    const vy = topY + (bottomY - topY) * uy;
     x += vx * dt;
     y += vy * dt;
     life[i] -= dt;
@@ -362,6 +402,12 @@ function step2d(dt: number, W: number, H: number, dpr: number, now: number): voi
     }
   }
 }
+
+// Terrain height and flow, sampled on a grid (see step3d).
+const TERRAIN = 192;
+const terrainH = new Float32Array((TERRAIN + 1) ** 2);
+const terrainU = new Float32Array((TERRAIN + 1) ** 2);
+const terrainV = new Float32Array((TERRAIN + 1) ** 2);
 
 function step3d(dt: number, W: number, H: number, dpr: number, now: number): void {
   // Height: three overlapping waves with phases from the seed, so "New field" makes new terrain.
@@ -382,28 +428,53 @@ function step3d(dt: number, W: number, H: number, dpr: number, now: number): voi
   const rise = 1.4; // world units from the lowest point to the highest
   const unit = Math.min(W, H) * 0.12; // pixels per world unit at the centre
   const eye = 10; // camera distance in world units
+  // Height and flow are smooth, so they're worked out on a TERRAIN x TERRAIN grid once per frame
+  // (the terrain drifts) and each particle reads them back bilinearly instead of eight trig calls.
+  for (let gv = 0; gv <= TERRAIN; gv++) {
+    const v = gv / TERRAIN;
+    for (let gu = 0; gu <= TERRAIN; gu++) {
+      const u = gu / TERRAIN;
+      const A = TAU * 2 * u + p1;
+      const B = TAU * v + p2;
+      const C = TAU * (3 * u + 2 * v) + p3 + drift;
+      const D = TAU * (4 * v - u) + p4;
+      const sA = Math.sin(A);
+      const cA = Math.cos(A);
+      const sB = Math.sin(B);
+      const cB = Math.cos(B);
+      const sC = Math.sin(C);
+      const cC = Math.cos(C);
+      const sD = Math.sin(D);
+      const cD = Math.cos(D);
+      const du = TAU * (0.9 * cA * cB + 0.9 * cC + 0.25 * sD);
+      const dv = TAU * (-0.45 * sA * sB + 0.6 * cC - sD);
+      const g = Math.hypot(du, dv) || 1;
+      const c = gv * (TERRAIN + 1) + gu;
+      terrainH[c] = 0.45 * sA * cB + 0.3 * sC + 0.25 * cD; // -1 to 1
+      terrainU[c] = (-dv / g) * speed + du * 0.0004;
+      terrainV[c] = (du / g) * speed + dv * 0.0004;
+    }
+  }
+  const row = TERRAIN + 1;
   for (let i = 0; i < n; i++) {
     const k = i * 2;
     let u = world[k];
     let v = world[k + 1];
-    const A = TAU * 2 * u + p1;
-    const B = TAU * v + p2;
-    const C = TAU * (3 * u + 2 * v) + p3 + drift;
-    const D = TAU * (4 * v - u) + p4;
-    const sA = Math.sin(A);
-    const cA = Math.cos(A);
-    const sB = Math.sin(B);
-    const cB = Math.cos(B);
-    const sC = Math.sin(C);
-    const cC = Math.cos(C);
-    const sD = Math.sin(D);
-    const cD = Math.cos(D);
-    const h = 0.45 * sA * cB + 0.3 * sC + 0.25 * cD; // -1 to 1
-    const du = TAU * (0.9 * cA * cB + 0.9 * cC + 0.25 * sD);
-    const dv = TAU * (-0.45 * sA * sB + 0.6 * cC - sD);
-    const g = Math.hypot(du, dv) || 1;
-    u += ((-dv / g) * speed + du * 0.0004) * dt;
-    v += ((du / g) * speed + dv * 0.0004) * dt;
+    const fu = u * TERRAIN;
+    const fv = v * TERRAIN;
+    const cu = Math.min(TERRAIN - 1, fu | 0);
+    const cv = Math.min(TERRAIN - 1, fv | 0);
+    const au = fu - cu;
+    const av = fv - cv;
+    const c0 = cv * row + cu;
+    const c1 = c0 + row;
+    const w00 = (1 - au) * (1 - av);
+    const w10 = au * (1 - av);
+    const w01 = (1 - au) * av;
+    const w11 = au * av;
+    const h = terrainH[c0] * w00 + terrainH[c0 + 1] * w10 + terrainH[c1] * w01 + terrainH[c1 + 1] * w11;
+    u += (terrainU[c0] * w00 + terrainU[c0 + 1] * w10 + terrainU[c1] * w01 + terrainU[c1 + 1] * w11) * dt;
+    v += (terrainV[c0] * w00 + terrainV[c0 + 1] * w10 + terrainV[c1] * w01 + terrainV[c1 + 1] * w11) * dt;
     life[i] -= dt;
     if (life[i] <= 0 || u < 0 || v < 0 || u >= 1 || v >= 1) {
       spawn3d(i);
