@@ -3,14 +3,52 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>spryte: lens</title>
+    <title>spryte: meteorites</title>
     <style>
-      html, body { margin: 0; height: 100%; background: #111; overscroll-behavior: none; }
-      canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+      html, body { margin: 0; height: 100%; background: #111; color: #ccc; font: 13px/1.4 system-ui, sans-serif; overscroll-behavior: none; }
+      body { display: flex; flex-direction: column; }
+      header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 10px 16px 6px; }
+      h1 { font-size: 15px; margin: 0; color: #eee; font-weight: 600; }
+      .group { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; gap: 4px; align-items: center; }
+      .group span { color: #777; margin-right: 2px; }
+      button { font: inherit; color: #bbb; background: #222; border: 1px solid #333; border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+      button[aria-pressed="true"] { color: #111; background: #ddd; border-color: #ddd; }
+      #caption { padding: 0 16px; color: #999; min-height: 1.4em; }
+      #stats { padding: 0 16px; color: #777; font-variant-numeric: tabular-nums; min-height: 1.4em; }
+      #stage { position: relative; flex: 1; min-height: 0; touch-action: none; cursor: crosshair; }
+      canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+      footer { padding: 4px 16px 8px; color: #555; font-size: 11px; }
+      .fell { color: #ffc94d; }
+      .found { color: #5ab4ff; }
     </style>
   </head>
   <body>
-    <canvas id="c"></canvas>
+    <header>
+      <h1 id="title">meteorites</h1>
+      <fieldset class="group" id="views" aria-label="View">
+        <button type="button" data-view="map">Map</button>
+        <button type="button" data-view="mass">Mass</button>
+        <button type="button" data-view="year">Year</button>
+      </fieldset>
+      <fieldset class="group" id="backends" aria-label="Renderer">
+        <span>renderer</span>
+        <button type="button" data-backend="auto">WebGL2</button>
+        <button type="button" data-backend="2d">Canvas 2D</button>
+      </fieldset>
+      <fieldset class="group" id="copies" aria-label="Copies of the data">
+        <span>points</span>
+        <button type="button" data-copies="1">x1</button>
+        <button type="button" data-copies="4">x4</button>
+        <button type="button" data-copies="8">x8</button>
+      </fieldset>
+    </header>
+    <div id="caption"></div>
+    <div id="stats"></div>
+    <div id="stage"></div>
+    <footer>
+      <span class="fell">●</span> seen falling · <span class="found">●</span> found later · move or drag to aim the lens, scroll to resize ·
+      data: NASA Open Data Portal, from The Meteoritical Society
+    </footer>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>
