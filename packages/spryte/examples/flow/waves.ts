@@ -26,12 +26,21 @@ const WAVES = [
   { dir: 0.05, length: 1.1, amp: 0.05 },
 ].map((w) => {
   const k = TAU / w.length;
-  return { dx: Math.cos(w.dir), dy: Math.sin(w.dir), k, amp: w.amp, omega: Math.sqrt(9.8 * k) * 0.55, q: 0 };
+  return { dx: Math.cos(w.dir), dy: Math.sin(w.dir), k, amp: w.amp, omega: Math.sqrt(9.8 * k) * 0.55, q: 0, lean: 0 };
 });
 {
   const total = WAVES.reduce((s, w) => s + w.k * w.amp, 0);
-  for (const w of WAVES) w.q = 0.95 / total;
+  for (const w of WAVES) {
+    w.q = 0.95 / total;
+    w.lean = w.q * w.amp;
+  }
 }
+// Per-column and per-row sines and cosines for each wave (see the surface loop).
+const MAX_SIDE = Math.ceil(Math.sqrt(MAX_SURFACE));
+const colSin = new Float32Array(4 * MAX_SIDE);
+const colCos = new Float32Array(4 * MAX_SIDE);
+const rowSin = new Float32Array(4 * MAX_SIDE);
+const rowCos = new Float32Array(4 * MAX_SIDE);
 const PEAK = WAVES.reduce((s, w) => s + w.amp, 0);
 
 // Elevation colours, trough to crest; replaced by setPalette().
@@ -216,6 +225,21 @@ export function step(
   const side = Math.floor(Math.sqrt(Math.min(n, MAX_SURFACE)));
   surfaceSide = side;
   let count = 0;
+  // A wave's phase is k·dx·px − ωt (depends only on the column) plus k·dy·py (only on the row), so
+  // the sines and cosines are worked out once per column and once per row, and each point combines
+  // them with sin(A+B) = sA·cB + cA·sB and cos(A+B) = cA·cB − sA·sB: no trig in the inner loop.
+  for (let w = 0; w < WAVES.length; w++) {
+    const wave = WAVES[w];
+    for (let i = 0; i < side; i++) {
+      const p = ((i + 0.5) / side - 0.5) * SIZE;
+      const a = wave.k * wave.dx * p - wave.omega * t;
+      const b = wave.k * wave.dy * p;
+      colSin[w * MAX_SIDE + i] = Math.sin(a);
+      colCos[w * MAX_SIDE + i] = Math.cos(a);
+      rowSin[w * MAX_SIDE + i] = Math.sin(b);
+      rowCos[w * MAX_SIDE + i] = Math.cos(b);
+    }
+  }
   for (let gy = 0; gy < side; gy++) {
     const v = (gy + 0.5) / side;
     const py = (v - 0.5) * SIZE;
@@ -225,12 +249,18 @@ export function step(
       let x = px;
       let y = py;
       let z = 0;
-      for (const w of WAVES) {
-        const phase = w.k * (w.dx * px + w.dy * py) - w.omega * t;
-        const c = Math.cos(phase);
-        x += w.q * w.amp * w.dx * c;
-        y += w.q * w.amp * w.dy * c;
-        z += w.amp * Math.sin(phase);
+      for (let w = 0; w < WAVES.length; w++) {
+        const wave = WAVES[w];
+        const ci = w * MAX_SIDE + gx;
+        const ri = w * MAX_SIDE + gy;
+        const sA = colSin[ci];
+        const cA = colCos[ci];
+        const sB = rowSin[ri];
+        const cB = rowCos[ri];
+        const c = cA * cB - sA * sB;
+        x += wave.lean * wave.dx * c;
+        y += wave.lean * wave.dy * c;
+        z += wave.amp * (sA * cB + cA * sB);
       }
       z += rippleAt(u, v);
       // Spray: a few particles leave the highest crests every frame.
