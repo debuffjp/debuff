@@ -1,246 +1,286 @@
-// River mode: water particles run down a meandering channel, speed up toward a lip, fall under
-// gravity, burst into a pool and throw mist. Static rock and banks are particles too, so the whole
-// scene is one sprites() call.
-import type { Camera } from "./waves.ts";
+// River mode: a particle fluid in side view. Water pours in upstream, runs along a shelf, goes over
+// the falls into a basin, and leaves over a weir to come round again. Particles push on their
+// neighbours (double density relaxation, Clavet et al. 2005), so the water pools, sloshes and
+// piles up behind the rocks you drag into it. Neighbours come from a uniform grid rebuilt every
+// step with a counting sort, so nothing allocates per frame.
 
-const EYE = 13;
-const MAX_WATER = 150_000;
-const ROCK = 18_000;
-const CAP = MAX_WATER + ROCK;
-const GRAVITY = 9;
-const TOP = -7; // where the river starts, upstream
-const LIP = 0; // the edge of the falls
-const HEIGHT = 2.6; // drop from the lip to the pool
-const POOL = 4.5; // how far the pool runs past the falls
+const WORLD_W = 720;
+const WORLD_H = 400;
+const H = 9; // interaction radius in world units
+const REST = 4.2; // rest density
+const STIFF = 0.025;
+const STIFF_NEAR = 0.15;
+const GRAVITY = 0.12; // world units per step²
+const MAX_FLUID = 200_000;
+const LIP_X = 380;
+const FLOOR = WORLD_H - 12;
+const WEIR_X = WORLD_W - 70;
+const WEIR_TOP = FLOOR - 70;
+const shelf = (x: number): number => 150 + x * 0.06; // top of the upstream shelf
 
-// River bed height and centre line, upstream of the lip.
-const bed = (y: number): number => HEIGHT + (LIP - y) * 0.12;
-const centre = (y: number): number => 0.7 * Math.sin(y * 0.55) * Math.min(1, (LIP - y) / 2);
-const HALF_WIDTH = 0.65;
+export const positions = new Float32Array(MAX_FLUID * 2); // backing pixels, for drawing
+export const colors = new Uint32Array(MAX_FLUID);
+export const scales = new Float32Array(MAX_FLUID);
+export const timing = { sim: 0, pairs: 0 };
 
-export const positions = new Float32Array(CAP * 2);
-export const colors = new Uint32Array(CAP);
-export const scales = new Float32Array(CAP);
-export const timing = { sim: 0 };
+const x = new Float32Array(MAX_FLUID);
+const y = new Float32Array(MAX_FLUID);
+const vx = new Float32Array(MAX_FLUID);
+const vy = new Float32Array(MAX_FLUID);
+const prevX = new Float32Array(MAX_FLUID);
+const prevY = new Float32Array(MAX_FLUID);
+let live = 0; // particles emitted so far, up to the requested count
 
-// Water state. Phase 0: in the river, 1: falling, 2: in the pool, 3: mist.
-const px = new Float32Array(MAX_WATER);
-const py = new Float32Array(MAX_WATER);
-const pz = new Float32Array(MAX_WATER);
-const vx = new Float32Array(MAX_WATER);
-const vy = new Float32Array(MAX_WATER);
-const vz = new Float32Array(MAX_WATER);
-const lane = new Float32Array(MAX_WATER); // -1 to 1 across the channel
-const life = new Float32Array(MAX_WATER);
-const phase = new Uint8Array(MAX_WATER);
-let started = false;
+// The grid: cells of size H over the world, plus a margin for particles thrown past the edges.
+const GW = Math.ceil(WORLD_W / H) + 2;
+const GH = Math.ceil(WORLD_H / H) + 2;
+const CELLS = GW * GH;
+const cellStart = new Int32Array(CELLS + 1);
+const cursor = new Int32Array(CELLS + 1);
+const cellOf = new Int32Array(MAX_FLUID);
+const sorted = new Int32Array(MAX_FLUID);
 
-function spawn(i: number, anywhere: boolean): void {
-  lane[i] = Math.random() * 2 - 1;
-  py[i] = anywhere ? TOP + Math.random() * (LIP - TOP) : TOP + Math.random() * 0.3;
-  px[i] = centre(py[i]) + lane[i] * HALF_WIDTH;
-  pz[i] = bed(py[i]);
-  vx[i] = 0;
-  vy[i] = 0;
-  vz[i] = 0;
-  phase[i] = 0;
-  life[i] = 0;
+export interface Rock {
+  x: number;
+  y: number;
+  r: number;
+}
+export const rocks: Rock[] = [
+  { x: 250, y: 132, r: 20 },
+  { x: 520, y: FLOOR - 26, r: 26 },
+  { x: 600, y: 60, r: 18 },
+  { x: 660, y: 60, r: 24 },
+];
+
+// Water colours, slow to fast; replaced by setPalette().
+let ramp: number[] = [0x1e3a8a, 0x2f7fd0, 0x38bdf8, 0xc8f1ff, 0xffffff];
+export function setPalette(stops: number[]): void {
+  ramp = stops;
 }
 
-// Rock and banks: fixed points, generated once.
-const rock = new Float32Array(ROCK * 3);
-{
-  let k = 0;
-  const put = (x: number, y: number, z: number): void => {
-    if (k >= ROCK) return;
-    rock[k * 3] = x;
-    rock[k * 3 + 1] = y;
-    rock[k * 3 + 2] = z;
-    k++;
-  };
-  while (k < ROCK) {
-    const r = Math.random();
-    if (r < 0.45) {
-      // Banks beside the channel, a little above the water.
-      const y = TOP + Math.random() * (LIP - TOP);
-      const side = Math.random() < 0.5 ? -1 : 1;
-      const out = HALF_WIDTH + 0.05 + Math.random() * 1.6;
-      put(centre(y) + side * out, y, bed(y) + 0.15 + out * 0.12 + Math.random() * 0.05);
-    } else if (r < 0.75) {
-      // The cliff face under the lip, wider than the falls.
-      const x = (Math.random() * 2 - 1) * 2.6;
-      put(x, LIP + Math.random() * 0.15, Math.random() * (bed(LIP) + 0.2));
-    } else {
-      // Ground around the pool.
-      const a = Math.random() * Math.PI * 2;
-      const r2 = 1.9 + Math.random() * 1.4;
-      put(Math.cos(a) * r2 * 1.3, POOL / 2 + Math.sin(a) * r2 * 0.9, 0.05 + Math.random() * 0.1);
+function emit(i: number): void {
+  x[i] = 6 + Math.random() * 30;
+  y[i] = 60 + Math.random() * 60;
+  vx[i] = 1.6 + Math.random() * 0.4;
+  vy[i] = 0;
+  prevX[i] = x[i];
+  prevY[i] = y[i];
+}
+
+function collide(i: number): void {
+  let px = x[i];
+  let py = y[i];
+  // World edges: the left wall and the floor. The right side is open past the weir.
+  if (px < 2) px = 2;
+  if (py > FLOOR) py = FLOOR;
+  if (py < -200) py = -200;
+  // The shelf is solid below its top, left of the lip.
+  if (px < LIP_X) {
+    const top = shelf(px);
+    if (py > top) {
+      if (LIP_X - px < py - top) px = LIP_X;
+      else py = top;
     }
   }
+  // The weir: a solid block near the right edge.
+  if (px > WEIR_X && px < WEIR_X + 14 && py > WEIR_TOP) {
+    const dLeft = px - WEIR_X;
+    const dRight = WEIR_X + 14 - px;
+    const dTop = py - WEIR_TOP;
+    if (dTop < dLeft && dTop < dRight) py = WEIR_TOP;
+    else if (dLeft < dRight) px = WEIR_X;
+    else px = WEIR_X + 14;
+  }
+  for (const r of rocks) {
+    const dx = px - r.x;
+    const dy = py - r.y;
+    const d2 = dx * dx + dy * dy;
+    if (d2 < r.r * r.r) {
+      const d = Math.sqrt(d2) || 1;
+      px = r.x + (dx / d) * r.r;
+      py = r.y + (dy / d) * r.r;
+    }
+  }
+  x[i] = px;
+  y[i] = py;
 }
 
-/** Simulates and projects everything; returns how many copies to draw. */
+function buildGrid(n: number): void {
+  cellStart.fill(0);
+  for (let i = 0; i < n; i++) {
+    const cx = Math.min(GW - 1, Math.max(0, Math.floor(x[i] / H) + 1));
+    const cy = Math.min(GH - 1, Math.max(0, Math.floor(y[i] / H) + 1));
+    const c = cy * GW + cx;
+    cellOf[i] = c;
+    cellStart[c + 1]++;
+  }
+  for (let c = 0; c < CELLS; c++) cellStart[c + 1] += cellStart[c];
+  cursor.set(cellStart);
+  for (let i = 0; i < n; i++) sorted[cursor[cellOf[i]]++] = i;
+}
+
+function relax(n: number): number {
+  let pairs = 0;
+  for (let i = 0; i < n; i++) {
+    const xi = x[i];
+    const yi = y[i];
+    const c = cellOf[i];
+    let density = 0;
+    let near = 0;
+    // Pass 1: density and near density from neighbours within H.
+    for (let oy = -GW; oy <= GW; oy += GW) {
+      for (let ox = -1; ox <= 1; ox++) {
+        const cell = c + oy + ox;
+        if (cell < 0 || cell >= CELLS) continue;
+        for (let s = cellStart[cell]; s < cellStart[cell + 1]; s++) {
+          const j = sorted[s];
+          if (j === i) continue;
+          const dx = x[j] - xi;
+          const dy = y[j] - yi;
+          const d2 = dx * dx + dy * dy;
+          if (d2 >= H * H) continue;
+          const q = 1 - Math.sqrt(d2) / H;
+          density += q * q;
+          near += q * q * q;
+        }
+      }
+    }
+    const pressure = STIFF * (density - REST);
+    const pressureNear = STIFF_NEAR * near;
+    // Pass 2: push neighbours apart (or pull them together) in proportion to the pressure.
+    let mx = 0;
+    let my = 0;
+    for (let oy = -GW; oy <= GW; oy += GW) {
+      for (let ox = -1; ox <= 1; ox++) {
+        const cell = c + oy + ox;
+        if (cell < 0 || cell >= CELLS) continue;
+        for (let s = cellStart[cell]; s < cellStart[cell + 1]; s++) {
+          const j = sorted[s];
+          if (j === i) continue;
+          const dx = x[j] - xi;
+          const dy = y[j] - yi;
+          const d2 = dx * dx + dy * dy;
+          if (d2 >= H * H || d2 === 0) continue;
+          pairs++;
+          const d = Math.sqrt(d2);
+          const q = 1 - d / H;
+          const push = (pressure * q + pressureNear * q * q) * 0.5;
+          const ux = (dx / d) * push;
+          const uy = (dy / d) * push;
+          x[j] += ux;
+          y[j] += uy;
+          mx -= ux;
+          my -= uy;
+        }
+      }
+    }
+    x[i] += mx;
+    y[i] += my;
+  }
+  return pairs;
+}
+
+let accumulator = 0;
+let view = { s: 1, ox: 0, oy: 0 };
+
+/** Simulates the water and places it on screen; returns how many copies to draw. */
 export function step(
   n: number,
   dt: number,
-  now: number,
+  _now: number,
   W: number,
-  H: number,
-  dpr: number,
-  camera: Camera,
+  Hpx: number,
+  _dpr: number,
+  _camera: unknown,
   reducedMotion: boolean,
 ): number {
   const t0 = performance.now();
-  const water = Math.min(n, MAX_WATER);
-  if (!started) {
-    for (let i = 0; i < MAX_WATER; i++) spawn(i, true);
-    started = true;
-  }
-  const flow = reducedMotion ? 0.4 : 1;
-  const sdt = dt * flow;
-  const t = now / 1000;
-  const cy = Math.cos(camera.yaw);
-  const sy = Math.sin(camera.yaw);
-  const cp = Math.cos(camera.pitch);
-  const sp = Math.sin(camera.pitch);
-  const unit = Math.min(W, H) * 0.11;
-  let count = 0;
+  const count = Math.min(n, MAX_FLUID);
+  // Pour in new water a few hundred particles per frame until the count is reached.
+  const pour = Math.max(0, Math.min(count - live, 400));
+  for (let k = 0; k < pour; k++) emit(live++);
+  if (live > count) live = count;
 
-  for (let i = 0; i < water; i++) {
-    let x = px[i];
-    let y = py[i];
-    let z = pz[i];
-    const p = phase[i];
-    let speed = 0;
-    if (p === 0) {
-      // In the river: faster in the middle of the channel and near the lip, with a little wobble.
-      const near = Math.max(0, 1 - (LIP - y) / 3);
-      const along = (1.2 + near * 2.2) * (1 - 0.35 * lane[i] * lane[i]);
-      y += along * sdt;
-      lane[i] = Math.max(-1, Math.min(1, lane[i] + Math.sin(t * 2 + i) * 0.15 * sdt));
-      x = centre(y) + lane[i] * HALF_WIDTH * (1 - near * 0.2);
-      z = bed(y) + 0.03 * Math.sin(y * 9 + lane[i] * 4 - t * 6);
-      speed = along;
-      if (y >= LIP) {
-        phase[i] = 1;
-        vx[i] = (centre(LIP + 0.01) - centre(LIP)) * 100 * along * 0.02;
-        vy[i] = along;
-        vz[i] = 0;
-      }
-    } else if (p === 1) {
-      // Falling: ballistic, with a slight spread so the curtain frays as it drops.
-      vz[i] -= GRAVITY * sdt;
-      vx[i] += (Math.random() - 0.5) * 0.6 * sdt;
-      x += vx[i] * sdt;
-      y += vy[i] * sdt;
-      z += vz[i] * sdt;
-      speed = Math.hypot(vy[i], vz[i]);
-      if (z <= 0) {
-        // Hits the pool: bounce outward, and sometimes become mist.
-        z = 0;
-        if (Math.random() < 0.18) {
-          phase[i] = 3;
-          vx[i] = (Math.random() - 0.5) * 1.2;
-          vy[i] = Math.random() * 0.8;
-          vz[i] = 0.6 + Math.random() * 1.2;
-          life[i] = 1.5 + Math.random() * 2;
-        } else {
-          phase[i] = 2;
-          const a = Math.random() * Math.PI * 2;
-          const s = 0.5 + Math.random() * 1.5;
-          vx[i] = Math.cos(a) * s;
-          vy[i] = Math.abs(Math.sin(a)) * s + 0.4;
-          vz[i] = 0.5 + Math.random() * 1.5;
-          life[i] = 2 + Math.random() * 2;
-        }
-      }
-    } else if (p === 2) {
-      // In the pool: a short hop, then drift away from the falls and slow down.
-      vz[i] -= GRAVITY * sdt;
-      x += vx[i] * sdt;
-      y += vy[i] * sdt;
-      z = Math.max(0, z + vz[i] * sdt);
-      if (z === 0) {
-        vz[i] = 0;
-        vx[i] *= 1 - 1.5 * sdt;
-        vy[i] = vy[i] * (1 - 1.2 * sdt) + 0.25 * sdt;
-      }
-      life[i] -= sdt;
-      speed = Math.hypot(vx[i], vy[i]) * 0.6;
-      if (life[i] <= 0 || y > POOL) {
-        spawn(i, false);
-        continue;
-      }
-    } else {
-      // Mist: rises, drifts downstream, fades.
-      vz[i] += (0.4 - vz[i]) * sdt;
-      x += vx[i] * sdt;
-      y += vy[i] * sdt;
-      z += vz[i] * sdt;
-      life[i] -= sdt;
-      if (life[i] <= 0) {
-        spawn(i, false);
-        continue;
-      }
+  accumulator += dt * (reducedMotion ? 0.5 : 1);
+  let steps = 0;
+  while (accumulator >= 1 / 60 && steps < 2) {
+    accumulator -= 1 / 60;
+    steps++;
+    for (let i = 0; i < live; i++) {
+      vy[i] += GRAVITY;
+      prevX[i] = x[i];
+      prevY[i] = y[i];
+      x[i] += vx[i];
+      y[i] += vy[i];
     }
-    px[i] = x;
-    py[i] = y;
-    pz[i] = z;
-
-    count = project(count, x, y, z, cy, sy, cp, sp, unit, W, H, dpr, p === 3 ? 0.9 : 0.4);
-    // Colour: deep blue when slow, white foam when fast; mist is faint white.
-    let c: number;
-    if (p === 3) c = 0xffffff00 | Math.round(Math.min(1, life[i] * 0.5) * 0x22);
-    else {
-      const foam = Math.min(1, speed / 6);
-      const r = Math.round(0x1e + (0xff - 0x1e) * foam * foam);
-      const g = Math.round(0x6f + (0xff - 0x6f) * foam);
-      c = ((r << 24) | (g << 16) | (0xf0 << 8) | (0x40 + Math.round(foam * 0x60))) >>> 0;
+    buildGrid(live);
+    timing.pairs = relax(live);
+    for (let i = 0; i < live; i++) {
+      collide(i);
+      vx[i] = (x[i] - prevX[i]) * 0.998;
+      vy[i] = (y[i] - prevY[i]) * 0.998;
+      // Past the weir and off the right edge: back to the start.
+      if (x[i] > WORLD_W + 10 || y[i] > WORLD_H + 40) emit(i);
     }
-    colors[count - 1] = c;
   }
+  if (accumulator > 0.1) accumulator = 0; // too slow to keep up: drop time rather than spiral
 
-  for (let k = 0; k < ROCK; k++) {
-    count = project(count, rock[k * 3], rock[k * 3 + 1], rock[k * 3 + 2], cy, sy, cp, sp, unit, W, H, dpr, 0.7);
-    colors[count - 1] = 0x7d8c5aa0;
+  // Fit the world to the canvas.
+  const s = Math.min(W / WORLD_W, Hpx / WORLD_H);
+  const ox = (W - WORLD_W * s) / 2;
+  const oy = (Hpx - WORLD_H * s) / 2;
+  view = { s, ox, oy };
+  const size = (H * 0.75 * s) / 5;
+  const last = ramp.length - 1;
+  for (let i = 0; i < live; i++) {
+    positions[i * 2] = ox + x[i] * s;
+    positions[i * 2 + 1] = oy + y[i] * s;
+    scales[i] = size;
+    const speed = Math.min(0.999, Math.hypot(vx[i], vy[i]) / 4);
+    colors[i] = ((ramp[Math.floor(speed * (last + 1))] << 8) | 0xb0) >>> 0;
   }
   timing.sim += (performance.now() - t0 - timing.sim) * 0.05;
-  return count;
+  return live;
 }
 
-function project(
-  i: number,
-  x: number,
-  y: number,
-  z: number,
-  cy: number,
-  sy: number,
-  cp: number,
-  sp: number,
-  unit: number,
-  W: number,
-  H: number,
-  dpr: number,
-  size: number,
-): number {
-  // Centre the scene on the falls before turning it.
-  const X = x;
-  const Y = y + 1.2;
-  const Z = z - 1.3;
-  const rx = X * cy - Y * sy;
-  const ry = X * sy + Y * cy;
-  const up = Z * cp - ry * sp;
-  const depth = ry * cp + Z * sp;
-  const f = EYE / (EYE - depth);
-  positions[i * 2] = W / 2 + rx * f * unit;
-  positions[i * 2 + 1] = H / 2 - up * f * unit;
-  scales[i] = size * f * dpr;
-  return i + 1;
+interface SceneDraw {
+  rect(x: number, y: number, w: number, h: number, color: string): void;
+  circle(x: number, y: number, r: number, color: string): void;
 }
 
-/** Water particles in each phase, for the stats line. */
-export function census(n: number): string {
-  const c = [0, 0, 0, 0];
-  for (let i = 0; i < Math.min(n, MAX_WATER); i++) c[phase[i]]++;
-  return `river ${c[0]}, falling ${c[1]}, pool ${c[2]}, mist ${c[3]}`;
+/** Draws the shelf, cliff, basin, weir and rocks behind the water, in backing pixels. */
+export function drawScene(draw: SceneDraw, poly: (points: number[], color: string) => void): void {
+  const { s, ox, oy } = view;
+  const X = (wx: number): number => ox + wx * s;
+  const Y = (wy: number): number => oy + wy * s;
+  const ground = "#3b4630";
+  poly([X(0), Y(shelf(0)), X(LIP_X), Y(shelf(LIP_X)), X(LIP_X), Y(WORLD_H), X(0), Y(WORLD_H)], ground);
+  draw.rect(X(0), Y(FLOOR), WORLD_W * s, (WORLD_H - FLOOR) * s, ground);
+  draw.rect(X(WEIR_X), Y(WEIR_TOP), 14 * s, (FLOOR - WEIR_TOP) * s, ground);
+  for (const r of rocks) draw.circle(X(r.x), Y(r.y), r.r * s, r === held ? "#a3ab96" : "#6b7360");
+}
+
+// Dragging rocks: pick the one under the pointer and move it there on each move.
+let held: Rock | null = null;
+function toWorld(px: number, py: number): [number, number] {
+  return [(px - view.ox) / view.s, (py - view.oy) / view.s];
+}
+export function grab(px: number, py: number): boolean {
+  const [wx, wy] = toWorld(px, py);
+  held = rocks.find((r) => Math.hypot(r.x - wx, r.y - wy) < r.r + 6) ?? null;
+  return held !== null;
+}
+export function drag(px: number, py: number): void {
+  if (!held) return;
+  const [wx, wy] = toWorld(px, py);
+  held.x = Math.max(held.r, Math.min(WORLD_W - held.r, wx));
+  held.y = Math.max(held.r, Math.min(FLOOR, wy));
+}
+export function release(): void {
+  held = null;
+}
+
+/** Live particle count and neighbour pairs, for the stats line. */
+export function census(): string {
+  return `fluid ${live.toLocaleString()}, ${(timing.pairs / 1e6).toFixed(2)}M neighbour pairs per step`;
 }
