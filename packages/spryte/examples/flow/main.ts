@@ -5,6 +5,7 @@
 // each frame: elevation sets each copy's colour, depth its size and brightness. Additive blending
 // ignores draw order, so nothing needs sorting by depth.
 import { createRenderer, type Draw, type RenderTarget, type Shader } from "spryte";
+import * as waves from "./waves.ts";
 
 const BG = "#11140d";
 const FADE = "#11140d26"; // how much of the old frame each new frame covers: lower is longer trails
@@ -18,7 +19,9 @@ const positions = new Float32Array(MAX * 2); // target pixels
 const colors = new Uint32Array(MAX);
 const life = new Float32Array(MAX); // seconds left before a particle respawns somewhere random
 let n = 60_000;
-let mode: "2d" | "3d" = new URLSearchParams(location.search).get("mode") === "3d" ? "3d" : "2d";
+type Mode = "2d" | "3d" | "waves";
+const startMode = new URLSearchParams(location.search).get("mode");
+let mode: Mode = startMode === "3d" || startMode === "waves" ? startMode : "2d";
 
 // 3D state: positions on a terrain, u and v in [0, 1), projected to screen pixels every frame.
 const TAU = Math.PI * 2;
@@ -54,7 +57,9 @@ let backend: "auto" | "2d" = params.get("backend") === "2d" ? "2d" : "auto";
 const stage = document.getElementById("stage") as HTMLDivElement;
 const stats = document.getElementById("stats") as HTMLDivElement;
 const caption = document.getElementById("caption") as HTMLDivElement;
-const CAPTIONS = {
+const CAPTIONS: Record<Mode, string> = {
+  waves:
+    "An ocean of particles: four Gerstner waves sharpen into crests that throw spray, colour shows height. Click the water to skip a pebble; each touch drives a ripple simulation. Drag to turn the camera.",
   "2d": "Drag to stir the field. Click to drop a colour. Each particle is one copy in a single sprites() call, its trail a render target that fades a little every frame.",
   "3d": "The same particles on a rolling terrain, running along its contour lines, so they trace a glowing topographic map. Colour shows elevation. Drag to turn the camera.",
 };
@@ -126,7 +131,7 @@ stage.addEventListener("pointermove", (e) => {
   const dx = x - down.x;
   const dy = y - down.y;
   if (Math.abs(dx) + Math.abs(dy) > 3) down.moved = true;
-  if (mode === "3d") {
+  if (mode !== "2d") {
     // In 3D, dragging turns the camera instead of stirring.
     camera.yaw += dx * 0.004;
     camera.pitch = Math.max(-1.2, Math.min(1.2, camera.pitch + dy * 0.004));
@@ -140,6 +145,10 @@ stage.addEventListener("pointermove", (e) => {
   down.y = y;
 });
 stage.addEventListener("pointerup", (e) => {
+  if (down && !down.moved && mode === "waves") {
+    const [x, y] = local(e);
+    waves.throwPebble(x, y);
+  }
   if (down && !down.moved && mode === "2d") {
     // A click: everything near it takes the next colour.
     const [x, y] = local(e);
@@ -159,7 +168,7 @@ function press(group: string, attr: string, value: string): void {
     b.setAttribute("aria-pressed", String(b.dataset[attr] === value));
 }
 document.getElementById("modes")?.addEventListener("click", (e) => {
-  const m = (e.target as HTMLElement).dataset.mode as "2d" | "3d" | undefined;
+  const m = (e.target as HTMLElement).dataset.mode as Mode | undefined;
   if (!m || m === mode) return;
   mode = m;
   trails = null;
@@ -210,6 +219,8 @@ function resize(): number {
 let last = 0;
 let fps = 60;
 let work = 0;
+let drawMs = 0; // waves mode: time from begin() to end(), the part spryte does
+let drawn = 0;
 function frame(now: number): void {
   const dt = Math.min(0.05, (now - last) / 1000 || 0);
   last = now;
@@ -225,6 +236,23 @@ function frame(now: number): void {
     fresh = true;
   }
 
+  if (mode === "waves") {
+    if (!down) camera.yaw += dt * camera.spin * 0.5;
+    const count = waves.step(n, dt, now, W, H, dpr, camera, reducedMotion);
+    const d0 = performance.now();
+    draw.begin(BG, W / dpr, H / dpr, dpr);
+    draw.push();
+    draw.scale(1 / dpr);
+    draw.sprites(dot, waves.positions, count, undefined, { color: waves.colors, scale: waves.scales });
+    draw.pop();
+    draw.end();
+    drawMs += (performance.now() - d0 - drawMs) * 0.05;
+    drawn = count;
+    work += (performance.now() - t0 - work) * 0.05;
+    report(now, dt);
+    requestAnimationFrame(frame);
+    return;
+  }
   if (mode === "3d") step3d(dt, W, H, dpr, now);
   else step2d(dt, W, H, dpr, now);
 
@@ -371,7 +399,10 @@ function report(now: number, dt: number): void {
     });
   }
   if (Math.floor(now / 250) !== Math.floor((now - dt * 1000) / 250)) {
-    stats.textContent = `${n.toLocaleString()} particles · ${Math.round(fps)} fps · ${work.toFixed(1)} ms of JS per frame · ${draw.kind} · ${draw.drawCalls} draw calls`;
+    const split = mode === "waves" ? ` (simulate ${waves.timing.sim.toFixed(1)}, spryte ${drawMs.toFixed(1)})` : "";
+    const count =
+      mode === "waves" ? `${drawn.toLocaleString()} particles (${waves.side()}² surface + spray)` : `${n.toLocaleString()} particles`;
+    stats.textContent = `${count} · ${Math.round(fps)} fps · ${work.toFixed(1)} ms of JS per frame${split} · ${draw.kind} · ${draw.drawCalls} draw calls`;
   }
 }
 
