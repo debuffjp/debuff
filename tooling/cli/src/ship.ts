@@ -103,7 +103,7 @@ function webChecks(dist: string): ShipCheck[] {
 
 const mb = (n: number) => `${(n / 1024 / 1024).toFixed(1)} MB`;
 
-export function ship(root: string, target: ShipTarget, launch: LaunchConfig = {}): ShipResult {
+export function ship(root: string, target: ShipTarget, launch: LaunchConfig = {}, isolated = false): ShipResult {
   const dist = join(root, "dist");
   const out = join(root, "ship");
   const result: ShipResult = { target, checks: [], outputs: [], next: [] };
@@ -133,6 +133,10 @@ export function ship(root: string, target: ShipTarget, launch: LaunchConfig = {}
       "Upload ship/itch.zip on your itch.io project page, kind of project: HTML, and tick “This file will be played in the browser”.",
       "Or with butler: butler push ship/itch.zip <user>/<game>:html5",
     );
+    if (isolated)
+      result.next.push(
+        "Isolation is on: under Embed options, tick “SharedArrayBuffer support”. itch.io marks it experimental and moves the game to a new domain, so players start with fresh saves. Keep a single-thread fallback for Safari.",
+      );
   }
 
   if (target === "wavedash") {

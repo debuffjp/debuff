@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { AtlasOptions } from "./assets/atlas.js";
 import { DebuffError } from "./errors.js";
+import type { Embed } from "./isolation.js";
 import type { LaunchConfig } from "./launch.js";
 import { TOOLING_API_VERSION, type ToolingPlugin } from "./plugin.js";
 
@@ -30,6 +31,13 @@ export interface DebuffConfig {
    * overlay and to agents (`game_errors`). Default false.
    */
   typecheck?: boolean;
+  /**
+   * Cross-origin isolation, so the game can use `SharedArrayBuffer` and worker threads. `debuff dev` sends the
+   * headers, and `debuff build` writes them to `dist/_headers` for Cloudflare and Netlify. Other hosts need
+   * their own setup: see the publishing guide. `true` uses `embed: "require-corp"`, which works in every browser
+   * but blocks cross-origin files without CORP or CORS headers. Default off. Wavedash isolates every game anyway.
+   */
+  isolation?: boolean | { embed?: Embed };
 }
 
 export interface ResolvedConfig {
@@ -42,6 +50,8 @@ export interface ResolvedConfig {
   viewport?: [number, number];
   launch: LaunchConfig;
   typecheck: boolean;
+  /** `isolation`, resolved: the embed mode, or null when off. */
+  isolation: { embed: Embed } | null;
 }
 
 /** Identity helper that gives `debuff.config.ts` full type checking and editor completion. */
@@ -56,7 +66,7 @@ const NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 /** Load and validate `debuff.config.*` from `root`. A missing file is a valid empty config. */
 export async function loadConfig(root: string): Promise<ResolvedConfig> {
   const file = CONFIG_FILES.map((f) => join(root, f)).find((f) => existsSync(f));
-  if (!file) return { root, file: undefined, plugins: [], atlas: {}, launch: {}, typecheck: false };
+  if (!file) return { root, file: undefined, plugins: [], atlas: {}, launch: {}, typecheck: false, isolation: null };
   try {
     return await readConfig(root, file);
   } catch (err) {
@@ -88,8 +98,18 @@ async function readConfig(root: string, file: string): Promise<ResolvedConfig> {
     atlas: config.assets?.atlas ?? {},
     launch: config.launch ?? {},
     typecheck: config.typecheck === true,
+    isolation: resolveIsolation(config.isolation, file),
     ...(viewport ? { viewport } : {}),
   };
+}
+
+function resolveIsolation(value: DebuffConfig["isolation"], file: string): ResolvedConfig["isolation"] {
+  if (value === undefined || value === false) return null;
+  if (value === true) return { embed: "require-corp" };
+  const embed = value.embed ?? "require-corp";
+  if (embed !== "require-corp" && embed !== "credentialless")
+    throw new Error(`${file}: isolation.embed must be "require-corp" or "credentialless", got ${JSON.stringify(embed)}`);
+  return { embed };
 }
 
 /** A browser viewport `[width, height]`: whole CSS pixels from 100 to 4096. Throws a readable error otherwise. */

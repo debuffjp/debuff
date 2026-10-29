@@ -75,6 +75,7 @@ export async function runDoctor(root: string, options: DoctorOptions = {}): Prom
     });
   }
   if (config) checks.push(...(await assets(root, config)));
+  if (config?.isolation) checks.push(isolation(root, config.isolation.embed));
   checks.push(saves(root), agentFiles(root), agentSkills(root));
   if (options.browser !== false) checks.push(await browser());
   if (options.live && config) checks.push(await runtimeHooks(root));
@@ -269,6 +270,30 @@ async function assets(root: string, config: ResolvedConfig): Promise<DoctorCheck
   } catch (err) {
     return [{ id: "assets", group: "assets", ok: false, message: `The asset pipeline failed: ${errorText(err)}` }];
   }
+}
+
+/** With isolation on, cross-origin scripts, frames, styles and images in index.html stop loading unless they send CORP or CORS. */
+function isolation(root: string, embed: string): DoctorCheck {
+  const file = join(root, "index.html");
+  const html = existsSync(file) ? readFileSync(file, "utf8") : "";
+  const found = [...html.matchAll(/<(?:script|iframe|link|img)\b[^>]*\s(?:src|href)=["']((?:https?:)?\/\/[^"']+)/gi)].map(
+    (m) => m[1] as string,
+  );
+  if (found.length === 0)
+    return {
+      id: "isolation",
+      group: "config",
+      ok: true,
+      message: `Cross-origin isolation on (${embed}); index.html loads nothing from other sites`,
+    };
+  return {
+    id: "isolation",
+    group: "config",
+    ok: false,
+    required: false,
+    message: `Cross-origin isolation is on, and index.html loads ${found.length} file(s) from other sites (${found.slice(0, 3).join(", ")}). Browsers block them unless they send Cross-Origin-Resource-Policy or CORS headers.`,
+    fix: 'Host those files yourself, or use isolation: { embed: "credentialless" } (Chrome and Firefox only)',
+  };
 }
 
 function saves(root: string): DoctorCheck {
