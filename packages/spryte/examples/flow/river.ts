@@ -4,6 +4,7 @@
 // The simulation (river-sim.ts) runs in a worker, so drawing never waits for it: each frame draws
 // the particles part way between the worker's last two steps. ?worker=0 runs it on the main thread
 // instead, to compare.
+import * as par from "./river-parallel.ts";
 import * as sim from "./river-sim.ts";
 
 const params = new URLSearchParams(location.search);
@@ -30,7 +31,7 @@ export function setPalette(stops: number[]): void {
 }
 
 // The latest step: [x0, y0, x1, y1, speed] per particle, when it arrived, and the gap between steps.
-let frame = new Float32Array(0);
+let frame: Float32Array<ArrayBufferLike> = new Float32Array(0);
 let live = 0;
 let k = 1;
 let arrived = 0;
@@ -38,8 +39,57 @@ let interval = 1000 / 60;
 let lastArrival = 0;
 let wantCount = 0;
 
+// Several workers over shared memory when the page is cross-origin isolated; ?workers=N picks how
+// many (default: a few fewer than the CPU's cores, up to 8).
+const cores = navigator.hardwareConcurrency || 4;
+const workerCount = Number(params.get("workers")) || Math.min(8, Math.max(2, cores - 4));
+const parallel = useWorker && workerCount > 1 && globalThis.crossOriginIsolated === true;
+let shared: { ctl: Int32Array; rocks: Float32Array; snaps: Float32Array; seq: number } | null = null;
+if (parallel) {
+  const buffers = par.allocate();
+  const ctl = new Int32Array(buffers.control);
+  Atomics.store(ctl, par.C.WORKERS, workerCount);
+  shared = { ctl, rocks: new Float32Array(buffers.rocks), snaps: new Float32Array(buffers.snaps), seq: 0 };
+  shared.rocks[par.ROCK_FLOATS] = 1;
+  writeRocks();
+  for (let index = 0; index < workerCount; index++) {
+    const w = new Worker(new URL("./river-parallel-worker.ts", import.meta.url), { type: "module" });
+    w.postMessage({ buffers, index });
+  }
+}
+function writeRocks(): void {
+  if (!shared) return;
+  for (let r = 0; r < 4; r++) {
+    const rock = rocks[r];
+    shared.rocks[r * 3] = rock ? rock.x : 0;
+    shared.rocks[r * 3 + 1] = rock ? rock.y : 0;
+    shared.rocks[r * 3 + 2] = rock ? rock.r : 0;
+  }
+}
+/** Picks up the latest finished step from the shared workers, if there is a new one. */
+function readShared(): void {
+  if (!shared) return;
+  const { ctl } = shared;
+  const seq = Atomics.load(ctl, par.C.SEQ);
+  if (seq === shared.seq) return;
+  shared.seq = seq;
+  const front = Atomics.load(ctl, par.C.FRONT);
+  frame = shared.snaps.subarray(front * par.SNAP_FLOATS * sim.MAX_FLUID, (front + 1) * par.SNAP_FLOATS * sim.MAX_FLUID);
+  live = Atomics.load(ctl, par.C.LIVE);
+  k = shared.rocks[par.ROCK_FLOATS] || 1;
+  timing.pairs = Atomics.load(ctl, par.C.LAST_PAIRS);
+  timing.sim += (Atomics.load(ctl, par.C.STEP_US) / 1000 - timing.sim) * 0.1;
+  const now = performance.now();
+  if (lastArrival) {
+    interval += (now - lastArrival - interval) * 0.1;
+    timing.stepsPerSecond = 1000 / interval;
+  }
+  lastArrival = now;
+  arrived = now;
+}
+
 let worker: Worker | null = null;
-if (useWorker) {
+if (useWorker && !parallel) {
   worker = new Worker(new URL("./river-worker.ts", import.meta.url), { type: "module" });
   worker.onmessage = (e: MessageEvent) => {
     const m = e.data;
@@ -60,6 +110,7 @@ if (useWorker) {
 }
 function sendRocks(): void {
   worker?.postMessage({ rocks });
+  writeRocks();
 }
 
 // Main-thread fallback: run steps inline and pack the same layout.
@@ -107,8 +158,10 @@ export function step(
   if (n !== wantCount) {
     wantCount = n;
     worker?.postMessage({ count: n });
+    if (shared) Atomics.store(shared.ctl, par.C.COUNT, n);
   }
-  if (!worker) stepInline(n, dt * (reducedMotion ? 0.5 : 1));
+  if (shared) readShared();
+  else if (!worker) stepInline(n, dt * (reducedMotion ? 0.5 : 1));
 
   const g = sim.geometry(k);
   const s = Math.min(W / g.WORLD_W, Hpx / g.WORLD_H);
@@ -173,6 +226,10 @@ export function release(): void {
 
 /** Live particle count, neighbour pairs and where the simulation runs, for the stats line. */
 export function census(): string {
-  const where = worker ? `worker, ${Math.round(timing.stepsPerSecond)} steps/s` : "main thread";
+  const where = shared
+    ? `${workerCount} shared-memory workers, ${Math.round(timing.stepsPerSecond)} steps/s`
+    : worker
+      ? `worker, ${Math.round(timing.stepsPerSecond)} steps/s`
+      : "main thread";
   return `fluid ${live.toLocaleString()}, ${(timing.pairs / 1e6).toFixed(2)}M neighbour pairs per step, ${where}`;
 }
