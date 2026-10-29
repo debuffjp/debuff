@@ -92,6 +92,15 @@ const dot = new OffscreenCanvas(5, 5);
   g.fillStyle = grad;
   g.fillRect(0, 0, 5, 5);
 }
+// A crisp 16x16 disc for the fluid, which wants solid drops rather than glow.
+const disc = new OffscreenCanvas(16, 16);
+{
+  const g = disc.getContext("2d") as OffscreenCanvasRenderingContext2D;
+  g.fillStyle = "#fff";
+  g.beginPath();
+  g.arc(8, 8, 7.5, 0, Math.PI * 2);
+  g.fill();
+}
 
 function spawn(i: number, w: number, h: number): void {
   positions[i * 2] = Math.random() * w;
@@ -278,7 +287,7 @@ function frame(now: number): void {
     draw.push();
     draw.scale(1 / dpr);
     if (mode === "river") river.drawScene(draw, (points, color) => polygon(draw, points, color));
-    draw.sprites(dot, scene.positions, count, undefined, { color: scene.colors, scale: scene.scales });
+    draw.sprites(mode === "river" ? disc : dot, scene.positions, count, undefined, { color: scene.colors, scale: scene.scales });
     draw.pop();
     draw.end();
     drawMs += (performance.now() - d0 - drawMs) * 0.05;
