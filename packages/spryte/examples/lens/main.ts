@@ -6,8 +6,8 @@
 import { createRenderer, type Draw, ring } from "spryte";
 
 type View = "map" | "replay" | "mass" | "year";
-const FELL = 0xffc94d;
-const FOUND = 0x5ab4ff;
+const FELL = 0xcffb2d; // lime, as on debuff.jp
+const FOUND = 0x38bdf8;
 const MIN_LOG = -2; // 0.01 g
 const MAX_LOG = 8; // 100 t
 const FIRST_YEAR = 1900; // earlier years share the first column
@@ -19,7 +19,7 @@ const CAPTIONS: Record<View, string> = {
   map: "Where they were found. Over two thirds are from Antarctica, piled onto a few dozen collection sites along the bottom edge: aim the lens there.",
   replay:
     "Year by year since 1880. Antarctica fills in from the 1970s, the Sahara in the 1990s and Oman in the 2000s, as searches reached each one.",
-  mass: "How heavy they are, from 0.01 g to 60 t, on a log scale. Falls (yellow) skew heavier: someone has to see them.",
+  mass: "How heavy they are, from 0.01 g to 60 t, on a log scale. Falls (lime) skew heavier: someone has to see them.",
   year: "When they were recorded. Most arrived after 1975, when expeditions started combing the Antarctic ice.",
 };
 
@@ -249,15 +249,15 @@ function axes(): void {
   if (view === "map" || view === "replay") {
     for (let d = -150; d <= 150; d += 30) {
       const x = box.x + ((d + 180) / 360) * box.w;
-      draw.rect(x, box.y, 1, box.h, "#1c1c1c");
+      draw.rect(x, box.y, 1, box.h, "#1b2113");
     }
     for (let d = -60; d <= 60; d += 30) {
       const ly = box.y + ((90 - d) / 180) * box.h;
-      draw.rect(box.x, ly, box.w, 1, d === 0 ? "#2a2a2a" : "#1c1c1c");
+      draw.rect(box.x, ly, box.w, 1, d === 0 ? "#28301d" : "#1b2113");
     }
     return;
   }
-  draw.rect(box.x, box.y + box.h + 2, box.w, 1, "#333");
+  draw.rect(box.x, box.y + box.h + 2, box.w, 1, "#2c3521");
   const ticks: [number, string][] =
     view === "mass"
       ? [
@@ -339,7 +339,7 @@ function frame(now: number): void {
     } else colors[i] = ((base[i] << 8) | (scale > 0.5 ? 0xff : dim)) >>> 0;
   }
 
-  draw.begin("#111", w, h, dpr);
+  draw.begin("#11140d", w, h, dpr);
   axes();
   draw.sprites(dot, positions, n, undefined, { color: colors, scale: scales });
   if (replaying) {
@@ -347,7 +347,7 @@ function frame(now: number): void {
     draw.text(String(Math.min(y, LAST_YEAR)), box.x + 8, box.y + 6, { font: "bold 28px sans-serif", color: "#ddd" });
     draw.text(`${shown.toLocaleString()} recorded`, box.x + 8, box.y + 40, { font: "12px sans-serif", color: "#888" });
     const t = (shownYear - REPLAY_FROM) / (LAST_YEAR + 1 - REPLAY_FROM);
-    draw.rect(box.x, box.y + box.h + 8, box.w, 2, "#2a2a2a");
+    draw.rect(box.x, box.y + box.h + 8, box.w, 2, "#28301d");
     draw.rect(box.x, box.y + box.h + 8, box.w * Math.max(0, t), 2, "#999");
   }
   if (lens.on) ring(draw, lens.x, lens.y, lens.r, 1.5, "#ffffffaa");
