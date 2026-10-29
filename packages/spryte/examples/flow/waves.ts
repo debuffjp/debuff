@@ -1,6 +1,7 @@
 // Waves mode: an ocean surface of particles with cresting Gerstner waves, spray thrown off the
 // crests, and pebbles that skip across it, each touch driving a ripple simulation. Everything the
 // mode draws (surface, spray, pebbles) goes into one set of arrays for a single sprites() call.
+import { PALETTES, ramp } from "./palettes.ts";
 
 export interface Camera {
   yaw: number;
@@ -10,7 +11,7 @@ export interface Camera {
 const TAU = Math.PI * 2;
 const SIZE = 8; // the water is SIZE x SIZE world units
 const EYE = 11; // camera distance in world units
-const MAX_SURFACE = 150_000;
+const MAX_SURFACE = 1_000_000;
 const MAX_SPRAY = 24_000;
 const MAX_PEBBLES = 8;
 const CAP = MAX_SURFACE + MAX_SPRAY + MAX_PEBBLES;
@@ -33,20 +34,10 @@ const WAVES = [
 }
 const PEAK = WAVES.reduce((s, w) => s + w.amp, 0);
 
-// Elevation colours, trough to crest: deep violet, sky, pale blue, white foam.
-const RAMP = new Uint32Array(64);
-{
-  const stops = [0x2b2160, 0x2f7fd0, 0x38bdf8, 0xc8f1ff, 0xffffff];
-  for (let i = 0; i < 64; i++) {
-    const f = (i / 63) * (stops.length - 1);
-    const k = Math.min(stops.length - 2, Math.floor(f));
-    const u = f - k;
-    const a = stops[k];
-    const b = stops[k + 1];
-    let c = 0;
-    for (const sh of [16, 8, 0]) c |= Math.round(((a >> sh) & 255) * (1 - u) + ((b >> sh) & 255) * u) << sh;
-    RAMP[i] = c;
-  }
+// Elevation colours, trough to crest; replaced by setPalette().
+let RAMP = ramp(PALETTES[1].stops);
+export function setPalette(stops: number[]): void {
+  RAMP = ramp(stops);
 }
 
 // Ripples: a damped wave equation on a grid laid over the water.

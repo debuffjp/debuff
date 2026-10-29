@@ -4,16 +4,17 @@
 // In 3D the particles run along the contour lines of a rolling terrain, projected with perspective
 // each frame: elevation sets each copy's colour, depth its size and brightness. Additive blending
 // ignores draw order, so nothing needs sorting by depth.
-import { createRenderer, type Draw, type RenderTarget, type Shader } from "spryte";
+import { createRenderer, type Draw, polygon, type RenderTarget, type Shader } from "spryte";
+import { css, PALETTES, ramp } from "./palettes.ts";
 import * as river from "./river.ts";
 import * as waves from "./waves.ts";
 
 const BG = "#11140d";
 const FADE = "#11140d26"; // how much of the old frame each new frame covers: lower is longer trails
 const FADE_3D = "#11140d30"; // shorter trails in 3D, where the camera moves
-// The colours of debuff.jp's spryte page.
-const PALETTE = [0xcffb2d, 0x38bdf8, 0xf472b6, 0xfbbf24, 0xa78bfa];
-const MAX = 150_000;
+// Flat mode's colours: it starts with stops 2 and 1, and clicks cycle through the others.
+let PALETTE = PALETTES[0].stops;
+const MAX = 1_000_000;
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const positions = new Float32Array(MAX * 2); // target pixels
@@ -31,21 +32,8 @@ const projected = new Float32Array(MAX * 2);
 const scales = new Float32Array(MAX);
 const colors3d = new Uint32Array(MAX);
 const camera = { yaw: 0.6, pitch: 0.75, spin: 0.08 };
-// Elevation colours, low to high: violet, sky, lime, amber (the spryte page's palette).
-const RAMP = new Uint32Array(64);
-{
-  const stops = [0xa78bfa, 0x38bdf8, 0xcffb2d, 0xfbbf24];
-  for (let i = 0; i < 64; i++) {
-    const f = (i / 63) * (stops.length - 1);
-    const k = Math.min(stops.length - 2, Math.floor(f));
-    const u = f - k;
-    const a = stops[k];
-    const b = stops[k + 1];
-    let c = 0;
-    for (const sh of [16, 8, 0]) c |= Math.round(((a >> sh) & 255) * (1 - u) + ((b >> sh) & 255) * u) << sh;
-    RAMP[i] = c;
-  }
-}
+// Terrain's elevation colours, low to high.
+let RAMP = ramp(PALETTES[0].stops.slice(0, 4));
 function spawn3d(i: number): void {
   world[i * 2] = Math.random();
   world[i * 2 + 1] = Math.random();
@@ -60,7 +48,7 @@ const stats = document.getElementById("stats") as HTMLDivElement;
 const caption = document.getElementById("caption") as HTMLDivElement;
 const CAPTIONS: Record<Mode, string> = {
   river:
-    "A river of particles runs down a meandering channel, speeds up toward the lip, falls, bursts into the pool and throws mist. Colour shows speed. Drag to turn the camera.",
+    "A particle fluid in side view: every particle pushes on its neighbours, so water pools, sloshes and piles up. Drag the rocks to dam the river or block the weir. Colour shows speed.",
   waves:
     "An ocean of particles: four Gerstner waves sharpen into crests that throw spray, colour shows height. Click the water to skip a pebble; each touch drives a ripple simulation. Drag to turn the camera.",
   "2d": "Drag to stir the field. Click to drop a colour. Each particle is one copy in a single sprites() call, its trail a render target that fades a little every frame.",
@@ -127,6 +115,7 @@ stage.addEventListener("pointerdown", (e) => {
   stage.setPointerCapture(e.pointerId);
   const [x, y] = local(e);
   down = { x, y, moved: false };
+  if (mode === "river") river.grab(x, y);
 });
 stage.addEventListener("pointermove", (e) => {
   if (!down) return;
@@ -134,6 +123,11 @@ stage.addEventListener("pointermove", (e) => {
   const dx = x - down.x;
   const dy = y - down.y;
   if (Math.abs(dx) + Math.abs(dy) > 3) down.moved = true;
+  if (mode === "river") {
+    // The river is side on: dragging moves rocks.
+    river.drag(x, y);
+    return;
+  }
   if (mode !== "2d") {
     // In 3D, dragging turns the camera instead of stirring.
     camera.yaw += dx * 0.004;
@@ -148,6 +142,7 @@ stage.addEventListener("pointermove", (e) => {
   down.y = y;
 });
 stage.addEventListener("pointerup", (e) => {
+  river.release();
   if (down && !down.moved && mode === "waves") {
     const [x, y] = local(e);
     waves.throwPebble(x, y);
@@ -155,12 +150,13 @@ stage.addEventListener("pointerup", (e) => {
   if (down && !down.moved && mode === "2d") {
     // A click: everything near it takes the next colour.
     const [x, y] = local(e);
-    colourIndex = 2 + ((colourIndex - 1) % (PALETTE.length - 2));
+    colourIndex = (colourIndex + 1) % 3;
+    const drop = PALETTE[[3, 4, 0][colourIndex]];
     const r = 120 * (canvas.width / Math.max(1, stage.clientWidth));
     for (let i = 0; i < n; i++) {
       const dx = positions[i * 2] - x;
       const dy = positions[i * 2 + 1] - y;
-      if (dx * dx + dy * dy < r * r) paint(i, PALETTE[colourIndex], 0x34);
+      if (dx * dx + dy * dy < r * r) paint(i, drop, 0x34);
     }
   }
   down = null;
@@ -177,7 +173,40 @@ document.getElementById("modes")?.addEventListener("click", (e) => {
   trails = null;
   press("modes", "mode", m);
   caption.textContent = CAPTIONS[m];
+  applyPalette();
 });
+
+// Palettes: each mode remembers its own, so switching modes keeps what you picked for each.
+const chosen: Record<Mode, number> = { "2d": 0, "3d": 0, waves: 1, river: 1 };
+const swatches = document.getElementById("palettes") as HTMLElement;
+for (const [i, p] of PALETTES.entries()) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "swatch";
+  b.dataset.palette = String(i);
+  b.setAttribute("aria-label", p.name);
+  b.title = p.name;
+  b.style.background = css(p.stops);
+  swatches.append(b);
+}
+swatches.addEventListener("click", (e) => {
+  const i = (e.target as HTMLElement).dataset.palette;
+  if (i === undefined) return;
+  chosen[mode] = Number(i);
+  applyPalette();
+});
+function applyPalette(): void {
+  const stops = PALETTES[chosen[mode]].stops;
+  press("palettes", "palette", String(chosen[mode]));
+  if (mode === "2d") {
+    PALETTE = stops;
+    colourIndex = 1;
+    for (let i = 0; i < MAX; i++) paint(i, PALETTE[2 - (i % 2)]);
+    trails = null;
+  } else if (mode === "3d") RAMP = ramp(stops.slice(0, 4));
+  else if (mode === "waves") waves.setPalette(stops);
+  else river.setPalette(stops);
+}
 document.getElementById("seed")?.addEventListener("click", () => {
   seed = Math.random() * 1000;
   for (let i = 0; i < MAX; i++) spawn3d(i);
@@ -200,7 +229,7 @@ document.getElementById("counts")?.addEventListener("click", (e) => {
   if (!c) return;
   for (let i = n; i < c; i++) {
     spawn(i, canvas.width, canvas.height);
-    paint(i, PALETTE[i % 2]); // lime and sky to start; clicks bring in the rest
+    paint(i, PALETTE[2 - (i % 2)]); // two colours to start; clicks bring in the rest
   }
   n = c;
   press("counts", "count", String(c));
@@ -242,11 +271,13 @@ function frame(now: number): void {
   if (mode === "waves" || mode === "river") {
     if (!down) camera.yaw += dt * camera.spin * 0.5;
     const scene = mode === "waves" ? waves : river;
-    const count = scene.step(n, dt, now, W, H, dpr, camera, reducedMotion);
+    // The fluid is far more expensive per particle, so it gets a fifth of the count.
+    const count = scene.step(mode === "river" ? Math.round(n / 5) : n, dt, now, W, H, dpr, camera, reducedMotion);
     const d0 = performance.now();
     draw.begin(BG, W / dpr, H / dpr, dpr);
     draw.push();
     draw.scale(1 / dpr);
+    if (mode === "river") river.drawScene(draw, (points, color) => polygon(draw, points, color));
     draw.sprites(dot, scene.positions, count, undefined, { color: scene.colors, scale: scene.scales });
     draw.pop();
     draw.end();
@@ -409,7 +440,7 @@ function report(now: number, dt: number): void {
       mode === "waves"
         ? `${drawn.toLocaleString()} particles (${waves.side()}² surface + spray)`
         : mode === "river"
-          ? `${drawn.toLocaleString()} particles (${river.census(n)}, rock)`
+          ? `${drawn.toLocaleString()} particles (${river.census()})`
           : `${n.toLocaleString()} particles`;
     stats.textContent = `${count} · ${Math.round(fps)} fps · ${work.toFixed(1)} ms of JS per frame${split} · ${draw.kind} · ${draw.drawCalls} draw calls`;
   }
@@ -422,7 +453,8 @@ caption.textContent = CAPTIONS[mode];
 resize();
 for (let i = 0; i < MAX; i++) {
   spawn(i, canvas.width, canvas.height);
-  paint(i, PALETTE[i % 2]); // lime and sky to start; clicks bring in the rest
+  paint(i, PALETTE[2 - (i % 2)]); // two colours to start; clicks bring in the rest
   spawn3d(i);
 }
+applyPalette();
 requestAnimationFrame(frame);
