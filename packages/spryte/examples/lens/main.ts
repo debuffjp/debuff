@@ -1,48 +1,35 @@
-// A lens over 100,000 points: the points under it fly out of the scatter plot and stack into a
-// histogram of their values. Every point moves every frame, all drawn with one sprites() call.
+// A lens over NASA's 32,050 recorded meteorite landings: the meteorites under it fly off the map
+// and stack into a histogram of their mass. Every point moves every frame, all drawn with one
+// sprites() call. Data: NASA Open Data Portal, from The Meteoritical Society (see convert.mjs).
 import { createRenderer, ring } from "spryte";
 
 const canvas = document.querySelector("canvas") as HTMLCanvasElement;
-const params = new URLSearchParams(location.search);
-// ?backend=2d forces the Canvas 2D fallback, ?n= changes the point count.
-const draw = createRenderer(canvas, { backend: params.get("backend") === "2d" ? "2d" : "auto" });
-const N = Math.max(1, Number(params.get("n")) || 100_000);
-const BINS = 32;
-const COLORS = [0x5ab4ffff, 0xff7a9cff, 0xffc94dff, 0x7be0a6ff, 0xb59cffff];
+// ?backend=2d forces the Canvas 2D fallback, to compare the two.
+const draw = createRenderer(canvas, {
+  backend: new URLSearchParams(location.search).get("backend") === "2d" ? "2d" : "auto",
+});
+const BINS = 40;
+const FELL = 0xffc94dff; // seen falling
+const FOUND = 0x5ab4ffff; // found later
+const MIN_LOG = -2; // 0.01 g
+const MAX_LOG = 8; // 100 t
 
-// Seeded synthetic data: a few clusters, each with its own spread of values (0-1), so the
-// histogram changes shape as the lens moves between them.
-let seed = 7;
-function rand(): number {
-  seed = (seed * 1664525 + 1013904223) >>> 0;
-  return seed / 4294967296;
-}
-function gauss(): number {
-  return Math.sqrt(-2 * Math.log(rand() || 1e-9)) * Math.cos(2 * Math.PI * rand());
-}
-// A normal sample redrawn until it lands in [0, 1), so nothing piles up at the edges.
-function within(mean: number, spread: number): number {
-  for (;;) {
-    const v = mean + gauss() * spread;
-    if (v >= 0 && v < 1) return v;
-  }
-}
-const clusters = COLORS.map((_, i) => ({
-  x: 0.15 + rand() * 0.7,
-  y: 0.15 + rand() * 0.7,
-  spread: 0.05 + rand() * 0.1,
-  value: 0.15 + (i / (COLORS.length - 1)) * 0.7,
-}));
-const homeX = new Float32Array(N); // 0-1 within the plot
+// meteorites.bin: see convert.mjs for the layout.
+const data = await (await fetch(new URL("./meteorites.bin", import.meta.url))).arrayBuffer();
+const N = new DataView(data).getUint32(0, true);
+const lon = new Int16Array(data, 4, N);
+const lat = new Int16Array(data, 4 + N * 2, N);
+const logMass = new Uint16Array(data, 4 + N * 4, N);
+const fell = new Uint8Array(data, 4 + N * 6, N);
+const homeX = new Float32Array(N); // 0-1 across the map
 const homeY = new Float32Array(N);
-const value = new Float32Array(N);
+const value = new Float32Array(N); // 0-1 along the mass axis
 const color = new Uint32Array(N);
 for (let i = 0; i < N; i++) {
-  const c = clusters[Math.floor(rand() * clusters.length)];
-  homeX[i] = within(c.x, c.spread);
-  homeY[i] = within(c.y, c.spread);
-  value[i] = within(c.value, 0.12);
-  color[i] = COLORS[clusters.indexOf(c)] ?? 0xffffffff;
+  homeX[i] = (lon[i] / 100 + 180) / 360;
+  homeY[i] = (90 - lat[i] / 100) / 180;
+  value[i] = Math.min(0.999, (logMass[i] / 1000 - 2 - MIN_LOG) / (MAX_LOG - MIN_LOG));
+  color[i] = fell[i] ? FELL : FOUND;
 }
 
 const positions = new Float32Array(N * 2); // current screen position, eased toward a target
@@ -100,11 +87,15 @@ function frame(ms: number): void {
   const h = canvas.clientHeight;
   const pad = 24;
   const plotX = pad;
-  const plotY = pad + 20;
+  const plotY = pad + 40;
   const plotW = w - pad * 2;
-  const plotH = (h - plotY) * 0.68 - pad;
+  // The map keeps the 2:1 shape of an equirectangular projection, centred above the histogram.
+  const mapH = Math.min((h - plotY) * 0.68 - pad, plotW / 2);
+  const mapW = mapH * 2;
+  const mapX = plotX + (plotW - mapW) / 2;
+  const plotH = mapH;
   const histTop = plotY + plotH + pad * 1.5;
-  const histH = h - histTop - pad;
+  const histH = Math.min(h - histTop - pad - 16, Math.max(120, mapH));
   const colW = plotW / BINS;
 
   // Pass 1: which points the lens covers, binned by value.
@@ -112,7 +103,7 @@ function frame(ms: number): void {
   const r2 = lens.r * lens.r;
   let selected = 0;
   for (let i = 0; i < N; i++) {
-    const dx = plotX + homeX[i] * plotW - lens.x;
+    const dx = mapX + homeX[i] * mapW - lens.x;
     const dy = plotY + homeY[i] * plotH - lens.y;
     if (dx * dx + dy * dy < r2) {
       const b = Math.floor(value[i] * BINS);
@@ -136,7 +127,7 @@ function frame(ms: number): void {
     let ty: number;
     const b = bin[i];
     if (b === 255) {
-      tx = plotX + homeX[i] * plotW;
+      tx = mapX + homeX[i] * mapW;
       ty = plotY + homeY[i] * plotH;
     } else {
       const slot = filled[b]++;
@@ -152,18 +143,24 @@ function frame(ms: number): void {
   draw.rect(plotX, histTop + histH + 2, plotW, 1, "#444");
   draw.sprites(dot, positions, N, { scaleX: 0.5, scaleY: 0.5, alpha: 0.75 }, { color });
   if (lens.x > -1e8) ring(draw, lens.x, lens.y, lens.r, 1.5, "#ffffffcc");
-  draw.text("value: low", plotX, histTop + histH + 8, { font: "12px sans-serif", color: "#888" });
-  draw.text("high", plotX + plotW, histTop + histH + 8, { font: "12px sans-serif", color: "#888", align: "right" });
+  draw.text("0.01 g", plotX, histTop + histH + 8, { font: "12px sans-serif", color: "#888" });
+  draw.text("mass (log scale)", plotX + plotW / 2, histTop + histH + 8, { font: "12px sans-serif", color: "#888", align: "center" });
+  draw.text("100 t", plotX + plotW, histTop + histH + 8, { font: "12px sans-serif", color: "#888", align: "right" });
   draw.text(
-    `${N.toLocaleString()} points · ${selected.toLocaleString()} under the lens · ${Math.round(fps)} fps · ${draw.kind} · ${draw.drawCalls} draw calls`,
+    `${N.toLocaleString()} meteorites · ${selected.toLocaleString()} under the lens · ${Math.round(fps)} fps · ${draw.kind} · ${draw.drawCalls} draw calls`,
     pad,
     pad - 8,
     { font: "13px sans-serif", color: "#ccc" },
   );
-  draw.text("move to aim the lens, scroll to resize · synthetic data", w - pad, pad - 8, {
+  draw.text("yellow: seen falling · blue: found later · move the lens, scroll to resize", pad, pad + 10, {
     font: "13px sans-serif",
-    color: "#777",
+    color: "#888",
+  });
+  draw.text("Data: NASA Open Data Portal, The Meteoritical Society", w - pad, h - 6, {
+    font: "11px sans-serif",
+    color: "#666",
     align: "right",
+    baseline: "bottom",
   });
   draw.end();
   requestAnimationFrame(frame);
