@@ -5,6 +5,7 @@
 // each frame: elevation sets each copy's colour, depth its size and brightness. Additive blending
 // ignores draw order, so nothing needs sorting by depth.
 import { createRenderer, type Draw, type RenderTarget, type Shader } from "spryte";
+import * as river from "./river.ts";
 import * as waves from "./waves.ts";
 
 const BG = "#11140d";
@@ -19,9 +20,9 @@ const positions = new Float32Array(MAX * 2); // target pixels
 const colors = new Uint32Array(MAX);
 const life = new Float32Array(MAX); // seconds left before a particle respawns somewhere random
 let n = 60_000;
-type Mode = "2d" | "3d" | "waves";
+type Mode = "2d" | "3d" | "waves" | "river";
 const startMode = new URLSearchParams(location.search).get("mode");
-let mode: Mode = startMode === "3d" || startMode === "waves" ? startMode : "2d";
+let mode: Mode = startMode === "3d" || startMode === "waves" || startMode === "river" ? startMode : "2d";
 
 // 3D state: positions on a terrain, u and v in [0, 1), projected to screen pixels every frame.
 const TAU = Math.PI * 2;
@@ -58,6 +59,8 @@ const stage = document.getElementById("stage") as HTMLDivElement;
 const stats = document.getElementById("stats") as HTMLDivElement;
 const caption = document.getElementById("caption") as HTMLDivElement;
 const CAPTIONS: Record<Mode, string> = {
+  river:
+    "A river of particles runs down a meandering channel, speeds up toward the lip, falls, bursts into the pool and throws mist. Colour shows speed. Drag to turn the camera.",
   waves:
     "An ocean of particles: four Gerstner waves sharpen into crests that throw spray, colour shows height. Click the water to skip a pebble; each touch drives a ripple simulation. Drag to turn the camera.",
   "2d": "Drag to stir the field. Click to drop a colour. Each particle is one copy in a single sprites() call, its trail a render target that fades a little every frame.",
@@ -236,14 +239,15 @@ function frame(now: number): void {
     fresh = true;
   }
 
-  if (mode === "waves") {
+  if (mode === "waves" || mode === "river") {
     if (!down) camera.yaw += dt * camera.spin * 0.5;
-    const count = waves.step(n, dt, now, W, H, dpr, camera, reducedMotion);
+    const scene = mode === "waves" ? waves : river;
+    const count = scene.step(n, dt, now, W, H, dpr, camera, reducedMotion);
     const d0 = performance.now();
     draw.begin(BG, W / dpr, H / dpr, dpr);
     draw.push();
     draw.scale(1 / dpr);
-    draw.sprites(dot, waves.positions, count, undefined, { color: waves.colors, scale: waves.scales });
+    draw.sprites(dot, scene.positions, count, undefined, { color: scene.colors, scale: scene.scales });
     draw.pop();
     draw.end();
     drawMs += (performance.now() - d0 - drawMs) * 0.05;
@@ -399,9 +403,14 @@ function report(now: number, dt: number): void {
     });
   }
   if (Math.floor(now / 250) !== Math.floor((now - dt * 1000) / 250)) {
-    const split = mode === "waves" ? ` (simulate ${waves.timing.sim.toFixed(1)}, spryte ${drawMs.toFixed(1)})` : "";
+    const sim = mode === "waves" ? waves.timing.sim : mode === "river" ? river.timing.sim : 0;
+    const split = mode === "waves" || mode === "river" ? ` (simulate ${sim.toFixed(1)}, spryte ${drawMs.toFixed(1)})` : "";
     const count =
-      mode === "waves" ? `${drawn.toLocaleString()} particles (${waves.side()}² surface + spray)` : `${n.toLocaleString()} particles`;
+      mode === "waves"
+        ? `${drawn.toLocaleString()} particles (${waves.side()}² surface + spray)`
+        : mode === "river"
+          ? `${drawn.toLocaleString()} particles (${river.census(n)}, rock)`
+          : `${n.toLocaleString()} particles`;
     stats.textContent = `${count} · ${Math.round(fps)} fps · ${work.toFixed(1)} ms of JS per frame${split} · ${draw.kind} · ${draw.drawCalls} draw calls`;
   }
 }
