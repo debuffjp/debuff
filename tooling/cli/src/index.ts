@@ -4,6 +4,7 @@ export { CONFIG_FILES, type DebuffConfig, defineConfig, loadConfig, type Resolve
 export { type DoctorCheck, type DoctorGroup, type DoctorOptions, type DoctorResult, repairDoctor, runDoctor } from "./doctor.js";
 export { DebuffError, describeError, type ErrorCode, type ErrorReport, EXIT } from "./errors.js";
 export { DEFAULT_FUZZ_KEYS, type FuzzFinding, type FuzzOptions, type FuzzReport, runFuzz } from "./fuzz.js";
+export { hookFiles, hookInstalled, markTested, writeHookFiles } from "./hook.js";
 export { inspectProject } from "./inspect.js";
 export { baselineImages, type LaunchConfig, writeLaunchFiles } from "./launch.js";
 export type * from "./plugin.js";

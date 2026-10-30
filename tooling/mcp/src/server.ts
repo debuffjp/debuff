@@ -8,6 +8,7 @@ import {
   findUnused,
   inspectProject,
   loadConfig,
+  markTested,
   runDoctor,
   runFuzz,
   runScenarios,
@@ -176,6 +177,7 @@ export function createServer(options: ServerOptions): McpServer {
       const dir = rootOf(r);
       const { runTests } = await import("keiko/runner");
       const report = await runTests({ root: dir, files: files ?? [], vite: await viteConfig(dir), ...(filter ? { filter } : {}) });
+      markTested(dir);
       // Passing tests don't need their (empty) logs or details; keep the result small for the agent.
       return json({
         ...report,
@@ -208,6 +210,7 @@ export function createServer(options: ServerOptions): McpServer {
         strict: false,
         ...(viewport ? { viewport } : {}),
       });
+      markTested(dir);
       return json({ passed: reports.filter((x) => x.ok).length, total: reports.length, reports });
     }),
   );

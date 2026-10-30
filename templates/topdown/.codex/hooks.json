@@ -1,0 +1,39 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^(apply_patch|Edit|Write|Bash|shell|exec_command|.*run_scenarios)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/debuff.mjs codex pre",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "^(apply_patch|Edit|Write)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/debuff.mjs codex post",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/debuff.mjs codex stop",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
