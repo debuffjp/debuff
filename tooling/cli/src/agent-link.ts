@@ -31,6 +31,34 @@ export function saveScenario(root: string, name: string, scenario: unknown): str
   return `scenarios/${file}`;
 }
 
+/** The dev panel's clip button and the `saveClip` hook post `{ name, extension, data }` (base64) here. */
+export const CAPTURE_PATH = "/__debuff/capture";
+
+/** Where captures from the dev panel and agents go: inside `.debuff/`, which new projects keep out of git. */
+export const CAPTURES_DIR = ".debuff/captures";
+
+const CAPTURE_TYPES = new Set(["mp4", "webm", "png"]);
+/** A 15 s clip at 4 Mbps is about 8 MB; this leaves room for higher bitrates. */
+const CAPTURE_MAX_BYTES = 100 * 1024 * 1024;
+
+/**
+ * Write a clip or still from the dev panel to `.debuff/captures/<name>.<extension>`, never overwriting: a
+ * taken name gets a numeric suffix. Returns the path relative to the project root.
+ */
+export function saveCapture(root: string, name: string, extension: string, data: string): string {
+  if (!/^[\w-]{1,80}$/.test(name)) throw new Error("Capture names may use letters, digits, - and _ (max 80)");
+  if (!CAPTURE_TYPES.has(extension)) throw new Error(`Captures are ${[...CAPTURE_TYPES].join(", ")}; got "${extension}"`);
+  if (typeof data !== "string" || !data) throw new Error("Expected base64 data");
+  const bytes = Buffer.from(data, "base64");
+  if (bytes.length > CAPTURE_MAX_BYTES) throw new Error(`Capture is over ${CAPTURE_MAX_BYTES / 1024 / 1024} MB`);
+  const dir = join(root, CAPTURES_DIR);
+  mkdirSync(dir, { recursive: true });
+  let file = `${name}.${extension}`;
+  for (let n = 2; existsSync(join(dir, file)); n++) file = `${name}-${n}.${extension}`;
+  writeFileSync(join(dir, file), bytes);
+  return `${CAPTURES_DIR}/${file}`;
+}
+
 /** Written while `debuff dev` runs, so tools can find the live game. */
 export const DEV_SERVER_FILE = ".debuff/dev-server.json";
 
@@ -69,7 +97,7 @@ export function attachAgentLink(server: ViteDevServer, root: string): void {
 
   server.middlewares.use(async (req, res, next) => {
     const url = req.url?.split("?")[0];
-    if (url === SCENARIO_PATH || url?.startsWith("/__debuff/agent/")) {
+    if (url === SCENARIO_PATH || url === CAPTURE_PATH || url?.startsWith("/__debuff/agent/")) {
       const refusal = refuseForeign(req);
       if (refusal) return reply(res, refusal.status, { ok: false, error: refusal.error });
     }
@@ -77,6 +105,14 @@ export function attachAgentLink(server: ViteDevServer, root: string): void {
       try {
         const { name, scenario } = (await readJson(req)) as { name: string; scenario: unknown };
         return reply(res, 200, { file: saveScenario(root, name, scenario) });
+      } catch (err) {
+        return reply(res, 400, { error: err instanceof Error ? err.message : String(err) });
+      }
+    }
+    if (url === CAPTURE_PATH && req.method === "POST") {
+      try {
+        const { name, extension, data } = (await readJson(req)) as { name: string; extension: string; data: string };
+        return reply(res, 200, { file: saveCapture(root, name, extension, data) });
       } catch (err) {
         return reply(res, 400, { error: err instanceof Error ? err.message : String(err) });
       }

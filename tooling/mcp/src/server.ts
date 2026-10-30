@@ -486,14 +486,19 @@ export function createServer(options: ServerOptions): McpServer {
     "game_capture",
     {
       title: "Capture frame",
-      description: "Screenshot of the current frame as a PNG image. With `path`, also saves it to that file in the project.",
+      description:
+        "Screenshot of the current frame as a PNG image. With `path`, also saves it to that file in the project. " +
+        "social: true letterboxes it into 1200×675 (16:9), the size X and Bluesky show for post images and link cards; save those under " +
+        ".debuff/captures/ and `debuff ship press` adds them to the press kit.",
       inputSchema: {
         path: z.string().optional().describe("Save the PNG here, relative to the project root (e.g. public/thumbnail.png). Overwrites."),
+        social: z.boolean().optional().describe("Letterbox into 1200×675, scaled by whole pixels so pixel art stays crisp."),
+        background: z.string().optional().describe("Letterbox colour with social, as CSS (default #000000)."),
       },
       annotations: { readOnlyHint: false, destructiveHint: false },
     },
-    safely(async ({ path }) => {
-      const dataUrl = await live().call<string>("capture");
+    safely(async ({ path, social, background }) => {
+      const dataUrl = social ? await live().call<string>("capture", "social", background) : await live().call<string>("capture");
       const data = dataUrl.slice(dataUrl.indexOf(",") + 1);
       const content: Content[] = [{ type: "image", data, mimeType: "image/png" }];
       if (path) {
@@ -505,6 +510,45 @@ export function createServer(options: ServerOptions): McpServer {
         content.push({ type: "text", text: JSON.stringify({ saved: rel.split("\\").join("/") }) });
       }
       return { content };
+    }),
+  );
+
+  server.registerTool(
+    "game_clip",
+    {
+      title: "Record a clip",
+      description:
+        "Video clips of the live game for devlogs, store pages and press kits. action start keeps a rolling recording of the last 15 s; " +
+        "save writes what it has (between about 7 and 15 s) to .debuff/captures/<name>.mp4 (WebM in browsers that can't record MP4) and keeps " +
+        "recording; stop ends it. Play or drive the game with game_input between start and save. Live mode only: clips record real time. " +
+        "The human posts; never post anywhere yourself.",
+      inputSchema: {
+        action: z.enum(["start", "save", "stop", "status"]),
+        name: z
+          .string()
+          .regex(/^[\w-]{1,80}$/)
+          .optional()
+          .describe("File name for save, without extension (letters, digits, - and _). Default clip-<timestamp>."),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false },
+    },
+    safely(async ({ action, name }) => {
+      const s = live();
+      if (s.mode === "headless") {
+        throw new Error(
+          "Clips need live mode: a headless copy only advances through game_step, so there is no real-time play to record. " +
+            "Open the game under `debuff dev` and call game_start again, or use game_capture for stills.",
+        );
+      }
+      if (action === "status") return json(await s.call("clips"));
+      if (action === "start" || action === "stop") return json(await s.call("clips", action === "start"));
+      const saved = await s.call<{ file?: string; mimeType: string }>("saveClip", ...(name ? [name] : []));
+      return json({
+        ...saved,
+        ...(saved.mimeType.includes("webm")
+          ? { note: "WebM: X and most stores need MP4. Convert with `ffmpeg -i <file>.webm <file>.mp4` before posting." }
+          : {}),
+      });
     }),
   );
 

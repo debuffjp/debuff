@@ -1,5 +1,6 @@
 import type { Game, GameErrorContext, ParamValue } from "@debuffjp/core";
 import { myaku, type Profiler } from "myaku";
+import { DevClips } from "./clips.js";
 import { type ExplainedError, errorKey, explainError, mapLocation } from "./explain.js";
 import type { DrivableInput } from "./index.js";
 import { fastForward, InputRecording, pagePath, type Replay, type ReplayTarget, type RewindRequest, storeRewind } from "./replay.js";
@@ -269,11 +270,14 @@ export class DevSession {
 
   /** myaku: hitches explained (`profile()`), with debuff's update and render as spans. */
   readonly profiler: Profiler;
+  /** Rolling clip recording (off until turned on), for devlogs and press kits. */
+  readonly clips: DevClips;
   private readonly unsubscribeSpans: (() => void)[];
 
   private constructor(readonly game: Game) {
     this.recorder = new FrameRecorder(game);
     this.profiler = myaku();
+    this.clips = new DevClips(game);
     let updateStart = 0;
     let renderStart = 0;
     this.unsubscribeSpans = [
@@ -323,6 +327,7 @@ export class DevSession {
   release(): void {
     if (--this.refs > 0) return;
     this.recorder.dispose();
+    this.clips.dispose();
     for (const off of this.unsubscribeSpans) off();
     this.profiler.stop();
     this.recording?.dispose();

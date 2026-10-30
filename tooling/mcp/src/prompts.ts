@@ -87,6 +87,25 @@ ${RULES}`),
   );
 
   server.registerPrompt(
+    "devlog-post",
+    {
+      title: "Draft a devlog post",
+      description: "Capture a still and a clip of what changed, and draft short posts for X and Bluesky. The human posts them.",
+      argsSchema: { topic: z.string().optional().describe("What to post about, e.g. 'the new boss'. Default: the latest changes.") },
+    },
+    ({ topic }) =>
+      user(`Draft a devlog post about ${topic ?? "this game's latest changes"}.
+
+1. Find what changed: read the recent git log and CHANGELOG.md if there is one. Ask the human which change to show if it isn't clear.
+2. Call game_start (live mode, so the clip records real play). Get the game to the moment that shows it: ask the human to play it, or drive it with game_input.
+3. Call game_clip with action start, play through the moment, then game_clip save with a descriptive name, then stop. Call game_capture with social: true and path .debuff/captures/<name>.png for a 1200×675 still.
+4. Draft two or three short posts in the human's voice from earlier posts if they share any: what changed and why it's fun, in plain words, at most 280 characters on X (a link counts 23) and 300 on Bluesky. No hashtag walls; one tag like #gamedev at most, and only if the human uses them.
+5. Give the drafts, the saved files, and if the human wants a ready link, postIntent() from @debuffjp/share builds an X or Bluesky compose URL in a dev script or the console.
+
+Never post, sign in or call a social API yourself, and never add sharing or promotion to the game: the human decides what the game and their posts contain. ${RULES}`),
+  );
+
+  server.registerPrompt(
     "explain-stutter",
     {
       title: "Explain stutter",

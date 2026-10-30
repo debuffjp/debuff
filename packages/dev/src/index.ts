@@ -1,5 +1,6 @@
 import type { Game, ParamDescription, ParamValue, Plugin } from "@debuffjp/core";
 import type { Report } from "myaku";
+import { type ClipStatus, fitFrame, type SavedCapture, STILL_SIZES } from "./clips.js";
 import type { ExplainedError } from "./explain.js";
 import { type PadStep, pointerOp, pressSource, type Replay, releaseSource, takeRewind, toPadState } from "./replay.js";
 import { DevSession, type FrameSample, type GameEventRecord, gamePlugins, type Note, type TypeDiagnostic } from "./session.js";
@@ -158,8 +159,21 @@ export interface DevHooks {
    * every check after a save. Empty when type-checking is off or the code type-checks.
    */
   typeErrors(): TypeDiagnostic[];
-  /** PNG data URL of the current frame. */
-  capture(): string;
+  /**
+   * PNG data URL of the current frame. With `fit`, the frame is letterboxed into that size: `"social"`
+   * (1200×675, for X and Bluesky posts and link cards) or `[width, height]`, on `background` (default black).
+   */
+  capture(fit?: "social" | [number, number], background?: string): string;
+  /**
+   * Turn rolling clip recording on or off (no argument: just report). While on, `saveClip` keeps the last
+   * few seconds. It runs two video encoders, so leave it off when you aren't capturing.
+   */
+  clips(on?: boolean): ClipStatus;
+  /**
+   * Save the last few seconds as a video in `.debuff/captures/` (through `debuff dev`; downloaded otherwise).
+   * MP4 where the browser can record it, else WebM. Needs `clips(true)` first.
+   */
+  saveClip(name?: string): Promise<SavedCapture>;
   /**
    * The current frame's relative luminance (0 black to 1 white, WCAG), averaged over a `cols` × `rows`
    * grid, row by row. `region` (`[x, y, w, h]` in logical units) samples part of the screen. For flash
@@ -364,10 +378,25 @@ function createHooks(game: Game, session: DevSession, options: DevHooksOptions, 
       session.log(who(), "command", name);
       return (fn as (...a: unknown[]) => unknown)(...args);
     },
-    capture: () => {
+    capture: (fit, background) => {
+      if (fit !== undefined) {
+        const [w, h] = fit === "social" ? STILL_SIZES.social : fit;
+        return fitFrame(game, w, h, background);
+      }
       // Re-render without advancing time: WebGL clears its buffer after presenting, so read in the same task.
       game.redraw();
       return game.canvas.toDataURL("image/png");
+    },
+    clips: (on) => {
+      if (on === undefined) return session.clips.status();
+      const status = session.clips.set(on);
+      session.log(who(), on ? "started clip recording" : "stopped clip recording");
+      return status;
+    },
+    saveClip: async (name) => {
+      const saved = await session.clips.save(name);
+      session.log(who(), "saved a clip", saved.file ?? "downloaded");
+      return saved;
     },
     luminance: (cols, rows, region) => sampleLuminance(game, cols, rows, region),
   };
@@ -388,7 +417,7 @@ function linkAgent(game: Game, session: DevSession, options: DevHooksOptions, er
   events.addEventListener("presence", (e) =>
     session.setAgentsAttached((JSON.parse((e as MessageEvent<string>).data) as { agents: number }).agents),
   );
-  events.addEventListener("command", (e) => {
+  events.addEventListener("command", async (e) => {
     const { id, method, args } = JSON.parse((e as MessageEvent<string>).data) as { id: string; method: keyof DevHooks; args: unknown[] };
     session.agentSeen();
     let body: { id: string; ok: true; result: unknown } | { id: string; ok: false; error: string };
@@ -396,7 +425,8 @@ function linkAgent(game: Game, session: DevSession, options: DevHooksOptions, er
       const fn = hooks[method];
       if (typeof fn !== "function")
         throw new Error(`Unknown dev hook "${String(method)}": this @debuffjp/dev is older than the tool. Update it.`);
-      body = { id, ok: true, result: (fn as (...a: unknown[]) => unknown)(...args) };
+      // Most hooks answer at once; a few (saveClip) return a promise.
+      body = { id, ok: true, result: await (fn as (...a: unknown[]) => unknown)(...args) };
       if (method === "capture") session.log("agent", "captured a frame");
       else if (method === "press" || method === "release" || method === "tap") session.log("agent", method, String(args[0] ?? ""));
     } catch (err) {
@@ -407,6 +437,7 @@ function linkAgent(game: Game, session: DevSession, options: DevHooksOptions, er
   return () => events.close();
 }
 
+export { CAPTURE_ENDPOINT, CLIP_SECONDS, type ClipStatus, DevClips, type SavedCapture, STILL_SIZES } from "./clips.js";
 export { type ErrorKind, type ExplainedError, explainError, type SourceLocation } from "./explain.js";
 export { type DevOverlayOptions, devOverlay } from "./overlay.js";
 export { InputRecording, type PadStep, type Replay, type ReplayStep } from "./replay.js";

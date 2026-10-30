@@ -45,7 +45,7 @@ describe("debuff MCP server", () => {
 
   it("offers workflow prompts that fill in their arguments", async () => {
     const { prompts } = await client.listPrompts();
-    expect(prompts.map((p) => p.name)).toEqual(["playtest", "fix-errors", "tune-feel", "add-mechanic", "explain-stutter"]);
+    expect(prompts.map((p) => p.name)).toEqual(["playtest", "fix-errors", "tune-feel", "add-mechanic", "devlog-post", "explain-stutter"]);
     const got = await client.getPrompt({ name: "add-mechanic", arguments: { mechanic: "a double jump" } });
     const text = got.messages[0]?.content.type === "text" ? got.messages[0].content.text : "";
     expect(text).toContain("a double jump");
@@ -119,6 +119,14 @@ describe("debuff MCP server", () => {
     const profile = await call("game_profile");
     expect(profile.isError).toBe(true);
     expect(profile.content[0]?.text).toMatch(/live mode/);
+
+    // A social still is 1200×675 whatever the game's size (PNG IHDR: width and height at bytes 16 and 20).
+    const social = await call("game_capture", { social: true });
+    const png = Buffer.from(social.content[0]?.data ?? "", "base64");
+    expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([1200, 675]);
+    const clip = await call("game_clip", { action: "start" });
+    expect(clip.isError).toBe(true);
+    expect(clip.content[0]?.text).toMatch(/live mode/);
 
     const dir = mkdtempSync(join(tmpdir(), "debuff-capture-"));
     const saved = await call("game_capture", { path: relative(template, join(dir, "shot.png")) });
