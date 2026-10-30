@@ -8,6 +8,7 @@ export {
   type SpriteDrawOptions,
   type TextDrawOptions,
 } from "./draw.js";
+export { canDrawElements, drawElement, type ElementDrawOptions } from "./element.js";
 export {
   blur,
   brightness,

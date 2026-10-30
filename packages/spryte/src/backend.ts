@@ -122,6 +122,8 @@ export interface Backend {
   resize(backingWidth: number, backingHeight: number): void;
   /** Drop cached GPU data for a source whose pixels changed. */
   invalidate(src: TextureSource): void;
+  /** Draw `key` from a texture spryte didn't create (top row first), which it samples but never uploads to or deletes. */
+  lend?(key: TextureSource, tex: WebGLTexture, w: number, h: number): void;
   /**
    * Copy `w × h` pixels of `from` into `dst` at (`x`, `y`), where `dst` (a canvas this backend may hold as a
    * texture) has already been updated the same way. Lets a texture atlas upload one new region instead of

@@ -56,6 +56,7 @@
     "example:phaser": "vite examples/phaser",
     "test:phaser": "node examples/phaser/check.mjs",
     "example:pixi": "vite examples/pixi",
+    "example:html": "vite examples/html-in-canvas",
     "test:pixi": "node examples/pixi/check.mjs",
     "test:browser": "node browser-test/run.mjs"
   },

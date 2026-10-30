@@ -938,6 +938,13 @@ export class WebGL2Backend implements Backend {
     // The viewport is set from drawingBufferWidth/Height at the start of each frame.
   }
 
+  lend(key: TextureSource, tex: WebGLTexture, w: number, h: number): void {
+    const cached = this.textures.get(key);
+    if (cached?.tex === tex && cached.iw === 1 / w && cached.ih === 1 / h) return;
+    this.textures.set(key, { tex, iw: 1 / w, ih: 1 / h, v0: 0, borrowed: true });
+    if (this.lastSrc === key) this.lastSrc = null;
+  }
+
   update(dst: TextureSource, x: number, y: number, from: HTMLCanvasElement | OffscreenCanvas, w: number, h: number): void {
     // Not uploaded yet: its first use uploads the whole image, which already has this region.
     const cached = this.textures.get(dst);
