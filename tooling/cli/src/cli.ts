@@ -208,14 +208,19 @@ cli
     if (o.json) emit(result);
     else if (result.action === "similar") {
       console.log("Similar papercuts already exist:");
-      for (const { entry, score } of result.similar)
+      for (const { entry, score } of result.similar) {
         console.log(
           `  #${entry.id}  ${entry.title}  ${pc.dim(`(${entry.repo}, ${entry.hits} hits, ${entry.minutes} min, match ${score})`)}`,
         );
+        if (entry.workaround) console.log(`      workaround: ${entry.workaround}`);
+      }
       console.log(pc.dim("Same problem? Rerun with --hit <id>. Different? Rerun with --force."));
-    } else if (result.action === "hit")
-      console.log(`Added a hit to #${result.entry.id}: ${result.entry.hits} hits, ${result.entry.minutes} min. ${pc.dim(result.url)}`);
-    else console.log(`Filed #${result.entry.id}${result.pending ? " (waits for review)" : ""}. ${pc.dim(result.url)}`);
+    } else {
+      if (result.action === "hit")
+        console.log(`Added a hit to #${result.entry.id}: ${result.entry.hits} hits, ${result.entry.minutes} min. ${pc.dim(result.url)}`);
+      else console.log(`Filed #${result.entry.id}${result.pending ? " (waits for review)" : ""}. ${pc.dim(result.url)}`);
+      if (result.hint) console.log(result.hint);
+    }
     return 0;
   });
 

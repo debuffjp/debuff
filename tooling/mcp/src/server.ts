@@ -117,7 +117,7 @@ export function createServer(options: ServerOptions): McpServer {
         if (sent && sent.action !== "similar")
           result.content.push({
             type: "text",
-            text: `debuff reported this to papercuts.debuff.jp as #${sent.entry.id} (${sent.entry.hits} hits). If you know more, call report_papercut with hit: ${sent.entry.id} and what happened.`,
+            text: `debuff reported this to papercuts.debuff.jp as #${sent.entry.id} (${sent.entry.hits} hits). ${sent.hint ? `${sent.hint} ` : ""}If you know more, call report_papercut with hit: ${sent.entry.id} and what happened.`,
           });
         return result;
       }) as never,

@@ -41,9 +41,12 @@ export interface PapercutInput {
 }
 
 export type PapercutResult =
-  | { action: "filed"; entry: PapercutEntry; url: string; pending: boolean }
-  | { action: "hit"; entry: PapercutEntry; url: string; reopened: boolean }
+  | { action: "filed"; entry: PapercutEntry; url: string; pending: boolean; hint: string }
+  | { action: "hit"; entry: PapercutEntry; url: string; reopened: boolean; hint: string }
   | { action: "similar"; similar: { entry: PapercutEntry; score: number }[] };
+
+/** The board's next step for an entry (its workaround, or that it waits for review). Empty from older boards. */
+const hintOf = (data: Record<string, unknown>) => (typeof data.hint === "string" ? data.hint : "");
 
 export interface PapercutContext {
   env?: NodeJS.ProcessEnv;
@@ -86,7 +89,7 @@ export async function reportPapercut(input: PapercutInput, ctx: PapercutContext)
     });
     if (status !== 200) throw new Error(`papercuts: ${String(data.error ?? `HTTP ${status}`)}`);
     const entry = data.entry as PapercutEntry;
-    return { action: "hit", entry, url: `${base}/#${entry.id}`, reopened: data.reopened === true };
+    return { action: "hit", entry, url: `${base}/#${entry.id}`, reopened: data.reopened === true, hint: hintOf(data) };
   }
 
   const { status, data } = await send("/api/report", {
@@ -103,7 +106,7 @@ export async function reportPapercut(input: PapercutInput, ctx: PapercutContext)
   if (status === 409) return { action: "similar", similar: data.similar as { entry: PapercutEntry; score: number }[] };
   if (status !== 201) throw new Error(`papercuts: ${String(data.error ?? `HTTP ${status}`)}`);
   const entry = data.entry as PapercutEntry;
-  return { action: "filed", entry, url: `${base}/#${entry.id}`, pending: entry.status === "pending" };
+  return { action: "filed", entry, url: `${base}/#${entry.id}`, pending: entry.status === "pending", hint: hintOf(data) };
 }
 
 // ---- automatic reports ----------------------------------------------------------------------------
@@ -229,13 +232,14 @@ export async function autoPapercut(signal: PapercutSignal, ctx: AutoPapercutCont
       }),
       signal: AbortSignal.timeout(5000),
     });
-    const data = (await res.json().catch(() => ({}))) as { entry?: PapercutEntry; reopened?: boolean };
+    const data = (await res.json().catch(() => ({}))) as { entry?: PapercutEntry; reopened?: boolean; hint?: string };
     await settle();
     if (!data.entry) return undefined;
     const url = `${base}/#${data.entry.id}`;
+    const hint = hintOf(data);
     return res.status === 201
-      ? { action: "filed", entry: data.entry, url, pending: data.entry.status === "pending" }
-      : { action: "hit", entry: data.entry, url, reopened: data.reopened === true };
+      ? { action: "filed", entry: data.entry, url, pending: data.entry.status === "pending", hint }
+      : { action: "hit", entry: data.entry, url, reopened: data.reopened === true, hint };
   } catch {
     return undefined;
   }
