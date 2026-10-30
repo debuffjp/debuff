@@ -56,6 +56,9 @@
     "example:phaser": "vite examples/phaser",
     "test:phaser": "node examples/phaser/check.mjs",
     "example:pixi": "vite examples/pixi",
+    "example:hemoglobin": "vite examples/hemoglobin",
+    "example:ribosome": "vite examples/ribosome",
+    "example:jupiter": "vite examples/jupiter",
     "example:html": "vite examples/html-in-canvas",
     "test:pixi": "node examples/pixi/check.mjs",
     "test:browser": "node browser-test/run.mjs"
