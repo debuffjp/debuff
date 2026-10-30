@@ -42,7 +42,7 @@ describe("writeLaunchFiles", () => {
     project('<html><head><meta property="og:title" content="Mine" /></head></html>');
     expect(writeLaunchFiles(root, join(root, "dist"), { icon: "nope.png" })).toEqual([
       "launch.icon nope.png not found",
-      "set launch.url so link previews can show the image (crawlers need an absolute URL)",
+      "set `launch: { url }` in debuff.config.ts to the game's public address, so link previews can show the image (crawlers need an absolute URL)",
     ]);
     const html = readFileSync(join(root, "dist", "index.html"), "utf8");
     expect(html.match(/og:title/g)).toHaveLength(1);

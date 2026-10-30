@@ -1,8 +1,11 @@
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { stepUntil } from "../src/scenario/browser.js";
-import { captureDiffMessage, compare, pick } from "../src/scenario/index.js";
+import { captureDiffMessage, compare, pick, unusedBaselines } from "../src/scenario/index.js";
 import { comparisonError, runStep } from "../src/scenario/run.js";
-import type { Step } from "../src/scenario/types.js";
+import type { ScenarioReport, Step } from "../src/scenario/types.js";
 
 describe("compare", () => {
   it("passes matching comparisons", () => {
@@ -138,5 +141,39 @@ describe("runStep: tap with a key and malformed comparisons", () => {
     expect(until.failures[0]).toMatch(/^until: scene: expected a comparison object like \{ "eq": "play" \}/);
     expect(comparisonError({ equals: 1 })).toMatch(/with eq, gt, gte, lt, lte or approx, got \{"equals":1\}/);
     expect(comparisonError({ eq: 0 })).toBeUndefined();
+  });
+});
+
+describe("unusedBaselines", () => {
+  const report = (name: string, ok: boolean, captures: string[]): ScenarioReport => ({
+    name,
+    ok,
+    steps: [],
+    errors: [],
+    captures: captures.map((c) => ({ name: c, path: "", baseline: "", status: "match" as const })),
+    finalState: undefined,
+    durationMs: 0,
+  });
+
+  it("lists folders with no scenario and captures a passing scenario no longer takes", () => {
+    const root = mkdtempSync(join(tmpdir(), "debuff-baselines-"));
+    const base = join(root, "scenarios", "__baselines__");
+    for (const [dir, file] of [
+      ["play", "now.linux.png"],
+      ["play", "now.win32.png"],
+      ["play", "old.win32.png"],
+      ["gone", "x.linux.png"],
+      ["broken", "late.linux.png"],
+    ] as const) {
+      mkdirSync(join(base, dir), { recursive: true });
+      writeFileSync(join(base, dir, file), "png");
+    }
+    // "broken" failed, so its later captures may simply not have run: left alone.
+    const unused = unusedBaselines(root, [report("play", true, ["now"]), report("broken", false, [])]);
+    expect(unused).toEqual(["scenarios/__baselines__/gone/", "scenarios/__baselines__/play/old.win32.png"]);
+  });
+
+  it("is empty without baselines", () => {
+    expect(unusedBaselines(mkdtempSync(join(tmpdir(), "debuff-baselines-")), [])).toEqual([]);
   });
 });

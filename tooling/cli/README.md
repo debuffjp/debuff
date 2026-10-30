@@ -76,7 +76,7 @@ The shim imports `@debuffjp/cli/hook`, so the rules come from the installed CLI.
 }
 ```
 
-Time advances only through `wait` and `until` steps, so runs are deterministic. `until` steps one tick at a time until its conditions hold, and fails if they don't `within` that many steps (default 600), so a scenario says "until the player lands" instead of guessing a wait. Paths read the dev state: `scene`, `tick`, `state.*` (your `inspect()`), and `events.<name>`, the number of times the game called `game.emit("<name>")` (0 until the first). For example `{ "until": { "events.coin": { "gte": 1 } }, "within": 60 }`. Replays saved from the dev panel (or the MCP `game_replay` tool) are scenarios too. ### Accessibility checks
+Time advances only through `wait` and `until` steps, so runs are deterministic. Every step renders in a real browser, so long waits are slow (a minute of game time can take a few minutes): check timers and other long timings with logic tests, and keep scenarios short. `until` steps one tick at a time until its conditions hold, and fails if they don't `within` that many steps (default 600), so a scenario says "until the player lands" instead of guessing a wait. Paths read the dev state: `scene`, `tick`, `state.*` (your `inspect()`), and `events.<name>`, the number of times the game called `game.emit("<name>")` (0 until the first). For example `{ "until": { "events.coin": { "gte": 1 } }, "within": 60 }`. Replays saved from the dev panel (or the MCP `game_replay` tool) are scenarios too. ### Accessibility checks
 
 Scenarios can screen what the game actually draws:
 

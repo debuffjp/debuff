@@ -28,6 +28,33 @@ export function findScenarios(root: string, files: string[]): string[] {
     .map((f) => join(dir, f));
 }
 
+/**
+ * Baselines no scenario took after a full run, relative to the root: folders under `scenarios/__baselines__/` with no
+ * scenario of that name, and captures a passing scenario no longer takes (on any platform). A failed scenario may have
+ * stopped before its later captures, so its folder is left alone.
+ */
+export function unusedBaselines(root: string, reports: ScenarioReport[]): string[] {
+  const dir = join(root, "scenarios", "__baselines__");
+  if (!existsSync(dir)) return [];
+  const byName = new Map(reports.map((r) => [r.name, r]));
+  const unused: string[] = [];
+  for (const scenario of readdirSync(dir).sort()) {
+    const report = byName.get(scenario);
+    const rel = `scenarios/__baselines__/${scenario}`;
+    if (!report) {
+      unused.push(`${rel}/`);
+      continue;
+    }
+    if (!report.ok) continue;
+    const taken = new Set(report.captures.map((c) => c.name));
+    for (const file of readdirSync(join(dir, scenario)).sort()) {
+      const capture = file.replace(/\.[^.]+\.png$/, "");
+      if (file.endsWith(".png") && !taken.has(capture)) unused.push(`${rel}/${file}`);
+    }
+  }
+  return unused;
+}
+
 /** Read a dotted path, e.g. "state.player.x". */
 export function pick(obj: unknown, path: string): unknown {
   const value = path

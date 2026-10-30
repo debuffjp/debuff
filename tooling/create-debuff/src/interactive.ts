@@ -95,7 +95,11 @@ export async function runCreate(options: CreateOptions): Promise<number> {
   const pm = detectPackageManager();
   const run = pm === "npm" ? "npm run" : pm;
   const steps = [`cd ${relative(process.cwd(), dest) || "."}`, `${pm} install`, `${run} dev`].map((c) => sky(c));
-  if (hasTestScript(dest)) steps.push(`${sky(`${pm} test`)}  ${pc.dim("logic tests, no browser")}`);
+  const test = testScript(dest);
+  if (test)
+    steps.push(
+      `${sky(`${pm} test`)}  ${pc.dim(test.includes("scenario") ? "logic tests, then screenshot scenarios in a headless browser" : "tests")}`,
+    );
   p.note(steps.join("\n"), "Next steps");
   console.log(
     `\n${banner("happy", [lime(pc.bold("happy jamming!")), `${pc.dim("buff is waiting in")} ${pink("src/main.ts")}`, `${pc.dim("say hi on")} ${sky("discord.gg/jshbDHSpCY")}`, ""])}\n`,
@@ -108,10 +112,12 @@ function cancelled(): number {
   return 1;
 }
 
-function hasTestScript(dir: string): boolean {
+/** The project's `test` script, or undefined. */
+function testScript(dir: string): string | undefined {
   try {
-    return Boolean(JSON.parse(readFileSync(join(dir, "package.json"), "utf8")).scripts?.test);
+    const test = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")).scripts?.test;
+    return typeof test === "string" && test ? test : undefined;
   } catch {
-    return false;
+    return undefined;
   }
 }
