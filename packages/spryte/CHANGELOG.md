@@ -1,5 +1,18 @@
 # spryte
 
+## 0.8.0
+
+### Minor Changes
+
+- cc3125d: New `gpuTimer(draw)`: GPU milliseconds for what you draw between its `begin()` and `end()`, to tell a GPU-bound frame from a CPU-bound one. Results arrive a few frames late and never block. `ms` stays `undefined` where timing isn't available (Canvas 2D, and browsers without `EXT_disjoint_timer_query_webgl2`, which in practice means everything but Chromium on desktop), after a GPU timing glitch, and when a host engine or profiler is already timing the frame. Separately imported, so it adds nothing unless used.
+- c3669d4: `draw.sprites()` takes interleaved data. Set `each.stride` and `positions` becomes one record of `stride` floats per copy, uploaded to the GPU as is; `each.scale`, `rotation`, `color` and `frame` then take offsets into the record. `positions` must be a `Float32Array` and may view a `SharedArrayBuffer`, so a worker's buffer draws without a per-frame copy.
+  
+  `sprites()` inside `withShader` now stays one instanced draw instead of one quad per copy: the effect is compiled against the per-copy program. Only `source(uv)`, `color` and `uv` are guaranteed inside `effect` there. Frames across images still draw one quad per copy.
+
+### Patch Changes
+
+- 56749bb: Canvas 2D fallback: tinted sprites in more than 256 colours no longer slow to seconds per frame. The cache of recoloured copies used to clear completely at 256 entries, so animated or per-copy colours re-tinted nearly every sprite every frame; it now drops the least recently used entry and holds up to 1,024 per image. Repeating the last tint also skips the cache lookup. Output is unchanged. Measured in headless Chrome: 6,000 copies in 1,000 colours went from 2.2 s to 36 ms per frame, and 60,000 copies in one colour from 212 to about 180 ms.
+
 ## 0.7.3
 
 ### Patch Changes
