@@ -117,6 +117,25 @@ describe("ship", () => {
     expect(readme).toContain("**Developer:** Gel Studio");
     expect(readme).toContain("![](screenshots/01-start-title.png)");
     expect(readme).toContain("[Discord](https://discord.gg/x)");
+    expect(readme).toContain("press **rec** in the dev panel");
+  });
+
+  it("adds stills and clips captured in the dev panel", () => {
+    project();
+    mkdirSync(join(root, ".debuff", "captures"), { recursive: true });
+    writeFileSync(join(root, ".debuff", "captures", "social.png"), "png");
+    writeFileSync(join(root, ".debuff", "captures", "clip-play-300.mp4"), "mp4");
+    writeFileSync(join(root, ".debuff", "captures", "clip-play-900.webm"), "webm");
+    const result = ship(root, "press");
+    expect(result.outputs).toContain("ship/press/screenshots/captured-social.png");
+    expect(result.outputs).toContain("ship/press/clips/clip-play-300.mp4");
+    expect(readFileSync(join(root, "ship", "press", "clips", "clip-play-900.webm"), "utf8")).toBe("webm");
+    expect(result.checks.find((c) => c.message.includes("WebM"))?.ok).toBe(false);
+    expect(shipFailed(result)).toBe(false);
+    const readme = readFileSync(join(root, "ship", "press", "README.md"), "utf8");
+    expect(readme).toContain("![](screenshots/captured-social.png)");
+    expect(readme).toContain("- [clip-play-300.mp4](clips/clip-play-300.mp4)");
+    expect(readme).not.toContain("![](clips/");
   });
 });
 

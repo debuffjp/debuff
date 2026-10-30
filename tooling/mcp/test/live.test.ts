@@ -1,7 +1,7 @@
-import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { AGENT_PATHS, createDevServer, DEV_SERVER_FILE } from "@debuffjp/cli";
+import { AGENT_PATHS, CAPTURE_PATH, createDevServer, DEV_SERVER_FILE } from "@debuffjp/cli";
 import { describe, expect, it } from "vitest";
 import { LiveSession, startSession } from "../src/index.js";
 
@@ -71,6 +71,18 @@ describe("live agent link", () => {
       await expect(live?.call("boom")).rejects.toThrow("nope");
       const status = async () => (await fetch(new URL(AGENT_PATHS.status, base))).json();
       expect(await status()).toMatchObject({ pages: 1, agents: 1 });
+
+      // The dev panel's clip button writes into .debuff/captures/, and a foreign site can't.
+      const post = (headers: Record<string, string>) =>
+        fetch(new URL(CAPTURE_PATH, base), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...headers },
+          body: JSON.stringify({ name: "clip-a", extension: "webm", data: Buffer.from("webm").toString("base64") }),
+        });
+      expect(await (await post({})).json()).toEqual({ file: ".debuff/captures/clip-a.webm" });
+      expect(readFileSync(join(root, ".debuff/captures/clip-a.webm"), "utf8")).toBe("webm");
+      expect((await post({ Origin: "https://evil.example" })).status).toBe(403);
+
       await live?.stop();
       expect(await until(status, (s) => s.agents === 0)).toMatchObject({ agents: 0 });
       close();

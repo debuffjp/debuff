@@ -59,6 +59,8 @@ class Overlay {
   private readonly mascot: Buff;
   private readonly collapseButton: HTMLButtonElement;
   private readonly pauseButton: HTMLButtonElement;
+  private readonly recButton: HTMLButtonElement;
+  private readonly clipButton: HTMLButtonElement;
   private readonly summaryLine: HTMLElement;
   private readonly inspector: HTMLElement;
   private readonly paramsBox: HTMLElement;
@@ -141,10 +143,16 @@ class Overlay {
     speed.addEventListener("change", () => this.session.setSpeed(Number(speed.value)));
     const snap = button("snap", () => this.snapshot());
     snap.title = "Download the current frame as a PNG";
+    this.recButton = button("rec", () => this.toggleClips());
+    this.clipButton = button("clip", () => void this.saveClip());
+    this.clipButton.title = "Save the last few seconds as a video in .debuff/captures/";
+    const clipsSupported = this.session.clips.status().supported;
+    this.recButton.hidden = !clipsSupported;
+    this.clipButton.hidden = true;
     const restart = button("restart", () => this.restartScene());
     restart.title = "Re-enter the current scene";
     restart.style.marginLeft = "auto";
-    toolbar.append(this.pauseButton, step, speed, snap, restart);
+    toolbar.append(this.pauseButton, step, speed, snap, this.recButton, this.clipButton, restart);
 
     // ---- tabs ----
     const tabBar = row();
@@ -290,6 +298,8 @@ class Overlay {
       })),
     );
     this.cleanups.push(this.session.subscribe(() => this.refreshSession()));
+    this.cleanups.push(this.session.clips.subscribe(() => this.refreshClips()));
+    this.refreshClips();
     this.buildParams();
     this.refreshSession();
   }
@@ -737,6 +747,35 @@ class Overlay {
     }
     const note = replay.warnings.length ? ` (approximate: ${replay.warnings.join(" ")})` : "";
     this.session.log("you", copy ? "copied a replay" : "saved a replay", `${replay.ticks} ticks${note}`);
+  }
+
+  private toggleClips(): void {
+    const on = !this.session.clips.status().recording;
+    try {
+      this.session.clips.set(on);
+      this.session.log("you", on ? "started clip recording" : "stopped clip recording");
+    } catch (err) {
+      this.session.log("you", "can't record clips", err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  private refreshClips(): void {
+    const { recording, seconds } = this.session.clips.status();
+    this.recButton.textContent = recording ? "● rec" : "rec";
+    this.recButton.style.color = recording ? OVER_BUDGET : "";
+    this.recButton.title = recording
+      ? "Stop recording clips"
+      : `Keep the last ${seconds} s of the game so "clip" can save it (a video for devlogs and store pages)`;
+    this.clipButton.hidden = !recording;
+  }
+
+  private async saveClip(): Promise<void> {
+    try {
+      const saved = await this.session.clips.save(`clip-${this.game.scene?.id ?? "game"}-${this.game.clock.tick}`);
+      this.session.log("you", "saved a clip", `${saved.file ?? "downloaded"} (${saved.seconds} s)`);
+    } catch (err) {
+      this.session.log("you", "can't save a clip", err instanceof Error ? err.message : String(err));
+    }
   }
 
   private snapshot(): void {

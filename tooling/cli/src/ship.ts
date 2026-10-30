@@ -3,6 +3,7 @@
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { crc32, deflateRawSync } from "node:zlib";
+import { CAPTURES_DIR } from "./agent-link.js";
 import { baselineImages, type LaunchConfig, launchInfo } from "./launch.js";
 
 export type ShipTarget = "itch" | "wavedash" | "press";
@@ -177,11 +178,36 @@ export function ship(root: string, target: ShipTarget, launch: LaunchConfig = {}
       copyFileSync(shot, join(out, rel));
       result.outputs.push(`ship/${rel}`);
     });
+    // Stills and clips saved from the dev panel or by agents (game_capture, game_clip).
+    const captured = existsSync(join(root, CAPTURES_DIR)) ? readdirSync(join(root, CAPTURES_DIR)).sort() : [];
+    const stills = captured.filter((f) => f.endsWith(".png"));
+    const clips = captured.filter((f) => f.endsWith(".mp4") || f.endsWith(".webm"));
+    for (const f of stills) {
+      mkdirSync(join(out, "press", "screenshots"), { recursive: true });
+      copyFileSync(join(root, CAPTURES_DIR, f), join(out, "press", "screenshots", `captured-${f}`));
+      result.outputs.push(`ship/press/screenshots/captured-${f}`);
+    }
+    for (const f of clips) {
+      mkdirSync(join(out, "press", "clips"), { recursive: true });
+      copyFileSync(join(root, CAPTURES_DIR, f), join(out, "press", "clips", f));
+      result.outputs.push(`ship/press/clips/${f}`);
+    }
     result.checks.push({
-      ok: shots.length > 0,
+      ok: shots.length + stills.length > 0,
       required: false,
-      message: `${shots.length} screenshots from scenario baselines${shots.length ? "" : " (run `debuff scenario --update` to make some)"}`,
+      message: `${shots.length} screenshots from scenario baselines${stills.length ? ` and ${stills.length} from ${CAPTURES_DIR}` : ""}${shots.length + stills.length ? "" : " (run `debuff scenario --update` to make some)"}`,
     });
+    result.checks.push({
+      ok: clips.length > 0,
+      required: false,
+      message: `${clips.length} clips from ${CAPTURES_DIR}${clips.length ? "" : " (dev panel: rec, then clip)"}`,
+    });
+    if (clips.some((f) => f.endsWith(".webm")))
+      result.checks.push({
+        ok: false,
+        required: false,
+        message: "some clips are WebM, which X and most stores don't take: convert them with `ffmpeg -i clip.webm clip.mp4`",
+      });
     result.checks.push({
       ok: Boolean(description),
       required: false,
@@ -203,11 +229,15 @@ export function ship(root: string, target: ShipTarget, launch: LaunchConfig = {}
       "",
       "## Screenshots",
       "",
-      ...(shots.length ? result.outputs.map((o) => `![](${o.replace(/^ship\/press\//, "")})`) : ["_None yet._"]),
+      ...(shots.length + stills.length
+        ? result.outputs.filter((o) => o.endsWith(".png")).map((o) => `![](${o.replace(/^ship\/press\//, "")})`)
+        : ["_None yet._"]),
       "",
       "## Clips",
       "",
-      "Record a clip in-game with `ClipRecorder` from `@debuffjp/share`, or capture a scenario run.",
+      ...(clips.length
+        ? clips.map((f) => `- [${f}](clips/${f})`)
+        : ["_None yet._ In `debuff dev`, press **rec** in the dev panel, play, then **clip** to save the last few seconds."]),
       "",
     ];
     write("press/README.md", facts.join("\n"));
