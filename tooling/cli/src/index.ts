@@ -7,6 +7,16 @@ export { DEFAULT_FUZZ_KEYS, type FuzzFinding, type FuzzOptions, type FuzzReport,
 export { hookFiles, hookInstalled, hookStatus, markTested, writeHookFiles } from "./hook.js";
 export { inspectProject } from "./inspect.js";
 export { baselineImages, type LaunchConfig, writeLaunchFiles } from "./launch.js";
+export {
+  PAPERCUT_KINDS,
+  PAPERCUT_REPOS,
+  PAPERCUTS_URL,
+  type PapercutContext,
+  type PapercutEntry,
+  type PapercutInput,
+  type PapercutResult,
+  reportPapercut,
+} from "./papercut.js";
 export type * from "./plugin.js";
 export { TOOLING_API_VERSION } from "./plugin.js";
 export { type BuildReport, buildReport, DEV_TOKENS, type FileReport, formatReport } from "./report.js";

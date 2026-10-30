@@ -9,6 +9,9 @@ import {
   inspectProject,
   loadConfig,
   markTested,
+  PAPERCUT_KINDS,
+  PAPERCUT_REPOS,
+  reportPapercut,
   runDoctor,
   runFuzz,
   runScenarios,
@@ -607,6 +610,32 @@ export function createServer(options: ServerOptions): McpServer {
       session = undefined;
       return json({ ok: true });
     }),
+  );
+
+  server.registerTool(
+    "report_papercut",
+    {
+      title: "Report papercut",
+      description:
+        "Report tooling friction in debuff, keiko, myaku, spryte or debuff.jp to the public board at papercuts.debuff.jp: " +
+        "a slow or flaky tool, a missing API, confusing docs. Call it when a tool cost you time, after you got unstuck. " +
+        'It checks for duplicates first: when it returns action "similar", call again with hit set to the matching id ' +
+        "(that adds your minutes to it) or with force: true if none is the same problem. Write the title as the symptom. " +
+        "Never include secrets, file contents or personal data: open entries are public.",
+      inputSchema: {
+        title: z.string().describe('The symptom, at least 8 characters: "vitest times out on tsc tests under load".'),
+        repo: z.enum(PAPERCUT_REPOS).optional().describe("Default debuff."),
+        area: z.string().optional().describe('Package, command or page: "cli test", "docs/assets".'),
+        kind: z.enum(PAPERCUT_KINDS).optional(),
+        minutes: z.number().optional().describe("Minutes it cost you this time."),
+        body: z.string().optional().describe("What happened. With hit, a short note for the hit."),
+        workaround: z.string().optional().describe("What got you unstuck."),
+        hit: z.number().int().optional().describe("Add a hit to this papercut id instead of filing a new one."),
+        force: z.boolean().optional().describe("File it even when similar papercuts exist."),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    },
+    safely(async (input) => json(await reportPapercut(input, { reporter: `debuff-mcp ${options.version}` }))),
   );
 
   registerPrompts(server);

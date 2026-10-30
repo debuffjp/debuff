@@ -160,6 +160,52 @@ cli
   });
 
 cli
+  .command("papercut [...title]", "Report tooling friction to papercuts.debuff.jp, or add a hit to an existing papercut")
+  .option("--repo <repo>", "debuff, keiko, myaku, spryte, site or other (default debuff)")
+  .option("--area <area>", 'Package, command or page, such as "cli test"')
+  .option("--kind <kind>", "slow, flaky, missing-api, docs, confusing, broken or other")
+  .option("--minutes <n>", "Minutes it cost this time")
+  .option("--body <text>", "What happened")
+  .option("--workaround <text>", "What got you unstuck")
+  .option("--hit <id>", "Add a hit to this papercut instead of filing a new one")
+  .option("--force", "File it even when similar papercuts exist")
+  .option("--json", "Machine-readable output")
+  .action(async (title: string[], o: Record<string, unknown>) => {
+    const { reportPapercut } = await import("./papercut.js");
+    const text = title.join(" ").trim();
+    if (!text && o.hit === undefined) {
+      console.error('Say what went wrong: debuff papercut "vitest times out on tsc tests under load" --minutes 10');
+      return 1;
+    }
+    const result = await reportPapercut(
+      {
+        title: text,
+        repo: o.repo as never,
+        area: o.area as string | undefined,
+        kind: o.kind as never,
+        minutes: o.minutes === undefined ? undefined : Number(o.minutes),
+        body: o.body as string | undefined,
+        workaround: o.workaround as string | undefined,
+        hit: o.hit === undefined ? undefined : Number(o.hit),
+        force: o.force === true,
+      },
+      { reporter: `debuff-cli ${version}` },
+    );
+    if (o.json) emit(result);
+    else if (result.action === "similar") {
+      console.log("Similar papercuts already exist:");
+      for (const { entry, score } of result.similar)
+        console.log(
+          `  #${entry.id}  ${entry.title}  ${pc.dim(`(${entry.repo}, ${entry.hits} hits, ${entry.minutes} min, match ${score})`)}`,
+        );
+      console.log(pc.dim("Same problem? Rerun with --hit <id>. Different? Rerun with --force."));
+    } else if (result.action === "hit")
+      console.log(`Added a hit to #${result.entry.id}: ${result.entry.hits} hits, ${result.entry.minutes} min. ${pc.dim(result.url)}`);
+    else console.log(`Filed #${result.entry.id}${result.pending ? " (waits for review)" : ""}. ${pc.dim(result.url)}`);
+    return 0;
+  });
+
+cli
   .command("report", "Size report for an existing build")
   .option("--root <dir>", "Project root")
   .option("--json", "Machine-readable output")

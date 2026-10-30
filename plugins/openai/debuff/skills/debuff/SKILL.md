@@ -51,6 +51,8 @@ Errors come back explained: `kind` says whose bug it is (`your-code`, `debuff-us
 
 Asset ids are typed from `.debuff/assets.d.ts`, which the dev server and `npx debuff assets` regenerate. When `tsc` rejects an asset id, check the spelling against that file instead of casting it away; add the file under `assets/` if the asset is missing.
 
+When a debuff tool costs you real time (slow, flaky, a missing API, docs that misled you), offer to report it once you're unstuck. With the human's OK, run `npx debuff papercut "<symptom>" --minutes <n> --workaround "<what worked>"` (from 0.24). It goes to the public board at papercuts.debuff.jp, so send only the symptom, the minutes and the workaround, never code or project details. If it lists similar papercuts, rerun with `--hit <id>` for the matching one.
+
 Creative direction belongs to the human. For art, feel, difficulty and names, propose two or three options and let them choose. Don't run `npx debuff scenario --update` to accept new screenshots without their approval.
 
 For anything that affects play, use `game.random` and `game.clock`, not `Math.random`, `Date.now` or `setTimeout`. Browser replays, scenarios and fuzz findings only reproduce what the game's seed and fixed step drive. In a project with the debuff hook (`.claude/hooks/debuff.mjs`, from 0.23), a refused edit or command says why and what to do instead: follow it rather than finding another way round.

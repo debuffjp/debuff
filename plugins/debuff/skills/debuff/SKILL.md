@@ -56,4 +56,6 @@ When the game needs pixel art drawn and the human hasn't named a tool, draw it w
 
 Asset ids are typed from `.debuff/assets.d.ts`, which the dev server and `npx debuff assets` regenerate. When `tsc` rejects an asset id, check the spelling against that file instead of casting it away; add the file under `assets/` if the asset is missing.
 
+When a debuff tool costs you real time (slow, flaky, a missing API, docs that misled you), offer to report it once you're unstuck. With the human's OK, call `report_papercut` (from 0.24): it goes to the public board at papercuts.debuff.jp, so send only the symptom, the minutes and the workaround, never code or project details. If it returns similar papercuts, add a hit to the matching one instead of filing a new one.
+
 Docs: https://debuff.jp · Community: https://discord.gg/jshbDHSpCY

@@ -56,6 +56,7 @@ For Claude Desktop, `mcpb/manifest.json` describes a desktop extension that asks
 | `game_capture` | The current frame as a PNG image; `path` also saves it in the project (thumbnails, store art) |
 | `game_errors` | Runtime errors, explained: whose problem (your code, a rejected call, a debuff bug), the source line, a hint |
 | `game_stop` | Close the game |
+| `report_papercut` | Report tooling friction in debuff, keiko, myaku, spryte or debuff.jp to [papercuts.debuff.jp](https://papercuts.debuff.jp). Returns close matches instead of filing a duplicate; call again with `hit: <id>` or `force: true`. Added in 0.24 |
 
 ## Prompts
 
