@@ -37,6 +37,7 @@ export type { Plugin } from "./plugin.js";
 export { Random } from "./random.js";
 export { debuffSans } from "./render/debuff-sans.js";
 export type { Scene } from "./scene.js";
+export { type MotionSource, type Positioned, SmoothMotion, smoothMotion } from "./smooth.js";
 export type { SplashOptions } from "./splash.js";
 export { type AnimationClip, type Origin, originOffset, Sprite, type SpriteOptions, sliceGrid } from "./sprite.js";
 export { FrameStats } from "./stats.js";
