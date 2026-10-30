@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { writeProjectSkills } from "create-debuff";
 import { afterEach, describe, expect, it } from "vitest";
-import { type DoctorResult, repairDoctor, runDoctor } from "../src/index.js";
+import { type DoctorResult, repairDoctor, runDoctor, writeHookFiles } from "../src/index.js";
 
 const version = (JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string }).version;
 const env = { DEBUFF_TELEMETRY: "off", DEBUFF_UPDATE_CHECK: "0" };
@@ -26,6 +26,7 @@ function project({ declared = version, installedAs = declared } = {}) {
   writeFileSync(join(root, "AGENTS.md"), "# Agent guide\n");
   writeFileSync(join(root, "CLAUDE.md"), "@AGENTS.md\n");
   writeProjectSkills(root, version);
+  writeHookFiles(root);
   writeFileSync(join(root, ".mcp.json"), JSON.stringify({ mcpServers: { debuff: { command: "npx", args: ["-y", "@debuffjp/mcp"] } } }));
   return root;
 }
@@ -88,7 +89,7 @@ describe("runDoctor", () => {
     writeFileSync(join(root, "debuff.config.mjs"), "export const nothing = 1;\n");
     writeFileSync(join(root, "saves.json"), "{ nope");
     const r = await runDoctor(root, { browser: false, env: { ...env, NODE_ENV: "production" } });
-    expect(failed(r)).toEqual(["node-env", "package-json", "config", "saves", "agent-files", "agent-skills"]);
+    expect(failed(r)).toEqual(["node-env", "package-json", "config", "saves", "agent-files", "agent-skills", "agent-hooks"]);
     expect(check(r, "config")?.message).toContain("must `export default defineConfig({ ... })`");
     expect(check(r, "node-env")).toMatchObject({ required: false, message: expect.stringContaining("NODE_ENV=production") });
   });
@@ -143,5 +144,19 @@ describe("runDoctor", () => {
     rmSync(join(root, ".claude"), { recursive: true });
     r = await runDoctor(root, { browser: false, env });
     expect(check(r, "agent-skills")?.message).toMatch(/^No agent skills/);
+  });
+
+  it("flags a missing agent hook as advice, and --fix adds it without touching existing settings", async () => {
+    project();
+    rmSync(join(root, ".claude/hooks"), { recursive: true });
+    rmSync(join(root, ".codex"), { recursive: true });
+    writeFileSync(join(root, ".claude/settings.json"), "{}");
+    let r = await runDoctor(root, { browser: false, env });
+    expect(check(r, "agent-hooks")).toMatchObject({ ok: false, required: false, repair: { hooks: true } });
+    expect(r.ok).toBe(true);
+    expect(repairDoctor(root, r)).toEqual(["wrote .claude/hooks/debuff.mjs, .codex/hooks.json"]);
+    expect(readFileSync(join(root, ".claude/settings.json"), "utf8")).toBe("{}");
+    r = await runDoctor(root, { browser: false, env });
+    expect(check(r, "agent-hooks")?.ok).toBe(true);
   });
 });

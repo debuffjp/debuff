@@ -20,7 +20,7 @@ npx debuff --help
 | `debuff telemetry [on\|off\|status]` | Anonymous build registration: after a successful build, `debuff build` sends a random project id, the package name and the debuff version to debuff.jp, so we can find games made with debuff. Off in CI, or with `debuff telemetry off` / `DEBUFF_TELEMETRY=0`. [What's sent](https://debuff.jp/docs/telemetry) |
 | `debuff inspect` | JSON summary of the project |
 | `debuff upgrade [--to] [--dry-run]` | Move every debuff package to the latest release (or `--to <version>`) together, keeping each range's `^`, `~` or exact style, install with the project's package manager, then run the new version's `doctor --fix`, which also rewrites the agent skills. Never downgrades without `--to`. Added in 0.21 |
-| `debuff doctor [--live] [--fix]` | Check the setup in one pass: Node version, debuff package versions, `node_modules`, `debuff.config.ts`, assets, `saves.json`, agent files and the browser scenarios use. Each problem comes with a fix. `--fix` applies the safe ones (install, dedupe, add `@debuffjp/dev`, write a missing `.mcp.json`, rewrite the agent skills for the installed version) in the project's package manager, then checks again. `--live` also starts the dev server and checks the game exposes its dev hooks. From 0.21 it also says when a newer debuff is out. Exits 2 when a required check fails (1 before 0.20). Other commands that fail on setup point here |
+| `debuff doctor [--live] [--fix]` | Check the setup in one pass: Node version, debuff package versions, `node_modules`, `debuff.config.ts`, assets, `saves.json`, agent files and the browser scenarios use. Each problem comes with a fix. `--fix` applies the safe ones (install, dedupe, add `@debuffjp/dev`, write a missing `.mcp.json`, rewrite the agent skills for the installed version, and from 0.23 write the agent hook files that are missing) in the project's package manager, then checks again. `--live` also starts the dev server and checks the game exposes its dev hooks. From 0.21 it also says when a newer debuff is out. Exits 2 when a required check fails (1 before 0.20). Other commands that fail on setup point here |
 
 Add `--json` for machine-readable output and `--root <dir>` to target another project.
 
@@ -46,6 +46,17 @@ With `--json` (and always for `inspect`), stdout carries exactly one JSON docume
 ```
 
 `code` is one of `unknown_command`, `bad_option`, `not_a_project`, `nothing_to_run` (from 0.21: no scenarios, or no build to report on), `config_invalid`, `browser_not_found`, `dev_hooks_missing`, `port_in_use`, `network` and `unexpected`, and keeps its meaning between releases. `transient: true` means the same command may work if run again (a network blip). Logs go to stderr. The MCP server's tools add the same `code` and `fix` to their errors.
+
+## Agent hook
+
+From 0.23. New projects ship `.claude/hooks/debuff.mjs`, wired into Claude Code by `.claude/settings.json` and into Codex by `.codex/hooks.json`. Around each edit and shell command, it:
+
+- asks the human before screenshot baselines or saves change;
+- refuses edits to `.debuff/`, `dist/` and `node_modules/`, a foreground dev server, and hand-changed `@debuffjp/*` versions;
+- warns about new `Math.random`, `Date.now` and real-timer lines in `src/`;
+- once per stop, asks for `debuff test` when `src/` changed since the last run.
+
+The shim imports `@debuffjp/cli/hook`, so the rules come from the installed CLI. It does nothing before `npm install`, and `DEBUFF_HOOK=0` turns it off. `// debuff-hook-ignore <rule>` at the end of a line skips that line. Rules and details: [Working with AI agents](https://debuff.jp/docs/agents#hook).
 
 ## Scenarios
 

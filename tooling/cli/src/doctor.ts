@@ -4,6 +4,7 @@ import { basename, dirname, join } from "node:path";
 import { projectSkillsVersion, SKILL_DIRS, writeProjectSkills } from "create-debuff";
 import { compileAssets } from "./assets/index.js";
 import { loadConfig, type ResolvedConfig } from "./config.js";
+import { hookInstalled, writeHookFiles } from "./hook.js";
 import { hooksReady } from "./scenario/browser.js";
 import { launchBrowser } from "./scenario/run.js";
 import { telemetryOff } from "./telemetry.js";
@@ -27,7 +28,7 @@ export interface DoctorCheck {
   /** One command or edit that fixes it. */
   fix?: string;
   /** What `debuff doctor --fix` does about it, when that's safe without asking: a command, or a file to create. */
-  repair?: { run: string[] } | { write: string; content: string } | { skills: string };
+  repair?: { run: string[] } | { write: string; content: string } | { skills: string } | { hooks: true };
 }
 
 export interface DoctorResult {
@@ -76,7 +77,7 @@ export async function runDoctor(root: string, options: DoctorOptions = {}): Prom
   }
   if (config) checks.push(...(await assets(root, config)));
   if (config?.isolation) checks.push(isolation(root, config.isolation.embed));
-  checks.push(saves(root), agentFiles(root), agentSkills(root));
+  checks.push(saves(root), agentFiles(root), agentSkills(root), agentHooks(root));
   if (options.browser !== false) checks.push(await browser());
   if (options.live && config) checks.push(await runtimeHooks(root));
   if (!updateCheckOff(env)) checks.push(await newest());
@@ -356,6 +357,21 @@ function agentSkills(root: string): DoctorCheck {
   };
 }
 
+/** The hook that checks agents' edits and commands in Claude Code and Codex (src/hook.ts). */
+function agentHooks(root: string): DoctorCheck {
+  const base = { id: "agent-hooks", group: "agents" as const };
+  if (hookInstalled(root))
+    return { ...base, ok: true, message: "Agent hooks check edits and commands (.claude/settings.json, .codex/hooks.json)" };
+  return {
+    ...base,
+    ok: false,
+    required: false,
+    message: "No agent hooks: nothing stops an agent editing baselines or generated files, or warns about Math.random",
+    fix: "npx debuff doctor --fix writes .claude/hooks/debuff.mjs and any of .claude/settings.json and .codex/hooks.json that don't exist; add the hook to an existing one by hand: https://debuff.jp/docs/agents#hook",
+    repair: { hooks: true },
+  };
+}
+
 async function browser(): Promise<DoctorCheck> {
   try {
     const b = await launchBrowser();
@@ -438,6 +454,14 @@ export function repairDoctor(root: string, result: DoctorResult, log: (line: str
       writeFileSync(join(root, c.repair.write), c.repair.content);
       done.push(`wrote ${c.repair.write}`);
       log(done.at(-1) as string);
+      continue;
+    }
+    if ("hooks" in c.repair) {
+      const written = writeHookFiles(root);
+      if (written.length) {
+        done.push(`wrote ${written.join(", ")}`);
+        log(done.at(-1) as string);
+      }
       continue;
     }
     if ("skills" in c.repair) {

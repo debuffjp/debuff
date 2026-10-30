@@ -50,6 +50,8 @@ The server also has ready-made workflows as prompts: playtest, fix-errors, tune-
 
 Creative direction belongs to the human. For art, feel, difficulty and names, propose options and let them choose. Don't update screenshot baselines without their approval.
 
+For anything that affects play, use `game.random` and `game.clock`, not `Math.random`, `Date.now` or `setTimeout`. Browser replays, scenarios and fuzz findings only reproduce what the game's seed and fixed step drive. In a project with the debuff hook (`.claude/hooks/debuff.mjs`, from 0.23), a refused edit or command says why and what to do instead: follow it rather than finding another way round.
+
 When the game needs pixel art drawn and the human hasn't named a tool, draw it with tenten, the pixel-art MCP server listed next to debuff in `.mcp.json` (`tt_new`, `tt_draw`, `tt_render`, then `tt_save` to `assets/<name>.tt`, which the dev server turns into a sprite sheet, and `tt_preview` so they can see it). If they draw in Aseprite or another tool, leave the art to them and load what they export.
 
 Asset ids are typed from `.debuff/assets.d.ts`, which the dev server and `npx debuff assets` regenerate. When `tsc` rejects an asset id, check the spelling against that file instead of casting it away; add the file under `assets/` if the asset is missing.

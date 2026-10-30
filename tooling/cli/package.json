@@ -36,6 +36,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./hook": {
+      "types": "./dist/hook.d.ts",
+      "default": "./dist/hook.js"
+    },
     "./schema/scenario.schema.json": "./schema/scenario.schema.json",
     "./client": {
       "types": "./client.d.ts"

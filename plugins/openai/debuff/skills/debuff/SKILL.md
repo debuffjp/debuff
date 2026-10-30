@@ -53,4 +53,6 @@ Asset ids are typed from `.debuff/assets.d.ts`, which the dev server and `npx de
 
 Creative direction belongs to the human. For art, feel, difficulty and names, propose two or three options and let them choose. Don't run `npx debuff scenario --update` to accept new screenshots without their approval.
 
+For anything that affects play, use `game.random` and `game.clock`, not `Math.random`, `Date.now` or `setTimeout`. Browser replays, scenarios and fuzz findings only reproduce what the game's seed and fixed step drive. In a project with the debuff hook (`.claude/hooks/debuff.mjs`, from 0.23), a refused edit or command says why and what to do instead: follow it rather than finding another way round.
+
 Docs: https://debuff.jp · API: https://debuff.jp/api/ · Community: https://discord.gg/jshbDHSpCY

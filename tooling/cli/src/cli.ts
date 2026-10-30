@@ -7,6 +7,7 @@ import { compileAssets, findUnused, writeAssetTypes } from "./assets/index.js";
 import { Cli } from "./commands.js";
 import { loadConfig } from "./config.js";
 import { DebuffError, describeError, EXIT } from "./errors.js";
+import { markTested } from "./hook.js";
 import { inspectProject } from "./inspect.js";
 import type { ToolingPlugin } from "./plugin.js";
 import { type BuildReport, buildReport, formatReport } from "./report.js";
@@ -226,6 +227,7 @@ cli
       ...(viewport ? { viewport } : {}),
     });
     finished = true;
+    markTested(root);
     const failed = reports.filter((r) => !r.ok).length;
     if (o.json) emit(reports);
     else {
@@ -249,6 +251,7 @@ cli
     const { runTests, formatResult, formatSummary, findTests } = await import("keiko/runner");
     const root = rootOf(o);
     if (!findTests(root, files).length) {
+      markTested(root);
       if (o.json)
         console.log(
           JSON.stringify({ ok: true, passed: 0, failed: 0, skipped: 0, todo: 0, durationMs: 0, results: [], outside: [] }, null, 2),
@@ -274,6 +277,7 @@ cli
             },
           }),
     });
+    markTested(root);
     if (o.json) emit(report);
     else finish(report.ok, report.ok ? "all good" : "some tests failed", formatSummary(report));
     return report.ok ? 0 : 1;
