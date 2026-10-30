@@ -8,6 +8,9 @@ export { hookFiles, hookInstalled, hookStatus, markTested, writeHookFiles } from
 export { inspectProject } from "./inspect.js";
 export { baselineImages, type LaunchConfig, writeLaunchFiles } from "./launch.js";
 export {
+  type AutoPapercutContext,
+  autoPapercut,
+  failureSignal,
   PAPERCUT_KINDS,
   PAPERCUT_REPOS,
   PAPERCUTS_URL,
@@ -15,7 +18,12 @@ export {
   type PapercutEntry,
   type PapercutInput,
   type PapercutResult,
+  type PapercutSignal,
+  papercutsOff,
   reportPapercut,
+  SLOW_SECONDS,
+  setPapercuts,
+  slowSignal,
 } from "./papercut.js";
 export type * from "./plugin.js";
 export { TOOLING_API_VERSION } from "./plugin.js";

@@ -18,6 +18,9 @@ const alias = ["packages", "tooling"].flatMap((group) =>
   }),
 );
 
+// Automatic papercuts stay off in tests: the suite runs the CLI against broken projects on purpose.
+process.env.DEBUFF_PAPERCUTS = "0";
+
 export default defineConfig({
   resolve: { alias },
   test: {

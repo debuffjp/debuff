@@ -58,6 +58,8 @@ For Claude Desktop, `mcpb/manifest.json` describes a desktop extension that asks
 | `game_stop` | Close the game |
 | `report_papercut` | Report tooling friction in debuff, keiko, myaku, spryte or debuff.jp to [papercuts.debuff.jp](https://papercuts.debuff.jp). Returns close matches instead of filing a duplicate; call again with `hit: <id>` or `force: true`. Added in 0.24 |
 
+Tool calls that fail on setup twice in a week, or run far too long, are reported to papercuts.debuff.jp on their own, and the result says so (see `debuff papercuts` in the CLI README to turn it off). From 0.24.
+
 ## Prompts
 
 Workflows clients can offer as slash commands: `playtest`, `fix-errors`, `tune-feel`, `add-mechanic` and `explain-stutter`.

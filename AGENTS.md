@@ -22,7 +22,7 @@ Instructions for AI agents working **on this repository**. (Agents working on a 
 ## Logs
 
 - `docs/decisions.md`: add an entry when you make a choice that the code and the ADRs don't settle, with the options you considered.
-- Papercuts: when a tool costs you time, report it to https://papercuts.debuff.jp with `npx debuff papercut "<symptom>" --minutes <n> --workaround "<what worked>"` (or the MCP tool `report_papercut`), and add a hit to a matching entry instead of filing a duplicate. Mark it fixed on the board when the cause is fixed. Before 2026-10-30 these went in `docs/papercuts.md`, which says how.
+- Papercuts: when a tool costs you time, report it to https://papercuts.debuff.jp with `npx debuff papercut "<symptom>" --minutes <n> --workaround "<what worked>"` (or the MCP tool `report_papercut`), and add a hit to a matching entry instead of filing a duplicate. Do it without being asked. The CLI and MCP server also report repeated setup failures and very slow runs on their own; when a result says so, add what you know with a hit. Mark it fixed on the board when the cause is fixed. Before 2026-10-30 these went in `docs/papercuts.md`, which says how.
 
 ## Writing
 

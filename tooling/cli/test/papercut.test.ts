@@ -1,5 +1,8 @@
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { reportPapercut } from "../src/papercut.js";
+import { autoPapercut, failureSignal, papercutsOff, reportPapercut, setPapercuts, slowSignal } from "../src/papercut.js";
 
 function fake(status: number, data: unknown) {
   const sent: { url: string; init: RequestInit }[] = [];
@@ -57,5 +60,65 @@ describe("reportPapercut", () => {
   it("throws the board's error", async () => {
     const { fetch } = fake(400, { error: "title: too short" });
     await expect(reportPapercut({ title: "x" }, { reporter: "x", fetch, env: {} })).rejects.toThrow("title: too short");
+  });
+});
+
+describe("autoPapercut", () => {
+  const signal = {
+    fingerprint: "cli:build:browser_not_found",
+    title: "cli build fails with browser_not_found",
+    kind: "confusing" as const,
+    area: "cli:build",
+  };
+  const dir = () => mkdtempSync(join(tmpdir(), "debuff-papercuts-"));
+
+  it("sends on the second sighting, once a day, with the notice the first time", async () => {
+    const { sent, fetch } = fake(201, { entry: { ...entry, status: "pending" } });
+    const notices: string[] = [];
+    const ctx = { reporter: "debuff-cli 1.0.0", fetch, env: {}, configDir: dir(), notice: (t: string) => notices.push(t) };
+    expect(await autoPapercut(signal, { ...ctx, now: 1000 })).toBeUndefined();
+    expect(await autoPapercut(signal, { ...ctx, now: 2000 })).toMatchObject({ action: "filed", pending: true });
+    expect(await autoPapercut(signal, { ...ctx, now: 3000 })).toBeUndefined();
+    expect(sent).toHaveLength(1);
+    expect(notices).toHaveLength(1);
+    const body = JSON.parse(String(sent[0]?.init.body));
+    expect(body).toEqual({
+      title: signal.title,
+      repo: "debuff",
+      area: "cli:build",
+      kind: "confusing",
+      minutes: 0,
+      reporter: "debuff-cli 1.0.0",
+      fingerprint: signal.fingerprint,
+      auto: true,
+    });
+    expect(await autoPapercut(signal, { ...ctx, now: 3000 + 86_400_000 })).toMatchObject({ action: "filed" });
+  });
+
+  it("stays off in CI, with DEBUFF_PAPERCUTS=0 and after `papercuts off`", async () => {
+    const { sent, fetch } = fake(201, { entry });
+    const once = { ...signal, minSeen: 1 };
+    await autoPapercut(once, { reporter: "x", fetch, env: { CI: "true" }, configDir: dir() });
+    await autoPapercut(once, { reporter: "x", fetch, env: { DEBUFF_PAPERCUTS: "0" }, configDir: dir() });
+    const off = dir();
+    setPapercuts(false, {}, off);
+    expect(papercutsOff({}, off)).toContain("papercuts off");
+    await autoPapercut(once, { reporter: "x", fetch, env: {}, configDir: off });
+    expect(sent).toHaveLength(0);
+  });
+
+  it("never throws when the board is down", async () => {
+    const fetch = (async () => {
+      throw new Error("offline");
+    }) as unknown as typeof globalThis.fetch;
+    expect(await autoPapercut({ ...signal, minSeen: 1 }, { reporter: "x", fetch, env: {}, configDir: dir() })).toBeUndefined();
+  });
+
+  it("skips usage and network failures, and fast runs", () => {
+    expect(failureSignal("cli:build", "bad_option", 3)).toBeUndefined();
+    expect(failureSignal("cli:build", "network", 1)).toBeUndefined();
+    expect(failureSignal("mcp:game_start", "dev_hooks_missing", 2)?.fingerprint).toBe("mcp:game_start:dev_hooks_missing");
+    expect(slowSignal("cli:build", 30, 180)).toBeUndefined();
+    expect(slowSignal("cli:build", 400, 180)).toMatchObject({ fingerprint: "cli:build:slow", minutes: 7 });
   });
 });

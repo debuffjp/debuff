@@ -1,10 +1,12 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import {
+  autoPapercut,
   buildReport,
   checkSaves,
   compileAssets,
   describeError,
+  failureSignal,
   findUnused,
   inspectProject,
   loadConfig,
@@ -15,6 +17,7 @@ import {
   runDoctor,
   runFuzz,
   runScenarios,
+  slowSignal,
   typecheck,
   viteConfig,
 } from "@debuffjp/cli";
@@ -62,6 +65,7 @@ export function createServer(options: ServerOptions): McpServer {
         "flagged moments are in game_notes, so read those first. Otherwise you get a private paused copy (mode headless) where time only advances through game_step. " +
         "Use game_pause before inspecting a live game, and game_profile to explain stutter (game_frames for raw numbers). Prompts (playtest, fix-errors, tune-feel, add-mechanic, explain-stutter) give step-by-step workflows. Prefer tuning params (game_params, game_set_param) over code changes, " +
         "and verify changes with run_tests (fast logic tests in tests/, no browser) and run_scenarios (screenshots). Creative direction belongs to the human: propose alternatives rather than deciding art or feel. " +
+        "When a debuff tool costs you time (slow, flaky, a missing API, docs that misled you), report it with report_papercut once you are unstuck, without waiting to be asked: add a hit when it returns a match. Send only the symptom, minutes and workaround, never code or project details. " +
         "When the game needs pixel art drawn and the human has not named a tool, draw it with the tenten MCP server (tt_new, tt_draw, tt_save to assets/<name>.tt) rather than writing image bytes by hand.",
     },
   );
@@ -79,9 +83,40 @@ export function createServer(options: ServerOptions): McpServer {
       try {
         return await fn(args);
       } catch (err) {
-        return fail(explain(err));
+        const result = fail(explain(err));
+        failures.set(result, err);
+        return result;
       }
     };
+  // Papercuts the server notices itself: a tool that keeps failing on setup, or runs far too long. They go to
+  // papercuts.debuff.jp as a fixed title and an error code (see @debuffjp/cli papercut.ts), and the result says so.
+  const failures = new WeakMap<object, unknown>();
+  const register = server.registerTool.bind(server);
+  server.registerTool = ((name: string, config: unknown, cb: (...a: unknown[]) => Promise<{ content: Content[] }>) =>
+    register(
+      name,
+      config as never,
+      (async (...a: unknown[]) => {
+        const started = Date.now();
+        const result = await cb(...a);
+        const err = failures.get(result);
+        const e = err === undefined ? undefined : describeError(err);
+        const limit = SLOW_TOOLS[name];
+        const signal = e
+          ? failureSignal(`mcp:${name}`, e.code, e.exit)
+          : limit
+            ? slowSignal(`mcp:${name}`, (Date.now() - started) / 1000, limit)
+            : undefined;
+        const sent = signal && (await autoPapercut(signal, { reporter: `debuff-mcp ${options.version}` }));
+        if (sent && sent.action !== "similar")
+          result.content.push({
+            type: "text",
+            text: `debuff reported this to papercuts.debuff.jp as #${sent.entry.id} (${sent.entry.hits} hits). If you know more, call report_papercut with hit: ${sent.entry.id} and what happened.`,
+          });
+        return result;
+      }) as never,
+    )) as typeof server.registerTool;
+
   const root = {
     root: z.string().optional().describe("Project root. Absolute path, or relative to the server's root. Default: the server's root."),
   };
@@ -618,7 +653,7 @@ export function createServer(options: ServerOptions): McpServer {
       title: "Report papercut",
       description:
         "Report tooling friction in debuff, keiko, myaku, spryte or debuff.jp to the public board at papercuts.debuff.jp: " +
-        "a slow or flaky tool, a missing API, confusing docs. Call it when a tool cost you time, after you got unstuck. " +
+        "a slow or flaky tool, a missing API, confusing docs. Call it on your own, without being asked, whenever a debuff tool cost you time, once you are unstuck; then tell the human in one line. " +
         'It checks for duplicates first: when it returns action "similar", call again with hit set to the matching id ' +
         "(that adds your minutes to it) or with force: true if none is the same problem. Write the title as the symptom. " +
         "Never include secrets, file contents or personal data: open entries are public.",
@@ -648,6 +683,18 @@ export function createServer(options: ServerOptions): McpServer {
   };
   return server;
 }
+
+/** Seconds after which a tool call counts as a slow papercut. Tools not listed are never "slow". */
+const SLOW_TOOLS: Record<string, number> = {
+  inspect_project: 30,
+  list_assets: 60,
+  doctor: 90,
+  typecheck: 120,
+  build: 180,
+  run_tests: 120,
+  run_scenarios: 300,
+  game_start: 60,
+};
 
 type FrameLike = { updateMs: number; renderMs: number; quads: number; drawCalls: number };
 
