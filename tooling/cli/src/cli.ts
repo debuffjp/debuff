@@ -9,6 +9,7 @@ import { loadConfig } from "./config.js";
 import { DebuffError, describeError, EXIT } from "./errors.js";
 import { markTested } from "./hook.js";
 import { inspectProject } from "./inspect.js";
+import { autoPapercut, failureSignal, type PapercutSignal, SLOW_SECONDS, slowSignal } from "./papercut.js";
 import type { ToolingPlugin } from "./plugin.js";
 import { type BuildReport, buildReport, formatReport } from "./report.js";
 import { checkSaves, type SaveCheck } from "./saves.js";
@@ -158,6 +159,19 @@ cli
     console.log(pc.dim(`Settings: ${userConfigFile()} · what's sent: ${TELEMETRY_DOCS}`));
     return 0;
   });
+
+cli.command("papercuts [mode]", "Automatic papercut reports: on, off or status (the default)").action(async (mode: string | undefined) => {
+  const { papercutsOff, setPapercuts, PAPERCUTS_NOTICE } = await import("./papercut.js");
+  if (mode === "on" || mode === "off") setPapercuts(mode === "on");
+  else if (mode && mode !== "status") {
+    console.error(`Unknown mode "${mode}": use on, off or status.`);
+    return 1;
+  }
+  const off = papercutsOff();
+  console.log(off ? `Automatic papercuts are off (${off}).` : "Automatic papercuts are on.");
+  console.log(pc.dim(PAPERCUTS_NOTICE));
+  return 0;
+});
 
 cli
   .command("papercut [...title]", "Report tooling friction to papercuts.debuff.jp, or add a hit to an existing papercut")
@@ -558,7 +572,10 @@ async function main(): Promise<void> {
     cli.outputHelp();
     return;
   }
+  const started = Date.now();
   const code = (await cli.runMatchedCommand()) as number | undefined;
+  const limit = SLOW_SECONDS[cli.matchedCommand.name];
+  if (limit) await autoReport(slowSignal(`cli:${cli.matchedCommand.name}`, (Date.now() - started) / 1000, limit));
   // Once a day, one line on stderr when a newer debuff is out. Never in JSON mode, and not after commands
   // that already cover it (doctor, upgrade, dev's banner) or that a human runs once (create).
   const name = cli.matchedCommand.name;
@@ -588,4 +605,14 @@ function fail(err: unknown): never {
   process.exit(e.exit);
 }
 
-main().catch(fail);
+/** Reports a papercut the CLI noticed itself (see papercut.ts). Quiet, and never fails the command. */
+async function autoReport(signal: PapercutSignal | undefined): Promise<void> {
+  if (!signal) return;
+  await autoPapercut(signal, { reporter: `debuff-cli ${version}`, notice: (text) => console.error(pc.dim(text)) });
+}
+
+main().catch(async (err: unknown) => {
+  const e = describeError(err);
+  await autoReport(failureSignal(`cli:${cli.matchedCommand?.name ?? "start"}`, e.code, e.exit));
+  fail(err);
+});
