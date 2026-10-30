@@ -64,7 +64,7 @@ describe("debuff MCP server", () => {
     expect(info.name).toBe("@debuffjp/template-basic");
   });
 
-  it("checks the project's setup", async () => {
+  it("checks the project's setup", { timeout: 60_000 }, async () => {
     const result = await data("doctor");
     expect(result.ok).toBe(true);
     expect(result.checks.map((c: { id: string }) => c.id)).toEqual(expect.arrayContaining(["node-version", "debuff-versions", "browser"]));

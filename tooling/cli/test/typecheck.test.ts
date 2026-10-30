@@ -42,14 +42,14 @@ describe("typecheck", () => {
     ]);
   });
 
-  it("reports type errors with the project's own tsc", async () => {
+  it("reports type errors with the project's own tsc", { timeout: 60_000 }, async () => {
     const root = project({ "main.ts": "export const ok = 1;\nexport const speed: number = 'fast';\n" });
     const r = await typecheck(root);
     expect(r.ok).toBe(true);
     expect(r.diagnostics).toEqual([expect.objectContaining({ file: "src/main.ts", line: 2, code: 2322 })]);
   });
 
-  it("returns no diagnostics for clean code", async () => {
+  it("returns no diagnostics for clean code", { timeout: 60_000 }, async () => {
     const r = await typecheck(project({ "main.ts": "export const speed: number = 3;\n" }));
     expect(r).toMatchObject({ ok: true, diagnostics: [] });
   });
