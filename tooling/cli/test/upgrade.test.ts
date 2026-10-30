@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { isNewer, planUpgrade, runUpgrade, updateHint } from "../src/index.js";
+import { isNewer, planUpgrade, runUpgrade, updateHint, upgradeNote } from "../src/index.js";
 
 let dir: string | undefined;
 afterEach(() => {
@@ -50,6 +50,27 @@ describe("updateHint", () => {
     expect(
       await updateHint("0.20.0", { env: { DEBUFF_UPDATE_CHECK: "0" }, configFile: join(dir, "e.json"), fetch: newer.fetch }),
     ).toBeUndefined();
+  });
+});
+
+describe("upgradeNote", () => {
+  it("tells the agent at most once a day, reusing a fresh registry check", async () => {
+    dir = mkdtempSync(join(tmpdir(), "debuff-note-"));
+    const configFile = join(dir, "config.json");
+    const env = {};
+    const newer = registry("0.24.0");
+    // The CLI's hint checked an hour ago: the note uses that answer instead of asking again.
+    writeFileSync(configFile, JSON.stringify({ updateCheckedAt: 0, latestVersion: "0.24.0" }));
+    const note = await upgradeNote("0.23.0", { env, configFile, fetch: newer.fetch, now: 3_600_000 });
+    expect(note).toMatch(/^debuff 0.24.0 is out; this project has 0.23.0. Tell the human once/);
+    expect(note).toContain("npx debuff upgrade");
+    expect(newer.calls).toHaveLength(0);
+    expect(await upgradeNote("0.23.0", { env, configFile, fetch: newer.fetch, now: 7_200_000 })).toBeUndefined();
+    expect(await upgradeNote("0.23.0", { env, configFile, fetch: newer.fetch, now: 3 * 86_400_000 })).toMatch(/0.24.0 is out/);
+    expect(newer.calls).toHaveLength(1);
+    expect(await upgradeNote("0.24.0", { env, configFile: join(dir, "b.json"), fetch: newer.fetch, now: 0 })).toBeUndefined();
+    expect(await upgradeNote("0.23.0", { env, configFile: join(dir, "c.json"), fetch: registry(undefined).fetch, now: 0 })).toBeUndefined();
+    expect(await upgradeNote("0.23.0", { env: { CI: "1" }, configFile: join(dir, "d.json"), fetch: newer.fetch, now: 0 })).toBeUndefined();
   });
 });
 

@@ -34,6 +34,18 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/debuff.mjs claude start",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }

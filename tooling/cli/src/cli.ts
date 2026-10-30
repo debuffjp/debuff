@@ -71,6 +71,8 @@ cli
       `\n  ${pc.dim("press")} ${amber("`")} ${pc.dim("in the game for the dev overlay ·")} ${pink("h + enter")} ${pc.dim("for shortcuts")}\n`,
     );
     server.bindCLIShortcuts({ print: false });
+    // dev never exits, so the daily update hint goes under the banner instead of after the command.
+    void import("./versions.js").then(({ updateHint }) => updateHint(version)).then((hint) => hint && console.log(`  ${pc.dim(hint)}\n`));
     return new Promise<number>(() => {});
   });
 
@@ -512,7 +514,7 @@ async function main(): Promise<void> {
   }
   const code = (await cli.runMatchedCommand()) as number | undefined;
   // Once a day, one line on stderr when a newer debuff is out. Never in JSON mode, and not after commands
-  // that already cover it (doctor, upgrade) or that a human runs once (create).
+  // that already cover it (doctor, upgrade, dev's banner) or that a human runs once (create).
   const name = cli.matchedCommand.name;
   if (!jsonMode && !["doctor", "upgrade", "create", "dev"].includes(name) && !name.includes(":")) {
     const { updateHint } = await import("./versions.js");

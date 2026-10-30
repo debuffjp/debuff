@@ -24,7 +24,7 @@ npx debuff --help
 
 Add `--json` for machine-readable output and `--root <dir>` to target another project.
 
-Once a day, at the end of a command, the CLI prints one line on stderr when a newer debuff is out (from 0.21). It's never printed in `--json` mode, and it's off in CI and with `DEBUFF_UPDATE_CHECK=0`.
+Once a day, at the end of a command, the CLI prints one line on stderr when a newer debuff is out (from 0.21). From 0.24, `debuff dev` prints it under its banner instead, since it never exits. The hint is never printed in `--json` mode, and it's off in CI and with `DEBUFF_UPDATE_CHECK=0`. Agents get the same news from the agent hook at session start (below).
 
 ## Exit codes and errors
 
@@ -54,7 +54,8 @@ From 0.23. New projects ship `.claude/hooks/debuff.mjs`, wired into Claude Code 
 - asks the human before screenshot baselines or saves change;
 - refuses edits to `.debuff/`, `dist/` and `node_modules/`, a foreground dev server, and hand-changed `@debuffjp/*` versions;
 - warns about new `Math.random`, `Date.now` and real-timer lines in `src/`;
-- once per stop, asks for `debuff test` when `src/` changed since the last run.
+- once per stop, asks for `debuff test` when `src/` changed since the last run;
+- from 0.24, at session start and at most once a day, tells the agent when a newer debuff is out, so it can ask the human about `npx debuff upgrade`.
 
 The shim imports `@debuffjp/cli/hook`, so the rules come from the installed CLI. It does nothing before `npm install`, and `DEBUFF_HOOK=0` turns it off. `// debuff-hook-ignore <rule>` at the end of a line skips that line. Rules and details: [Working with AI agents](https://debuff.jp/docs/agents#hook).
 

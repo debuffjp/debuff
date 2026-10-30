@@ -29,6 +29,8 @@ export default defineConfig({
           include: ["tooling/*/test/**/*.test.ts"],
           exclude: ["**/node_modules/**", "**/fixture/**", "**/fixture-*/**"],
           environment: "node",
+          // These start git, tsc, the CLI and dev servers: under a second alone, but past 5 s on a busy machine.
+          testTimeout: 30_000,
         },
       },
     ],
