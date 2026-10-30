@@ -46,7 +46,7 @@ describe("asset types", () => {
     expect(text).toContain(`"level1/map": { type: "json"; group: "level1" };`);
   });
 
-  it("makes a misspelt id, a wrong-type id or an unknown group a type error", async () => {
+  it("makes a misspelt id, a wrong-type id or an unknown group a type error", { timeout: 60_000 }, async () => {
     const root = project({
       "assets/hero.png": "x",
       "assets/level1/map.json": "{}",

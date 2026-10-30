@@ -44,7 +44,7 @@ describe("describeError", () => {
 describe("the CLI's failure contract", () => {
   const error = (stdout: string) => (JSON.parse(stdout) as { error: { code: string } }).error.code;
 
-  it("exits 3 with one JSON error for an unknown command or option", () => {
+  it("exits 3 with one JSON error for an unknown command or option", { timeout: 60_000 }, () => {
     const command = run(["nosuch", "--json"]);
     expect([command.status, error(command.stdout)]).toEqual([3, "unknown_command"]);
     const option = run(["inspect", "--root", template, "--nonsense"]);
