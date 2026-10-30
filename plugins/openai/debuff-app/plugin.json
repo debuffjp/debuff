@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "debuff-app",
-  "version": "0.24.0",
+  "version": "0.24.1",
   "description": "Make 2D browser games in chat and play them straight away from a link, or start a real project with debuff, an open-source TypeScript framework.",
   "author": {
     "name": "debuff",
