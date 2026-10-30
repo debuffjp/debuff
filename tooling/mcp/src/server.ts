@@ -103,11 +103,17 @@ export function createServer(options: ServerOptions): McpServer {
         const e = err === undefined ? undefined : describeError(err);
         const limit = SLOW_TOOLS[name];
         const signal = e
-          ? failureSignal(`mcp:${name}`, e.code, e.exit)
+          ? failureSignal(`mcp:${name}`, e.code, e.exit, err)
           : limit
             ? slowSignal(`mcp:${name}`, (Date.now() - started) / 1000, limit)
             : undefined;
-        const sent = signal && (await autoPapercut(signal, { reporter: `debuff-mcp ${options.version}` }));
+        // The first time, the agent gets the notice in the result to pass on, before anything is sent.
+        const sent =
+          signal &&
+          (await autoPapercut(signal, {
+            reporter: `debuff-mcp ${options.version}`,
+            notice: (text) => result.content.push({ type: "text", text: `Tell the human: ${text}` }),
+          }));
         if (sent && sent.action !== "similar")
           result.content.push({
             type: "text",
