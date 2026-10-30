@@ -21,6 +21,7 @@ export type RawContext = { kind: "webgl2"; gl: WebGL2RenderingContext } | { kind
 
 import type { CopySpec } from "./copies.js";
 import type { Frame, SpriteDrawOptions } from "./draw.js";
+import type { Layer } from "./layer.js";
 import type { Shader } from "./shader.js";
 import type { ShapeBuffer } from "./shapes.js";
 import type { RenderTarget } from "./target.js";
@@ -84,6 +85,11 @@ export interface Backend {
    * pixels, as `Draw` rounds it for `quad`. Without it, `Draw` calls `quad`.
    */
   sprite?(ver: number, m: Matrix, f: Frame, x: number, y: number, o: SpriteDrawOptions, color: number, smooth: boolean): void;
+  /**
+   * Draw a recorded layer under `m`, matching what drawing its sprites one by one would put on screen. Return
+   * false to have `Draw` do exactly that instead (the layer holds something this backend can't replay).
+   */
+  replay?(layer: Layer, m: Matrix): boolean;
   /** Copies of one frame with per-copy scale, rotation or colour (`draw.sprites` with `each`). */
   copies(spec: CopySpec): void;
   /**

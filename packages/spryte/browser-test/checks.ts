@@ -528,9 +528,22 @@ vec4 effect(vec4 color, vec2 uv) {
     gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, out);
     return out;
   };
+  // A static layer recorded before the loss: its GPU buffers die with the context and must be rebuilt.
+  const layers = new WeakMap<Draw, ReturnType<Draw["record"]>>();
   const scene = (draw: Draw) => {
     busy(draw);
     draw.sprites(img, pos, 20, { tint: "#8f8" }, { scale: new Float32Array(20).fill(1.5) });
+    let layer = layers.get(draw);
+    if (!layer) {
+      layer = draw.record((d) => {
+        for (let i = 0; i < 12; i++) d.sprite(img, (i % 6) * 10, Math.floor(i / 6) * 8, { origin: [0, 0], tint: i % 2 ? "#f88" : "#fff" });
+      });
+      layers.set(draw, layer);
+    }
+    draw.push();
+    draw.translate(80.5, 60);
+    draw.replay(layer);
+    draw.pop();
   };
   const fresh = await render(scene, "webgl2", 1);
   const canvas = document.createElement("canvas");
@@ -1196,6 +1209,94 @@ function hostCanvas(): WebGL2RenderingContext {
   record("shared context loss between frames: same pixels after", readTopDown(gl), await render(busy, "webgl2", 1));
   shared.draw.dispose();
   ext?.loseContext();
+}
+
+// Static layers: draw.record() once, then draw.replay() under a transform, must put the same pixels on screen as
+// drawing the sprites one by one under that transform. Fractional camera offsets and odd tile sizes with origin
+// 0.5 are where rounding on the GPU (replay) could part from rounding on the CPU (direct).
+{
+  // Ten images, so a layer needs two runs of eight textures.
+  const tiles = Array.from({ length: 10 }, (_, i) => {
+    const c = document.createElement("canvas");
+    c.width = 7 + (i % 3);
+    c.height = 5 + (i % 2);
+    const g = c.getContext("2d") as CanvasRenderingContext2D;
+    g.fillStyle = `hsl(${i * 36}, 80%, 55%)`;
+    g.fillRect(0, 0, c.width, c.height);
+    g.fillStyle = "#000";
+    g.fillRect(1, 1, 2, 1);
+    return c;
+  });
+  // `folded`: the moved group with its offset added to x and y instead of translate(). Under a rotated camera,
+  // live drawing itself puts sprites under a translate() that follows other sprites through a CPU quad, which
+  // differs from the GPU sprite path by a couple of edge pixels (measured: 2 px at scale 2, live against live).
+  // Replay always takes the GPU sprite path, so that case compares against the folded drawing.
+  const content = (d: Draw, folded = false) => {
+    for (let ty = 0; ty < 9; ty++)
+      for (let tx = 0; tx < 12; tx++) {
+        const t = tiles[(tx * 3 + ty) % tiles.length] as HTMLCanvasElement;
+        d.sprite(t, tx * 9, ty * 7, (tx + ty) % 5 === 0 ? {} : { origin: [0, 0] });
+      }
+    // A moved group inside the recording, and the option mix the sprite cases cover.
+    if (folded) {
+      for (const [i, [, o]] of cases.entries()) d.sprite(img, 20.25 + i * 12, 33.5, o);
+      return;
+    }
+    d.push();
+    d.translate(20.25, 33.5);
+    for (const [i, [, o]] of cases.entries()) d.sprite(img, i * 12, 0, o);
+    d.pop();
+  };
+  const cameras: [string, (d: Draw) => void][] = [
+    ["integer offset", (d) => d.translate(4, 3)],
+    ["fractional offset", (d) => d.translate(-10.6, 3.3)],
+    ["half-pixel offset", (d) => d.translate(0.5, -0.5)],
+    ["zoom 2", (d) => d.transform(2, 0, 0, 2, -37.25, -11.75)],
+    ["rotated camera", (d) => d.transform(0.96, 0.28, -0.28, 0.96, 12, -3)],
+  ];
+  for (const backend of ["webgl2", "2d"] as const)
+    for (const scale of [1, 2])
+      for (const [name, camera] of cameras) {
+        const scene = (replayed: boolean) => (d: Draw) => {
+          d.rect(0, 0, 12, 12, "#fff"); // drawn before: order must hold
+          d.push();
+          camera(d);
+          if (replayed) d.replay(d.record((r) => content(r)));
+          else content(d, name === "rotated camera" && backend === "webgl2");
+          d.pop();
+          d.rect(60, 40, 12, 12, "#f0f"); // drawn after
+        };
+        record(
+          `replay == direct: ${name}, scale ${scale} (${backend})`,
+          await render(scene(false), backend, scale),
+          await render(scene(true), backend, scale),
+        );
+      }
+  // draw.alpha applies at replay (the layer draws its sprites one by one then), not when recorded.
+  for (const backend of ["webgl2", "2d"] as const) {
+    const faded = (replayed: boolean) => (d: Draw) => {
+      const layer = replayed ? d.record(content) : undefined;
+      d.alpha = 0.5;
+      if (layer) d.replay(layer);
+      else content(d);
+      d.alpha = 1;
+    };
+    record(`replay == direct under draw.alpha (${backend})`, await render(faded(false), backend), await render(faded(true), backend));
+  }
+  // The same layer replayed twice in one frame, at two places.
+  for (const backend of ["webgl2", "2d"] as const) {
+    const twice = (replayed: boolean) => (d: Draw) => {
+      const layer = replayed ? d.record(content) : undefined;
+      for (const x of [0, 40.5]) {
+        d.push();
+        d.translate(x, 10);
+        if (layer) d.replay(layer);
+        else content(d);
+        d.pop();
+      }
+    };
+    record(`replay twice == direct twice (${backend})`, await render(twice(false), backend), await render(twice(true), backend));
+  }
 }
 
 (window as unknown as { __checks: unknown }).__checks = results;

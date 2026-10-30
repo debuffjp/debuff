@@ -1,6 +1,7 @@
 import type { Backend, BlendMode, ClipRect, Matrix, RawContext, TextureSource } from "./backend.js";
 import { type CopySpec, copyAt, frameAt, placeAt } from "./copies.js";
 import type { Frame, SpriteDrawOptions } from "./draw.js";
+import type { Layer } from "./layer.js";
 import type { Shader } from "./shader.js";
 import type { ShapeBuffer } from "./shapes.js";
 import { RenderTarget } from "./target.js";
@@ -11,6 +12,8 @@ const UNITS = 8;
 /** Added to an instance's texture unit: a sprite (`SPRITE`), and one whose position is already whole pixels (`PLACED`). */
 const SPRITE = 16;
 const PLACED = 32;
+/** A layer sprite (`draw.replay`) to round to whole pixels in the shader when the transform allows (`u_snapok`). */
+const SNAP = 64;
 
 /**
  * One instance format for quads and sprites, so both share a batch. A quad carries its finished matrix and UVs.
@@ -27,6 +30,7 @@ layout(location=5) in vec4 a_color;  // normalised RGBA
 uniform vec2 u_view;
 uniform vec4 u_linear;               // the batch's transform, for sprites
 uniform vec2 u_mt;
+uniform float u_snapok;              // replay: 1 when the transform has no rotation or skew, so ${SNAP} sprites snap
 uniform vec3 u_texinfo[${UNITS}];    // 1 / width, 1 / height (negative for targets), v at the top row, per unit
 out highp vec2 v_uv;
 out vec4 v_color;
@@ -51,6 +55,8 @@ void main() {
     if ((flags & ${PLACED}) == 0) {
       vec2 off = -a_1.yz * size;
       e = M * (ab * off.x + cd * off.y + a_0.xy) + u_mt;
+      // The rule draw.sprite applies on the CPU for unrotated pixel art (Math.round == floor(x + 0.5)).
+      if ((flags & ${SNAP}) != 0 && u_snapok > 0.5) e = floor(e + 0.5);
     }
     p = (M * ab) * (size.x * a_corner.x) + (M * cd) * (size.y * a_corner.y) + e;
     vec3 t = u_texinfo[unit];
@@ -282,7 +288,13 @@ interface ProgramInfo {
 interface BatchProgram extends ProgramInfo {
   linear: WebGLUniformLocation | null;
   mt: WebGLUniformLocation | null;
+  snapok: WebGLUniformLocation | null;
   texinfo: WebGLUniformLocation | null;
+}
+
+/** A layer's GPU copy for one context: one static instance buffer per run of up to `UNITS` images. */
+interface BuiltLayer {
+  segments: { buffer: WebGLBuffer; vao: WebGLVertexArrayObject; count: number; srcs: TextureSource[]; smooth: boolean[] }[];
 }
 
 interface CustomProgram extends BatchProgram {
@@ -371,6 +383,7 @@ export class WebGL2Backend implements Backend {
     const shader = this.shader;
     this.customs.clear();
     this.eachCustoms.clear();
+    this.layers = new WeakMap();
     this.textures.clear();
     this.targets.clear();
     this.target = null;
@@ -600,6 +613,143 @@ export class WebGL2Backend implements Backend {
       m[4] === bm[4] &&
       m[5] === bm[5];
     this.bver = ver;
+  }
+
+  /** Layers' GPU copies on this context; a lost context drops them all, and they're built again from the layer. */
+  private layers = new WeakMap<Layer, BuiltLayer>();
+
+  replay(layer: Layer, m: Matrix): boolean {
+    if (this.lost) return true;
+    let built = this.layers.get(layer);
+    if (!built) {
+      const fresh = this.buildLayer(layer);
+      if (!fresh) return false;
+      built = fresh;
+      this.layers.set(layer, built);
+    }
+    // Whatever was queued before draws first, so the layer keeps its place in the draw order.
+    this.flush();
+    const gl = this.gl;
+    const p = this.active;
+    this.syncView(p);
+    gl.uniform4f(p.linear, m[0], m[1], m[2], m[3]);
+    gl.uniform2f(p.mt, m[4], m[5]);
+    gl.uniform1f(p.snapok, m[1] === 0 && m[2] === 0 ? 1 : 0);
+    const info = this.texInfo;
+    const resolved: CachedTexture[] = [];
+    for (const seg of built.segments) {
+      // Textures resolve now, not when recorded: shared hosts' textures and invalidated images stay correct.
+      // All of them before binding any: uploading one binds it to the active unit, which would clobber the last.
+      resolved.length = 0;
+      for (const src of seg.srcs) resolved.push(this.texture(src));
+      for (let i = 0; i < resolved.length; i++) {
+        const t = resolved[i] as CachedTexture;
+        gl.activeTexture(gl.TEXTURE0 + i);
+        gl.bindTexture(gl.TEXTURE_2D, t.tex);
+        gl.bindSampler(i, seg.smooth[i] ? this.linear : this.nearest);
+        info[i * 3] = t.iw;
+        info[i * 3 + 1] = t.ih;
+        info[i * 3 + 2] = t.v0;
+      }
+      gl.uniform3fv(p.texinfo, info);
+      gl.bindVertexArray(seg.vao);
+      gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, seg.count);
+      this.submitted++;
+    }
+    gl.bindVertexArray(this.vao);
+    // The units now hold the layer's textures: the next sprite resolves its own again.
+    this.lastSrc = null;
+    this.last = undefined;
+    gl.uniform1f(p.snapok, 0);
+    return true;
+  }
+
+  /**
+   * Instances for every sprite in the layer, in the format `write()` uses but with positions kept local and
+   * `SNAP` set where `write()` would round, so the shader rounds after the replay transform. Undefined when a
+   * sprite was recorded under a scale, rotation or skew (`Draw` then replays the calls one by one).
+   */
+  private buildLayer(layer: Layer): BuiltLayer | undefined {
+    const items = layer.items;
+    for (const it of items) if (it.m[0] !== 1 || it.m[1] !== 0 || it.m[2] !== 0 || it.m[3] !== 1) return undefined;
+    const gl = this.gl;
+    const built: BuiltLayer = { segments: [] };
+    let start = 0;
+    while (start < items.length) {
+      const srcs: TextureSource[] = [];
+      const smooth: boolean[] = [];
+      const units: number[] = [];
+      let end = start;
+      for (; end < items.length; end++) {
+        const it = items[end] as (typeof items)[number];
+        const src = it.frame.image;
+        const sm = it.o.smooth === true;
+        let unit = srcs.findIndex((s, i) => s === src && smooth[i] === sm);
+        if (unit < 0) {
+          if (srcs.length === UNITS) break;
+          unit = srcs.push(src) - 1;
+          smooth.push(sm);
+        }
+        units.push(unit);
+      }
+      const count = end - start;
+      const data = new ArrayBuffer(count * STRIDE);
+      const f32 = new Float32Array(data);
+      const u32 = new Uint32Array(data);
+      for (let i = 0; i < count; i++) {
+        const it = items[start + i] as (typeof items)[number];
+        const o = it.o;
+        const fr = it.frame;
+        const r = o.rotation ?? 0;
+        const f = i * (STRIDE / 4);
+        f32[f] = it.x + it.m[4];
+        f32[f + 1] = it.y + it.m[5];
+        f32[f + 2] = r;
+        f32[f + 3] = (o.scaleX ?? 1) * (o.flipX ? -1 : 1);
+        f32[f + 4] = (o.scaleY ?? 1) * (o.flipY ? -1 : 1);
+        f32[f + 5] = o.origin ? o.origin[0] : 0.5;
+        f32[f + 6] = o.origin ? o.origin[1] : 0.5;
+        f32[f + 7] = o.flash ?? 0;
+        f32[f + 8] = fr.x;
+        f32[f + 9] = fr.y;
+        f32[f + 10] = fr.w;
+        f32[f + 11] = fr.h;
+        f32[f + 12] = (units[i] as number) + SPRITE + (!o.smooth && r === 0 ? SNAP : 0);
+        u32[f + 13] = it.color === 0xffffffff ? it.color : bytes(it.color);
+      }
+      const buffer = gl.createBuffer();
+      const vao = gl.createVertexArray();
+      if (!buffer || !vao) throw new Error("WebGL2: could not create a layer buffer");
+      gl.bindVertexArray(vao);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
+      gl.enableVertexAttribArray(0);
+      gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+      gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+      const attr = (loc: number, size: number, type: number, normalise: boolean, offset: number) => {
+        gl.enableVertexAttribArray(loc);
+        gl.vertexAttribPointer(loc, size, type, normalise, STRIDE, offset);
+        gl.vertexAttribDivisor(loc, 1);
+      };
+      attr(1, 4, gl.FLOAT, false, 0);
+      attr(2, 4, gl.FLOAT, false, 16);
+      attr(3, 4, gl.FLOAT, false, 32);
+      attr(4, 1, gl.FLOAT, false, 48);
+      attr(5, 4, gl.UNSIGNED_BYTE, true, 52);
+      built.segments.push({ buffer, vao, count, srcs, smooth });
+      start = end;
+    }
+    gl.bindVertexArray(this.vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.instanceBuffer);
+    layer.onDispose(() => {
+      if (this.layers.get(layer) !== built) return;
+      this.layers.delete(layer);
+      for (const seg of built.segments) {
+        gl.deleteBuffer(seg.buffer);
+        gl.deleteVertexArray(seg.vao);
+      }
+    });
+    return built;
   }
 
   /** The full path for a sprite: falls back to a quad, joins shapes, assigns units, starts the batch transform. */
@@ -1424,7 +1574,16 @@ function sampler(gl: WebGL2RenderingContext, filter: number): WebGLSampler {
 
 function batchProgram(gl: WebGL2RenderingContext, program: WebGLProgram): BatchProgram {
   const at = (name: string) => gl.getUniformLocation(program, name);
-  return { program, view: at("u_view"), w: -1, h: -1, linear: at("u_linear"), mt: at("u_mt"), texinfo: at("u_texinfo[0]") };
+  return {
+    program,
+    view: at("u_view"),
+    w: -1,
+    h: -1,
+    linear: at("u_linear"),
+    mt: at("u_mt"),
+    snapok: at("u_snapok"),
+    texinfo: at("u_texinfo[0]"),
+  };
 }
 
 function link(gl: WebGL2RenderingContext, vs: string, fs: string, label = "WebGL2"): WebGLProgram {
