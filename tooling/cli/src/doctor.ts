@@ -4,7 +4,7 @@ import { basename, dirname, join } from "node:path";
 import { projectSkillsVersion, SKILL_DIRS, writeProjectSkills } from "create-debuff";
 import { compileAssets } from "./assets/index.js";
 import { loadConfig, type ResolvedConfig } from "./config.js";
-import { hookInstalled, writeHookFiles } from "./hook.js";
+import { hookStatus, writeHookFiles } from "./hook.js";
 import { hooksReady } from "./scenario/browser.js";
 import { launchBrowser } from "./scenario/run.js";
 import { telemetryOff } from "./telemetry.js";
@@ -360,14 +360,18 @@ function agentSkills(root: string): DoctorCheck {
 /** The hook that checks agents' edits and commands in Claude Code and Codex (src/hook.ts). */
 function agentHooks(root: string): DoctorCheck {
   const base = { id: "agent-hooks", group: "agents" as const };
-  if (hookInstalled(root))
+  const status = hookStatus(root);
+  if (status === "current")
     return { ...base, ok: true, message: "Agent hooks check edits and commands (.claude/settings.json, .codex/hooks.json)" };
   return {
     ...base,
     ok: false,
     required: false,
-    message: "No agent hooks: nothing stops an agent editing baselines or generated files, or warns about Math.random",
-    fix: "npx debuff doctor --fix writes .claude/hooks/debuff.mjs and any of .claude/settings.json and .codex/hooks.json that don't exist; add the hook to an existing one by hand: https://debuff.jp/docs/agents#hook",
+    message:
+      status === "missing"
+        ? "No agent hooks: nothing stops an agent editing baselines or generated files, or warns about Math.random"
+        : "Agent hooks are from an older debuff: agents aren't told when a new release is out",
+    fix: "npx debuff doctor --fix writes the hook files, and refreshes .claude/settings.json and .codex/hooks.json when they hold only debuff's hooks; merge them into one with your own settings by hand: https://debuff.jp/docs/agents#hook",
     repair: { hooks: true },
   };
 }

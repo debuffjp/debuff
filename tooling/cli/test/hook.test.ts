@@ -9,9 +9,11 @@ import {
   hookFiles,
   hookInstalled,
   hookOutput,
+  hookStatus,
   markTested,
   parsePayload,
   runHook,
+  sessionStart,
   writeHookFiles,
 } from "../src/hook.js";
 
@@ -224,6 +226,19 @@ describe("runHook", () => {
   });
 });
 
+describe("sessionStart", () => {
+  it("passes the upgrade note to the agent as session context, and is quiet when off", async () => {
+    const root = project();
+    const configFile = join(root, "config.json");
+    const fetch = (async () => new Response(JSON.stringify({ version: "99.0.0" }))) as unknown as typeof globalThis.fetch;
+    const out = JSON.parse(await sessionStart({}, { configFile, fetch, now: 0 }));
+    expect(out.hookSpecificOutput.hookEventName).toBe("SessionStart");
+    expect(out.hookSpecificOutput.additionalContext).toMatch(/^debuff 99.0.0 is out/);
+    expect(await sessionStart({}, { configFile, fetch, now: 1 })).toBe("");
+    expect(await sessionStart({ DEBUFF_HOOK: "0" }, { configFile: join(root, "b.json"), fetch, now: 0 })).toBe("");
+  });
+});
+
 describe("hook files", () => {
   it("every template ships exactly the files doctor --fix writes", () => {
     const templates = join(import.meta.dirname, "../../../templates");
@@ -232,13 +247,38 @@ describe("hook files", () => {
         expect(readFileSync(join(templates, t, file), "utf8"), `${t}/${file}`).toBe(content);
   });
 
-  it("writes only missing config, and the shim always", () => {
+  it("writes missing files and leaves a settings file with the user's own settings alone", () => {
     const root = project();
     mkdirSync(join(root, ".claude"));
-    writeFileSync(join(root, ".claude/settings.json"), "{}");
+    const mine = JSON.stringify({ permissions: { allow: ["Bash(ls)"] } });
+    writeFileSync(join(root, ".claude/settings.json"), mine);
     expect(writeHookFiles(root)).toEqual([".claude/hooks/debuff.mjs", ".codex/hooks.json"]);
-    expect(readFileSync(join(root, ".claude/settings.json"), "utf8")).toBe("{}");
+    expect(readFileSync(join(root, ".claude/settings.json"), "utf8")).toBe(mine);
     expect(hookInstalled(root)).toBe(true);
+    expect(writeHookFiles(root)).toEqual([]);
+  });
+
+  it("refreshes 0.23 config that holds only debuff's hooks, which lacked session start", () => {
+    const root = project();
+    writeHookFiles(root);
+    expect(hookStatus(root)).toBe("current");
+    const old = (file: string) => {
+      const config = JSON.parse(readFileSync(join(root, file), "utf8"));
+      delete config.hooks.SessionStart;
+      writeFileSync(join(root, file), JSON.stringify(config, null, 2));
+    };
+    old(".claude/settings.json");
+    old(".codex/hooks.json");
+    expect(hookStatus(root)).toBe("outdated");
+    expect(writeHookFiles(root)).toEqual([".claude/settings.json", ".codex/hooks.json"]);
+    expect(hookStatus(root)).toBe("current");
+
+    const merged = JSON.parse(readFileSync(join(root, ".claude/settings.json"), "utf8"));
+    delete merged.hooks.SessionStart;
+    merged.hooks.Stop[0].hooks.push({ type: "command", command: "my-linter" });
+    writeFileSync(join(root, ".claude/settings.json"), JSON.stringify(merged));
+    expect(writeHookFiles(root)).toEqual([]);
+    expect(hookStatus(root)).toBe("outdated");
   });
 
   it("the shim runs the installed hook, and does nothing without it", () => {

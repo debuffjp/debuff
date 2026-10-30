@@ -150,12 +150,12 @@ describe("runDoctor", () => {
     project();
     rmSync(join(root, ".claude/hooks"), { recursive: true });
     rmSync(join(root, ".codex"), { recursive: true });
-    writeFileSync(join(root, ".claude/settings.json"), "{}");
+    writeFileSync(join(root, ".claude/settings.json"), '{ "permissions": {} }');
     let r = await runDoctor(root, { browser: false, env });
     expect(check(r, "agent-hooks")).toMatchObject({ ok: false, required: false, repair: { hooks: true } });
     expect(r.ok).toBe(true);
     expect(repairDoctor(root, r)).toEqual(["wrote .claude/hooks/debuff.mjs, .codex/hooks.json"]);
-    expect(readFileSync(join(root, ".claude/settings.json"), "utf8")).toBe("{}");
+    expect(readFileSync(join(root, ".claude/settings.json"), "utf8")).toBe('{ "permissions": {} }');
     r = await runDoctor(root, { browser: false, env });
     expect(check(r, "agent-hooks")?.ok).toBe(true);
   });

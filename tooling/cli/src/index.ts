@@ -4,7 +4,7 @@ export { CONFIG_FILES, type DebuffConfig, defineConfig, loadConfig, type Resolve
 export { type DoctorCheck, type DoctorGroup, type DoctorOptions, type DoctorResult, repairDoctor, runDoctor } from "./doctor.js";
 export { DebuffError, describeError, type ErrorCode, type ErrorReport, EXIT } from "./errors.js";
 export { DEFAULT_FUZZ_KEYS, type FuzzFinding, type FuzzOptions, type FuzzReport, runFuzz } from "./fuzz.js";
-export { hookFiles, hookInstalled, markTested, writeHookFiles } from "./hook.js";
+export { hookFiles, hookInstalled, hookStatus, markTested, writeHookFiles } from "./hook.js";
 export { inspectProject } from "./inspect.js";
 export { baselineImages, type LaunchConfig, writeLaunchFiles } from "./launch.js";
 export type * from "./plugin.js";
@@ -24,6 +24,6 @@ export * from "./scenario/index.js";
 export { SHIP_TARGETS, type ShipCheck, type ShipResult, type ShipTarget, ship, shipFailed, zip } from "./ship.js";
 export { parseTscOutput, type TypeCheckResult, type TypeDiagnostic, typecheck } from "./typecheck.js";
 export { CHANGELOG, planUpgrade, runUpgrade, type UpgradePlan, type UpgradeResult } from "./upgrade.js";
-export { isNewer, latestVersion, updateHint } from "./versions.js";
+export { isNewer, latestVersion, updateHint, upgradeNote } from "./versions.js";
 export { createDevServer, viteConfig } from "./vite.js";
 export { ASSETS_DIR, type DebuffViteOptions, debuff } from "./vite-plugin.js";

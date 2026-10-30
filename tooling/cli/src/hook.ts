@@ -306,8 +306,28 @@ export function runHook(argv: string[], stdin = () => readFileSync(0, "utf8"), e
   }
 }
 
+/**
+ * At session start, tell the agent when a newer debuff is out (at most once a day), so it can pass that on to the
+ * human. Never rejects. Off with `DEBUFF_HOOK=0`, `DEBUFF_UPDATE_CHECK=0` or in CI.
+ */
+export async function sessionStart(env = process.env, options: { configFile?: string; fetch?: typeof fetch; now?: number } = {}) {
+  if (env.DEBUFF_HOOK === "0") return "";
+  try {
+    const { upgradeNote } = await import("./versions.js");
+    const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string };
+    const note = await upgradeNote(version, { env, ...options });
+    return note ? JSON.stringify({ hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: note } }) : "";
+  } catch {
+    return "";
+  }
+}
+
 /** Entry point for the project shim. */
 export function run(argv: string[]): void {
+  if (argv[1] === "start") {
+    void sessionStart().then((out) => out && process.stdout.write(out));
+    return;
+  }
   const out = runHook(argv);
   if (out) process.stdout.write(out);
 }
@@ -321,7 +341,7 @@ try {
 } catch {}
 `;
 
-const hookEntry = (agent: HookAgent, event: HookEvent) => ({
+const hookEntry = (agent: HookAgent, event: HookEvent | "start") => ({
   type: "command",
   command: `node .claude/hooks/debuff.mjs ${agent} ${event}`,
   timeout: 10,
@@ -333,6 +353,7 @@ const config = (agent: HookAgent, edits: string, others: string) => ({
     PreToolUse: [{ matcher: `^(${edits}|${others})$`, hooks: [hookEntry(agent, "pre")] }],
     PostToolUse: [{ matcher: `^(${edits})$`, hooks: [hookEntry(agent, "post")] }],
     Stop: [{ hooks: [hookEntry(agent, "stop")] }],
+    SessionStart: [{ matcher: "startup", hooks: [hookEntry(agent, "start")] }],
   },
 });
 
@@ -347,18 +368,44 @@ export function hookFiles(): Record<string, string> {
   };
 }
 
-/** Whether the project runs the debuff hook: the shim plus a Claude Code or Codex config that calls it. */
-export function hookInstalled(root: string): boolean {
-  if (!existsSync(join(root, ".claude/hooks/debuff.mjs"))) return false;
-  return [".claude/settings.json", ".codex/hooks.json"].some((f) => read(join(root, f)).includes(".claude/hooks/debuff.mjs"));
+const CONFIGS = { ".claude/settings.json": "claude", ".codex/hooks.json": "codex" } as const;
+
+/** A config file that holds nothing but debuff's hooks, so rewriting it loses nothing of the user's. */
+function onlyOurs(text: string): boolean {
+  try {
+    const parsed = JSON.parse(text) as Record<string, unknown>;
+    const commands = [...JSON.stringify(parsed.hooks ?? {}).matchAll(/"command":"([^"]*)"/g)].map((m) => m[1] as string);
+    return Object.keys(parsed).every((k) => k === "hooks") && commands.every((c) => c.includes(".claude/hooks/debuff.mjs"));
+  } catch {
+    return false;
+  }
 }
 
-/** Write the hook files that don't exist yet; an existing settings file may hold the user's own hooks. */
+/**
+ * Whether the project runs the debuff hook: `missing` without the shim or a config that calls it, `outdated` when a
+ * config predates an event it should have (session start came in 0.24), else `current`.
+ */
+export function hookStatus(root: string): "missing" | "outdated" | "current" {
+  if (!existsSync(join(root, ".claude/hooks/debuff.mjs"))) return "missing";
+  const using = Object.entries(CONFIGS).filter(([file]) => read(join(root, file)).includes(".claude/hooks/debuff.mjs"));
+  if (!using.length) return "missing";
+  return using.every(([file, agent]) => read(join(root, file)).includes(`debuff.mjs ${agent} start`)) ? "current" : "outdated";
+}
+
+/** Whether the project runs the debuff hook at all. */
+export const hookInstalled = (root: string) => hookStatus(root) !== "missing";
+
+/**
+ * Write the hook files that are missing, and refresh ones that hold only debuff's hooks. A settings file with the
+ * user's own hooks or settings is left alone.
+ */
 export function writeHookFiles(root: string): string[] {
   const written: string[] = [];
   for (const [file, content] of Object.entries(hookFiles())) {
     const path = join(root, file);
-    if (existsSync(path) && file !== ".claude/hooks/debuff.mjs") continue;
+    const existing = existsSync(path) ? read(path) : undefined;
+    if (existing === content) continue;
+    if (existing !== undefined && file !== ".claude/hooks/debuff.mjs" && !onlyOurs(existing)) continue;
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, content);
     written.push(file);
