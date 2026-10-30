@@ -1,5 +1,15 @@
 # @debuffjp/mcp
 
+## 0.24.1
+
+### Patch Changes
+
+- fbda4db: `debuff papercut` and `report_papercut` show the board's next step: the entry's workaround, or that it waits for review. Similar matches print their workarounds too.
+- f57baa0: `debuff papercut --hit <id> --workaround "…"` and `report_papercut` with `hit` send the workaround, which fills the papercut's workaround when it has none. Before, it was dropped. `--hit` says which other flags it ignores, and links point at `papercuts.debuff.jp/<id>`.
+- Updated dependencies [fbda4db]
+- Updated dependencies [f57baa0]
+  - @debuffjp/cli@0.24.1
+
 ## 0.24.0
 
 ### Minor Changes
