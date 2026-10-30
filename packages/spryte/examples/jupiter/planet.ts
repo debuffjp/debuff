@@ -39,8 +39,18 @@ export const ROW = 0.05; // degrees per row in the lookup tables
 export const ROWS = Math.round((2 * LAT_MAX) / ROW) + 1;
 export const CAP = 300_000;
 export const EDDIES = 40;
-export const SPEEDS = { hour: 3600, quarter: 6 * 3600, day: 86_400, days: 4 * 86_400 } as const; // simulated seconds per second
-export type Speed = keyof typeof SPEEDS;
+// How fast time runs, in simulated seconds per second: the slider's ends and its labelled stops.
+export const SLOWEST = 60;
+export const FASTEST = 30 * 86_400;
+export const PRESETS = [600, 3600, 6 * 3600, 86_400, 4 * 86_400, 14 * 86_400] as const;
+/** A span of simulated time in words: "10 minutes", "6 hours", "2 weeks". */
+export function span(s: number): string {
+  const [unit, size] =
+    s >= 13.5 * 86_400 ? ["week", 7 * 86_400] : s >= 86_400 ? ["day", 86_400] : s >= 3600 ? ["hour", 3600] : ["minute", 60];
+  const k = s / Number(size);
+  const shown = k >= 10 ? Math.round(k) : Math.round(k * 10) / 10;
+  return `${shown} ${unit}${shown === 1 ? "" : "s"}`;
+}
 
 // Wind between two neighbouring jets eases from one peak to the other, so each peak is a true extremum.
 export const wind = new Float32Array(ROWS);
@@ -112,5 +122,6 @@ export interface Snapshot {
   days: number;
   catchingUp: boolean;
   stepMs: number;
+  rate: number; // simulated seconds per second the worker actually managed, jumps aside
   named: Pick<Storm, "lon" | "lat" | "a" | "b" | "name">[];
 }

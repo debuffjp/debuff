@@ -9,17 +9,20 @@ import {
   CAP,
   cosOf,
   EDDIES,
+  FASTEST,
   FLAT,
   inside,
   LAT_MAX,
   LON_STEPS,
+  PRESETS,
   ROW,
   ROWS,
   rowOf,
+  SLOWEST,
   type Snapshot,
-  type Speed,
   sinLon,
   sinOf,
+  span,
   wind,
 } from "./planet.ts";
 
@@ -56,7 +59,7 @@ const dot = new OffscreenCanvas(6, 6);
 const params = new URLSearchParams(location.search);
 let backend: "auto" | "2d" = params.get("backend") === "2d" ? "2d" : "auto";
 let n = innerWidth < 600 ? 60_000 : 200_000;
-let speed: Speed = "quarter";
+let speed = 6 * 3600; // simulated seconds per second
 const sim = new Worker(new URL("./sim.ts", import.meta.url), { type: "module" });
 // The newest snapshot from the worker; the one it replaces goes straight back to be refilled.
 let snap: Snapshot | null = null;
@@ -94,12 +97,50 @@ document.getElementById("counts")?.addEventListener("click", (e) => {
   sim.postMessage({ count: c });
   press("counts", "count", String(c));
 });
-document.getElementById("speeds")?.addEventListener("click", (e) => {
-  const s = (e.target as HTMLElement).dataset.speed as Speed | undefined;
-  if (!s) return;
-  speed = s;
-  sim.postMessage({ speed: s });
-  press("speeds", "speed", s);
+// Time: a slider on a log scale from a minute to a month per second, stops for the common speeds,
+// buttons that jump ahead, and keys for all of it.
+const rateSlider = document.getElementById("rate") as HTMLInputElement;
+const rateLabel = document.getElementById("rate-label") as HTMLOutputElement;
+const toSlider = (s: number): number => (1000 * Math.log(s / SLOWEST)) / Math.log(FASTEST / SLOWEST);
+const fromSlider = (v: number): number => SLOWEST * (FASTEST / SLOWEST) ** (v / 1000);
+function setSpeed(s: number): void {
+  speed = Math.max(SLOWEST, Math.min(FASTEST, s));
+  sim.postMessage({ speed });
+  rateSlider.value = String(Math.round(toSlider(speed)));
+  rateLabel.value = span(speed);
+  press("presets", "speed", String(speed));
+}
+rateSlider.addEventListener("input", () => {
+  // Snap to a stop when the slider passes close to one, so the labelled speeds are easy to land on.
+  const v = Number(rateSlider.value);
+  const near = PRESETS.find((p) => Math.abs(toSlider(p) - v) < 12);
+  setSpeed(near ?? Math.round(fromSlider(v) / 60) * 60);
+});
+const presets = document.getElementById("presets") as HTMLFieldSetElement;
+for (const p of PRESETS) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.dataset.speed = String(p);
+  b.textContent = span(p);
+  presets.append(b);
+}
+presets.addEventListener("click", (e) => {
+  const s = Number((e.target as HTMLElement).dataset.speed);
+  if (s) setSpeed(s);
+});
+document.getElementById("jumps")?.addEventListener("click", (e) => {
+  const s = Number((e.target as HTMLElement).dataset.skip);
+  if (s) sim.postMessage({ skip: s });
+});
+// Space pauses, [ and ] move down or up through the stops, comma and full stop jump an hour or a day.
+addEventListener("keydown", (e) => {
+  if (e.key === " ") {
+    e.preventDefault();
+    setPaused(!paused);
+  } else if (e.key === "]") setSpeed(PRESETS.find((p) => p > speed * 1.01) ?? FASTEST);
+  else if (e.key === "[") setSpeed([...PRESETS].reverse().find((p) => p < speed * 0.99) ?? SLOWEST);
+  else if (e.key === ",") sim.postMessage({ skip: 3600 });
+  else if (e.key === ".") sim.postMessage({ skip: 86_400 });
 });
 document.getElementById("backends")?.addEventListener("click", (e) => {
   const b = (e.target as HTMLElement).dataset.backend as "auto" | "2d" | undefined;
@@ -226,14 +267,19 @@ stage.addEventListener(
   },
   { passive: false },
 );
-document.getElementById("skip")?.addEventListener("click", () => {
-  sim.postMessage({ skip: 30 * 86_400 });
-});
 
 let last = 0;
 let fps = 60;
 let projectMs = 0;
 let drawMs = 0;
+/** Simulated time as "day 31, 06:00". */
+function clock(days: number): string {
+  const minutes = Math.floor((days % 1) * 1440);
+  const hh = String(Math.floor(minutes / 60)).padStart(2, "0");
+  const mm = String(minutes % 60).padStart(2, "0");
+  return `day ${Math.floor(days)}, ${hh}:${mm}`;
+}
+
 function frame(now: number): void {
   const dt = Math.min(0.05, (now - last) / 1000 || 0);
   last = now;
@@ -326,7 +372,7 @@ function frame(now: number): void {
   projectMs += (t1 - t0 - projectMs) * 0.05;
   drawMs += (t2 - t1 - drawMs) * 0.05;
   if (Math.floor(now / 250) !== Math.floor((now - dt * 1000) / 250)) {
-    stats.textContent = `${snap.n.toLocaleString()} tracers · day ${Math.floor(snap.days)}${snap.catchingUp ? " (catching up)" : ""} · ${snap.named.length} named storms, ${EDDIES} eddies · ${Math.round(fps)} fps · simulate ${snap.stepMs.toFixed(1)} ms in a worker · project ${projectMs.toFixed(1)} ms · draw ${drawMs.toFixed(1)} ms · ${draw.kind}`;
+    stats.textContent = `${snap.n.toLocaleString()} tracers · ${clock(snap.days)}${snap.catchingUp ? " (jumping ahead)" : !paused && snap.rate < speed * 0.8 ? ` · running at ${span(snap.rate)} a second, the most this machine manages` : ""} · ${snap.named.length} named storms, ${EDDIES} eddies · ${Math.round(fps)} fps · simulate ${snap.stepMs.toFixed(1)} ms in a worker · project ${projectMs.toFixed(1)} ms · draw ${drawMs.toFixed(1)} ms · ${draw.kind}`;
     const hit = pointer.on ? fromScreen(pointer.x, pointer.y, w, h) : null;
     if (hit) {
       const [x, y] = hit;
@@ -341,7 +387,7 @@ function frame(now: number): void {
 sim.postMessage({ count: n, speed });
 setPaused(paused);
 press("counts", "count", String(n));
-press("speeds", "speed", speed);
+setSpeed(speed);
 frameView(view);
 press("views", "view", view);
 press("backends", "backend", backend);

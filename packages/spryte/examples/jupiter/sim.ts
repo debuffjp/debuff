@@ -1,22 +1,7 @@
 // The simulation, in a worker so the page only projects and draws. It keeps its own clock, steps the
 // tracers and storms, and posts a snapshot of every tracer about 60 times a second. Snapshot buffers are
 // transferred, not copied, and come back from the page to be reused.
-import {
-  anticyclone,
-  belt,
-  CAP,
-  cosOf,
-  EDDIES,
-  inside,
-  LAT_MAX,
-  RADIUS_KM,
-  rowOf,
-  type Snapshot,
-  SPEEDS,
-  type Speed,
-  type Storm,
-  wind,
-} from "./planet.ts";
+import { anticyclone, belt, CAP, cosOf, EDDIES, inside, LAT_MAX, RADIUS_KM, rowOf, type Snapshot, type Storm, wind } from "./planet.ts";
 
 const KM_PER_DEG = (RADIUS_KM * Math.PI) / 180;
 const M_PER_DEG = KM_PER_DEG * 1000;
@@ -201,7 +186,7 @@ function step(dt: number): void {
 }
 
 let n = 0;
-let speed: Speed = "quarter";
+let speed = 6 * 3600; // simulated seconds per second
 let paused = false;
 let days = 0;
 // Simulated seconds still to run as fast as the worker can: the opening weeks, so the eddies are
@@ -209,6 +194,8 @@ let days = 0;
 let catchUp = 21 * 86_400;
 let last = performance.now();
 let stepMs = 0;
+let owed = 0; // simulated seconds the clock has asked for that the steps haven't run yet
+let rate = 0;
 const pool: Snapshot[] = [];
 
 self.onmessage = (e: MessageEvent) => {
@@ -217,7 +204,10 @@ self.onmessage = (e: MessageEvent) => {
     if (m.count > n) scatter(n, m.count);
     n = m.count;
   }
-  if (m.speed) speed = m.speed;
+  if (m.speed) {
+    speed = m.speed;
+    owed = 0;
+  }
   if (m.paused !== undefined) paused = m.paused;
   if (m.skip) catchUp += m.skip;
   if (m.storm) {
@@ -235,12 +225,20 @@ function loop(): void {
   const dt = Math.min(0.1, (t0 - last) / 1000);
   last = t0;
   if (!paused && n > 0) {
-    // Split the step so a tracer never crosses a large part of a storm in one go.
-    const sim = dt * SPEEDS[speed];
-    const parts = Math.max(1, Math.ceil(sim / 7200));
-    for (let k = 0; k < parts; k++) step(sim / parts);
-    days += sim / 86_400;
-  }
+    // Steps of at most two hours, so a tracer never crosses a large part of a storm in one go, for as
+    // long as 24 ms allows. At the fastest speeds that isn't enough: the backlog is capped at a quarter
+    // second of time, so the clock runs slower than asked rather than falling ever further behind.
+    owed = Math.min(owed + dt * speed, speed * 0.25 + 7200);
+    let ran = 0;
+    while (owed > 0 && performance.now() - t0 < 24) {
+      const s = Math.min(7200, owed);
+      step(s);
+      owed -= s;
+      ran += s;
+    }
+    days += ran / 86_400;
+    if (dt > 0) rate += (ran / dt - rate) * 0.05;
+  } else rate = 0;
   // Catching up: whole two-hour steps for up to 30 ms, then a snapshot so the page sees progress.
   while (catchUp > 0 && n > 0 && performance.now() - t0 < 30) {
     const s = Math.min(7200, catchUp);
@@ -264,6 +262,7 @@ function loop(): void {
     snap.days = days;
     snap.catchingUp = catchUp > 0;
     snap.stepMs = stepMs;
+    snap.rate = rate;
     snap.named = storms.filter((s) => s.name).map(({ lon, lat, a, b, name }) => ({ lon, lat, a, b, name }));
     self.postMessage(snap, { transfer: [snap.lon.buffer, snap.lat.buffer, snap.colors.buffer] });
   } else if (snap) pool.push(snap);
@@ -279,6 +278,7 @@ for (let k = 0; k < 3; k++)
     days: 0,
     catchingUp: false,
     stepMs: 0,
+    rate: 0,
     named: [],
   });
 loop();
