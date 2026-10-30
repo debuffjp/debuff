@@ -8,10 +8,13 @@ import { type ButtonState, Pointer, type ToLogical } from "./pointer.js";
  * - `"Pointer"`: primary mouse button / touch / pen
  * - `"PointerRight"`, `"PointerMiddle"`: the right and middle mouse buttons
  * - a gamepad button or stick direction: `"PadA"`, `"PadLeft"`, `"PadStickLeft"`
+ * - an on-screen control from `TouchControls`: `"TouchStickLeft"`, `"TouchA"` (added in 0.25)
  */
 export type Binding = string;
 
 export type Bindings<A extends string> = Record<A, readonly Binding[]>;
+
+const UP: ButtonState = Object.freeze({ down: false, pressed: false, released: false });
 
 /** The parts of `Game` that `Input` uses. */
 export interface InputHost {
@@ -53,6 +56,11 @@ export class Input<A extends string> {
    * `rebind()`, which keeps `keys.captured` in step.
    */
   readonly bindings: Bindings<A>;
+  /**
+   * Sources other code sets each step, by binding name: `TouchControls` writes `"TouchStickLeft"`, `"TouchA"` and
+   * so on here. A binding found in this map reads from it instead of the keyboard.
+   */
+  readonly virtual = new Map<Binding, ButtonState>();
   private readonly unhook: () => void;
   private readonly captureKeys: boolean;
   /** Keys in `keys.captured` because a binding uses them (not ones the game added itself). */
@@ -71,20 +79,40 @@ export class Input<A extends string> {
 
   /** Any binding for the action is held. */
   down(action: A): boolean {
-    return this.some(action, (b) => (this.isPointer(b) ? this.button(b).down : this.isPad(b) ? this.pads.down(b) : this.keys.down(b)));
+    return this.some(action, (b) =>
+      this.isPointer(b)
+        ? this.button(b).down
+        : this.isPad(b)
+          ? this.pads.down(b)
+          : this.isTouch(b)
+            ? this.touch(b).down
+            : this.keys.down(b),
+    );
   }
 
   /** The action started this step. */
   pressed(action: A): boolean {
     return this.some(action, (b) =>
-      this.isPointer(b) ? this.button(b).pressed : this.isPad(b) ? this.pads.pressed(b) : this.keys.pressed(b),
+      this.isPointer(b)
+        ? this.button(b).pressed
+        : this.isPad(b)
+          ? this.pads.pressed(b)
+          : this.isTouch(b)
+            ? this.touch(b).pressed
+            : this.keys.pressed(b),
     );
   }
 
   /** The action ended this step. */
   released(action: A): boolean {
     return this.some(action, (b) =>
-      this.isPointer(b) ? this.button(b).released : this.isPad(b) ? this.pads.released(b) : this.keys.released(b),
+      this.isPointer(b)
+        ? this.button(b).released
+        : this.isPad(b)
+          ? this.pads.released(b)
+          : this.isTouch(b)
+            ? this.touch(b).released
+            : this.keys.released(b),
     );
   }
 
@@ -123,7 +151,7 @@ export class Input<A extends string> {
     this.boundCaptured.clear();
     for (const list of Object.values(this.bindings) as Binding[][]) {
       for (const b of list) {
-        if (this.isPointer(b) || this.isPad(b) || this.keys.captured.has(b)) continue;
+        if (this.isPointer(b) || this.isPad(b) || this.isTouch(b) || this.keys.captured.has(b)) continue;
         this.keys.captured.add(b);
         this.boundCaptured.add(b);
       }
@@ -140,6 +168,15 @@ export class Input<A extends string> {
 
   private isPad(b: Binding): boolean {
     return b.startsWith("Pad");
+  }
+
+  private isTouch(b: Binding): boolean {
+    return this.virtual.has(b) || b.startsWith("Touch");
+  }
+
+  /** An on-screen control's state; one that isn't set up (no `TouchControls` yet) is simply up. */
+  private touch(b: Binding): ButtonState {
+    return this.virtual.get(b) ?? UP;
   }
 
   /** Clear edges, then sample gamepads for the next step (the Gamepad API is poll-based). */
