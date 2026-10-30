@@ -180,8 +180,8 @@ cli
   .option("--kind <kind>", "slow, flaky, missing-api, docs, confusing, broken or other")
   .option("--minutes <n>", "Minutes it cost this time")
   .option("--body <text>", "What happened")
-  .option("--workaround <text>", "What got you unstuck")
-  .option("--hit <id>", "Add a hit to this papercut instead of filing a new one")
+  .option("--workaround <text>", "What got you unstuck (with --hit, fills the papercut's workaround when it has none)")
+  .option("--hit <id>", "Add a hit to this papercut instead of filing a new one; the title or --body is the note")
   .option("--force", "File it even when similar papercuts exist")
   .option("--json", "Machine-readable output")
   .action(async (title: string[], o: Record<string, unknown>) => {
@@ -190,6 +190,14 @@ cli
     if (!text && o.hit === undefined) {
       console.error('Say what went wrong: debuff papercut "vitest times out on tsc tests under load" --minutes 10');
       return 1;
+    }
+    if (o.hit !== undefined) {
+      // These describe a new papercut; a hit goes to one that already has them.
+      const ignored = ["repo", "area", "kind", "force"].filter((k) => o[k] !== undefined).map((k) => `--${k}`);
+      if (ignored.length)
+        console.error(
+          pc.yellow(`--hit adds to #${String(o.hit)}, so ${ignored.join(", ")} ${ignored.length === 1 ? "is" : "are"} ignored.`),
+        );
     }
     const result = await reportPapercut(
       {

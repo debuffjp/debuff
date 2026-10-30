@@ -670,7 +670,7 @@ export function createServer(options: ServerOptions): McpServer {
         kind: z.enum(PAPERCUT_KINDS).optional(),
         minutes: z.number().optional().describe("Minutes it cost you this time."),
         body: z.string().optional().describe("What happened. With hit, a short note for the hit."),
-        workaround: z.string().optional().describe("What got you unstuck."),
+        workaround: z.string().optional().describe("What got you unstuck. With hit, it fills the papercut's workaround when it has none."),
         hit: z.number().int().optional().describe("Add a hit to this papercut id instead of filing a new one."),
         force: z.boolean().optional().describe("File it even when similar papercuts exist."),
       },

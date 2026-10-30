@@ -36,3 +36,10 @@ node tooling/mcp/scripts/publish-registry.mjs
 ```
 
 It generates `tooling/mcp/server.json` from package.json (so the version matches npm), fetches `mcp-publisher` if needed, signs in with the DNS key and publishes.
+
+## Papercuts
+
+A commit whose message says `Fixes papercut #12` marks papercut #12 fixed in the new version on
+[papercuts.debuff.jp](https://papercuts.debuff.jp). The Release workflow does it after publishing, and only
+when that push published a new version (secret `PAPERCUTS_FIX_TOKEN`, which can mark entries fixed and do
+nothing else). It never fails the release.

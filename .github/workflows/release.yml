@@ -21,6 +21,8 @@ jobs:
       id-token: write # npm trusted publishing (OIDC) and provenance
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # tags and history, to find the commits since the last release
       - uses: actions/setup-node@v7
         with:
           # Trusted publishing needs npm 11.5+, which ships with Node 24.
@@ -28,12 +30,24 @@ jobs:
           cache: npm
           registry-url: https://registry.npmjs.org
       - run: npm ci
+      - name: Is this version new?
+        id: fresh
+        run: |
+          v=$(node -p "require('./tooling/cli/package.json').version")
+          if npm view "@debuffjp/cli@$v" version > /dev/null 2>&1; then echo "new=false" >> "$GITHUB_OUTPUT"; else echo "new=true" >> "$GITHUB_OUTPUT"; fi
       # A no-op when every version is already on npm.
       - name: Publish unpublished versions
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           npm run release:ci
+      # Commits that say "Fixes papercut #12" mark #12 fixed in this version on papercuts.debuff.jp.
+      - name: Mark fixed papercuts
+        if: steps.fresh.outputs.new == 'true'
+        continue-on-error: true
+        run: node scripts/papercuts-fixed.mjs
+        env:
+          PAPERCUTS_FIX_TOKEN: ${{ secrets.PAPERCUTS_FIX_TOKEN }}
       - uses: changesets/action@v2
         id: changesets
         with:

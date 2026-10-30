@@ -32,7 +32,7 @@ describe("reportPapercut", () => {
       { title: "vitest times out", kind: "flaky", minutes: 5 },
       { reporter: "debuff-cli 1.0.0", fetch, env: { DEBUFF_PAPERCUTS_TOKEN: "t", DEBUFF_PAPERCUTS_URL: "http://x/" } },
     );
-    expect(r).toMatchObject({ action: "filed", url: "http://x/#7", pending: false });
+    expect(r).toMatchObject({ action: "filed", url: "http://x/7", pending: false });
     expect(sent[0]?.url).toBe("http://x/api/report");
     expect(((sent[0]?.init.headers ?? {}) as Record<string, string>).authorization).toBe("Bearer t");
     expect(JSON.parse(String(sent[0]?.init.body))).toMatchObject({
@@ -51,9 +51,13 @@ describe("reportPapercut", () => {
 
   it("adds a hit, and sends no token when there is none", async () => {
     const { sent, fetch } = fake(200, { entry, reopened: false });
-    const r = await reportPapercut({ title: "", hit: 7, minutes: 10, body: "again" }, { reporter: "x", fetch, env: {} });
+    const r = await reportPapercut(
+      { title: "", hit: 7, minutes: 10, body: "again", workaround: "new port" },
+      { reporter: "x", fetch, env: {} },
+    );
     expect(r.action).toBe("hit");
     expect(sent[0]?.url).toBe("https://papercuts.debuff.jp/api/entries/7/hit");
+    expect(JSON.parse(String(sent[0]?.init.body))).toMatchObject({ note: "again", workaround: "new port" });
     expect(((sent[0]?.init.headers ?? {}) as Record<string, string>).authorization).toBeUndefined();
   });
 
