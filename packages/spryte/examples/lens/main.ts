@@ -221,8 +221,12 @@ function layout(w: number, h: number): void {
   // Dots sit 3 px apart; rows squeeze together when the tallest column would overflow.
   const rowStep = Math.min(3, (box.h * across) / tallest);
   filled.fill(0);
-  for (let k = 0; k < n; k++) {
+  // `order` covers every copy up to the most the page allows; only the first n copies are drawn, so skip the
+  // rest. Taking the first n entries instead left drawn copies without a place (stranded on the map) and
+  // filled the bottom of each column with copies nobody sees.
+  for (let k = 0; k < CAP; k++) {
     const i = order[k];
+    if (i >= n) continue;
     const b = Math.floor(value[i] * BINS);
     const slot = filled[b]++;
     targets[i * 2] = box.x + b * colW + 2 + (slot % across) * 3;
