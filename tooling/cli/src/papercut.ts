@@ -196,19 +196,21 @@ export async function autoPapercut(signal: PapercutSignal, ctx: AutoPapercutCont
     const row = ledger[signal.fingerprint] ?? { seen: [] };
     row.seen = [...row.seen.filter((t) => now - t < 7 * DAY), now].slice(-20);
     ledger[signal.fingerprint] = row;
-    const due = row.seen.length >= (signal.minSeen ?? 2) && !(row.sent && now - row.sent < DAY);
+    // The notice comes before anything is sent: the first sighting shows it, and nothing goes out on that call
+    // even when the signal is already due. Without a way to show it (no notice callback), nothing is sent.
+    const configFile = join(dir, "config.json");
+    const config = readJson<{ papercutsNotice?: boolean }>(configFile, {});
+    const told = config.papercutsNotice === true;
+    if (!told && ctx.notice) {
+      ctx.notice(PAPERCUTS_NOTICE);
+      writeJson(configFile, { ...config, papercutsNotice: true });
+    }
+    const due = told && row.seen.length >= (signal.minSeen ?? 2) && !(row.sent && now - row.sent < DAY);
     if (due) row.sent = now;
     // Drop fingerprints not seen for a month so the ledger stays small.
     for (const [k, v] of Object.entries(ledger)) if (now - (v.seen.at(-1) ?? 0) > 30 * DAY) delete ledger[k];
     writeJson(ledgerFile, ledger);
     if (!due) return undefined;
-
-    const configFile = join(dir, "config.json");
-    const config = readJson<{ papercutsNotice?: boolean }>(configFile, {});
-    if (!config.papercutsNotice) {
-      ctx.notice?.(PAPERCUTS_NOTICE);
-      writeJson(configFile, { ...config, papercutsNotice: true });
-    }
     const base = (env.DEBUFF_PAPERCUTS_URL ?? PAPERCUTS_URL).replace(/\/+$/, "");
     const headers: Record<string, string> = { "content-type": "application/json" };
     if (env.DEBUFF_PAPERCUTS_TOKEN) headers.authorization = `Bearer ${env.DEBUFF_PAPERCUTS_TOKEN}`;
@@ -252,15 +254,36 @@ export const SLOW_SECONDS: Record<string, number> = {
 };
 
 /** The signal for a failed command or tool, or undefined for failures that are the user's to fix. */
-export function failureSignal(where: string, code: string, exit: number): PapercutSignal | undefined {
-  // Usage errors are typos, and a dropped network or an empty project is not debuff's friction.
-  if (exit === 3 || code === "network" || code === "nothing_to_run") return undefined;
+export function failureSignal(where: string, code: string, exit: number, err?: unknown): PapercutSignal | undefined {
+  // Usage errors are typos, a broken debuff.config.ts is the project's own, and a dropped network or an
+  // empty project is not debuff's friction.
+  if (exit === 3 || code === "network" || code === "nothing_to_run" || code === "config_invalid") return undefined;
+  // Unexpected errors would all share one fingerprint per command: add where in debuff it was thrown.
+  const site = code === "unexpected" ? `:${crashSite(err)}` : "";
   return {
-    fingerprint: `${where}:${code}`,
-    title: `${where.replace(":", " ")} fails with ${code}`,
+    fingerprint: `${where}:${code}${site}`,
+    title: `${where.replace(":", " ")} fails with ${code}${site ? ` (${site.slice(1)})` : ""}`,
     kind: code === "unexpected" ? "broken" : "confusing",
     area: where,
   };
+}
+
+/**
+ * Where in debuff an error was thrown, as `TypeError@cli/vite.js:createDevServer`: the error's name and the
+ * first stack frame inside a debuff package (its package and file, never the path to it). Line numbers are left
+ * out so a fingerprint survives releases. `outside` when no frame is in debuff.
+ */
+export function crashSite(err: unknown): string {
+  const name = err instanceof Error ? err.name.replace(/[^\w]/g, "") || "Error" : "Error";
+  const stack = err instanceof Error ? (err.stack ?? "") : "";
+  for (const line of stack.split("\n").slice(1)) {
+    const m =
+      /at (?:async )?(?:([\w$.<>]+) \()?.*?[\\/](?:@debuffjp[\\/]|tooling[\\/]|packages[\\/])([\w-]+)[\\/](?:dist|src)[\\/]([\w./\\-]+?)\.[jt]s:\d+/.exec(
+        line,
+      );
+    if (m) return `${name}@${m[2]}/${(m[3] ?? "").replace(/\\/g, "/")}.js${m[1] ? `:${m[1].replace(/^Object\./, "")}` : ""}`;
+  }
+  return `${name}@outside`;
 }
 
 /** The signal for a command or tool that ran too long. */

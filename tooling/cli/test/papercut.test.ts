@@ -2,7 +2,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { autoPapercut, failureSignal, papercutsOff, reportPapercut, setPapercuts, slowSignal } from "../src/papercut.js";
+import { autoPapercut, crashSite, failureSignal, papercutsOff, reportPapercut, setPapercuts, slowSignal } from "../src/papercut.js";
 
 function fake(status: number, data: unknown) {
   const sent: { url: string; init: RequestInit }[] = [];
@@ -114,7 +114,32 @@ describe("autoPapercut", () => {
     expect(await autoPapercut({ ...signal, minSeen: 1 }, { reporter: "x", fetch, env: {}, configDir: dir() })).toBeUndefined();
   });
 
+  it("sends nothing before the notice has been shown, and nothing without a way to show it", async () => {
+    const { sent, fetch } = fake(201, { entry });
+    const quiet = { reporter: "x", fetch, env: {}, configDir: dir() };
+    for (let i = 0; i < 3; i++) await autoPapercut({ ...signal, minSeen: 1 }, quiet);
+    expect(sent).toHaveLength(0);
+    const notices: string[] = [];
+    const told = { ...quiet, configDir: dir(), notice: (t: string) => notices.push(t) };
+    expect(await autoPapercut({ ...signal, minSeen: 1 }, told)).toBeUndefined();
+    expect(notices).toHaveLength(1);
+    expect(await autoPapercut({ ...signal, minSeen: 1 }, told)).toMatchObject({ action: "filed" });
+  });
+
+  it("fingerprints unexpected errors by where debuff threw them, without paths", () => {
+    const err = new TypeError("x is undefined");
+    err.stack = [
+      "TypeError: x is undefined",
+      String.raw`    at someUserCode (C:\Users\me\game\src\main.ts:3:1)`,
+      String.raw`    at createDevServer (C:\Users\me\game\node_modules\@debuffjp\cli\dist\vite.js:120:9)`,
+    ].join("\n");
+    expect(crashSite(err)).toBe("TypeError@cli/vite.js:createDevServer");
+    expect(failureSignal("cli:dev", "unexpected", 1, err)?.fingerprint).toBe("cli:dev:unexpected:TypeError@cli/vite.js:createDevServer");
+    expect(crashSite(new RangeError("no stack in debuff"))).toBe("RangeError@outside");
+  });
+
   it("skips usage and network failures, and fast runs", () => {
+    expect(failureSignal("cli:build", "config_invalid", 2)).toBeUndefined();
     expect(failureSignal("cli:build", "bad_option", 3)).toBeUndefined();
     expect(failureSignal("cli:build", "network", 1)).toBeUndefined();
     expect(failureSignal("mcp:game_start", "dev_hooks_missing", 2)?.fingerprint).toBe("mcp:game_start:dev_hooks_missing");

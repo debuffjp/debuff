@@ -613,6 +613,6 @@ async function autoReport(signal: PapercutSignal | undefined): Promise<void> {
 
 main().catch(async (err: unknown) => {
   const e = describeError(err);
-  await autoReport(failureSignal(`cli:${cli.matchedCommand?.name ?? "start"}`, e.code, e.exit));
+  await autoReport(failureSignal(`cli:${cli.matchedCommand?.name ?? "start"}`, e.code, e.exit, err));
   fail(err);
 });
