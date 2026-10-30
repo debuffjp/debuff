@@ -118,26 +118,29 @@ document.getElementById("backends")?.addEventListener("click", (e) => {
 type View = "closeup" | "globe" | "map";
 let view: View = "closeup";
 let faceLon = 0;
-let lonOffset = 0; // the facing longitude, from the Great Red Spot in the close-up
+let lonOffset = 0; // the facing longitude
 let tilt = 0;
 let flip = 1; // -1 turns the picture upside down, south at the top
 // How each view frames the planet: radius as a fraction of the stage's shorter side, centre as a
 // fraction of its width and height, the latitude and longitude facing us, and which way is up.
-// The close-up copies a Juno photo of the Great Red Spot from above the south, with south at the top,
-// and its longitude is measured from the Great Red Spot, so the camera rides along with it.
+// The close-up copies a Juno photo of the Great Red Spot from above the south, with south at the top.
+// Its longitude is measured from the Great Red Spot wherever that has drifted to; after that the camera
+// is the viewer's to turn, pan and zoom.
 const FRAMES = {
   closeup: { r: 1.35, x: 0.66, y: -0.5, lat: -76, lon: -24, flip: -1 },
   globe: { r: 0.46, x: 0.5, y: 0.5, lat: -20, lon: 0, flip: 1 },
 } as const;
-let zoom = 1;
+let cam = { x: 0.5, y: 0.5, r: 0.46 }; // the globe's centre and radius, as in FRAMES
+let findSpot = false; // the close-up still has to face the Great Red Spot
 function frameView(v: View): void {
   view = v;
-  zoom = 1;
   if (v === "map") return;
   const f = FRAMES[v];
+  cam = { x: f.x, y: f.y, r: f.r };
   tilt = (f.lat * Math.PI) / 180;
   lonOffset = f.lon;
   flip = f.flip;
+  findSpot = v === "closeup";
 }
 let globe = { cx: 0, cy: 0, r: 1 };
 let tiltCos = 1; // cos and sin of the tilt, set once a frame
@@ -167,12 +170,15 @@ document.getElementById("views")?.addEventListener("click", (e) => {
   press("views", "view", v);
 });
 
-// Drag to turn the globe. A click without a drag starts a convective storm: a white anticyclone that
+// Drag to turn the globe; drag with the right button or Shift held to move it. A click without a drag starts a convective storm: a white anticyclone that
 // lives a few weeks, then fades.
-let drag: { x: number; y: number; moved: number } | null = null;
+let drag: { x: number; y: number; moved: number; pan: boolean } | null = null;
 stage.addEventListener("pointerdown", (e) => {
   stage.setPointerCapture(e.pointerId);
-  drag = { x: e.clientX, y: e.clientY, moved: 0 };
+  drag = { x: e.clientX, y: e.clientY, moved: 0, pan: e.button !== 0 || e.shiftKey };
+});
+stage.addEventListener("contextmenu", (e) => {
+  e.preventDefault();
 });
 stage.addEventListener("pointerup", (e) => {
   const wasClick = drag !== null && drag.moved < 5;
@@ -195,8 +201,13 @@ stage.addEventListener("pointermove", (e) => {
   drag.x = e.clientX;
   drag.y = e.clientY;
   if (view === "map") return;
+  if (drag.pan) {
+    cam.x += dx / r.width;
+    cam.y += dy / r.height;
+    return;
+  }
   lonOffset -= (flip * dx * (180 / Math.PI)) / globe.r;
-  tilt = Math.max(-1.4, Math.min(1.4, tilt + (flip * dy) / globe.r));
+  tilt = Math.max(-1.5, Math.min(1.5, tilt + (flip * dy) / globe.r));
 });
 stage.addEventListener("pointerleave", () => {
   pointer.on = false;
@@ -205,7 +216,13 @@ stage.addEventListener(
   "wheel",
   (e) => {
     e.preventDefault();
-    zoom = Math.max(0.3, Math.min(4, zoom * Math.exp(-e.deltaY * 0.001)));
+    if (view === "map") return;
+    // Zoom about the pointer: the point under it stays put.
+    const r = stage.getBoundingClientRect();
+    const k = Math.max(0.15, Math.min(6, cam.r * Math.exp(-e.deltaY * 0.001))) / cam.r;
+    const px = (e.clientX - r.left) / r.width;
+    const py = (e.clientY - r.top) / r.height;
+    cam = { x: px - (px - cam.x) * k, y: py - (py - cam.y) * k, r: cam.r * k };
   },
   { passive: false },
 );
@@ -245,10 +262,12 @@ function frame(now: number): void {
       lit[i] = colors[i];
     }
   } else {
-    const f = FRAMES[view];
-    faceLon = lonOffset + (view === "closeup" ? snap.named[0].lon : 0);
-    faceLon -= Math.floor((faceLon + 180) / 360) * 360;
-    globe = { cx: w * f.x, cy: h * f.y, r: Math.min(w, h / FLAT) * f.r * zoom };
+    if (findSpot) {
+      lonOffset += snap.named[0].lon;
+      findSpot = false;
+    }
+    faceLon = lonOffset - Math.floor((lonOffset + 180) / 360) * 360;
+    globe = { cx: w * cam.x, cy: h * cam.y, r: Math.min(w, h / FLAT) * cam.r };
     tiltCos = Math.cos(tilt);
     tiltSin = Math.sin(tilt);
     shown = 0;
