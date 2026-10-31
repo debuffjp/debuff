@@ -334,6 +334,8 @@ export class Player {
     if ((inst.wave ?? "square") === "noise") {
       const src = ctx.createBufferSource();
       src.buffer = this.noise();
+      // The buffer is a second long: loop it so long notes keep sounding until their stop time.
+      src.loop = true;
       src.connect(head);
       src.start(when);
       src.stop(stopAt);

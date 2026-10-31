@@ -114,6 +114,11 @@ describe("Audio", () => {
     voice.stop(0.1);
   });
 
+  it("keeps a long noise synth going past the one-second noise buffer", () => {
+    new Audio().synth({ wave: "noise", freq: 500, attack: 0.4, decay: 2 });
+    expect(created.some((n) => n.started && n.loop)).toBe(true);
+  });
+
   it("streams music through the music bus and controls it", async () => {
     const audio = new Audio();
     const track = audio.stream("assets/music/theme.ogg", { volume: 0.5 });

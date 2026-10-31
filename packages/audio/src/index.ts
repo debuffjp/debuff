@@ -124,6 +124,8 @@ export class Audio {
     if (o.wave === "noise") {
       const n = this.ctx.createBufferSource();
       n.buffer = this.noiseBuffer();
+      // The buffer is a second long: loop it so long sounds keep going until their stop time.
+      n.loop = true;
       const filter = this.ctx.createBiquadFilter();
       filter.type = "bandpass";
       filter.frequency.setValueAtTime(o.freq, t);

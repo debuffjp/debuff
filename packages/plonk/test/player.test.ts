@@ -100,6 +100,20 @@ describe("Player", () => {
     player.stop();
   });
 
+  it("keeps noise going for as long as its note, past the one-second noise buffer", () => {
+    const { ctx } = fakeContext();
+    const sources: Record<string, unknown>[] = [];
+    const make = ctx.createBufferSource.bind(ctx);
+    (ctx as unknown as { createBufferSource: () => unknown }).createBufferSource = () => {
+      const n = make() as unknown as Record<string, unknown>;
+      sources.push(n);
+      return n;
+    };
+    new Player({ context: ctx }).sfx({ wave: "noise", attack: 1, decay: 2, sustain: 0 }, { freq: 1 });
+    expect(sources).toHaveLength(1);
+    expect(sources[0]?.loop).toBe(true);
+  });
+
   it("reports where the music is, in steps, through starts, jumps, tempo changes and stops", () => {
     vi.useFakeTimers();
     const { ctx, run } = fakeContext();
