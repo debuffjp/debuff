@@ -42,7 +42,7 @@ game.start();
 | `game.inspect` | `register(name, () => json)` for dev tools and scenarios |
 | `Scene` | `{ id, enter?, update?, render?, exit?, inspect? }` |
 | `Camera` | Smoothed follow, deadzone, bounds, trauma shake, culling, `toWorld()` |
-| `smoothMotion(game, objects)` | Draw moving objects between fixed steps without keeping `prevX`/`prevY` yourself; see [Smooth motion](#smooth-motion-between-steps). Added in 0.25 |
+| `smoothMotion(game, objects)` | Draw moving objects between fixed steps without keeping `prevX`/`prevY` yourself; see [Smooth motion](#smooth-motion-between-steps). Added in 0.26 |
 | `Sprite`, `sliceGrid` | Frames, named animations, origin, flip, impact flash |
 | `draw.text`, `draw.measure` | Text in debuff sans (the built-in pixel font), a `BitmapFont` or a CSS font; `measure` returns the box `text` fills |
 | `debuffSans()` | The built-in pixel font: printable ASCII, 5x7 capitals with descenders, proportional, white so `color` tints it |
@@ -53,11 +53,11 @@ game.start();
 | `Storage` | `localStorage` wrapper that never throws |
 | `FrameStats` | Allocation-free frame interval / work timings |
 | `clamp`, `lerp`, `damp`, `approach`, `overlaps`, `circlesOverlap` | Math helpers |
-| `SpatialHash` | A grid for "what's near this" queries (`near`, `nearest`), rebuilt each step; see [Finding what's near](#finding-whats-near). Added in 0.25 |
+| `SpatialHash` | A grid for "what's near this" queries (`near`, `nearest`), rebuilt each step; see [Finding what's near](#finding-whats-near). Added in 0.26 |
 
 ### Finding what's near
 
-Checking every enemy against every shot is fine for a few dozen. For hundreds, put them in a `SpatialHash` once per step and ask only about the cells around a point. Added in 0.25:
+Checking every enemy against every shot is fine for a few dozen. For hundreds, put them in a `SpatialHash` once per step and ask only about the cells around a point. Added in 0.26:
 
 ```ts
 import { SpatialHash } from "@debuffjp/core";
@@ -78,7 +78,7 @@ const target = grid.nearest(player.x, player.y, 200, (e) => !e.dead);
 
 ### Smooth motion between steps
 
-The simulation runs at a fixed 60 Hz, and `render(draw, alpha)` gets how far the frame is between the last step and the next (0 to 1). Drawn at their positions, moving objects jump on displays faster than 60 Hz. The camera already blends by `alpha`; `smoothMotion` does it for your objects, added in 0.25:
+The simulation runs at a fixed 60 Hz, and `render(draw, alpha)` gets how far the frame is between the last step and the next (0 to 1). Drawn at their positions, moving objects jump on displays faster than 60 Hz. The camera already blends by `alpha`; `smoothMotion` does it for your objects, added in 0.26:
 
 ```ts
 import { smoothMotion } from "@debuffjp/core";
@@ -95,7 +95,7 @@ smooth.snap(player);
 
 It saves each object's position before every step, so new objects need no registering and removed ones no clean-up. Something it hasn't saved yet (just created, or after `snap`) is drawn where it is. It only reads positions, so replays and tests are unaffected, and only `x` and `y` blend.
 
-While the game is frozen (`game.freeze()`), nothing moves between steps, so from 0.25 `render` and the render hooks get `alpha` 1 and the camera draws where it is. Before 0.25 they got the leftover time, so the camera and anything blended by `alpha` wobbled on every frame of a hitstop.
+While the game is frozen (`game.freeze()`), nothing moves between steps, so from 0.26 `render` and the render hooks get `alpha` 1 and the camera draws where it is. Before 0.26 they got the leftover time, so the camera and anything blended by `alpha` wobbled on every frame of a hitstop.
 
 ### Pixel fonts
 

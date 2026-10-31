@@ -83,7 +83,7 @@ roundRect(draw, 8, 8, 120, 40, 6, "#222c");
 | `mask(draw, shape, fn)` | Keep what `fn` draws only where `shape` draws (soft edges use the shape's alpha). Same units, transform and clips as outside; nests; works inside `into()`. Two offscreen passes at the destination's size, so mask groups, not single sprites. |
 | `filter(draw, filters, fn)` | Draw `fn` through filters in order: `blur(radius)`, `grayscale()`, `sepia()`, `saturate()`, `hueRotate()`, `brightness()`, `contrast()`, `invert()` (all on both backends, matching CSS filters) and `colorMatrix(m)` (WebGL2 only). Glow: blur an additive copy, then draw the sharp one. On the Canvas 2D fallback, filters use `ctx.filter`: browsers that ignore it (Safari before 18) draw unfiltered, with a warning. |
 
-## Static layers (0.10+)
+## Static layers (0.11+)
 
 For sprites that don't change from frame to frame, such as a tilemap, a background or a level's scenery: record them once, then replay them each frame under the camera. On WebGL2 a replay is one draw call per eight images the layer uses, with no JavaScript work per sprite.
 

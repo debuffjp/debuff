@@ -28,11 +28,11 @@ Edges clear automatically after each simulation step, so a tap shorter than a fr
 | Pointer | `Pointer` (primary mouse button, touch or pen), `PointerRight`, `PointerMiddle` (right and middle mouse buttons) |
 | Gamepad | `PadA` `PadB` `PadX` `PadY` `PadL1` `PadR1` `PadL2` `PadR2` `PadSelect` `PadStart` `PadL3` `PadR3` `PadUp` `PadDown` `PadLeft` `PadRight` |
 | Left stick | `PadStickUp` `PadStickDown` `PadStickLeft` `PadStickRight` |
-| On-screen controls (`TouchControls`, from 0.25) | `TouchStickUp` `TouchStickDown` `TouchStickLeft` `TouchStickRight`, and `Touch<name>` for each button: `TouchA`, `TouchJump`, … |
+| On-screen controls (`TouchControls`, from 0.26) | `TouchStickUp` `TouchStickDown` `TouchStickLeft` `TouchStickRight`, and `Touch<name>` for each button: `TouchA`, `TouchJump`, … |
 
 ## On-screen touch controls
 
-From 0.25, `TouchControls` puts a stick and buttons on the screen for phones and tablets. They feed the same actions as keys and pads, so the game reads `input.down("jump")` whatever the player uses:
+From 0.26, `TouchControls` puts a stick and buttons on the screen for phones and tablets. They feed the same actions as keys and pads, so the game reads `input.down("jump")` whatever the player uses:
 
 ```ts
 import { Input, TouchControls } from "@debuffjp/input";
@@ -72,5 +72,5 @@ touch.draw(draw);
 - `input.pointer.wheel`, `wheelX`: wheel or trackpad scroll this step in CSS pixels (positive = down / right), reset every step. Pass `captureWheel: true` to stop the page scrolling under a game that zooms with the wheel.
 - `input.keys`: `down(code)`, `pressed(code)`, `released(code)`
 - `input.pads`: `stickX`, `stickY`, `connected`, `deadzone`
-- `input.virtual`: sources set by code each step, by binding name (`TouchControls` writes its controls here). From 0.25
+- `input.virtual`: sources set by code each step, by binding name (`TouchControls` writes its controls here). From 0.26
 - Programmatic control for tests and on-screen buttons: `keys.press/release`, `pointer.press/move/release/scroll/pressButton/releaseButton`, and `pointer.touchStart(id, x, y)` / `touchMove` / `touchEnd` for multi-touch (the first contact also presses the primary pointer, as a real touch does)
