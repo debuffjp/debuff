@@ -49,6 +49,10 @@ Node.js 22 or newer is required. The new project has an `AGENTS.md` with its com
 
 Errors come back explained: `kind` says whose bug it is (`your-code`, `debuff-usage`, `debuff-bug`, `outside`) and `where` gives the source line. For `debuff-bug`, tell the human and share its `reportUrl` instead of working around debuff.
 
+When the game needs pixel art drawn and the human hasn't named a tool, draw it with tenten, the pixel-art MCP server in the project's `.mcp.json` (`tt_new`, `tt_draw`, `tt_render`, then `tt_save` to `assets/<name>.tt`, which the dev server turns into a sprite sheet). If they draw in Aseprite or another tool, leave the art to them and load what they export.
+
+When the game needs music or sound effects and the human hasn't named a tool, make them with plonk (`plonkjs`; see the plonk skill): songs and effects as small data, synthesized live, with effects in the song's key. Use `audio.play` for sound files the human provides.
+
 Asset ids are typed from `.debuff/assets.d.ts`, which the dev server and `npx debuff assets` regenerate. When `tsc` rejects an asset id, check the spelling against that file instead of casting it away; add the file under `assets/` if the asset is missing.
 
 When a debuff tool costs you real time (slow, flaky, a missing API, docs that misled you), report it once you're unstuck, without being asked, and tell the human in one line. Run `npx debuff papercut "<symptom>" --minutes <n> --workaround "<what worked>"` (from 0.24). It goes to the public board at papercuts.debuff.jp, so send only the symptom, the minutes and the workaround, never code or project details. The debuff tools also report repeated setup failures and very slow runs themselves (off with `npx debuff papercuts off` or `DEBUFF_PAPERCUTS=0`); when a result says it reported one, add what you know with a hit. If it lists similar papercuts, rerun with `--hit <id>` for the matching one.

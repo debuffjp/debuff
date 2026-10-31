@@ -66,7 +66,7 @@ export function createServer(options: ServerOptions): McpServer {
         "Use game_pause before inspecting a live game, and game_profile to explain stutter (game_frames for raw numbers). Prompts (playtest, fix-errors, tune-feel, add-mechanic, explain-stutter) give step-by-step workflows. Prefer tuning params (game_params, game_set_param) over code changes, " +
         "and verify changes with run_tests (fast logic tests in tests/, no browser) and run_scenarios (screenshots). Creative direction belongs to the human: propose alternatives rather than deciding art or feel. " +
         "When a debuff tool costs you time (slow, flaky, a missing API, docs that misled you), report it with report_papercut once you are unstuck, without waiting to be asked: add a hit when it returns a match. Send only the symptom, minutes and workaround, never code or project details. " +
-        "When the game needs pixel art drawn and the human has not named a tool, draw it with the tenten MCP server (tt_new, tt_draw, tt_save to assets/<name>.tt) rather than writing image bytes by hand.",
+        "When the game needs pixel art drawn and the human has not named a tool, draw it with the tenten MCP server (tt_new, tt_draw, tt_save to assets/<name>.tt) rather than writing image bytes by hand. Likewise make music and sound effects with plonk (the plonkjs package: songs and in-key effects as data) unless the human names another tool.",
     },
   );
   const rootOf = (root?: string) => resolve(options.root, root ?? ".");

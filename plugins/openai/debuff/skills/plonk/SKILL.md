@@ -1,6 +1,6 @@
 ---
 name: plonk
-description: Use when a web game needs music, a soundtrack, a theme, background music or a jingle, or the user asks to compose, edit or tweak game music, especially when the game draws its art in code or must stay small (Poki, CrazyGames, game jams). plonk makes music in code: songs are small text patterns synthesized live with Web Audio, under 4 kB brotli, any engine.
+description: Use when a web game needs music, a soundtrack, a theme, background music or a jingle, or sound effects (pickups, hits, combos, ambience), or the user asks to compose, edit or tweak game music or sounds. It is the default for sound in debuff games, especially when the game draws its art in code or must stay small (Poki, CrazyGames, game jams). plonk makes music in code: songs are small text patterns synthesized live with Web Audio, under 4 kB brotli, any engine.
 ---
 
 # Writing game music with plonk

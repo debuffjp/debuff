@@ -140,6 +140,12 @@ function strip(f: Frame): SourceLocation {
   return { file: f.file, line: f.line, column: f.column, ...(f.fn ? { fn: f.fn } : {}) };
 }
 
+// debuff's code, however it's served: an installed package, Vite's prebundled deps (`@debuffjp_core.js`,
+// `spryte.js`) or the monorepo's own packages. spryte, plonk (plonkjs) and myaku ship outside the @debuffjp
+// scope but are debuff's, so their bugs get reported too.
+const DEBUFF_PATH =
+  /(^|\/)@debuffjp[/_]|node_modules\/(spryte|plonkjs|myaku)\/|\.vite\/deps\/(spryte|plonkjs|myaku)(\.js|_)|\/packages\/(core|dev|input|audio|assets|tilemap|juice|ui|share|spryte|plonk|myaku)\//;
+
 /** Parse V8 (`at fn (url:1:2)`) and Firefox/Safari (`fn@url:1:2`) stack lines. */
 function parseStack(stack: string, origin: string): Frame[] {
   const frames: Frame[] = [];
@@ -159,7 +165,7 @@ function parseStack(stack: string, origin: string): Frame[] {
       sameOrigin = origin === "";
     }
     const file = path.replace(/^\/(@fs\/)?/, "");
-    const debuff = /(^|\/)@debuffjp[/_]|\.vite\/deps\/@debuffjp|\/packages\/(core|dev|input|audio|assets|tilemap|juice|ui)\//.test(path);
+    const debuff = DEBUFF_PATH.test(path);
     const thirdParty = !debuff && /node_modules\//.test(path);
     frames.push({ file, line: Number(m[3]), column: Number(m[4]), debuff, thirdParty, sameOrigin, ...(m[1] ? { fn: m[1] } : {}) });
   }

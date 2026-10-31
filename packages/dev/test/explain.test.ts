@@ -54,6 +54,37 @@ describe("explainError", () => {
     expect(e.reportUrl).toMatch(/^https:\/\/github\.com\/debuffjp\/debuff\/issues\/new\?/);
   });
 
+  it("counts debuff's sibling packages (spryte, plonk, myaku) as debuff, however they're served", () => {
+    const bug = explainError(
+      err("TypeError", "Cannot read properties of null (reading 'bind')", [
+        "Canvas2D.flush (http://localhost:5173/node_modules/.vite/deps/spryte.js?v=1:700:9)",
+        "loop (http://localhost:5173/src/main.ts:5:1)",
+      ]),
+      {},
+      origin,
+    );
+    expect(bug.kind).toBe("debuff-bug");
+    expect(bug.reportUrl).toBeDefined();
+
+    // A rejected song thrown from plonk's scheduler: no game frame, but still debuff rejecting input.
+    const usage = explainError(
+      err("Error", 'plonk: "" isn\'t a note (try "C4", "Eb5", "F#3", "Am7@3" or "^3")', [
+        "parse (http://localhost:5173/node_modules/plonkjs/dist/song.js:124:36)",
+        "Player.schedule (http://localhost:5173/node_modules/plonkjs/dist/player.js:214:30)",
+      ]),
+      {},
+      origin,
+    );
+    expect(usage.kind).toBe("debuff-usage");
+
+    const monorepo = explainError(
+      err("RangeError", "Invalid array length", ["mix (http://localhost:5173/@fs/D:/debuff/packages/myaku/src/explain.ts:9:1)"]),
+      {},
+      origin,
+    );
+    expect(monorepo.kind).toBe("debuff-bug");
+  });
+
   it("parses Firefox/Safari stacks and recognises errors from outside the page", () => {
     const ff = new Error("nope");
     ff.stack = "update@http://localhost:5173/src/game.ts:3:9\n";
