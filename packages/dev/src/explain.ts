@@ -36,6 +36,12 @@ export interface ExplainedError {
   stack: string;
   /** For `debuff-bug`: a prefilled GitHub issue. */
   reportUrl?: string;
+  /**
+   * For `debuff-bug`: the error name and the debuff functions it was thrown from, without line numbers, the
+   * message or any path in the game (`TypeError at spryte.js:Canvas2D.flush`). The same bug gives the same
+   * signature in every game, so `debuff dev` can report it as an automatic papercut.
+   */
+  signature?: string;
 }
 
 const ISSUES = "https://github.com/debuffjp/debuff/issues/new";
@@ -124,6 +130,11 @@ export function explainError(
     ...at(yours ?? top),
     hint: `This looks like a bug in debuff (${top.file}), not in your code. Please report it.`,
     reportUrl: `${ISSUES}?${new URLSearchParams({ title, body, labels: "bug" })}`,
+    signature: `${name} at ${frames
+      .filter((f) => f.debuff)
+      .slice(0, 3)
+      .map((f) => `${f.file.replace(/^.*?(node_modules\/(\.vite\/deps\/)?|\/(?=packages\/))/, "")}:${f.fn ?? "?"}`)
+      .join(" < ")}`,
   };
 }
 

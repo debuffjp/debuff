@@ -499,6 +499,9 @@ export class DevSession {
     this.errorKeys.set(e, key);
     if (this.errors.length > 50) this.errors.shift();
     this.changed();
+    // `debuff dev` listens for this and reports the bug as an automatic papercut (the signature only).
+    if (e.signature && typeof dispatchEvent === "function")
+      dispatchEvent(new CustomEvent("debuff:bug", { detail: { signature: e.signature } }));
     // Point at the original source line, not the compiled module the browser ran.
     void mapLocation(e).then((moved) => moved && this.changed());
     return e;

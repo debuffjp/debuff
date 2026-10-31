@@ -180,11 +180,15 @@ export function papercutsOff(env: NodeJS.ProcessEnv = process.env, dir = configD
 
 export function setPapercuts(on: boolean, env: NodeJS.ProcessEnv = process.env, dir = configDir(env)): void {
   const file = join(dir, "config.json");
-  writeJson(file, { ...readJson<Record<string, unknown>>(file, {}), papercuts: on, papercutsNotice: true });
+  writeJson(file, { ...readJson<Record<string, unknown>>(file, {}), papercuts: on, papercutsNotice: NOTICE_VERSION });
 }
 
 export const PAPERCUTS_NOTICE =
-  "debuff reports its own papercuts (repeated setup failures, very slow commands) to papercuts.debuff.jp: a fixed title, an error code and the minutes, nothing from your project. Off with `debuff papercuts off`.";
+  "debuff reports its own papercuts (repeated setup failures, very slow commands, bugs inside debuff caught by its dev tools) to papercuts.debuff.jp: a fixed title, an error code or the debuff functions involved, and the minutes, nothing from your project. Off with `debuff papercuts off`.";
+
+// Bumped when the notice says something new (2: bugs caught by the dev tools, 0.24.2), so it's shown again
+// before anything new is sent.
+const NOTICE_VERSION = 2;
 
 /**
  * Records a signal and, when it has been seen often enough and wasn't sent in the last day, reports it.
@@ -204,11 +208,11 @@ export async function autoPapercut(signal: PapercutSignal, ctx: AutoPapercutCont
     // The notice comes before anything is sent: the first sighting shows it, and nothing goes out on that call
     // even when the signal is already due. Without a way to show it (no notice callback), nothing is sent.
     const configFile = join(dir, "config.json");
-    const config = readJson<{ papercutsNotice?: boolean }>(configFile, {});
-    const told = config.papercutsNotice === true;
+    const config = readJson<{ papercutsNotice?: boolean | number }>(configFile, {});
+    const told = config.papercutsNotice === NOTICE_VERSION;
     if (!told && ctx.notice) {
       ctx.notice(PAPERCUTS_NOTICE);
-      writeJson(configFile, { ...config, papercutsNotice: true });
+      writeJson(configFile, { ...config, papercutsNotice: NOTICE_VERSION });
     }
     const due = told && row.seen.length >= (signal.minSeen ?? 2) && !(row.sent && now - row.sent < DAY);
     if (due) row.sent = now;
@@ -301,5 +305,28 @@ export function slowSignal(where: string, seconds: number, limit: number): Paper
     kind: "slow",
     area: where,
     minutes: Math.round(seconds / 60),
+  };
+}
+
+// Frames a bug signature may name: debuff's packages as installed, prebundled by Vite or in the monorepo.
+const BUG_FRAME = /^(@debuffjp[/_][\w-]+[/.]|(spryte|plonkjs|myaku)(\/|_|(?=\.js:))|packages\/[\w-]+\/)[\w@$./-]*:[\w$.<>?]+$/;
+
+/**
+ * The signal for a bug the dev tools caught inside debuff at runtime (`signature` from `@debuffjp/dev`, such as
+ * `TypeError at spryte.js:Canvas2D.flush`). It comes from the page, so it's checked again here: an error name and
+ * up to three frames, each inside a debuff package. Anything else is dropped, so nothing from the game is sent.
+ */
+export function bugSignal(signature: unknown): PapercutSignal | undefined {
+  if (typeof signature !== "string" || signature.length > 300) return undefined;
+  const m = /^(\w*Error) at (.+)$/.exec(signature);
+  const frames = m?.[2]?.split(" < ") ?? [];
+  if (!m || frames.length === 0 || frames.length > 3 || !frames.every((f) => BUG_FRAME.test(f))) return undefined;
+  const first = frames[0] ?? "";
+  const area = /^(?:@debuffjp[/_]|packages\/)?([\w-]+)/.exec(first)?.[1] ?? "dev";
+  return {
+    fingerprint: `dev:bug:${signature}`,
+    title: `${m[1]} inside debuff (${first.slice(first.lastIndexOf("/") + 1)})`,
+    kind: "broken",
+    area,
   };
 }

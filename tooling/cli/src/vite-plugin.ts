@@ -5,11 +5,13 @@ import { attachAgentLink } from "./agent-link.js";
 import type { AtlasOptions } from "./assets/atlas.js";
 import { type CompileResult, compileAssets } from "./assets/compile.js";
 import { writeAssetTypes } from "./assets/types.js";
+import { autoPapercut, bugSignal } from "./papercut.js";
 import type { ToolingPlugin } from "./plugin.js";
 import { findSaves, type SavesFound, writeSavesFound } from "./saves.js";
 import { createTypeChecker } from "./typecheck.js";
 
 export const ASSETS_DIR = "assets";
+const VERSION = (JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string }).version;
 const URL_PREFIX = `/${ASSETS_DIR}/`;
 
 /**
@@ -38,6 +40,8 @@ const RELOAD_CLIENT_CODE = `if (import.meta.hot) {
     dispatchEvent(event);
     if (!event.detail.consumed) location.reload();
   });
+  // A bug the dev tools caught inside debuff: the dev server reports it as an automatic papercut.
+  addEventListener("debuff:bug", (e) => import.meta.hot.send("debuff:bug", e.detail));
 }
 `;
 
@@ -84,7 +88,10 @@ export interface DebuffViteOptions {
   plugins?: ToolingPlugin[];
   /** Atlas packing options; `false` disables. Default on. */
   atlas?: AtlasOptions | false;
-  /** Relay agent commands to the game open in the browser (`debuff dev` turns this on). Default false. */
+  /**
+   * Relay agent commands to the game open in the browser, and report bugs the dev tools catch inside debuff as
+   * automatic papercuts (`debuff dev` turns this on). Default false.
+   */
   agentLink?: boolean;
   /** Type-check with the project's `tsc` while serving and show type errors in the dev tools. Default false. */
   typecheck?: boolean;
@@ -198,7 +205,13 @@ export function debuff(options: DebuffViteOptions = {}): PluginOption[] {
       server.watcher.on("add", onChange("add"));
       server.watcher.on("unlink", onChange("unlink"));
       server.watcher.on("change", onChange("change"));
-      if (options.agentLink) attachAgentLink(server, root);
+      if (options.agentLink) {
+        attachAgentLink(server, root);
+        server.ws.on("debuff:bug", (data: { signature?: unknown }) => {
+          const signal = bugSignal(data?.signature);
+          if (signal) void autoPapercut(signal, { reporter: `debuff-dev ${VERSION}`, notice: (text) => console.log(`[debuff] ${text}`) });
+        });
+      }
       if (options.typecheck) {
         let shown = -1;
         const checker = createTypeChecker(root, (r) => {

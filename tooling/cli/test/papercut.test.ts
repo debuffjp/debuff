@@ -2,7 +2,16 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { autoPapercut, crashSite, failureSignal, papercutsOff, reportPapercut, setPapercuts, slowSignal } from "../src/papercut.js";
+import {
+  autoPapercut,
+  bugSignal,
+  crashSite,
+  failureSignal,
+  papercutsOff,
+  reportPapercut,
+  setPapercuts,
+  slowSignal,
+} from "../src/papercut.js";
 
 function fake(status: number, data: unknown) {
   const sent: { url: string; init: RequestInit }[] = [];
@@ -149,5 +158,22 @@ describe("autoPapercut", () => {
     expect(failureSignal("mcp:game_start", "dev_hooks_missing", 2)?.fingerprint).toBe("mcp:game_start:dev_hooks_missing");
     expect(slowSignal("cli:build", 30, 180)).toBeUndefined();
     expect(slowSignal("cli:build", 400, 180)).toMatchObject({ fingerprint: "cli:build:slow", minutes: 7 });
+  });
+
+  it("turns a runtime bug signature from the dev tools into a signal, and drops anything naming the game", () => {
+    expect(bugSignal("TypeError at spryte.js:Canvas2D.flush")).toMatchObject({
+      fingerprint: "dev:bug:TypeError at spryte.js:Canvas2D.flush",
+      title: "TypeError inside debuff (spryte.js:Canvas2D.flush)",
+      kind: "broken",
+      area: "spryte",
+    });
+    expect(bugSignal("TypeError at @debuffjp/core/dist/render/webgl2.js:WebGL2Backend.flush < @debuffjp_core.js:Game.frame")?.area).toBe(
+      "core",
+    );
+    expect(bugSignal("RangeError at packages/myaku/src/explain.ts:mix")?.area).toBe("myaku");
+    expect(bugSignal("TypeError at src/secret-level.ts:boss")).toBeUndefined();
+    expect(bugSignal("TypeError at spryte.js:flush < src/main.ts:update")).toBeUndefined();
+    expect(bugSignal("TypeError: player has no sword")).toBeUndefined();
+    expect(bugSignal(42)).toBeUndefined();
   });
 });

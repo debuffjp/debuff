@@ -52,6 +52,7 @@ describe("explainError", () => {
     );
     expect(e.kind).toBe("debuff-bug");
     expect(e.reportUrl).toMatch(/^https:\/\/github\.com\/debuffjp\/debuff\/issues\/new\?/);
+    expect(e.signature).toBe("TypeError at @debuffjp/core/dist/render/webgl2.js:WebGL2Backend.flush");
   });
 
   it("counts debuff's sibling packages (spryte, plonk, myaku) as debuff, however they're served", () => {
@@ -65,6 +66,8 @@ describe("explainError", () => {
     );
     expect(bug.kind).toBe("debuff-bug");
     expect(bug.reportUrl).toBeDefined();
+    // Nothing from the game in it: no message, no line numbers, no frame outside debuff.
+    expect(bug.signature).toBe("TypeError at spryte.js:Canvas2D.flush");
 
     // A rejected song thrown from plonk's scheduler: no game frame, but still debuff rejecting input.
     const usage = explainError(
@@ -83,6 +86,8 @@ describe("explainError", () => {
       origin,
     );
     expect(monorepo.kind).toBe("debuff-bug");
+    expect(monorepo.signature).toBe("RangeError at packages/myaku/src/explain.ts:mix");
+    expect(usage.signature).toBeUndefined();
   });
 
   it("parses Firefox/Safari stacks and recognises errors from outside the page", () => {
