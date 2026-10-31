@@ -83,6 +83,29 @@ roundRect(draw, 8, 8, 120, 40, 6, "#222c");
 | `mask(draw, shape, fn)` | Keep what `fn` draws only where `shape` draws (soft edges use the shape's alpha). Same units, transform and clips as outside; nests; works inside `into()`. Two offscreen passes at the destination's size, so mask groups, not single sprites. |
 | `filter(draw, filters, fn)` | Draw `fn` through filters in order: `blur(radius)`, `grayscale()`, `sepia()`, `saturate()`, `hueRotate()`, `brightness()`, `contrast()`, `invert()` (all on both backends, matching CSS filters) and `colorMatrix(m)` (WebGL2 only). Glow: blur an additive copy, then draw the sharp one. On the Canvas 2D fallback, filters use `ctx.filter`: browsers that ignore it (Safari before 18) draw unfiltered, with a warning. |
 
+## Static layers (0.10+)
+
+For sprites that don't change from frame to frame, such as a tilemap, a background or a level's scenery: record them once, then replay them each frame under the camera. On WebGL2 a replay is one draw call per eight images the layer uses, with no JavaScript work per sprite.
+
+```ts
+const ground = draw.record((d) => {
+  for (const t of map.tiles) d.sprite(tileFrames[t.id], t.x * 16, t.y * 16, { origin: [0, 0] });
+});
+
+// each frame:
+draw.withCamera(camera, () => draw.replay(ground));
+
+// when the map changes, or you're done with it:
+ground.dispose();
+```
+
+- Inside `record()`, `draw.sprite` with any options is recorded (plus `push`, `translate`, `pop` and other transforms), in the layer's own coordinates. Nothing is drawn. Other drawing calls throw.
+- `replay()` draws under the current transform, clip and blend mode, and puts the same pixels on screen as drawing the sprites one by one there, pixel snapping included at fractional camera offsets and zoom. That's checked on a real GPU by `npm run test:browser` on both backends.
+- `draw.alpha` applies at replay, not when recording. Under `draw.alpha` below 1, a custom shader (`withShader`), a recording made under scale or rotation, or the Canvas 2D backend, `replay()` draws the sprites one by one instead: the same pixels, without the saving.
+- A layer holds the images it was recorded with. To change a tile, record the layer again. Animated tiles aren't covered yet: draw them on top with `sprite()`.
+- After a WebGL context loss, the layer's GPU buffers are rebuilt on the next replay. `layer.dispose()` frees them; replaying afterwards builds them again.
+- A render target can do the same job (draw the layer into a target once, then draw the target), but it costs width × height × 4 bytes, can't be larger than `MAX_TEXTURE_SIZE`, and resamples under zoom. A layer has none of those limits.
+
 ## Render targets
 
 Offscreen images you draw into, then draw like any image: post-processing, glow, cached static layers, minimaps, trails.
