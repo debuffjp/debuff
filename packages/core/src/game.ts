@@ -478,8 +478,11 @@ export class Game {
     );
   }
 
-  private render(alpha: number): void {
+  private render(leftover: number): void {
     const { draw } = this;
+    // While frozen nothing moves between steps, so draw exactly where things are. Blending by the leftover
+    // made the camera, and every hand-written lerp by `alpha`, wobble on each frame of a hitstop.
+    const alpha = this.frozen ? 1 : leftover;
     this.camera.renderAlpha = alpha;
     draw.begin(this.background, this.width, this.height, this.renderScale);
     let render = () => {

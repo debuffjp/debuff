@@ -42,6 +42,7 @@ game.start();
 | `game.inspect` | `register(name, () => json)` for dev tools and scenarios |
 | `Scene` | `{ id, enter?, update?, render?, exit?, inspect? }` |
 | `Camera` | Smoothed follow, deadzone, bounds, trauma shake, culling, `toWorld()` |
+| `smoothMotion(game, objects)` | Draw moving objects between fixed steps without keeping `prevX`/`prevY` yourself; see [Smooth motion](#smooth-motion-between-steps). Added in 0.25 |
 | `Sprite`, `sliceGrid` | Frames, named animations, origin, flip, impact flash |
 | `draw.text`, `draw.measure` | Text in debuff sans (the built-in pixel font), a `BitmapFont` or a CSS font; `measure` returns the box `text` fills |
 | `debuffSans()` | The built-in pixel font: printable ASCII, 5x7 capitals with descenders, proportional, white so `color` tints it |
@@ -74,6 +75,27 @@ const target = grid.nearest(player.x, player.y, 200, (e) => !e.dead);
 ```
 
 `near` visits every item whose centre is within the radius, with the squared distance; `nearest` returns the closest one `accept` allows. Items are points, so for large ones query with the radius plus their size. Results come in a fixed order, so replays stay deterministic, and after the first steps it allocates nothing. Rebuilding while a query runs isn't allowed; a query inside another query's callback is fine. On a crowd-separation workload (every enemy querying 16 px around itself) it measured about 4 to 15 times faster than checking every pair, for 500 to 2,000 enemies.
+
+### Smooth motion between steps
+
+The simulation runs at a fixed 60 Hz, and `render(draw, alpha)` gets how far the frame is between the last step and the next (0 to 1). Drawn at their positions, moving objects jump on displays faster than 60 Hz. The camera already blends by `alpha`; `smoothMotion` does it for your objects, added in 0.25:
+
+```ts
+import { smoothMotion } from "@debuffjp/core";
+
+const smooth = smoothMotion(game, () => [player, enemies, shots]); // objects, or arrays of them
+
+// in render:
+draw.sprite(heroImg, smooth.x(player), smooth.y(player));
+for (const e of enemies) draw.sprite(enemyImg, smooth.x(e), smooth.y(e));
+
+// after moving something instantly (respawn, warp), so it doesn't streak for a step:
+smooth.snap(player);
+```
+
+It saves each object's position before every step, so new objects need no registering and removed ones no clean-up. Something it hasn't saved yet (just created, or after `snap`) is drawn where it is. It only reads positions, so replays and tests are unaffected, and only `x` and `y` blend.
+
+While the game is frozen (`game.freeze()`), nothing moves between steps, so from 0.25 `render` and the render hooks get `alpha` 1 and the camera draws where it is. Before 0.25 they got the leftover time, so the camera and anything blended by `alpha` wobbled on every frame of a hitstop.
 
 ### Pixel fonts
 
