@@ -2,6 +2,6 @@
   "name": "debuff-plugin",
   "private": true,
   "dependencies": {
-    "@debuffjp/mcp": "0.24.3"
+    "@debuffjp/mcp": "0.25.0"
   }
 }
