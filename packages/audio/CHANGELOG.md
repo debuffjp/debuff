@@ -1,5 +1,9 @@
 # @debuffjp/audio
 
+## 0.25.0
+
+No changes in this release.
+
 ## 0.24.3
 
 ### Patch Changes

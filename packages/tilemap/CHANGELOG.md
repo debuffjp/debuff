@@ -1,5 +1,12 @@
 # @debuffjp/tilemap
 
+## 0.25.0
+
+### Patch Changes
+
+- Updated dependencies [e44fbbc]
+  - @debuffjp/core@0.25.0
+
 ## 0.24.3
 
 ### Patch Changes
