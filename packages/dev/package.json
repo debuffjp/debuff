@@ -47,7 +47,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@debuffjp/share": "0.23.0",
+    "@debuffjp/share": "0.25.0",
     "myaku": "0.5.1"
   }
 }
