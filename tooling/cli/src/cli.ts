@@ -597,6 +597,9 @@ async function main(): Promise<void> {
     const hint = await updateHint(version);
     if (hint) console.error(pc.dim(hint));
   }
+  // The update check, telemetry and automatic papercuts leave fetch sockets closing. Exiting before they finish
+  // makes Node 24 on Windows abort (libuv "UV_HANDLE_CLOSING" assertion, exit 127) after a successful command.
+  await new Promise((resolve) => setTimeout(resolve, 50));
   process.exit(code ?? 0);
 }
 
