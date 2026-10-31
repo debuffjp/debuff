@@ -52,6 +52,8 @@ export interface FuzzOptions {
    * Fields that flip on their own are already ignored; use this for ones that flip together.
    */
   ignore?: string[];
+  /** Called after each run, so a long fuzz can show progress. */
+  onRun?: (run: number, runs: number, findings: number) => void;
 }
 
 /**
@@ -340,6 +342,7 @@ export async function runFuzz(options: FuzzOptions): Promise<FuzzReport> {
       } finally {
         await page.close();
       }
+      options.onRun?.(run, runs, findings.length);
     }
   } finally {
     await browser.close();

@@ -144,7 +144,10 @@ export function writeLaunchFiles(root: string, dist: string, config: LaunchConfi
     config.url ? new URL(file, config.url.endsWith("/") ? config.url : `${config.url}/`).toString() : file;
   const imageUrl = image && absolute(image);
   const videoUrl = video && absolute(video.file);
-  if ((image || video) && !config.url) warnings.push("set launch.url so link previews can show the image (crawlers need an absolute URL)");
+  if ((image || video) && !config.url)
+    warnings.push(
+      "set `launch: { url }` in debuff.config.ts to the game's public address, so link previews can show the image (crawlers need an absolute URL)",
+    );
   const tags: [string, string][] = [
     ['name="description"', description ?? ""],
     ['property="og:type"', "website"],

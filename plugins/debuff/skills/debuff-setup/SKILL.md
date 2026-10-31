@@ -14,7 +14,7 @@ node --version                                              # needs 22 or newer
 npm create debuff@latest my-game -- --template basic --yes  # scaffold
 cd my-game && npm install
 npx debuff doctor --fix                                     # checks everything, applies the safe fixes
-npm run dev                                                 # the game at http://localhost:5173
+npm run dev                                                 # the game at the URL it prints (5173, or the next free port)
 ```
 
 Then connect the MCP server (next section) so you can play and inspect the game instead of guessing from code.
@@ -35,7 +35,9 @@ Finished small games to learn from: `platformer`, `mossfell` (top-down action-ad
 
 ## Connect the MCP server
 
-The server is `npx -y @debuffjp/mcp`, run from the project folder. Every template ships `.mcp.json` for Claude Code. For other agents:
+There are two debuff MCP servers. This one, the project server, is the one you need: it runs, plays and inspects your game. The hosted docs server (`https://debuff.jp/mcp`, below) only answers questions about debuff and is optional once a project exists.
+
+The project server is `npx -y @debuffjp/mcp`, run from the project folder. Every template ships `.mcp.json` for Claude Code. For other agents:
 
 | Agent | How |
 | --- | --- |

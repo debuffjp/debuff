@@ -9,7 +9,7 @@ This is **mossfell**, a top-down action-adventure made with **debuff** (https://
 | `npm run dev` | Dev server with hot reload. Press <kbd>`</kbd> in the game for the dev panel |
 | `npx debuff test` | Runs the logic tests in `tests/`: the real game in Node, no browser, in milliseconds. Run it after every change. `-t <text>` runs matching tests; `--json` for tools |
 | `npm test` | Logic tests, then `scenarios/*.json` in a headless browser with screenshot comparison |
-| `npx debuff fuzz` | Plays the game with random input for a few minutes. Each crash or stuck state is saved as a scenario in `.debuff/fuzz/` that replays it exactly |
+| `npx debuff fuzz` | Plays the game with random input: 3 runs of 60 s by default, a few minutes in all (`--runs 1 --seconds 20` for a quick check). Each crash or stuck state is saved as a scenario in `.debuff/fuzz/` that replays it exactly |
 | `npm run build` | Type-checks, builds to `dist/` and prints a size report. Fails if dev-only code leaks, or if a change would break players' saves (`saves.json`) |
 | `npx debuff build --accept-saves` | Accept a change to the game's saves. **Only after the human has approved it**: players with an old save lose what no longer fits, unless `new Storage(key, defaults, { version, migrate })` carries it over |
 | `npm run assets` | Regenerates the asset manifest and lists unused assets |

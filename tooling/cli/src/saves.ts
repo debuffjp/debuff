@@ -146,7 +146,7 @@ export function compareSaves(previous: SaveInfo[], current: SavesFound): SaveIss
           : {
               level: "error",
               key: old.key,
-              message: `save "${old.key}" is gone: players who have one lose their progress. Keep the key, or accept with --accept-saves`,
+              message: `save "${old.key}" is gone: players who have one lose their progress. Keep the key, or accept with --accept-saves (safe if the game isn't released yet: nobody has a save)`,
             },
       );
       continue;

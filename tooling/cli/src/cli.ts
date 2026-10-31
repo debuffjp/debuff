@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
 import * as p from "@clack/prompts";
 import { amber, banner, lime, paint, pc, pink, sky } from "create-debuff";
 import { compileAssets, findUnused, writeAssetTypes } from "./assets/index.js";
@@ -272,7 +272,7 @@ cli
   .option("--strict", "Fail when a baseline is missing (use in CI)")
   .option("--json", "Machine-readable output")
   .action(async (files: string[], o: Common & { update?: boolean; strict?: boolean }) => {
-    const { runScenarios, formatScenario } = await import("./scenario/index.js");
+    const { runScenarios, formatScenario, unusedBaselines } = await import("./scenario/index.js");
     // Never let an early exit read as success in CI.
     let finished = false;
     process.once("exit", (code) => {
@@ -311,6 +311,17 @@ cli
         if (r.ok) p.log.success(text);
         else p.log.error(text);
       }
+      // A first capture becomes the baseline unchecked, so say so: someone should look at it before committing it.
+      const fresh = reports.flatMap((r) => r.captures.filter((c) => c.status === "new").map((c) => relative(root, c.baseline)));
+      if (fresh.length)
+        p.log.warn(
+          `${fresh.length} new baseline${fresh.length === 1 ? "" : "s"} saved without a check: look at ${fresh.length === 1 ? "it" : "them"} before committing\n${fresh.map((f) => `  ${f}`).join("\n")}`,
+        );
+      const unused = files.length ? [] : unusedBaselines(root, reports);
+      if (unused.length)
+        p.log.warn(
+          `${unused.length} baseline${unused.length === 1 ? "" : "s"} no scenario takes any more (delete if they're from an old scenario)\n${unused.map((f) => `  ${f}`).join("\n")}`,
+        );
       const summary = `${reports.length - failed}/${reports.length} scenarios passed`;
       finish(!failed, summary, failed ? amber("details in .debuff/reports/") : "");
     }
@@ -326,6 +337,9 @@ cli
     const { runTests, formatResult, formatSummary, findTests } = await import("keiko/runner");
     const root = rootOf(o);
     if (!findTests(root, files).length) {
+      // Run from the wrong folder, "no tests yet" would send people to write tests that already exist.
+      if (!existsSync(join(root, "package.json")))
+        throw new DebuffError("not_a_project", `No package.json in ${root}`, "Run from the game's folder, or pass --root <dir>");
       markTested(root);
       if (o.json)
         console.log(
@@ -380,6 +394,12 @@ cli
       root: rootOf(o),
       seconds: Number(o.seconds),
       runs: Number(o.runs),
+      ...(o.json
+        ? {}
+        : {
+            onRun: (run: number, runs: number, found: number) =>
+              p.log.step(`run ${run}/${runs} done, ${found} finding${found === 1 ? "" : "s"} so far`),
+          }),
       ...(o.seed === undefined ? {} : { seed: Number(o.seed) }),
       ...(o.ignore
         ? {
@@ -512,7 +532,11 @@ function report(root: string, json: boolean, acceptSaves = false): number {
     const kb = (n: number) => `${(n / 1024).toFixed(1)} kB`;
     if (r.leaks.length) finish(false, "dev-only code leaked into the build", amber(r.leaks.map((l) => l.path).join(", ")));
     else if (saveErrors.length)
-      finish(false, "this build would break players' saves", "fix it, or run `debuff build --accept-saves` if that's intended");
+      finish(
+        false,
+        "this build would break players' saves",
+        "fix it, or run `debuff build --accept-saves` if that's intended (a game nobody has played yet has no saves to break)",
+      );
     else
       finish(
         true,
