@@ -53,8 +53,8 @@ For Claude Desktop, `mcpb/manifest.json` describes a desktop extension that asks
 | `game_state` | Scene, tick, logical width/height, renderer, frame stats, `reducedMotion`, your `inspect()` data |
 | `game_command` | Run a command the game registered with `devTools({ commands })`, with JSON args |
 | `game_params` / `game_set_param` | Read and tune typed params (validated) |
-| `game_capture` | The current frame as a PNG image; `path` also saves it in the project (thumbnails, store art). `social: true` letterboxes it into 1200×675 for X and Bluesky posts (added in 0.24) |
-| `game_clip` | Live mode: `start` a rolling recording, `save` the last 15 s as a video in `.debuff/captures/`, `stop`. For devlogs and press kits; the human posts. Added in 0.24 |
+| `game_capture` | The current frame as a PNG image; `path` also saves it in the project (thumbnails, store art). `social: true` letterboxes it into 1200×675 for X and Bluesky posts (added in 0.25) |
+| `game_clip` | Live mode: `start` a rolling recording, `save` the last 15 s as a video in `.debuff/captures/`, `stop`. For devlogs and press kits; the human posts. Added in 0.25 |
 | `game_errors` | Runtime errors, explained: whose problem (your code, a rejected call, a debuff bug), the source line, a hint |
 | `game_stop` | Close the game |
 | `report_papercut` | Report tooling friction in debuff, keiko, myaku, spryte or debuff.jp to [papercuts.debuff.jp](https://papercuts.debuff.jp). Returns close matches instead of filing a duplicate; call again with `hit: <id>` or `force: true`. With `hit`, `workaround` fills the papercut's workaround when it has none (from 0.24.1). Added in 0.24 |
@@ -63,7 +63,7 @@ Tool calls that fail on setup twice in a week, or run far too long, are reported
 
 ## Prompts
 
-Workflows clients can offer as slash commands: `playtest`, `fix-errors`, `tune-feel`, `add-mechanic`, `devlog-post` (added in 0.24: capture a still and a clip, then draft short posts for the human to send) and `explain-stutter`.
+Workflows clients can offer as slash commands: `playtest`, `fix-errors`, `tune-feel`, `add-mechanic`, `devlog-post` (added in 0.25: capture a still and a clip, then draft short posts for the human to send) and `explain-stutter`.
 
 ## Live and headless
 

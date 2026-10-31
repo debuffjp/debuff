@@ -27,8 +27,8 @@ All arguments and return values are JSON-serialisable.
 | `wheel(dy, dx?)` | wheel scroll in CSS pixels this step |
 | `touchDown(id, x, y, kind?)` / `touchMove(id, x, y)` / `touchUp(id)` | touch contacts (or `"pen"`); the first is the primary pointer. Recorded in replays |
 | `errors()` | runtime errors since load, explained: `kind` (`your-code`, `debuff-usage`, `debuff-bug`, `outside`), source-mapped `where`, `hint`, `count` |
-| `capture(fit?, background?)` | PNG data URL of the current frame. `fit` letterboxes it: `"social"` (1200×675, for X and Bluesky posts and link cards) or `[width, height]`, scaled by whole pixels so pixel art stays crisp. `fit` added in 0.24 |
-| `clips(on?)` / `saveClip(name?)` | rolling clip recording: `clips(true)` keeps the last 15 s, `saveClip` writes it to `.debuff/captures/` (MP4 where the browser can record it, else WebM) and returns `{ file, seconds, bytes, mimeType }`. Live games under `debuff dev`. Added in 0.24 |
+| `capture(fit?, background?)` | PNG data URL of the current frame. `fit` letterboxes it: `"social"` (1200×675, for X and Bluesky posts and link cards) or `[width, height]`, scaled by whole pixels so pixel art stays crisp. `fit` added in 0.25 |
+| `clips(on?)` / `saveClip(name?)` | rolling clip recording: `clips(true)` keeps the last 15 s, `saveClip` writes it to `.debuff/captures/` (MP4 where the browser can record it, else WebM) and returns `{ file, seconds, bytes, mimeType }`. Live games under `debuff dev`. Added in 0.25 |
 | `keepForReload()` | save the session for a state-preserving reload; the `debuff dev` client calls it just before a code change reloads the page |
 | `luminance(cols, rows, region?)` | the current frame's WCAG relative luminance on a grid, for the scenario flash and contrast checks |
 | `events(sinceTick?)` | the latest `game.emit` calls with tick and detail; `state().events` counts them by name |
@@ -41,7 +41,7 @@ All arguments and return values are JSON-serialisable.
 
 In automated browsers (`navigator.webdriver`, as under scenario runs and agent harnesses) the overlay starts hidden, so it stays out of screenshots and taps; the toggle key still shows it, and `devOverlay({ open: true })` keeps it visible. Before 0.15 it started open there too.
 
-The toolbar has pause, step, speed (1x, ½×, ¼×), **snap** (download the current frame as a PNG), **rec** and **clip** (keep the last 15 s and save them as a video in `.debuff/captures/`, for devlogs, store pages and `debuff ship press`; added in 0.24) and **restart** (re-enter the current scene). Below it are four tabs:
+The toolbar has pause, step, speed (1x, ½×, ¼×), **snap** (download the current frame as a PNG), **rec** and **clip** (keep the last 15 s and save them as a video in `.debuff/captures/`, for devlogs, store pages and `debuff ship press`; added in 0.25) and **restart** (re-enter the current scene). Below it are four tabs:
 
 - **perf**: a frame graph coloured by health: lime is on time, amber is a little late (normal display jitter) and red is a dropped frame. Update and render time are stacked inside each bar. A summary shows your headroom and whether recent dropped frames came from the game's own work or from outside it (GC, the browser, other tabs). Click a bar to pause and inspect that frame with a plain-words diagnosis, or tick **pause on dropped frame**. Phases also appear as `debuff:update` and `debuff:render` in the browser profiler.
 - **tune**: sliders for every `game.params` group. Values you've changed from their defaults turn amber. Double-click a name to reset it, and **copy changes** copies just your changes, ready to paste into the param definitions.

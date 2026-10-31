@@ -112,6 +112,7 @@ export class SpatialHash<T extends Point> {
         best = item;
         bestD = d2;
       }
+      return false;
     });
     return best;
   }
