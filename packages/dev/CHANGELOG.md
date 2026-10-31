@@ -1,5 +1,12 @@
 # @debuffjp/dev
 
+## 0.24.2
+
+### Patch Changes
+
+- 4d979ac: `debuff dev` reports bugs inside debuff that the dev tools catch as automatic papercuts, the way the CLI already reports repeated setup failures. A report holds the error name and up to three debuff functions (`TypeError at spryte.js:Canvas2D.flush`, now on `ExplainedError.signature`), never the message, line numbers or anything from the game, and goes only after it's been seen in two page loads in a week. The papercuts notice now mentions these reports and is shown once more before any are sent. Off with `debuff papercuts off`, as before.
+- f343dd3: Runtime errors thrown inside spryte, plonk or myaku are now explained as debuff's (`debuff-usage` or `debuff-bug`, with a report link) instead of `your-code`. Before 0.24.2 only `@debuffjp/*` packages counted, so a bug inside the renderer or the music player was blamed on the game.
+
 ## 0.24.1
 
 No changes in this release.

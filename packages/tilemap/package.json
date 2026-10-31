@@ -1,6 +1,6 @@
 {
   "name": "@debuffjp/tilemap",
-  "version": "0.24.1",
+  "version": "0.24.2",
   "description": "Tilemaps for debuff: culled batched rendering, tile collision, Tiled and LDtk import",
   "keywords": [
     "game",
@@ -43,10 +43,10 @@
     "build": "tsc -b"
   },
   "peerDependencies": {
-    "@debuffjp/core": "0.24.1"
+    "@debuffjp/core": "0.24.2"
   },
   "devDependencies": {
-    "@debuffjp/core": "0.24.1"
+    "@debuffjp/core": "0.24.2"
   },
   "publishConfig": {
     "access": "public"
