@@ -144,3 +144,19 @@ describe("devOverlay tabs and tuning", () => {
     game.dispose();
   });
 });
+
+describe("copyText", () => {
+  it("falls back to execCommand where navigator.clipboard is missing (plain HTTP over the LAN)", async () => {
+    const { copyText } = await import("../src/overlay.js");
+    Object.defineProperty(window, "isSecureContext", { configurable: true, value: false });
+    let copied: string | undefined;
+    document.execCommand = vi.fn(() => {
+      copied = (document.activeElement as HTMLTextAreaElement | null)?.value ?? document.querySelector("textarea")?.value;
+      return true;
+    });
+    copyText("state json");
+    expect(document.execCommand).toHaveBeenCalledWith("copy");
+    expect(copied).toBe("state json");
+    expect(document.querySelector("textarea")).toBeNull();
+  });
+});

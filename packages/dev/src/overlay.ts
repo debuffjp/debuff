@@ -212,7 +212,7 @@ class Overlay {
     const stateActions = row();
     stateActions.style.marginTop = "6px";
     stateActions.append(
-      button("copy", () => navigator.clipboard?.writeText(this.stateText())),
+      button("copy", () => copyText(this.stateText())),
       hint("updates live; pause to read a moment"),
     );
     this.addPane("state", this.statePre, stateActions);
@@ -554,7 +554,7 @@ class Overlay {
       for (const [key, spec] of Object.entries(schema)) box.append(this.paramRow(groupId, key, spec, values[key] as ParamValue, accent));
       const actions = row();
       actions.style.margin = "4px 0 2px";
-      const copy = button("copy changes", () => navigator.clipboard?.writeText(this.changesText(groupId)));
+      const copy = button("copy changes", () => copyText(this.changesText(groupId)));
       copy.title = "Copy the values you changed from their defaults, ready to paste into your params";
       actions.append(
         button("reset all", () => this.game.params.group(groupId)?.reset()),
@@ -736,7 +736,7 @@ class Overlay {
     }
     const replay = recording.toReplay();
     const json = `${JSON.stringify({ name: replay.name, steps: replay.steps }, null, 2)}\n`;
-    if (copy) void navigator.clipboard?.writeText(json);
+    if (copy) copyText(json);
     else {
       const a = el("a", {
         href: URL.createObjectURL(new Blob([json], { type: "application/json" })),
@@ -805,6 +805,25 @@ const KIND: Record<ExplainedError["kind"], [string, string]> = {
 };
 
 /** One error, explained: whose problem it is, where to look (click to open in your editor), what to try. */
+/**
+ * Copy text. `navigator.clipboard` only exists in a secure context, and a dev server opened from a phone over the
+ * LAN or Tailscale (`debuff dev --host`) is plain HTTP, so fall back to a selected textarea and `execCommand`.
+ * @internal
+ */
+export function copyText(text: string): void {
+  const fallback = () => {
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.style.cssText = "position:fixed;opacity:0;pointer-events:none";
+    document.body.append(area);
+    area.select();
+    document.execCommand("copy");
+    area.remove();
+  };
+  if (window.isSecureContext && navigator.clipboard) navigator.clipboard.writeText(text).catch(fallback);
+  else fallback();
+}
+
 function editorLink(where: string): HTMLElement {
   // Vite's dev server opens files in your editor at this endpoint.
   const link = el("a", { href: `/__open-in-editor?file=${encodeURIComponent(where)}`, title: "Open in your editor" }, `→ ${where}`);
@@ -852,7 +871,7 @@ function errorCard(e: ExplainedError, clear: () => void): HTMLElement {
     Object.assign(report.style, { color: OVER_BUDGET });
     actions.append(report);
   }
-  const copy = button("copy for agent", () => navigator.clipboard?.writeText(JSON.stringify(e, null, 2)));
+  const copy = button("copy for agent", () => copyText(JSON.stringify(e, null, 2)));
   copy.title = "Copy the explained error as JSON to paste into a chat with an agent";
   actions.append(copy, button("clear", clear));
   card.append(actions);

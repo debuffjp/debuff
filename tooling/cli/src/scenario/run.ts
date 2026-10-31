@@ -121,8 +121,17 @@ export async function runScenarios(options: RunOptions): Promise<ScenarioReport[
     );
   const server = await createDevServer(options.root, { port: 0, logLevel: "error" });
   await server.listen();
-  const base = server.resolvedUrls?.local[0];
-  if (!base) throw new Error("Dev server did not report a URL");
+  const address = server.httpServer?.address();
+  const base =
+    server.resolvedUrls?.local[0] ??
+    server.resolvedUrls?.network[0] ??
+    (address && typeof address === "object" ? `http://localhost:${address.port}/` : undefined);
+  if (!base)
+    throw new DebuffError(
+      "config_invalid",
+      "The dev server started without a URL to open.",
+      "Check `server` in vite.config / debuff.config.ts (host, port, middlewareMode), then run `npx debuff dev` to see what it prints",
+    );
   const browser = await launchBrowser();
   const reports: ScenarioReport[] = [];
   try {
@@ -152,8 +161,24 @@ async function runOne(page: Page, base: string, name: string, scenario: Scenario
   const url = new URL(scenario.page ?? "/", base);
   url.searchParams.set("debuff-scenario", "1");
   await page.emulateMedia({ reducedMotion: scenario.reducedMotion ? "reduce" : "no-preference" });
+  const loadErrors: string[] = [];
+  const onError = (e: Error) => loadErrors.push(`${e.name}: ${e.message}`);
+  page.on("pageerror", onError);
   await page.goto(url.toString());
-  await page.waitForFunction(hooksReady, undefined, { timeout: 15_000 });
+  try {
+    await page.waitForFunction(hooksReady, undefined, { timeout: 15_000 });
+  } catch (err) {
+    if ((err as Error | null)?.name !== "TimeoutError") throw err;
+    // A game that throws while loading never gets to its dev hooks: that's this scenario failing, not debuff.
+    if (loadErrors.length)
+      return { name, ok: false, steps: [], errors: loadErrors, captures: [], finalState: null, durationMs: Date.now() - started };
+    throw new DebuffError(
+      "dev_hooks_missing",
+      `__DEBUFF_DEV__ is missing: ${url.pathname} loaded without errors, but the game didn't expose its dev hooks within 15 s.`,
+    );
+  } finally {
+    page.off("pageerror", onError);
+  }
 
   const call = <R>(method: string, ...args: unknown[]) => page.evaluate(callHook, [method, args] as [string, unknown[]]) as Promise<R>;
   const pluginSteps = new Map<string, StepDef>();
