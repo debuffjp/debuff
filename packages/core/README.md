@@ -52,6 +52,28 @@ game.start();
 | `Storage` | `localStorage` wrapper that never throws |
 | `FrameStats` | Allocation-free frame interval / work timings |
 | `clamp`, `lerp`, `damp`, `approach`, `overlaps`, `circlesOverlap` | Math helpers |
+| `SpatialHash` | A grid for "what's near this" queries (`near`, `nearest`), rebuilt each step; see [Finding what's near](#finding-whats-near). Added in 0.25 |
+
+### Finding what's near
+
+Checking every enemy against every shot is fine for a few dozen. For hundreds, put them in a `SpatialHash` once per step and ask only about the cells around a point. Added in 0.25:
+
+```ts
+import { SpatialHash } from "@debuffjp/core";
+
+const grid = new SpatialHash<Enemy>(24); // cell size: about the radius you query most
+
+// in update, after things moved:
+grid.rebuild(enemies);
+for (const shot of shots)
+  grid.near(shot.x, shot.y, 12, (e) => {
+    hit(e, shot);
+    return true; // stop at the first
+  });
+const target = grid.nearest(player.x, player.y, 200, (e) => !e.dead);
+```
+
+`near` visits every item whose centre is within the radius, with the squared distance; `nearest` returns the closest one `accept` allows. Items are points, so for large ones query with the radius plus their size. Results come in a fixed order, so replays stay deterministic, and after the first steps it allocates nothing. Rebuilding while a query runs isn't allowed; a query inside another query's callback is fine. On a crowd-separation workload (every enemy querying 16 px around itself) it measured about 4 to 15 times faster than checking every pair, for 500 to 2,000 enemies.
 
 ### Pixel fonts
 
