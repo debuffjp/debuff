@@ -1,5 +1,13 @@
 # @debuffjp/mcp
 
+## 0.24.2
+
+### Patch Changes
+
+- f343dd3: Agents now make music and sound effects with plonk unless you name another tool, the same way they draw pixel art with tenten. The MCP server's instructions and prompts, every template's `AGENTS.md` and the agent skills say so. Sound files you provide still play through `audio.play`.
+- Updated dependencies [4d979ac]
+  - @debuffjp/cli@0.24.2
+
 ## 0.24.1
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@debuffjp/dev",
-  "version": "0.24.1",
+  "version": "0.24.2",
   "description": "Dev-only inspection hooks for debuff games, for tools and AI agents",
   "keywords": [
     "game",
