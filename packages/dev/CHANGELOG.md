@@ -1,5 +1,11 @@
 # @debuffjp/dev
 
+## 0.25.0
+
+### Minor Changes
+
+- e44fbbc: `state()` has `hidden`: true while the tab is in the background, where the browser stops animation frames and `tick` stands still although nothing paused the game. `step(n)` still advances it.
+
 ## 0.24.3
 
 No changes in this release.

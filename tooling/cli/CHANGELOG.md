@@ -1,5 +1,12 @@
 # @debuffjp/cli
 
+## 0.25.0
+
+### Patch Changes
+
+- ee38f62: On Windows, a command that ran the daily update check (or sent telemetry) could finish its work and then abort with a libuv `UV_HANDLE_CLOSING` assertion and exit code 127, so `debuff build && tsc` stopped after a good build. The CLI now lets those connections close before it exits.
+- create-debuff@0.25.0
+
 ## 0.24.3
 
 ### Patch Changes

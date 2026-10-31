@@ -1,5 +1,12 @@
 # @debuffjp/mcp
 
+## 0.25.0
+
+### Patch Changes
+
+- Updated dependencies [ee38f62]
+  - @debuffjp/cli@0.25.0
+
 ## 0.24.3
 
 ### Patch Changes
