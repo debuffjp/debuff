@@ -29,10 +29,12 @@ uniform vec4 u_linear;               // the batch's transform, for sprites
 uniform vec2 u_mt;
 uniform vec3 u_texinfo[${UNITS}];    // 1 / width, 1 / height (negative for targets), v at the top row, per unit
 out highp vec2 v_uv;
+out highp vec2 v_local;
 out vec4 v_color;
 out float v_flash;
 flat out int v_unit;
 void main() {
+  v_local = a_corner;
   int flags = int(a_flags + 0.5);
   int unit = flags & 7;
   vec2 p;
@@ -117,8 +119,10 @@ uniform float u_rot;
 uniform vec4 u_color;   // shared tint × alpha, straight
 uniform float u_snap;
 out highp vec2 v_uv;
+out highp vec2 v_local;
 out vec4 v_color;
 void main() {
+  v_local = a_corner;
   float r = u_rot + a_rot;
   float cs = cos(r);
   float sn = sin(r);
@@ -161,6 +165,8 @@ uniform sampler2D u_tex;
 uniform float u_flash;
 out vec4 outColor;
 vec4 source(vec2 uv) { return texture(u_tex, uv); }
+in highp vec2 v_local;
+vec2 frameUv() { return v_local; }
 `;
 
 const EACH_FRAG_MAIN = `
@@ -180,10 +186,12 @@ layout(location=1) in vec4 a_color;   // normalised RGBA
 layout(location=2) in vec4 a_extra;   // coverage, flash, texture unit / 255 (255: none)
 uniform vec2 u_view;
 out highp vec2 v_uv;
+out highp vec2 v_local;
 out vec4 v_color;
 out float v_flash;
 flat out int v_unit;
 void main() {
+  v_local = vec2(0.0);
   vec2 clip = a_posuv.xy / u_view * 2.0 - 1.0;
   gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);
   v_uv = a_posuv.zw;
@@ -238,6 +246,8 @@ vec4 source(vec2 uv) {
   ${Array.from({ length: UNITS }, (_, i) => `if (v_unit == ${i}) return texture(u_tex[${i}], uv);`).join("\n  ")}
   return vec4(1.0);
 }
+in highp vec2 v_local;
+vec2 frameUv() { return v_local; }
 `;
 
 // Flash: push colour toward white while keeping alpha (premultiplied).

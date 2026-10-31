@@ -187,6 +187,8 @@ export function parse(pattern: string, key?: string): (Step | null)[] {
     }
     const mods = MODS.exec(token)?.[0] ?? "";
     const body = mods ? token.slice(0, -mods.length) : token;
+    const at = `step ${out.length + 1} of "${pattern}"`;
+    if (!body) throw new Error(`plonk: "${token}" at ${at} has no note before its "${mods[0]}" (try "C4${mods}")`);
     let velocity = 0.8;
     let freqs: number[];
     if (body === "x" || body === "X") {
@@ -194,14 +196,14 @@ export function parse(pattern: string, key?: string): (Step | null)[] {
       velocity = body === "X" ? 1 : 0.7;
     } else if (body.startsWith("^")) {
       const [n, oct] = body.slice(1).split("@");
-      if (!n || Number.isNaN(Number(n))) throw new Error(`plonk: "${token}" isn't a scale degree (try "^1", "^5" or "^3@5")`);
+      if (!n || Number.isNaN(Number(n))) throw new Error(`plonk: "${token}" at ${at} isn't a scale degree (try "^1", "^5" or "^3@5")`);
       freqs = [degree(key, Number(n), oct === undefined ? 4 : Number(oct))];
     } else {
       freqs =
         chord(body) ??
         body.split("+").map((n) => {
           const f = frequency(n);
-          if (f === undefined) throw new Error(`plonk: "${n}" isn't a note (try "C4", "Eb5", "F#3", "Am7@3" or "^3")`);
+          if (f === undefined) throw new Error(`plonk: "${n}" at ${at} isn't a note (try "C4", "Eb5", "F#3", "Am7@3" or "^3")`);
           return f;
         });
     }
@@ -276,7 +278,14 @@ function layout(song: Song): Layout {
   let at = 0;
   for (const name of song.order) {
     let len = 0;
-    for (const t of Object.values(song.sections[name] ?? {})) for (const p of variants(t)) len = Math.max(len, steps(p).length);
+    for (const [instrument, t] of Object.entries(song.sections[name] ?? {}))
+      for (const p of variants(t)) {
+        try {
+          len = Math.max(len, steps(p).length);
+        } catch (e) {
+          throw new Error(`${(e as Error).message}, in section "${name}", track "${instrument}"`);
+        }
+      }
     const seen = perPass.get(name) ?? 0;
     perPass.set(name, seen + 1);
     starts.push({ name, at, len, seen });

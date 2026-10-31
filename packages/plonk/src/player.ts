@@ -5,7 +5,7 @@
 // Sound effects from sfx() skip the music bus, so they play even when the music is faded out. The echo and reverb
 // are shared sends. The master bus glues everything with a gentle compressor, then a limiter so it never clips.
 
-import { chord, degree, frequency, type Instrument, type NoteEvent, notes, type Song, stepSeconds } from "./song.js";
+import { chord, degree, frequency, type Instrument, type NoteEvent, notes, type Song, songSteps, stepSeconds } from "./song.js";
 
 export interface PlayerOptions {
   /** The audio context to use. Default: a new one. */
@@ -123,8 +123,12 @@ export class Player {
     return Math.max(0, (this.context.currentTime - this.origin) / (stepSeconds(this.song.bpm) / this.tempoScale));
   }
 
-  /** Play a song from the top (or `at` a step), looping. Replaces whatever was playing. */
+  /**
+   * Play a song from the top (or `at` a step), looping. Replaces whatever was playing. Throws here, before
+   * anything changes, if a pattern has a step plonk can't read.
+   */
   play(song: Song, options: PlayOptions = {}): void {
+    songSteps(song);
     this.stop();
     void this.context.resume();
     this.song = song;

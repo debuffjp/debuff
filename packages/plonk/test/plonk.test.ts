@@ -22,7 +22,19 @@ describe("notes and patterns", () => {
   });
 
   it("says what it can't read", () => {
-    expect(() => parse("C4 Q9")).toThrow(/"Q9" isn't a note/);
+    expect(() => parse("C4 Q9")).toThrow(/"Q9" at step 2 of "C4 Q9" isn't a note/);
+    // A chance with no note in front of it, as in "C4 ?50".
+    expect(() => parse("C4 ?50")).toThrow(/"\?50" at step 2 of "C4 \?50" has no note before its "\?" \(try "C4\?50"\)/);
+  });
+
+  it("names the section and track of a step it can't read", () => {
+    const bad: Song = {
+      bpm: 90,
+      instruments: { lead: {} },
+      sections: { a: { lead: "C4" }, b: { lead: ["C4", "D4 ?50"] } },
+      order: ["a", "b"],
+    };
+    expect(() => songSteps(bad)).toThrow(/"\?50" at step 2 of "D4 \?50" has no note.*, in section "b", track "lead"$/);
   });
 });
 

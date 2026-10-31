@@ -18,7 +18,7 @@ All arguments and return values are JSON-serialisable.
 | --- | --- |
 | `state()` | `{ scene, tick, time, frozen, stats, camera, state, pluginNames, plugins }`. `camera` is the centre, zoom and view size in world units, `state` is the active scene's `inspect()`, and `plugins` holds `game.inspect` snapshots |
 | `step(n)` | pauses, advances `n` fixed steps, returns `state()` |
-| `pause()` / `resume()` / `speed(scale)` | live control; `state().pausedBy` says who paused |
+| `pause()` / `resume()` / `speed(scale)` | live control; `state().pausedBy` says who paused, and `state().hidden` (since 0.25) says the tab is in the background, where the loop stops until you `step()` |
 | `frames(n)` | the latest `n` frame breakdowns: interval, update and render ms, catch-up steps, quads, draw calls, long tasks |
 | `notes()` | moments flagged in the overlay, with state and frames |
 | `params()` / `setParam(group, key, value)` | typed parameter schemas and values |

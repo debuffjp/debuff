@@ -10,10 +10,12 @@ export {
   type Glyph,
   type Matrix,
   type RawContext,
+  type Shader,
   type SpriteDrawOptions,
   type TextDrawOptions,
   type TextureSource,
   toRGBA,
+  type UniformValue,
 } from "spryte";
 export { Camera, type CameraOptions } from "./camera.js";
 export { FixedClock, type FixedClockOptions } from "./clock.js";

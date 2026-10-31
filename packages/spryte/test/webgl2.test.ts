@@ -247,6 +247,25 @@ describe("WebGL2Backend", () => {
       expect(info[0]).toBe(1 / 16);
     });
 
+    it("give a custom shader frameUv() in every program it compiles into", () => {
+      const { gl, shaderSources } = fakeGL();
+      const draw = new Draw(new WebGL2Backend(gl), false);
+      const local = new Shader("vec4 effect(vec4 color, vec2 uv) { return vec4(frameUv(), 0.0, 1.0); }");
+      draw.begin("#000", 100, 50, 1);
+      draw.withShader(local, () => {
+        draw.sprite(image(), 10, 10);
+        draw.sprites(image(), new Float32Array([1, 2, 3, 4]), 2);
+        roundRect(draw, 0, 0, 20, 20, 4, "#e23");
+      });
+      draw.end();
+      // Sources arrive as vertex, fragment pairs. A fragment that reads v_local needs a vertex stage that writes it.
+      for (let i = 0; i < shaderSources.length; i += 2) {
+        if (!shaderSources[i + 1]?.includes("in highp vec2 v_local")) continue;
+        expect(shaderSources[i]).toMatch(/out highp vec2 v_local;[\s\S]*v_local = /);
+      }
+      expect(shaderSources.filter((s) => s.includes("frameUv()")).length).toBeGreaterThanOrEqual(2);
+    });
+
     it("write the same instance on the short path as on the full one", () => {
       const run = (warm: boolean) => {
         const { gl, calls } = fakeGL();

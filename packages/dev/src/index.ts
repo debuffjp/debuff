@@ -51,6 +51,12 @@ export interface DevState {
   frozen: boolean;
   /** Who paused the game ("you", "agent", "spike"…), or null while running. */
   pausedBy: string | null;
+  /**
+   * True while the tab is hidden (a background tab, a minimised window, a hidden agent browser). The browser stops
+   * animation frames there, so `tick` stands still even though nothing paused the game. `step(n)` still advances it.
+   * Since 0.25.
+   */
+  hidden: boolean;
   timeScale: number;
   /** Logical size (`game.width`/`game.height`); with `scale: "expand"` it follows the container. */
   width: number;
@@ -267,6 +273,7 @@ function createHooks(game: Game, session: DevSession, options: DevHooksOptions, 
     step: game.clock.step,
     frozen: game.frozen,
     pausedBy: session.pausedBy ?? null,
+    hidden: typeof document !== "undefined" && document.hidden,
     timeScale: game.timeScale,
     width: game.width,
     height: game.height,

@@ -83,6 +83,17 @@ describe("exposeDevHooks", () => {
     expect(() => hooks.setParam("nope", "x", 1)).toThrow(/Known: player/);
   });
 
+  it("reports a hidden tab, where the loop stops without anyone pausing it", () => {
+    const { hooks } = setup();
+    expect(hooks.state()).toMatchObject({ hidden: false, pausedBy: null });
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+    try {
+      expect(hooks.state()).toMatchObject({ hidden: true, pausedBy: null });
+    } finally {
+      delete (document as { hidden?: boolean }).hidden;
+    }
+  });
+
   it("reports and forces reduced motion", () => {
     const { hooks, game } = setup();
     const before = game.reducedMotion;

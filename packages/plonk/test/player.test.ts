@@ -85,6 +85,17 @@ describe("Player", () => {
     expect(player.playing).toBe(false);
   });
 
+  it("rejects an unreadable song in play(), leaving the current song playing", () => {
+    vi.useFakeTimers();
+    const { ctx } = fakeContext();
+    const player = new Player({ context: ctx });
+    player.play(song);
+    const bad: Song = { ...song, sections: { a: { lead: "C4 ?50" } }, order: ["a"] };
+    expect(() => player.play(bad)).toThrow(/in section "a", track "lead"/);
+    expect(player.playing).toBe(true);
+    player.stop();
+  });
+
   it("plays sound effects in the song's key, on the beat when asked", () => {
     vi.useFakeTimers();
     const { ctx, run } = fakeContext();
