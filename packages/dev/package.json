@@ -1,6 +1,6 @@
 {
   "name": "@debuffjp/dev",
-  "version": "0.25.0",
+  "version": "0.26.0",
   "description": "Dev-only inspection hooks for debuff games, for tools and AI agents",
   "keywords": [
     "game",
@@ -47,7 +47,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@debuffjp/share": "0.25.0",
+    "@debuffjp/share": "0.26.0",
     "myaku": "0.5.1"
   }
 }

@@ -1,5 +1,19 @@
 # @debuffjp/core
 
+## 0.26.0
+
+### Minor Changes
+
+- 554f22f: `smoothMotion(game, () => [player, enemies, shots])` draws moving objects between fixed steps: `smooth.x(o)` and `smooth.y(o)` give the position blended by the render alpha, `smooth.snap(o)` after a teleport. It saves positions before every step, so objects need no registering or clean-up, and it only reads them, so replays and tests are unaffected. It replaces the `prevX`/`prevY` bookkeeping and lerp that games wrote themselves.
+  
+  While the game is frozen (`game.freeze()`), `render` and the render hooks now get `alpha` 1 and the camera draws where it is. They used to get the leftover time, so on displays faster than 60 Hz the camera, and anything a game blended by `alpha`, jumped back and forth on every frame of a hitstop.
+- 0228a0a: `SpatialHash` answers "what's near this" without checking every pair: `rebuild(items)` once per step, then `near(x, y, radius, visit)` for every item within the radius (return `true` to stop) or `nearest(x, y, radius, accept?)`. Results come in a fixed order for deterministic replays, distances are exact, and after the first steps it allocates nothing; cells that stay empty for a whole fill are released. On a crowd of 500 to 2,000 enemies each querying its neighbours it measured 4 to 15 times faster than checking every pair, and level with the grid overbuffed wrote for itself.
+
+### Patch Changes
+
+- Updated dependencies [b17a196]
+  - spryte@0.11.0
+
 ## 0.25.0
 
 ### Minor Changes
