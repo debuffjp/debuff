@@ -40,7 +40,7 @@
     "phaser": "4.2.1",
     "publint": "^0.3.25",
     "typescript": "^7.0.2",
-    "vite": "^8.3.4",
+    "vite": "^8.3.5",
     "vitest": "^5.0.5"
   },
   "engines": {
