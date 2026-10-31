@@ -1,5 +1,11 @@
 # plonk
 
+## 0.3.2
+
+### Patch Changes
+
+- df8a5df: Noise sounds now last as long as their envelope. Before this release a noise instrument (plonk) or noise synth (`audio.synth`) went silent after one second, however long its attack and decay, because the noise buffer was a second long and didn't loop. Wind, rain, surf and other long hisses now play in full.
+
 ## 0.3.1
 
 ### Patch Changes
