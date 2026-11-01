@@ -1,6 +1,6 @@
 // agent-cli: one place for the lookups and commands agents repeat in this repo, mined from past sessions.
 // Run `bin/agent-cli` for the list. Output is terse, for agents; `--json` gives the same data as JSON.
-import { execFileSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
