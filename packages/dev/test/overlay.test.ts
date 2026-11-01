@@ -1,6 +1,7 @@
 import { Game } from "@debuffjp/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { devOverlay } from "../src/index.js";
+import { keepOnScreen } from "../src/overlay.js";
 
 // happy-dom reports navigator.webdriver as true, where the overlay starts hidden. Tests play a human unless they say otherwise.
 beforeEach(() => {
@@ -105,6 +106,46 @@ describe("devOverlay collapse", () => {
 });
 
 describe("devOverlay tabs and tuning", () => {
+  it("drags by the header, remembers the spot, and docks again on a double-click of the mascot", () => {
+    localStorage.clear();
+    let game = makeGame().use(devOverlay());
+    const header = panel()?.firstElementChild as HTMLElement;
+    const at = (type: string, x: number, y: number) =>
+      header.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, button: 0, pointerId: 1, bubbles: true }));
+    at("pointerdown", 10, 10);
+    at("pointermove", 11, 11); // under the drag threshold: still a click
+    expect(panel()?.style.left).toBe("");
+    at("pointermove", 210, 110);
+    at("pointerup", 210, 110);
+    expect([panel()?.style.left, panel()?.style.top, panel()?.style.right]).toEqual(["200px", "100px", "auto"]);
+    game.dispose();
+
+    game = makeGame().use(devOverlay());
+    expect([panel()?.style.left, panel()?.style.top]).toEqual(["200px", "100px"]);
+    const mascot = panel()?.querySelector<HTMLElement>('[aria-label="debuff"]');
+    mascot?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+    expect([panel()?.style.left, panel()?.style.right, panel()?.style.top]).toEqual(["", "8px", "8px"]);
+    // Docking isn't a collapse, though the mascot sits in the header.
+    expect(panel()?.querySelector<HTMLElement>("[data-debuff-overlay] > div:nth-child(2)")?.hidden).toBe(false);
+    game.dispose();
+  });
+
+  it("doesn't start a drag from the header's buttons", () => {
+    localStorage.clear();
+    const game = makeGame().use(devOverlay());
+    const collapse = panel()?.firstElementChild?.querySelector("button:last-of-type") as HTMLElement;
+    collapse.dispatchEvent(new PointerEvent("pointerdown", { clientX: 10, clientY: 10, button: 0, bubbles: true }));
+    collapse.dispatchEvent(new PointerEvent("pointermove", { clientX: 300, clientY: 300, bubbles: true }));
+    expect(panel()?.style.left).toBe("");
+    game.dispose();
+  });
+
+  it("keeps a dragged panel's header on screen", () => {
+    expect(keepOnScreen({ x: -500, y: -20 }, 290, 400, 800, 600)).toEqual({ x: -250, y: 0 });
+    expect(keepOnScreen({ x: 900, y: 900 }, 290, 400, 800, 600)).toEqual({ x: 760, y: 560 });
+    expect(keepOnScreen({ x: 100.4, y: 50.6 }, 290, 400, 800, 600)).toEqual({ x: 100, y: 51 });
+  });
+
   it("switches tabs, marks changed params and resets one by double-clicking its name", () => {
     localStorage.clear();
     const game = makeGame().use(devOverlay());

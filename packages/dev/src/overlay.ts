@@ -8,7 +8,10 @@ export interface DevOverlayOptions {
   toggleKey?: string;
   /** Start visible. Default true, except in automated browsers (`navigator.webdriver`), where it starts hidden. */
   open?: boolean;
-  /** Corner to dock to. Default "top-right". */
+  /**
+   * Corner to dock to. Default "top-right". Since 0.27 the panel can be dragged by its header, and a dragged
+   * position is remembered across reloads; double-click the mascot to dock it here again.
+   */
   position?: "top-left" | "top-right" | "bottom-left" | "bottom-right";
 }
 
@@ -81,6 +84,9 @@ class Overlay {
   /** Frames-ago index of the bar under the pointer or selected, or undefined. */
   private selected: number | undefined;
   private collapsed = false;
+  /** Where the panel was dragged to (null: its docking corner), and that corner's style. */
+  private place: { x: number; y: number } | null = null;
+  private readonly dock: Partial<CSSStyleDeclaration>;
   private tab: Tab = "perf";
   private frameCounter = 0;
 
@@ -123,6 +129,13 @@ class Overlay {
     // Double-click the header bar to collapse or expand, like a window title bar.
     header.addEventListener("dblclick", (e) => {
       if (!(e.target instanceof HTMLButtonElement)) this.setCollapsed(!this.collapsed);
+    });
+    this.dock = panelStyle(options.position ?? "top-right");
+    this.dragBy(header);
+    this.mascot.root.title = "debuff (double-click to dock in the corner)";
+    this.mascot.root.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      this.moveTo(null);
     });
 
     // ---- toolbar ----
@@ -287,6 +300,14 @@ class Overlay {
     };
     addEventListener("keydown", onKey);
     this.cleanups.push(() => removeEventListener("keydown", onKey));
+    const saved = readPlace();
+    if (saved) this.moveTo(saved);
+    // A smaller window (or a rotated phone) mustn't strand the panel off screen.
+    const onResize = () => {
+      if (this.place) this.moveTo(this.place);
+    };
+    addEventListener("resize", onResize);
+    this.cleanups.push(() => removeEventListener("resize", onResize));
     this.cleanups.push(game.hooks.afterRender(() => this.frame()));
     this.cleanups.push(game.params.onChange((c) => this.sync(`${c.group}.${c.key}`, c.value)));
     this.cleanups.push(
@@ -302,6 +323,56 @@ class Overlay {
     this.refreshClips();
     this.buildParams();
     this.refreshSession();
+  }
+
+  /**
+   * Put the panel's top-left corner at `place` (CSS pixels, kept on screen), or back in its docking corner
+   * (null). Remembered across reloads.
+   */
+  moveTo(place: { x: number; y: number } | null): void {
+    const style = this.root.style;
+    if (!place) {
+      this.place = null;
+      style.left = style.top = style.right = style.bottom = "";
+      Object.assign(style, this.dock);
+      store(PLACE_KEY, "");
+      return;
+    }
+    const box = this.root.getBoundingClientRect();
+    this.place = keepOnScreen(place, box.width, box.height, innerWidth, innerHeight);
+    Object.assign(style, { left: `${this.place.x}px`, top: `${this.place.y}px`, right: "auto", bottom: "auto" });
+    // Dropped low, the panel scrolls in the space below it instead of running off the window.
+    style.maxHeight = `calc(100vh - ${this.place.y + 8}px)`;
+    store(PLACE_KEY, `${this.place.x},${this.place.y}`);
+  }
+
+  /** Drag the panel by `handle`. Presses on buttons stay clicks, and a press that barely moves isn't a drag. */
+  private dragBy(handle: HTMLElement): void {
+    handle.style.cursor = "grab";
+    handle.style.touchAction = "none";
+    handle.addEventListener("pointerdown", (down) => {
+      if (down.button !== 0 || (down.target as Element).closest("button")) return;
+      const box = this.root.getBoundingClientRect();
+      const dx = down.clientX - box.left;
+      const dy = down.clientY - box.top;
+      let dragging = false;
+      const move = (e: PointerEvent) => {
+        if (!dragging && Math.hypot(e.clientX - down.clientX, e.clientY - down.clientY) < 3) return;
+        dragging = true;
+        handle.style.cursor = "grabbing";
+        this.moveTo({ x: e.clientX - dx, y: e.clientY - dy });
+      };
+      const up = () => {
+        handle.style.cursor = "grab";
+        handle.removeEventListener("pointermove", move);
+        handle.removeEventListener("pointerup", up);
+        handle.removeEventListener("pointercancel", up);
+      };
+      handle.setPointerCapture?.(down.pointerId);
+      handle.addEventListener("pointermove", move);
+      handle.addEventListener("pointerup", up);
+      handle.addEventListener("pointercancel", up);
+    });
   }
 
   /** Collapse to just the header bar (mascot, fps, badges); remembered across reloads. */
@@ -893,6 +964,26 @@ function format(n: number): string {
 
 const COLLAPSED_KEY = "debuff:dev-overlay:collapsed";
 const PANEL_WIDTH = "290px";
+const PLACE_KEY = "debuff:dev-overlay:place";
+/** How much of the panel stays on screen at least, so its header can always be grabbed again. */
+const KEEP = 40;
+
+function readPlace(): { x: number; y: number } | null {
+  const [x, y] = (load(PLACE_KEY) ?? "").split(",").map(Number);
+  return x !== undefined && y !== undefined && Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+}
+
+/**
+ * `place` moved so a `w × h` panel keeps its header in a `vw × vh` window: the top edge stays inside, and at
+ * least `KEEP` pixels of width stay visible on either side.
+ * @internal
+ */
+export function keepOnScreen(place: { x: number; y: number }, w: number, h: number, vw: number, vh: number): { x: number; y: number } {
+  const keep = Math.min(KEEP, w);
+  const x = Math.min(Math.max(place.x, keep - w), vw - keep);
+  const y = Math.min(Math.max(place.y, 0), Math.max(0, vh - Math.min(h, KEEP)));
+  return { x: Math.round(x), y: Math.round(y) };
+}
 const TAB_KEY = "debuff:dev-overlay:tab";
 
 function readCollapsed(): boolean {

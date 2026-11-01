@@ -37,7 +37,7 @@ All arguments and return values are JSON-serialisable.
 
 ## Overlay
 
-`devOverlay()` adds a panel. The backquote key hides it, and the ▾ button (or double-clicking the header) collapses it to a single bar with fps, an error count and the agent badge. The panel remembers whether it's collapsed and which tab is open.
+`devOverlay()` adds a panel. The backquote key hides it, and the ▾ button (or double-clicking the header) collapses it to a single bar with fps, an error count and the agent badge. Drag the header to move the panel off whatever it covers (0.27+); double-click the mascot to dock it in its corner again. The panel remembers where it is, whether it's collapsed and which tab is open.
 
 In automated browsers (`navigator.webdriver`, as under scenario runs and agent harnesses) the overlay starts hidden, so it stays out of screenshots and taps; the toggle key still shows it, and `devOverlay({ open: true })` keeps it visible. Before 0.15 it started open there too.
 
