@@ -3,7 +3,7 @@
 // sent is the text they wrote plus the reporter name, never code, paths or project details. Guide:
 // https://papercuts.debuff.jp/guide.md
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { arch, cpus, freemem, homedir, platform, release, totalmem } from "node:os";
 import { dirname, join } from "node:path";
 
 export const PAPERCUTS_URL = "https://papercuts.debuff.jp";
@@ -114,8 +114,8 @@ export async function reportPapercut(input: PapercutInput, ctx: PapercutContext)
 // ---- automatic reports ----------------------------------------------------------------------------
 // The CLI and the MCP server report their own pain without being asked: a setup failure that keeps
 // happening, a command or tool call far slower than it should be. What's sent is a fixed title, a
-// fingerprint (`cli:build:browser_missing`), the minutes and the reporter version: never messages, paths,
-// code or project names. On the board these start `pending`, and a known fingerprint only adds a hit.
+// fingerprint (`cli:build:browser_missing`), the minutes, the reporter version, the machine (OS, CPUs, memory,
+// Node) and what was checked (`chrome: missing`): never messages, paths, code or project names. On the board these start `pending`, and a known fingerprint only adds a hit.
 // Off with `debuff papercuts off`, DEBUFF_PAPERCUTS=0 or DEBUFF_TELEMETRY=0; skipped in CI.
 
 /** Something a tool noticed. `fingerprint` must not contain anything from the user's project. */
@@ -127,6 +127,23 @@ export interface PapercutSignal {
   minutes?: number | undefined;
   /** Times it must be seen within a week before it's sent. Default 2: a one-off isn't a papercut. */
   minSeen?: number | undefined;
+  /** What was checked, as fixed words and numbers (`chrome: missing`). Nothing from the user's project. */
+  detail?: Record<string, string | number | boolean> | undefined;
+}
+
+/**
+ * The machine, sent with every automatic report so a slow build or a crash can be told apart from a busy
+ * computer: OS and version, CPU count, memory and the Node version. No names, paths or hardware ids.
+ */
+export function setupFacts(): Record<string, string | number> {
+  const gb = (n: number) => Math.round((n / 2 ** 30) * 10) / 10;
+  return {
+    os: `${platform()} ${release()} ${arch()}`,
+    node: process.version,
+    cpus: cpus().length,
+    "memory GB": gb(totalmem()),
+    "free memory GB": gb(freemem()),
+  };
 }
 
 export interface AutoPapercutContext extends PapercutContext {
@@ -184,11 +201,11 @@ export function setPapercuts(on: boolean, env: NodeJS.ProcessEnv = process.env, 
 }
 
 export const PAPERCUTS_NOTICE =
-  "debuff reports its own papercuts (repeated setup failures, very slow commands, bugs inside debuff caught by its dev tools) to papercuts.debuff.jp: a fixed title, an error code or the debuff functions involved, and the minutes, nothing from your project. Off with `debuff papercuts off`.";
+  "debuff reports its own papercuts (repeated setup failures, very slow commands, bugs inside debuff caught by its dev tools) to papercuts.debuff.jp: a fixed title, an error code or the debuff functions involved, the minutes, your OS, CPU count, memory and Node version, and what was checked (such as which browsers were missing), nothing from your project. Off with `debuff papercuts off`.";
 
-// Bumped when the notice says something new (2: bugs caught by the dev tools, 0.24.2), so it's shown again
-// before anything new is sent.
-const NOTICE_VERSION = 2;
+// Bumped when the notice says something new (2: bugs caught by the dev tools, 0.24.2; 3: the machine and what
+// was checked, 0.26.2), so it's shown again before anything new is sent.
+const NOTICE_VERSION = 3;
 
 /**
  * Records a signal and, when it has been seen often enough and wasn't sent in the last day, reports it.
@@ -228,6 +245,9 @@ export async function autoPapercut(signal: PapercutSignal, ctx: AutoPapercutCont
       headers,
       body: JSON.stringify({
         title: signal.title,
+        body: Object.entries({ ...setupFacts(), ...signal.detail })
+          .map(([k, v]) => `${k}: ${v}`)
+          .join("\n"),
         repo: "debuff",
         area: signal.area,
         kind: signal.kind,
@@ -275,6 +295,19 @@ export function failureSignal(where: string, code: string, exit: number, err?: u
     title: `${where.replace(":", " ")} fails with ${code}${site ? ` (${site.slice(1)})` : ""}`,
     kind: code === "unexpected" ? "broken" : "confusing",
     area: where,
+    ...(code === "browser_not_found" && { detail: browserDetail(err) }),
+  };
+}
+
+/** For browser_not_found: whether DEBUFF_BROWSER was set and what happened to each browser tried. */
+function browserDetail(err: unknown): Record<string, string | boolean> {
+  const message = String(err instanceof Error ? err.message : err);
+  const channels = (err as { channels?: Record<string, string> } | null)?.channels ?? {};
+  return {
+    DEBUFF_BROWSER: Boolean(process.env.DEBUFF_BROWSER),
+    ...(/executable doesn't exist/i.test(message) && { cause: "DEBUFF_BROWSER path missing" }),
+    ...(/Failed to launch/i.test(message) && { cause: "launch failed" }),
+    ...channels,
   };
 }
 

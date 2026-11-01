@@ -97,6 +97,7 @@ describe("autoPapercut", () => {
     const body = JSON.parse(String(sent[0]?.init.body));
     expect(body).toEqual({
       title: signal.title,
+      body: expect.any(String),
       repo: "debuff",
       area: "cli:build",
       kind: "confusing",
@@ -105,7 +106,18 @@ describe("autoPapercut", () => {
       fingerprint: signal.fingerprint,
       auto: true,
     });
+    // The machine and nothing else: one "key: value" line per fact, no paths or names.
+    expect(body.body.split("\n").map((l: string) => l.split(": ")[0])).toEqual(["os", "node", "cpus", "memory GB", "free memory GB"]);
     expect(await autoPapercut(signal, { ...ctx, now: 3000 + 86_400_000 })).toMatchObject({ action: "filed" });
+  });
+
+  it("says which browsers were missing and which wouldn't start", () => {
+    const err = Object.assign(new Error("No Chromium-based browser found. C:\\Users\\someone"), {
+      channels: { chrome: "launch failed", msedge: "missing", chromium: "missing" },
+    });
+    const s = failureSignal("cli:scenario", "browser_not_found", 2, err);
+    expect(s?.fingerprint).toBe("cli:scenario:browser_not_found");
+    expect(s?.detail).toEqual({ DEBUFF_BROWSER: false, chrome: "launch failed", msedge: "missing", chromium: "missing" });
   });
 
   it("stays off in CI, with DEBUFF_PAPERCUTS=0 and after `papercuts off`", async () => {

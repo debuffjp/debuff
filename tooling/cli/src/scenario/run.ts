@@ -101,14 +101,20 @@ export async function launchBrowser(): Promise<Browser> {
   const { chromium } = await import("playwright-core");
   const executablePath = process.env.DEBUFF_BROWSER;
   if (executablePath) return chromium.launch({ executablePath });
+  // Why each channel failed, as "missing" or "launch failed" (never the message, which has paths): an installed
+  // browser that won't start is debuff's problem to fix, so automatic papercuts send this.
+  const channels: Record<string, string> = {};
   for (const channel of ["chrome", "msedge", "chromium"]) {
     try {
       return await chromium.launch({ channel });
-    } catch {
-      // Not installed; try the next channel.
+    } catch (err) {
+      channels[channel] = /executable doesn't exist|is not found|not installed/i.test(String(err)) ? "missing" : "launch failed";
     }
   }
-  throw new Error("No Chromium-based browser found. Install Chrome or Edge, or set DEBUFF_BROWSER to a browser executable.");
+  throw Object.assign(
+    new Error("No Chromium-based browser found. Install Chrome or Edge, or set DEBUFF_BROWSER to a browser executable."),
+    { channels },
+  );
 }
 
 export async function runScenarios(options: RunOptions): Promise<ScenarioReport[]> {
