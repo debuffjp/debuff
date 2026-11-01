@@ -24,3 +24,4 @@ coverage/
 tooling/mcp/server.json
 /compat/.real/
 /.heal/
+.env.local

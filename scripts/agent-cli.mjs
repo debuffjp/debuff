@@ -6,6 +6,17 @@ import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
+// The main checkout, also from inside a worktree: sibling repos (../docs, ../papercuts) sit next to it.
+const main = resolve(
+  dirname(
+    spawnSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: root, encoding: "utf8" }).stdout.trim() ||
+      join(root, ".git"),
+  ),
+);
+// Machine-specific settings (DEBUFF_SITE, PAPERCUTS_TOKEN, DEBUFF_REGISTRY_KEY) from a gitignored .env.local.
+for (const file of [join(root, ".env.local"), join(main, ".env.local")])
+  if (existsSync(file))
+    for (const m of readFileSync(file, "utf8").matchAll(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/gm)) process.env[m[1]] ??= m[2];
 const argv = process.argv.slice(2);
 const json = argv.includes("--json");
 const help = argv.includes("--help") || argv.includes("-h");
@@ -59,10 +70,10 @@ function fail(msg) {
   process.exit(1);
 }
 function siteDir() {
-  const dir = [process.env.DEBUFF_SITE, resolve(root, "../docs"), "D:/sitebuild/docs", "D:/docs-live"].find(
+  const dir = [process.env.DEBUFF_SITE, resolve(main, "../docs"), resolve(main, "../docs-live")].find(
     (d) => d && existsSync(join(d, "package.json")) && existsSync(join(d, "ja")),
   );
-  if (!dir) fail("debuff.jp source not found: set DEBUFF_SITE");
+  if (!dir) fail("debuff.jp source not found: clone debuffjp/docs next to this repo, or set DEBUFF_SITE (in .env.local)");
   return dir;
 }
 const changedFiles = () =>
@@ -287,13 +298,16 @@ const COMMANDS = {
     },
   },
   registry: {
-    help: "republish the MCP Registry entry (jp.debuff/debuff) at tooling/mcp's version. Needs .debuff/mcp-registry/key.pem here or in D:/debuff",
+    help: "maintainer only: republish the MCP Registry entry (jp.debuff/debuff) at tooling/mcp's version. Key from DEBUFF_REGISTRY_KEY or .debuff/mcp-registry/key.pem in the main checkout",
     run() {
+      // publish-registry.mjs reads the key from this checkout; borrow it for the run when it lives elsewhere.
       const key = join(root, ".debuff/mcp-registry/key.pem");
-      const borrowed = !existsSync(key) && existsSync("D:/debuff/.debuff/mcp-registry/key.pem");
+      const source = [process.env.DEBUFF_REGISTRY_KEY, join(main, ".debuff/mcp-registry/key.pem")].find((k) => k && existsSync(k));
+      if (!existsSync(key) && !source) fail("no registry key: set DEBUFF_REGISTRY_KEY (in .env.local)");
+      const borrowed = !existsSync(key);
       if (borrowed) {
         mkdirSync(dirname(key), { recursive: true });
-        copyFileSync("D:/debuff/.debuff/mcp-registry/key.pem", key);
+        copyFileSync(source, key);
       }
       try {
         const r = run("node", ["tooling/mcp/scripts/publish-registry.mjs"]);
@@ -306,10 +320,12 @@ const COMMANDS = {
     },
   },
   papercuts: {
-    help: "papercuts.debuff.jp entries not fixed or wontfix; papercuts <id> for one with hits. Admin token from PAPERCUTS_TOKEN or ../papercuts/.tokens",
+    help: "papercuts.debuff.jp entries not fixed or wontfix (--all for every one); papercuts <id> for one with its hits. Public view; with PAPERCUTS_TOKEN (maintainer, in .env.local) pending entries too",
     async run() {
-      const tokenFile = ["D:/papercuts/.tokens", resolve(root, "../papercuts/.tokens")].find(existsSync);
-      const token = process.env.PAPERCUTS_TOKEN ?? (tokenFile && /^ADMIN_TOKEN=(.+)$/m.exec(readFileSync(tokenFile, "utf8"))?.[1]?.trim());
+      const tokenFile = resolve(main, "../papercuts/.tokens");
+      const token =
+        process.env.PAPERCUTS_TOKEN ??
+        (existsSync(tokenFile) ? /^ADMIN_TOKEN=(.+)$/m.exec(readFileSync(tokenFile, "utf8"))?.[1]?.trim() : undefined);
       const base = (process.env.DEBUFF_PAPERCUTS_URL ?? "https://papercuts.debuff.jp").replace(/\/+$/, "");
       const headers = token ? { authorization: `Bearer ${token}` } : {};
       if (positional[0]) {
@@ -333,7 +349,7 @@ const COMMANDS = {
     },
   },
   site: {
-    help: "debuff.jp source (DEBUFF_SITE, ../docs or D:/docs-live): site lint | site deploy | site live <path> [text]",
+    help: "debuff.jp source (DEBUFF_SITE, or debuffjp/docs cloned next to this repo): site lint | site live <path> [text] | site deploy (maintainer only)",
     async run() {
       const [sub, path, text] = positional;
       const dir = siteDir();
