@@ -4,6 +4,7 @@ Instructions for AI agents working **on this repository**. (Agents working on a 
 
 ## Orientation
 
+- `bin/agent-cli`: use it first. Prefer it over re-reading files or guessing commands. `bin/agent-cli` lists its subcommands (status, check, test, exports, docs, versions, release, site, papercuts and more), each takes `--help` and `--json`.
 - `packages/*`: browser runtime. Must stay small, tree-shakeable and free of Node APIs.
 - `tooling/*`: Node CLI and scaffolder. Node APIs are fine here.
 - `templates/basic`: the reference project. It's a workspace, so changes to it are built and scenario-tested by `npm run check`.

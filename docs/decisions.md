@@ -2,6 +2,10 @@
 
 Small choices that the code and the [ADRs](adr/) don't settle, with the options considered. Add an entry when you make one. A decision that changes the architecture gets an ADR instead.
 
+## agent-cli is a repo script, not npm scripts or an MCP tool
+
+`bin/agent-cli` (logic in `scripts/agent-cli.mjs`) gathers the lookups and commands that 98 past agent sessions in this repo repeated: status, check with only the failures, one-file tests, exports, docs search, versions, release, site, papercuts and ports. Options considered: more `npm run` scripts (no `--json`, no arguments without `--`, and npm's banner on every call), tools on the debuff MCP server (that server is for people making games, not for working on debuff) and a script with no dependencies. The script won: one entry point with `--help` and `--json`, nothing to install, and it runs where the agent already has a shell.
+
 ## smoothMotion reads a function of objects, and frozen frames render at alpha 1
 
 `smoothMotion(game, () => [player, enemies, shots])` saves positions in a `WeakMap` on every `beforeUpdate`, for whatever the function returns then. overbuffed, the evidence for roadmap item 2, kept `prevX`/`prevY` (or `px`/`py`) on every object and copied them at the top of each step. Considered: `track(o)` / `untrack(o)` per object (games spawn and drop shots every step and would forget to untrack, so it leaks), and fields written onto the objects (changes their shape and their `inspect()` output). A saved position is only used if it came from the step that just ran, so new objects, frozen steps and `snap()` all draw where the object is.

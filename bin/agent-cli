@@ -1,0 +1,3 @@
+#!/usr/bin/env node
+// See scripts/agent-cli.mjs.
+import "../scripts/agent-cli.mjs";
