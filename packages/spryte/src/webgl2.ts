@@ -354,6 +354,9 @@ export class WebGL2Backend implements Backend {
   /** Filtering lives in sampler objects, so one upload serves smooth and pixelated draws. */
   private nearest!: WebGLSampler;
   private linear!: WebGLSampler;
+  /** Trilinear, for smooth draws of the textures in `mipped`. Others have no mip levels to sample. */
+  private trilinear!: WebGLSampler;
+  private mipped = new WeakSet<WebGLTexture>();
   private main!: BatchProgram;
   /** The program sprite batches draw with: `main`, or a custom shader's inside `withShader`. */
   protected active!: BatchProgram;
@@ -437,7 +440,11 @@ export class WebGL2Backend implements Backend {
     return this.submitted + (this.count > 0 || (this.shapes?.count ?? 0) > 0 ? 1 : 0);
   }
 
-  constructor(gl: WebGL2RenderingContext) {
+  /** `mipmaps`: build mip levels for every image uploaded, so smooth sprites drawn smaller than their source don't shimmer. */
+  constructor(
+    gl: WebGL2RenderingContext,
+    private readonly mipmaps = false,
+  ) {
     this.gl = gl;
     this.raw = { kind: "webgl2", gl };
     this.setup();
@@ -500,6 +507,8 @@ export class WebGL2Backend implements Backend {
     this.wrap();
     this.nearest = sampler(gl, gl.NEAREST);
     this.linear = sampler(gl, gl.LINEAR);
+    this.trilinear = sampler(gl, gl.LINEAR_MIPMAP_LINEAR, gl.LINEAR);
+    this.mipped = new WeakSet();
     this.copyPipe = this.copyPipeline(quad);
     this.each = this.eachPipeline(quad);
     this.shapePipe = undefined;
@@ -656,7 +665,7 @@ export class WebGL2Backend implements Backend {
         const t = resolved[i] as CachedTexture;
         gl.activeTexture(gl.TEXTURE0 + i);
         gl.bindTexture(gl.TEXTURE_2D, t.tex);
-        gl.bindSampler(i, seg.smooth[i] ? this.linear : this.nearest);
+        gl.bindSampler(i, this.samplerFor(t.tex, seg.smooth[i] === true));
         info[i * 3] = t.iw;
         info[i * 3 + 1] = t.ih;
         info[i * 3 + 2] = t.v0;
@@ -919,7 +928,7 @@ export class WebGL2Backend implements Backend {
     gl.uniform1f(c.snap, snap ? 1 : 0);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, tex.tex);
-    gl.bindSampler(0, smooth ? this.linear : this.nearest);
+    gl.bindSampler(0, this.samplerFor(tex.tex, smooth));
     gl.bindBuffer(gl.ARRAY_BUFFER, c.buffer);
     // A Float32Array goes to the GPU as is: no per-copy work on the CPU at all.
     let data: Float32Array;
@@ -976,7 +985,7 @@ export class WebGL2Backend implements Backend {
     gl.uniform1f(at.snap, c.snap ? 1 : 0);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, tex.tex);
-    gl.bindSampler(0, c.smooth ? this.linear : this.nearest);
+    gl.bindSampler(0, this.samplerFor(tex.tex, c.smooth));
     const n = c.count;
     const e = c.each;
     // Pointers are set on every call: a field can be its own array, an offset into interleaved records, or absent.
@@ -1117,6 +1126,7 @@ export class WebGL2Backend implements Backend {
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
     if (from.width === w && from.height === h) gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, gl.RGBA, gl.UNSIGNED_BYTE, from);
     else gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, from);
+    if (this.mipped.has(cached.tex)) gl.generateMipmap(gl.TEXTURE_2D);
     // Unit 0 is now bound to this texture; the next flush rebinds whatever the batch needs.
   }
 
@@ -1141,6 +1151,7 @@ export class WebGL2Backend implements Backend {
       gl.deleteTexture(this.white.tex);
       gl.deleteSampler(this.nearest);
       gl.deleteSampler(this.linear);
+      gl.deleteSampler(this.trilinear);
       gl.deleteBuffer(this.instanceBuffer);
       gl.deleteBuffer(this.quadBuffer);
       gl.deleteVertexArray(this.vao);
@@ -1377,7 +1388,7 @@ export class WebGL2Backend implements Backend {
     for (let i = 0; i < this.unitCount; i++) {
       gl.activeTexture(gl.TEXTURE0 + i);
       gl.bindTexture(gl.TEXTURE_2D, this.units[i] ?? null);
-      gl.bindSampler(i, this.unitSmooth[i] ? this.linear : this.nearest);
+      gl.bindSampler(i, this.samplerFor(this.units[i], this.unitSmooth[i] === true));
     }
     this.unitCount = 0;
     this.armed = false;
@@ -1433,7 +1444,7 @@ export class WebGL2Backend implements Backend {
     for (let i = 0; i < this.unitCount; i++) {
       gl.activeTexture(gl.TEXTURE0 + i);
       gl.bindTexture(gl.TEXTURE_2D, this.units[i] ?? null);
-      gl.bindSampler(i, this.unitSmooth[i] ? this.linear : this.nearest);
+      gl.bindSampler(i, this.samplerFor(this.units[i], this.unitSmooth[i] === true));
     }
     const p = this.active;
     this.syncView(p);
@@ -1525,6 +1536,10 @@ export class WebGL2Backend implements Backend {
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
     this.wrap();
+    if (this.mipmaps) {
+      gl.generateMipmap(gl.TEXTURE_2D);
+      this.mipped.add(tex);
+    }
     const cached = { tex, iw: 1 / w, ih: 1 / h, v0: 0 };
     this.textures.set(src, cached);
     // Unit 0 is now bound to this texture; the next flush rebinds whatever the batch needs.
@@ -1554,6 +1569,11 @@ export class WebGL2Backend implements Backend {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   }
 
+  private samplerFor(tex: WebGLTexture | null | undefined, smooth: boolean): WebGLSampler {
+    if (!smooth) return this.nearest;
+    return tex && this.mipped.has(tex) ? this.trilinear : this.linear;
+  }
+
   protected applyBlend(): void {
     const gl = this.gl;
     // Colours are premultiplied, so each mode is one blendFunc.
@@ -1572,11 +1592,11 @@ function bytes(color: number): number {
   return ((color & 0xff) << 24) | (((color >>> 8) & 0xff) << 16) | (((color >>> 16) & 0xff) << 8) | (color >>> 24);
 }
 
-function sampler(gl: WebGL2RenderingContext, filter: number): WebGLSampler {
+function sampler(gl: WebGL2RenderingContext, min: number, mag = min): WebGLSampler {
   const s = gl.createSampler();
   if (!s) throw new Error("WebGL2: could not create sampler");
-  gl.samplerParameteri(s, gl.TEXTURE_MIN_FILTER, filter);
-  gl.samplerParameteri(s, gl.TEXTURE_MAG_FILTER, filter);
+  gl.samplerParameteri(s, gl.TEXTURE_MIN_FILTER, min);
+  gl.samplerParameteri(s, gl.TEXTURE_MAG_FILTER, mag);
   gl.samplerParameteri(s, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.samplerParameteri(s, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   return s;

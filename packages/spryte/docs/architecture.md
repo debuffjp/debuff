@@ -40,4 +40,4 @@ spryte doesn't own the loop, input, audio, asset loading, cameras with game beha
 
 ## Not yet
 
-Masks beyond axis-aligned clips, more blend modes, meshes, mipmaps, GPU timers, and WebGPU. Each will be added when a real game needs it and a benchmark shows it doesn't cost the common path.
+More blend modes, meshes and WebGPU. (Before 0.3.0 this list included masks beyond axis-aligned clips, and before 0.8.0 GPU timers: see `mask()` and `gpuTimer()`.) Each will be added when a real game needs it and a benchmark shows it doesn't cost the common path.

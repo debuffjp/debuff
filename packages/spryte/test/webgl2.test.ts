@@ -4,6 +4,7 @@ import { Draw } from "../src/draw.js";
 import { blur, filter } from "../src/filters.js";
 import { Shader } from "../src/shader.js";
 import { ring, roundRect } from "../src/shapes.js";
+import { RenderTarget } from "../src/target.js";
 import { WebGL2Backend } from "../src/webgl2.js";
 
 /**
@@ -77,6 +78,30 @@ describe("WebGL2Backend", () => {
     expect(count("drawArraysInstanced")).toBe(1);
     const samplers = calls.filter((c) => c.name === "bindSampler").map((c) => c.args[0]);
     expect(samplers).toEqual([0, 1]);
+  });
+
+  it("builds mip levels only when asked, and samples them only for smooth draws of uploaded images", () => {
+    const plain = fakeGL();
+    const off = new WebGL2Backend(plain.gl);
+    off.begin(0x000000ff, 100, 50, 1);
+    off.quad(M, image(), 0, 0, 16, 16, 0xffffffff, 0, true);
+    off.end();
+    expect(plain.count("generateMipmap")).toBe(0);
+
+    const { gl, calls, created, count } = fakeGL();
+    const be = new WebGL2Backend(gl, true);
+    const [nearest, linear, trilinear] = created.filter((o) => o.kind === "Sampler");
+    const img = image();
+    const target = new RenderTarget(8, 8);
+    be.begin(0x000000ff, 100, 50, 1);
+    be.quad(M, img, 0, 0, 16, 16, 0xffffffff, 0, true);
+    be.quad(M, img, 0, 0, 16, 16, 0xffffffff, 0, false);
+    // A render target has no mip levels: trilinear sampling would make it incomplete (black).
+    be.quad(M, target, 0, 0, 8, 8, 0xffffffff, 0, true);
+    be.end();
+    expect(count("generateMipmap")).toBe(1);
+    const bound = calls.filter((c) => c.name === "bindSampler").map((c) => c.args[1]);
+    expect(bound).toEqual([trilinear, nearest, linear]);
   });
 
   it("splits batches when more than 8 textures are in flight, and counts draw calls", () => {
