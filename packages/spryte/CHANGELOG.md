@@ -1,5 +1,12 @@
 # spryte
 
+## 0.12.0
+
+### Minor Changes
+
+- 3faf45c: New `mesh(draw, frame, vertices, uvs, indices?, options?)`: draw an image stretched over triangles you place, for trails, ropes, waving flags and bent sprites. UVs are in source pixels from the frame's top-left, so atlas frames work. On WebGL2 meshes join the shape batch (one draw call with the shapes and sprites around them), and a two-triangle mesh over a frame matches `draw.sprite` pixel for pixel. Canvas 2D clips and draws each triangle, which is slower and can show faint lines along shared edges. It's a separate import: 1.6 kB brotli for apps that use it (0.1 kB if they already draw shapes), 0.08 kB for apps that don't.
+- 55660ca: New `mipmaps` option for `createRenderer`: build mip levels for every uploaded image, so smooth images drawn well below their size (zoomed-out maps, charts, thumbnails) stay steady instead of shimmering. Off by default; costs a third more GPU memory per image. Render targets, borrowed host textures and `smooth: false` draws are unaffected.
+
 ## 0.11.0
 
 ### Minor Changes
