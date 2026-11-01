@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
+import { isCrash, saveCrash } from "./crash-log.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 // The main checkout, also from inside a worktree: sibling repos (../docs, ../papercuts) sit next to it.
@@ -139,10 +140,11 @@ const COMMANDS = {
       const r = run("npm", ["run", "check"], { timeout: 30 * 60_000 });
       const text = `${r.out}\n${r.err}`;
       writeFileSync(log, text);
+      const crash = isCrash(text) ? saveCrash("check", text) : undefined;
       const failures = [
         ...new Set(
           lines(text).filter((l) =>
-            /^\S.* format ━/.test(l) ||
+            /^\S.* (format|assist\/\S+) .*━/.test(l) ||
             (/^\S.*lint\/\S+.*━/.test(l) && !/noNonNullAssertion|useMathMinMax|useDateNow/.test(l) && /×/.test(l))
               ? true
               : /error TS\d+|^\s*FAIL\s|Errors\s+\d+ error|Unhandled Error|^Caused by:|Worker exited|^\s*× .*(?<!Some errors were emitted while running checks\.)$|^✖ |^\s*✗|prose: |npm error code|exit 2: /.test(
@@ -153,10 +155,15 @@ const COMMANDS = {
       ]
         .map((l) => l.trim())
         .slice(0, 40);
-      print({ ok: r.ok, seconds: Math.round((Date.now() - t) / 1000), failures, log }, (d) =>
-        d.ok
-          ? `check ok (${d.seconds}s)`
-          : `check FAILED (${d.seconds}s), log ${d.log}\n${d.failures.join("\n") || "(no failure lines matched: read the log)"}`,
+      print({ ok: r.ok, seconds: Math.round((Date.now() - t) / 1000), failures, log, crash }, (d) =>
+        [
+          d.ok
+            ? `check ok (${d.seconds}s)`
+            : `check FAILED (${d.seconds}s), log ${d.log}\n${d.failures.join("\n") || "(no failure lines matched: read the log)"}`,
+          d.crash && `0xC0000409 crash saved to ${d.crash}: add a hit to papercut #20 with it`,
+        ]
+          .filter(Boolean)
+          .join("\n"),
       );
       if (!r.ok) process.exitCode = 1;
     },

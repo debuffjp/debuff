@@ -3,6 +3,7 @@
 import { exec } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { promisify } from "node:util";
+import { isCrash, saveCrash } from "./crash-log.mjs";
 
 const run = promisify(exec);
 const queue = readdirSync("templates");
@@ -14,7 +15,9 @@ async function test(name) {
     console.log(`✔ templates/${name}\n${stdout}${stderr}`);
   } catch (err) {
     failed = true;
-    console.error(`✖ templates/${name}\n${err.stdout ?? ""}${err.stderr ?? ""}`);
+    const output = `${err.stdout ?? ""}${err.stderr ?? ""}`;
+    console.error(`✖ templates/${name}\n${output}`);
+    if (isCrash(err.code) || isCrash(output)) console.error(`crash log: ${saveCrash(`templates-${name}`, output)}`);
   }
 }
 
