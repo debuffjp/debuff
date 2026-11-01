@@ -15,6 +15,7 @@ function setup(withReplay = false) {
     quads: () => {},
     copies: () => {},
     path: () => {},
+    mesh: () => {},
     setBlend: () => {},
     setClip: () => {},
     setTarget: () => {},

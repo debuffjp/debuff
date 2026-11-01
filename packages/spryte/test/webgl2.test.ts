@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Matrix, TextureSource } from "../src/backend.js";
 import { Draw } from "../src/draw.js";
 import { blur, filter } from "../src/filters.js";
+import { mesh } from "../src/mesh.js";
 import { Shader } from "../src/shader.js";
 import { ring, roundRect } from "../src/shapes.js";
 import { RenderTarget } from "../src/target.js";
@@ -102,6 +103,35 @@ describe("WebGL2Backend", () => {
     expect(count("generateMipmap")).toBe(1);
     const bound = calls.filter((c) => c.name === "bindSampler").map((c) => c.args[1]);
     expect(bound).toEqual([trilinear, nearest, linear]);
+  });
+
+  it("draws a mesh as indexed triangles in the shape batch, with uvs offset into an atlas frame", () => {
+    const { gl, calls, count } = fakeGL();
+    const be = new WebGL2Backend(gl);
+    const draw = new Draw(be, true);
+    const atlas = image(64, 32);
+    draw.begin("#000", 100, 50, 1);
+    mesh(draw, { image: atlas, x: 32, y: 0, w: 32, h: 32 }, [0, 0, 10, 0, 0, 10, 10, 10], [0, 0, 32, 0, 0, 32, 32, 32], [0, 1, 2, 1, 3, 2]);
+    // A sprite after a mesh joins its batch.
+    draw.sprite(atlas, 50, 25);
+    draw.end();
+    expect(count("drawElements")).toBe(1);
+    expect(count("drawArraysInstanced")).toBe(0);
+    const uploads = calls.filter((c) => c.name === "bufferData");
+    const indices = uploads.at(-1)?.args[1] as Uint32Array;
+    expect([...indices.subarray(0, 6)]).toEqual([0, 1, 2, 1, 3, 2]);
+    const verts = uploads.at(-2)?.args[1] as Float32Array;
+    // Vertex 3: position (10, 10), uv at the frame's bottom-right: (32 + 32) / 64, 32 / 32.
+    expect([...verts.subarray(18, 22)]).toEqual([10, 10, 1, 1]);
+    // Vertex 0: the frame's top-left is halfway across the atlas.
+    expect([...verts.subarray(0, 4)]).toEqual([0, 0, 0.5, 0]);
+  });
+
+  it("rejects mesh indices outside the vertices", () => {
+    const { gl } = fakeGL();
+    const draw = new Draw(new WebGL2Backend(gl), true);
+    draw.begin("#000", 100, 50, 1);
+    expect(() => mesh(draw, image(), [0, 0, 1, 0, 0, 1], [0, 0, 1, 0, 0, 1], [0, 1, 3])).toThrow(/out of range/);
   });
 
   it("splits batches when more than 8 textures are in flight, and counts draw calls", () => {

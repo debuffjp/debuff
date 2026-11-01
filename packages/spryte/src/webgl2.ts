@@ -1373,6 +1373,36 @@ export class WebGL2Backend implements Backend {
     this.shapes.add(m, points, n, closed, width, bytes(color), aa);
   }
 
+  mesh(
+    m: Matrix,
+    src: TextureSource,
+    sx: number,
+    sy: number,
+    _sw: number,
+    _sh: number,
+    xy: ArrayLike<number>,
+    uv: ArrayLike<number>,
+    indices: ArrayLike<number> | null,
+    icount: number,
+    color: number,
+    flash: number,
+    smooth: boolean,
+    triangles: new () => ShapeBuffer,
+  ): void {
+    if (this.lost) return;
+    if (src === this.target) throw new Error("spryte: can't draw a render target into itself");
+    // Meshes draw in the shape batch, after any queued sprites.
+    if (this.count > 0) this.flush();
+    const t = src === this.lastSrc && this.last ? this.last : this.texture(src);
+    const sameAsLast = t === this.last;
+    this.lastSrc = src;
+    this.last = t;
+    // May flush a batch with all units taken; nothing of this mesh is written yet.
+    const unit = this.unitFor(t, smooth, sameAsLast, src);
+    this.shapes ??= new triangles();
+    this.shapes.mesh(m, xy, uv, indices, icount, sx * t.iw, t.v0 + sy * t.ih, t.iw, t.ih, bytes(color), flash, unit);
+  }
+
   private flushShapes(): void {
     const s = this.shapes;
     if (!s || s.count === 0) return;

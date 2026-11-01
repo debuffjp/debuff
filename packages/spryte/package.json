@@ -60,6 +60,7 @@
     "example:ribosome": "vite examples/ribosome",
     "example:jupiter": "vite examples/jupiter",
     "example:html": "vite examples/html-in-canvas",
+    "example:mesh": "vite examples/mesh",
     "test:pixi": "node examples/pixi/check.mjs",
     "test:browser": "node browser-test/run.mjs"
   },

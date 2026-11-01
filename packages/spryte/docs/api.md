@@ -69,7 +69,7 @@ draw.sprites(dot, data, n, {}, { stride: 4, scale: 2, color: 3 });
 Imported functions that take the `Draw`, so an app only ships the ones it uses (startup stays at spryte's core size otherwise):
 
 ```ts
-import { blur, filter, mask, nineSlice, roundRect } from "spryte";
+import { blur, filter, mask, mesh, nineSlice, roundRect } from "spryte";
 roundRect(draw, 8, 8, 120, 40, 6, "#222c");
 ```
 
@@ -79,6 +79,7 @@ roundRect(draw, 8, 8, 120, 40, 6, "#222c");
 | `polyline(draw, points, width, color, closed?, count?)` | Antialiased line through the points, mitred joins, flat ends. Lines under a pixel fade rather than vanish. |
 | `roundRect(draw, x, y, w, h, radius, color, lineWidth?)` | Rounded rectangle, filled or (with `lineWidth`) outlined. |
 | `ring(draw, x, y, radius, width, color)` | Circle outline. |
+| `mesh(draw, frame, vertices, uvs, indices?, options?)` | An image stretched over triangles (0.12+): trails, ropes, flags, bent sprites. `vertices` are `x, y` pairs in the current transform's units, `uvs` matching pairs in source pixels from the frame's top-left, `indices` three vertex numbers per triangle (default: every three vertices). Joins the shape batch on WebGL2; custom shaders don't apply. Canvas 2D draws each triangle clipped, with faint lines possible along shared edges. Options: `tint`, `alpha`, `flash`, `smooth`. |
 | `nineSlice(draw, frame, x, y, w, h, insets, options?)` | UI panel: corners keep their size (`insets` in source pixels, one number or `[l, t, r, b]`), edges and centre stretch. Nine quads. Options: `tint`, `alpha`, `flash`, `smooth`. |
 | `tiled(draw, frame, x, y, w, h, options?)` | Fill a box with a repeating frame (works inside atlases). Options add `offsetX`, `offsetY` (scroll, wraps) and `scale`. One quad per visible tile. |
 | `mask(draw, shape, fn)` | Keep what `fn` draws only where `shape` draws (soft edges use the shape's alpha). Same units, transform and clips as outside; nests; works inside `into()`. Two offscreen passes at the destination's size, so mask groups, not single sprites. |

@@ -16,6 +16,7 @@ import {
   hueRotate,
   invert,
   mask,
+  mesh,
   nineSlice,
   polygon,
   polyline,
@@ -951,6 +952,59 @@ for (const backend of ["webgl2", "2d"] as const) {
   let worst = 0;
   for (let i = 0; i < joined.length; i++) worst = Math.max(worst, Math.abs((joined[i] as number) - (split[i] as number)));
   check("sprites joining a shape batch == their own batches (webgl2)", worst <= 1, `max channel error ${worst}`);
+}
+
+// A mesh of two triangles covering a frame draws what draw.sprite draws, and a bent mesh looks the same on both
+// backends (Canvas 2D clips each triangle, so its shared edges get a tolerance).
+{
+  const quadMesh = (draw: Draw, f: Frame, x: number, y: number, tint?: string, alpha?: number) =>
+    mesh(draw, f, [x, y, x + f.w, y, x, y + f.h, x + f.w, y + f.h], [0, 0, f.w, 0, 0, f.h, f.w, f.h], [0, 1, 2, 1, 3, 2], {
+      tint,
+      alpha,
+    });
+  const frame: Frame = { image: img, x: 1, y: 1, w: 6, h: 4 };
+  const scene = (asMesh: boolean) => (draw: Draw) => {
+    for (let i = 0; i < 6; i++) {
+      const x = 4 + i * 12;
+      const f = i % 2 ? frame : { image: img, x: 0, y: 0, w: 8, h: 6 };
+      const tint = i % 3 === 1 ? "#8cf" : undefined;
+      const alpha = i === 4 ? 0.5 : undefined;
+      if (asMesh) quadMesh(draw, f, x, 10, tint, alpha);
+      else draw.sprite(f, x, 10, { origin: [0, 0], tint, alpha });
+    }
+  };
+  for (const backend of ["webgl2", "2d"] as const) {
+    const [asMesh, asSprite] = [await render(scene(true), backend), await render(scene(false), backend)];
+    let worst = 0;
+    let off = 0;
+    for (let i = 0; i < asMesh.length; i++) {
+      const e = Math.abs((asMesh[i] as number) - (asSprite[i] as number));
+      worst = Math.max(worst, e);
+      if (e > 2) off++;
+    }
+    if (backend === "webgl2") check("mesh quad == sprite (webgl2)", worst <= 1, `max channel error ${worst}`);
+    // Canvas 2D overlaps triangles by half a device pixel to hide seams, which blends the shared diagonal twice.
+    else check("mesh quad ~ sprite (2d): faint diagonal only", worst <= 32 && off < 240, `${off} channels off by > 2, max ${worst}`);
+  }
+
+  const wave = (draw: Draw) => {
+    const cols = 8;
+    const xy: number[] = [];
+    const uv: number[] = [];
+    const ix: number[] = [];
+    for (let j = 0; j <= 1; j++)
+      for (let i = 0; i <= cols; i++) {
+        xy.push(6 + i * 8, 12 + j * 30 + Math.sin(i * 0.8) * 6);
+        uv.push((i / cols) * 8, j * 6);
+      }
+    for (let i = 0; i < cols; i++) ix.push(i, i + 1, i + cols + 1, i + 1, i + cols + 2, i + cols + 1);
+    mesh(draw, img, xy, uv, ix);
+  };
+  const [gl2, c2d] = [await render(wave, "webgl2"), await render(wave, "2d")];
+  let off = 0;
+  for (let i = 0; i < gl2.length; i++) if (Math.abs((gl2[i] as number) - (c2d[i] as number)) > 48) off++;
+  check("bent mesh: WebGL2 matches Canvas 2D", off < 300, `${off} channels off by > 48`);
+  check("bent mesh: draws something", diff(gl2, await render(() => {}, "webgl2")) > 1000, "");
 }
 
 // Top-down pixels of a WebGL2 canvas (readPixels is bottom row first).

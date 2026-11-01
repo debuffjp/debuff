@@ -107,6 +107,28 @@ export interface Backend {
     aa: number,
     tessellator: new () => ShapeBuffer,
   ): void;
+  /**
+   * Indexed triangles textured from `src`: `xy` holds `x, y` pairs in the units `m` maps to logical space, `uv`
+   * matching pairs in source pixels from (`sx`, `sy`), and `indices` (null: 0, 1, 2, …) the first `icount`
+   * vertex numbers, three per triangle. `sw, sh` is the frame's size. The triangle buffer comes from the shape
+   * functions, like `path`'s tessellator.
+   */
+  mesh(
+    m: Matrix,
+    src: TextureSource,
+    sx: number,
+    sy: number,
+    sw: number,
+    sh: number,
+    xy: ArrayLike<number>,
+    uv: ArrayLike<number>,
+    indices: ArrayLike<number> | null,
+    icount: number,
+    color: number,
+    flash: number,
+    smooth: boolean,
+    triangles: new () => ShapeBuffer,
+  ): void;
   /** `mask` (internal, for `mask()`) keeps what's there in proportion to the source's alpha. */
   setBlend(mode: BlendMode | "mask"): void;
   /**
