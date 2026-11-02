@@ -11,7 +11,7 @@
     {
       "name": "debuff",
       "source": "./plugins/debuff",
-      "description": "Make 2D browser games with Claude: start a playable platformer or top-down adventure in a minute, then Claude plays it, sees it, tunes the feel and tests it while you make the creative calls.",
+      "description": "Make 2D browser games with Claude: start from a platformer, side-scroller, top-down, isometric or point-and-click template in a minute, then Claude plays it, sees it, tunes the feel, tests and fuzzes it, explains stutter and makes pixel art and music while you make the creative calls.",
       "category": "development",
       "homepage": "https://debuff.jp",
       "keywords": [

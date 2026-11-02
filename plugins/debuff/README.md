@@ -2,7 +2,7 @@
 
 Make 2D browser games with Claude or Codex. [debuff](https://debuff.jp) is an open-source TypeScript framework that handles the game loop, controls, crisp pixels, sound, levels, testing and the web build. This plugin lets your agent start a game for you and then work on it the way a playtester would.
 
-- **A running game in a minute.** Ask for a platformer, a top-down adventure or a blank start. The agent scaffolds it with `npm create debuff`.
+- **A running game in a minute.** Ask for a platformer, side-scroller, top-down, isometric or point-and-click game, or a blank start. The agent scaffolds it with `npm create debuff`.
 - **The agent can see the game.** It plays it headless or in the tab you have open, takes captures, reads live state and steps time frame by frame.
 - **Tune the feel together.** Speeds and timings are live params. The agent proposes variants, you pick.
 - **Changes come with evidence.** Scenario tests, explained runtime errors and frame timings show whether a change worked.

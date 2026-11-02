@@ -45,6 +45,9 @@ Node.js 22 or newer is required. Pass `root: "my-game"` (the folder you created)
 4. Check `game_errors` after every change. Each error says whose problem it is. If the kind is `debuff-bug`, tell the human and share its `reportUrl`. Don't work around it.
 5. For feel changes, prefer params (`game_params`, `game_set_param`) over code. Prove behaviour with a scenario and `run_scenarios`, passing only the files your change touches until the work is done, and check that `build` reports no leaks.
 6. Write a logic test (`tests/*.test.ts`, keiko; see the keiko skill) for each mechanic and run it with `run_tests`. If the game stutters, call `game_profile` for myaku's explained hitches (see the myaku skill).
+7. Before calling a feature done, call `fuzz`. It plays the game with random input and returns each crash, stuck state or loop with a `repro` scenario: pass that file to `run_scenarios` to reproduce it, then again after the fix.
+
+If a tool fails on setup (packages, config, browser), call `doctor` and do what it says before trying fixes of your own.
 
 The server also has ready-made workflows as prompts: playtest, fix-errors, tune-feel, add-mechanic and explain-stutter.
 
