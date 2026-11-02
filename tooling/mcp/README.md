@@ -56,7 +56,7 @@ For Claude Desktop, `mcpb/manifest.json` describes a desktop extension that asks
 | `game_capture` | The current frame as a PNG image; `path` also saves it in the project (thumbnails, store art). `social: true` letterboxes it into 1200×675 for X and Bluesky posts (added in 0.26) |
 | `game_clip` | Live mode: `start` a rolling recording, `save` the last 15 s as a video in `.debuff/captures/`, `stop`. For devlogs and press kits; the human posts. Added in 0.26 |
 | `game_errors` | Runtime errors, explained: whose problem (your code, a rejected call, a debuff bug), the source line, a hint |
-| `game_stop` | Close the game |
+| `game_stop` | Close the game. From 0.28, a headless game also closes after 15 idle minutes, and a call that takes over 60 s fails with `game_hung` |
 | `report_papercut` | Report tooling friction in debuff, keiko, myaku, spryte or debuff.jp to [papercuts.debuff.jp](https://papercuts.debuff.jp). Returns close matches instead of filing a duplicate; call again with `hit: <id>` or `force: true`. With `hit`, `workaround` fills the papercut's workaround when it has none (from 0.24.1). Added in 0.24 |
 
 Tool calls that fail on setup twice in a week, or run far too long, are reported to papercuts.debuff.jp on their own, and the result says so (see `debuff papercuts` in the CLI README to turn it off). From 0.24.

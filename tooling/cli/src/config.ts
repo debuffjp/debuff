@@ -7,6 +7,8 @@ import type { LaunchConfig } from "./launch.js";
 import { TOOLING_API_VERSION, type ToolingPlugin } from "./plugin.js";
 
 /** Contents of `debuff.config.ts`. */
+export type Renderer = "gpu" | "software";
+
 export interface DebuffConfig {
   plugins?: ToolingPlugin[];
   assets?: {
@@ -20,6 +22,11 @@ export interface DebuffConfig {
      * see the game at full size. A scenario's own `viewport` wins.
      */
     viewport?: [number, number];
+    /**
+     * What draws scenarios and fuzz runs. `"gpu"` (default) uses this machine's graphics card, so captures can differ
+     * between machines. `"software"` uses Chrome's SwiftShader. Switching changes captures: rerun `debuff scenario --update`.
+     */
+    renderer?: Renderer;
   };
   /**
    * Launch metadata: `debuff build` turns it into link-preview tags, a web app manifest and a preview
@@ -48,6 +55,8 @@ export interface ResolvedConfig {
   atlas: AtlasOptions | false;
   /** `scenarios.viewport`, when set. */
   viewport?: [number, number];
+  /** `scenarios.renderer`, when set. */
+  renderer?: Renderer;
   launch: LaunchConfig;
   typecheck: boolean;
   /** `isolation`, resolved: the embed mode, or null when off. */
@@ -91,6 +100,9 @@ async function readConfig(root: string, file: string): Promise<ResolvedConfig> {
   if (!config || typeof config !== "object") throw new Error(`${file} must \`export default defineConfig({ ... })\``);
   const viewport = config.scenarios?.viewport;
   if (viewport !== undefined) checkViewport(viewport, `${file}: scenarios.viewport`);
+  const renderer = config.scenarios?.renderer;
+  if (renderer !== undefined && renderer !== "gpu" && renderer !== "software")
+    throw new Error(`${file}: scenarios.renderer must be "gpu" or "software", got ${JSON.stringify(renderer)}`);
   return {
     root,
     file,
@@ -100,6 +112,7 @@ async function readConfig(root: string, file: string): Promise<ResolvedConfig> {
     typecheck: config.typecheck === true,
     isolation: resolveIsolation(config.isolation, file),
     ...(viewport ? { viewport } : {}),
+    ...(renderer ? { renderer } : {}),
   };
 }
 

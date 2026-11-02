@@ -215,11 +215,14 @@ export function debuff(options: DebuffViteOptions = {}): PluginOption[] {
       if (options.typecheck) {
         let shown = -1;
         const checker = createTypeChecker(root, (r) => {
-          if (!r.ok) return console.warn(`[debuff] type-checking is off: ${r.reason}`);
+          if (!r.ok) return server.config.logger.warn(`[debuff] type-checking is off: ${r.reason}`);
           server.ws.send({ type: "custom", event: "debuff:types", data: r });
           const n = r.diagnostics.length;
+          // Through Vite's logger, which logLevel silences: the MCP server's stdout carries its protocol.
           if (n !== shown)
-            console.log(n ? `[debuff] ${n} type error${n === 1 ? "" : "s"} (${r.ms} ms)` : `[debuff] no type errors (${r.ms} ms)`);
+            server.config.logger.info(
+              n ? `[debuff] ${n} type error${n === 1 ? "" : "s"} (${r.ms} ms)` : `[debuff] no type errors (${r.ms} ms)`,
+            );
           shown = n;
         });
         const onSource = (file: string) => {

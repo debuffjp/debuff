@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { basename, join, relative } from "node:path";
 import { amber, lime, paint, pc } from "create-debuff";
 import type { Browser, Page } from "playwright-core";
-import { checkViewport } from "../config.js";
+import { checkViewport, type Renderer } from "../config.js";
 import { DebuffError } from "../errors.js";
 import type { StepDef } from "../plugin.js";
 import { createDevServer } from "../vite.js";
@@ -96,17 +96,51 @@ export function compare(actual: unknown, c: Comparison): string | undefined {
   return undefined;
 }
 
-/** Launch the system Chrome/Edge (or DEBUFF_BROWSER) through playwright-core. */
-export async function launchBrowser(): Promise<Browser> {
+/** Seconds one call into the page may take before the game counts as hung. */
+export const DEFAULT_STEP_TIMEOUT = 60;
+
+/**
+ * Playwright's evaluate has no timeout, so a game stuck in a loop would hang the run forever. A hung page can't be
+ * recovered, only closed, so callers stop using it after this throws.
+ */
+export function withinTime<T>(work: Promise<T>, seconds: number, what: string): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const expired = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () =>
+        reject(
+          new DebuffError(
+            "game_hung",
+            `The game stopped responding: ${what} took over ${seconds} s.`,
+            "Look for an endless loop in the game's update code. If the work is just slow, raise `stepTimeout` in the scenario",
+          ),
+        ),
+      seconds * 1000,
+    );
+  });
+  return Promise.race([work, expired]).finally(() => clearTimeout(timer));
+}
+
+/** Close a page that may be hung, without waiting on it for long: closing the browser cleans up what's left. */
+export async function closePage(page: Page): Promise<void> {
+  await withinTime(page.close(), 5, "closing the page").catch(() => undefined);
+}
+
+/**
+ * Launch the system Chrome/Edge (or DEBUFF_BROWSER) through playwright-core. Software rendering doesn't depend on
+ * the machine's graphics card.
+ */
+export async function launchBrowser(renderer: Renderer = "gpu"): Promise<Browser> {
   const { chromium } = await import("playwright-core");
+  const args = renderer === "software" ? ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] : [];
   const executablePath = process.env.DEBUFF_BROWSER;
-  if (executablePath) return chromium.launch({ executablePath });
+  if (executablePath) return chromium.launch({ executablePath, args });
   // Why each channel failed, as "missing" or "launch failed" (never the message, which has paths): an installed
   // browser that won't start is debuff's problem to fix, so automatic papercuts send this.
   const channels: Record<string, string> = {};
   for (const channel of ["chrome", "msedge", "chromium"]) {
     try {
-      return await chromium.launch({ channel });
+      return await chromium.launch({ channel, args });
     } catch (err) {
       channels[channel] = /executable doesn't exist|is not found|not installed/i.test(String(err)) ? "missing" : "launch failed";
     }
@@ -138,7 +172,7 @@ export async function runScenarios(options: RunOptions): Promise<ScenarioReport[
       "The dev server started without a URL to open.",
       "Check `server` in vite.config / debuff.config.ts (host, port, middlewareMode), then run `npx debuff dev` to see what it prints",
     );
-  const browser = await launchBrowser();
+  const browser = await launchBrowser(options.renderer);
   const reports: ScenarioReport[] = [];
   try {
     for (const file of files) {
@@ -149,7 +183,7 @@ export async function runScenarios(options: RunOptions): Promise<ScenarioReport[
       try {
         reports.push(await runOne(page, base, scenario.name ?? basename(file, ".json"), scenario, options));
       } finally {
-        await page.close();
+        await closePage(page);
       }
     }
   } finally {
@@ -170,6 +204,22 @@ async function runOne(page: Page, base: string, name: string, scenario: Scenario
   const loadErrors: string[] = [];
   const onError = (e: Error) => loadErrors.push(`${e.name}: ${e.message}`);
   page.on("pageerror", onError);
+  const warnings: string[] = [];
+  let crashed = false;
+  page.on("crash", () => {
+    crashed = true;
+  });
+  page.on("console", (m) => {
+    // The failed request is reported below, with its URL.
+    if (m.type() === "error" && !m.text().startsWith("Failed to load resource")) warnings.push(`console error: ${m.text().split("\n")[0]}`);
+  });
+  page.on("requestfailed", (r) => warnings.push(`request failed: ${r.url()} (${r.failure()?.errorText ?? "unknown"})`));
+  page.on("response", (r) => {
+    if (r.status() >= 400) warnings.push(`request failed: ${r.url()} (HTTP ${r.status()})`);
+    // The dev server answers some missing files with index.html and a 200.
+    else if (r.request().resourceType() !== "document" && r.headers()["content-type"]?.startsWith("text/html"))
+      warnings.push(`request failed: ${r.url()} (got the HTML page, so the file is probably missing)`);
+  });
   await page.goto(url.toString());
   try {
     await page.waitForFunction(hooksReady, undefined, { timeout: 15_000 });
@@ -177,7 +227,7 @@ async function runOne(page: Page, base: string, name: string, scenario: Scenario
     if ((err as Error | null)?.name !== "TimeoutError") throw err;
     // A game that throws while loading never gets to its dev hooks: that's this scenario failing, not debuff.
     if (loadErrors.length)
-      return { name, ok: false, steps: [], errors: loadErrors, captures: [], finalState: null, durationMs: Date.now() - started };
+      return { name, ok: false, steps: [], errors: loadErrors, warnings, captures: [], finalState: null, durationMs: Date.now() - started };
     throw new DebuffError(
       "dev_hooks_missing",
       `__DEBUFF_DEV__ is missing: ${url.pathname} loaded without errors, but the game didn't expose its dev hooks within 15 s.`,
@@ -186,14 +236,18 @@ async function runOne(page: Page, base: string, name: string, scenario: Scenario
     page.off("pageerror", onError);
   }
 
-  const call = <R>(method: string, ...args: unknown[]) => page.evaluate(callHook, [method, args] as [string, unknown[]]) as Promise<R>;
+  const timeout = scenario.stepTimeout ?? DEFAULT_STEP_TIMEOUT;
+  const guard = <R>(work: Promise<R>) => withinTime(work, timeout, "one scenario step");
+  const call = <R>(method: string, ...args: unknown[]) =>
+    guard(page.evaluate(callHook, [method, args] as [string, unknown[]])) as Promise<R>;
   const pluginSteps = new Map<string, StepDef>();
   for (const plugin of options.plugins ?? [])
     for (const def of plugin.scenarioSteps ?? []) pluginSteps.set(`${plugin.name}:${def.name}`, def);
   const stepContext = {
     call,
     // Playwright serialises fn into the page; the cast bridges its overloads to our simpler signature.
-    evaluate: <R, A>(fn: (arg: A) => R | Promise<R>, arg: A) => page.evaluate(fn as (arg: unknown) => R | Promise<R>, arg) as Promise<R>,
+    evaluate: <R, A>(fn: (arg: A) => R | Promise<R>, arg: A) =>
+      guard(page.evaluate(fn as (arg: unknown) => R | Promise<R>, arg)) as Promise<R>,
   };
   const steps: StepResult[] = [];
   const captures: CaptureResult[] = [];
@@ -222,15 +276,22 @@ async function runOne(page: Page, base: string, name: string, scenario: Scenario
             return undefined;
           },
           (conditions, within) =>
-            page.evaluate(stepUntil, [conditions as Record<string, Record<string, unknown>>, within] as [
-              Record<string, Record<string, unknown>>,
-              number,
-            ]),
-          (steps) => page.evaluate(sampleFrames, [steps, FLASH_GRID] as [number, number]),
+            guard(
+              page.evaluate(stepUntil, [conditions as Record<string, Record<string, unknown>>, within] as [
+                Record<string, Record<string, unknown>>,
+                number,
+              ]),
+            ),
+          (steps) => guard(page.evaluate(sampleFrames, [steps, FLASH_GRID] as [number, number])),
         );
       }
     } catch (err) {
       message = err instanceof Error ? (err.message.split("\n")[0] ?? err.message) : String(err);
+      const hung = err instanceof DebuffError && err.code === "game_hung";
+      if (hung || crashed) {
+        steps.push({ index, step, ok: false, message: crashed ? "The browser page crashed during this step." : message });
+        return { name, ok: false, steps, errors: [], warnings, captures, finalState: null, durationMs: Date.now() - started };
+      }
     }
     steps.push({ index, step, ok: !message, ...(message ? { message } : {}) });
   }
@@ -241,6 +302,7 @@ async function runOne(page: Page, base: string, name: string, scenario: Scenario
     ok: steps.every((s) => s.ok) && errors.length === 0,
     steps,
     errors,
+    warnings,
     captures,
     finalState: await call<unknown>("state"),
     durationMs: Date.now() - started,
@@ -383,6 +445,7 @@ export function formatScenario(r: ScenarioReport): string {
   const lines = [`${r.ok ? lime("PASS") : paint("red", "FAIL")} ${pc.bold(r.name)} ${pc.dim(`${r.durationMs} ms`)}`];
   for (const s of r.steps) if (!s.ok) lines.push(`  ${pc.red("✖")} step ${s.index} ${pc.dim(JSON.stringify(s.step))}\n    ${s.message}`);
   for (const e of r.errors) lines.push(`  ${pc.red("✖")} runtime error: ${e.split("\n")[0]}`);
+  for (const w of r.warnings) lines.push(`  ${amber("!")} ${w}`);
   for (const c of r.captures) {
     const color = c.status === "match" ? lime : c.status === "diff" || c.status === "missing" ? (s: string) => paint("red", s) : amber;
     lines.push(`  ${pc.dim("capture")} ${c.name}: ${color(c.status)}${c.diffRatio !== undefined ? pc.dim(` (${pct(c.diffRatio)})`) : ""}`);

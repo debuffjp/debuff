@@ -5,10 +5,13 @@ import {
   type AgentStatus,
   callHook,
   createDevServer,
+  DEFAULT_STEP_TIMEOUT,
   DEV_SERVER_FILE,
   type DevServerInfo,
   hooksReady,
   launchBrowser,
+  loadConfig,
+  withinTime,
 } from "@debuffjp/cli";
 import type { Browser, Page } from "playwright-core";
 import type { ViteDevServer } from "vite";
@@ -114,7 +117,7 @@ export class HeadlessSession implements GameSession {
     }
     let browser: Browser | undefined;
     try {
-      browser = await launchBrowser();
+      browser = await launchBrowser((await loadConfig(root)).renderer);
       const page = await browser.newPage({
         viewport: { width: options.width ?? 960, height: options.height ?? 540 },
         deviceScaleFactor: 1,
@@ -134,7 +137,11 @@ export class HeadlessSession implements GameSession {
   /** Call a `window.__DEBUFF_DEV__` method. */
   async call<R = unknown>(method: string, ...args: unknown[]): Promise<R> {
     try {
-      return (await this.page.evaluate(callHook, [method, args] as [string, unknown[]])) as R;
+      return (await withinTime(
+        this.page.evaluate(callHook, [method, args] as [string, unknown[]]),
+        DEFAULT_STEP_TIMEOUT,
+        `the dev hook ${method}`,
+      )) as R;
     } catch (err) {
       // Playwright wraps page errors as "page.evaluate: Error: <message>\n    at …"; agents only need the message.
       const message = err instanceof Error ? err.message : String(err);

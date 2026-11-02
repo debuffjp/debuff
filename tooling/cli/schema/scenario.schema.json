@@ -21,6 +21,11 @@
       "minItems": 2,
       "maxItems": 2
     },
+    "stepTimeout": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Seconds one step may take before the game counts as hung. Default 60."
+    },
     "steps": { "type": "array", "items": { "$ref": "#/$defs/step" } }
   },
   "$defs": {

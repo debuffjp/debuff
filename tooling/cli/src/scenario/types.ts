@@ -1,3 +1,4 @@
+import type { Renderer } from "../config.js";
 import type { ToolingPlugin } from "../plugin.js";
 
 /**
@@ -14,6 +15,8 @@ export interface Scenario {
   reducedMotion?: boolean;
   /** Browser viewport `[width, height]` for this scenario. Default: the project's `scenarios.viewport`, else 960×540. */
   viewport?: [number, number];
+  /** Seconds one step may take before the game counts as hung. Default 60. */
+  stepTimeout?: number;
   steps: Step[];
 }
 
@@ -99,6 +102,8 @@ export interface ScenarioReport {
   ok: boolean;
   steps: StepResult[];
   errors: string[];
+  /** Console errors and failed requests. They don't fail the scenario, but a missing asset shows up here. */
+  warnings: string[];
   captures: CaptureResult[];
   finalState: unknown;
   durationMs: number;
@@ -112,6 +117,8 @@ export interface RunOptions {
   files: string[];
   /** Default viewport `[width, height]` (the config's `scenarios.viewport`). Default 960×540. */
   viewport?: [number, number];
+  /** What draws the game (the config's `scenarios.renderer`). Default "gpu". */
+  renderer?: Renderer;
   /** Overwrite baselines with new captures. */
   update: boolean;
   /** Fail when a baseline is missing instead of recording it. */

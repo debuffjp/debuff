@@ -3,7 +3,7 @@ import { join, relative } from "node:path";
 import type { Page } from "playwright-core";
 import { loadConfig } from "./config.js";
 import { hooksReady } from "./scenario/browser.js";
-import { launchBrowser, VIEWPORT } from "./scenario/run.js";
+import { closePage, DEFAULT_STEP_TIMEOUT, launchBrowser, VIEWPORT, withinTime } from "./scenario/run.js";
 import type { Step } from "./scenario/types.js";
 import { createDevServer } from "./vite.js";
 
@@ -144,7 +144,7 @@ type HookResult<R> = { ok: true; value: R } | { ok: false; error: string };
  * explain and source-map it, exactly as for a crash during play) and return it instead of throwing.
  */
 function callSafe(page: Page, method: string, args: unknown[]): Promise<HookResult<unknown>> {
-  return page.evaluate(
+  const work = page.evaluate(
     ([m, a]) => {
       const hooks = (window as unknown as { __DEBUFF_DEV__: Record<string, (...x: unknown[]) => unknown> }).__DEBUFF_DEV__;
       try {
@@ -156,6 +156,7 @@ function callSafe(page: Page, method: string, args: unknown[]): Promise<HookResu
     },
     [method, args] as [string, unknown[]],
   );
+  return withinTime(work, DEFAULT_STEP_TIMEOUT, `the dev hook ${method}`);
 }
 
 /**
@@ -177,9 +178,10 @@ export async function runFuzz(options: FuzzOptions): Promise<FuzzReport> {
   await server.listen();
   const base = server.resolvedUrls?.local[0];
   if (!base) throw new Error("Dev server did not report a URL");
-  const browser = await launchBrowser();
+  const config = await loadConfig(options.root);
+  const browser = await launchBrowser(config.renderer);
   // The project's scenario viewport, so a portrait game is fuzzed at its own shape.
-  const [width, height] = (await loadConfig(options.root)).viewport ?? VIEWPORT;
+  const [width, height] = config.viewport ?? VIEWPORT;
   const findings: FuzzFinding[] = [];
   let totalSteps = 0;
 
@@ -340,7 +342,7 @@ export async function runFuzz(options: FuzzOptions): Promise<FuzzReport> {
         }
         totalSteps += played;
       } finally {
-        await page.close();
+        await closePage(page);
       }
       options.onRun?.(run, runs, findings.length);
     }

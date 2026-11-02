@@ -154,3 +154,23 @@ describe("debuff MCP server", () => {
     expect(s.worst.map((f) => f.updateMs)).toEqual([4, 3, 2]);
   });
 });
+
+describe("idle headless game", () => {
+  it("closes its browser after sitting idle and says why", async () => {
+    const server = createServer({ root: template, version: "test", idleMs: 300 });
+    const client = new Client({ name: "test", version: "0" });
+    const [a, b] = InMemoryTransport.createLinkedPair();
+    await Promise.all([server.connect(a), client.connect(b)]);
+    try {
+      const started = (await client.callTool({ name: "game_start", arguments: { mode: "headless" } })) as ToolResult;
+      expect(started.isError).toBeFalsy();
+      await new Promise((done) => setTimeout(done, 1000));
+      const after = (await client.callTool({ name: "game_state", arguments: {} })) as ToolResult;
+      expect(after.isError).toBe(true);
+      expect(after.content[0]?.text).toMatch(/idle/);
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  }, 60_000);
+});

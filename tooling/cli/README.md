@@ -47,7 +47,7 @@ With `--json` (and always for `inspect`), stdout carries exactly one JSON docume
 { "error": { "code": "browser_not_found", "message": "…", "fix": "Install Chrome or Edge, or set DEBUFF_BROWSER…", "transient": false } }
 ```
 
-`code` is one of `unknown_command`, `bad_option`, `not_a_project`, `nothing_to_run` (from 0.21: no scenarios, or no build to report on), `config_invalid`, `browser_not_found`, `dev_hooks_missing`, `port_in_use`, `network` and `unexpected`, and keeps its meaning between releases. `transient: true` means the same command may work if run again (a network blip). Logs go to stderr. The MCP server's tools add the same `code` and `fix` to their errors.
+`code` is one of `unknown_command`, `bad_option`, `not_a_project`, `nothing_to_run` (from 0.21: no scenarios, or no build to report on), `config_invalid`, `browser_not_found`, `dev_hooks_missing`, `game_hung` (from 0.28: one call into the game took over 60 s), `port_in_use`, `network` and `unexpected`, and keeps its meaning between releases. `transient: true` means the same command may work if run again (a network blip). Logs go to stderr. The MCP server's tools add the same `code` and `fix` to their errors.
 
 ## Agent hook
 
@@ -82,6 +82,7 @@ Scenarios can screen what the game actually draws:
 
 - `{ "flashes": 240 }` plays 240 steps and fails on flashing that could trigger photosensitive seizures: more than three flashes a second over a quarter of a 10° field. It approximates WCAG 2.3.1's general flash threshold, taking the 10° field as a third of the screen each way.
 - `{ "contrast": [x, y, w, h], "min": 4.5 }` fails if the light and dark parts of a region (say, your HUD text) contrast less than `min` (default 4.5:1, WCAG AA for text).
+- `"stepTimeout": 120` at the top of a scenario changes how many seconds one step may take before the game counts as hung. Default 60, from 0.28.
 - `"reducedMotion": true` at the top of a scenario runs it with the browser asking for reduced motion, so you can check that mode too.
 
 These are screening checks on one run, not a certification: a pass means nothing obviously unsafe happened in the steps you played. Red flashes aren't checked yet.

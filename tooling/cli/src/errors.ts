@@ -20,6 +20,7 @@ export type ErrorCode =
   | "config_invalid"
   | "browser_not_found"
   | "dev_hooks_missing"
+  | "game_hung"
   | "port_in_use"
   | "network"
   | "unexpected";
@@ -54,6 +55,7 @@ const EXITS: Record<ErrorCode, 1 | 2 | 3> = {
   config_invalid: 2,
   browser_not_found: 2,
   dev_hooks_missing: 2,
+  game_hung: 1,
   port_in_use: 2,
   network: 1,
   unexpected: 1,

@@ -7,8 +7,8 @@ This is **mossfell**, a top-down action-adventure made with **debuff** (https://
 | Command | What it does |
 | --- | --- |
 | `npm run dev` | Dev server with hot reload. Press <kbd>`</kbd> in the game for the dev panel |
-| `npx debuff test` | Runs the logic tests in `tests/`: the real game in Node, no browser, in milliseconds. Run it after every change. `-t <text>` runs matching tests; `--json` for tools |
-| `npm test` | Logic tests, then `scenarios/*.json` in a headless browser with screenshot comparison |
+| `npx debuff test` | Runs the logic tests in `tests/`: the real game in Node, no browser, in milliseconds. While you work, run only what your change touches: `npx debuff test <file>`, or `-t <text>` for matching tests; `--json` for tools |
+| `npm test` | The whole suite: logic tests, then `scenarios/*.json` in a headless browser with screenshot comparison. Run it once when the work is done, not after each edit. `npx debuff scenario <file>` runs one scenario. Each browser shows up as about ten Chromium processes that close when the run ends |
 | `npx debuff fuzz` | Plays the game with random input: 3 runs of 60 s by default, a few minutes in all (`--runs 1 --seconds 20` for a quick check). Each crash or stuck state is saved as a scenario in `.debuff/fuzz/` that replays it exactly |
 | `npm run build` | Type-checks, builds to `dist/` and prints a size report. Fails if dev-only code leaks, or if a change would break players' saves (`saves.json`) |
 | `npx debuff build --accept-saves` | Accept a change to the game's saves. **Only after the human has approved it**: players with an old save lose what no longer fits, unless `new Storage(key, defaults, { version, migrate })` carries it over |
@@ -43,7 +43,7 @@ This is **mossfell**, a top-down action-adventure made with **debuff** (https://
 1. **Look before you change.** With the MCP server, call `game_start`. If the human has the game open under `npm run dev`, you attach to it live, so read `game_notes` first: they're moments the human flagged, and `game_replay` with a note's tick saves a scenario that reproduces it. Then use `game_state`, `game_capture` and `game_errors`.
 2. **Tune before you rewrite.** Feel values (speed, gravity, timings) live in `game.params.define(...)`. Change them with `game_set_param` and show the human before editing code. The human can undo your changes in the dev panel.
 3. **Make the smallest change that works.** Keep dev-only code inside `if (import.meta.env.DEV)`.
-4. **Verify.** Run `npm test` and `npm run build`, and check `game_errors` is empty. Before calling a feature done, run `npx debuff fuzz`: to fix a finding, turn its file into a logic test with `game.replay(".debuff/fuzz/<file>")`, watch it fail, fix, and keep the test. Errors come back explained: `kind` says whose bug it is (`your-code`, `debuff-usage`, `debuff-bug`, `outside`) and `where` gives the source line.
+4. **Verify.** When the work is done, run `npm test` and `npm run build` once, and again only if the code has changed since, and check `game_errors` is empty. Before calling a feature done, run `npx debuff fuzz`: to fix a finding, turn its file into a logic test with `game.replay(".debuff/fuzz/<file>")`, watch it fail, fix, and keep the test. Errors come back explained: `kind` says whose bug it is (`your-code`, `debuff-usage`, `debuff-bug`, `outside`) and `where` gives the source line.
 5. **Report** what changed, what you verified, and anything you couldn't check.
 
 ## Rules

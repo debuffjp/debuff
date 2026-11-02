@@ -49,6 +49,8 @@ export interface ServerOptions {
   /** Default project root for tools that don't receive one. */
   root: string;
   version: string;
+  /** How long a headless game may sit unused before its browser closes. Default 15 minutes. */
+  idleMs?: number;
 }
 
 /**
@@ -73,8 +75,26 @@ export function createServer(options: ServerOptions): McpServer {
   let session: GameSession | undefined;
   /** The running session's project root, for files tools write (captures). */
   let sessionRoot = options.root;
+  let idleTimer: NodeJS.Timeout | undefined;
+  let idleClosed = false;
+  const idleMs = options.idleMs ?? 15 * 60_000;
+  /** Headless games hold a browser and a dev server, and agents forget game_stop. */
+  const watchIdle = () => {
+    clearTimeout(idleTimer);
+    if (session?.mode !== "headless") return;
+    idleTimer = setTimeout(() => {
+      void session?.stop().catch(() => undefined);
+      session = undefined;
+      idleClosed = true;
+    }, idleMs);
+    idleTimer.unref();
+  };
   const live = () => {
-    if (!session) throw new Error("No game running. Call game_start first.");
+    if (!session)
+      throw new Error(
+        idleClosed ? "The headless game closed after sitting idle. Call game_start again." : "No game running. Call game_start first.",
+      );
+    watchIdle();
     return session;
   };
   const safely =
@@ -210,7 +230,7 @@ export function createServer(options: ServerOptions): McpServer {
       annotations: { readOnlyHint: false, destructiveHint: false },
       description:
         "Run the logic tests in tests/**/*.test.ts (keiko): the real game in Node, no browser, in milliseconds. Each failure has its message, " +
-        "the source line, and the game's tick, scene and state when it failed. Use after every change; write a test for each mechanic you add.",
+        "the source line, and the game's tick, scene and state when it failed. While iterating pass `files` or `filter` to run only what your change touches, and run everything once when the work is done. Write a test for each mechanic you add.",
       inputSchema: {
         ...root,
         files: z.array(z.string()).optional().describe("Test files relative to the root. Default: all."),
@@ -236,7 +256,8 @@ export function createServer(options: ServerOptions): McpServer {
       title: "Run scenarios",
       annotations: { readOnlyHint: false, destructiveHint: false },
       description:
-        "Run scenarios/*.json (or the given files) in a headless browser. Returns per-step results, runtime errors, captures and final state.",
+        "Run scenarios/*.json (or the given files) in a headless browser. Returns per-step results, runtime errors, captures and final state. " +
+        "Pass `files` while iterating; a full run starts a browser, so run it once when the work is done.",
       inputSchema: {
         ...root,
         files: z.array(z.string()).optional().describe("Scenario files relative to the root. Default: all."),
@@ -245,7 +266,7 @@ export function createServer(options: ServerOptions): McpServer {
     },
     safely(async ({ root: r, files, update }) => {
       const dir = rootOf(r);
-      const { plugins, viewport } = await loadConfig(dir);
+      const { plugins, viewport, renderer } = await loadConfig(dir);
       const reports = await runScenarios({
         root: dir,
         files: files ?? [],
@@ -253,6 +274,7 @@ export function createServer(options: ServerOptions): McpServer {
         update: update ?? false,
         strict: false,
         ...(viewport ? { viewport } : {}),
+        ...(renderer ? { renderer } : {}),
       });
       markTested(dir);
       return json({ passed: reports.filter((x) => x.ok).length, total: reports.length, reports });
@@ -298,7 +320,8 @@ export function createServer(options: ServerOptions): McpServer {
       annotations: { readOnlyHint: false, destructiveHint: false },
       description:
         "Connect to the game. auto (default): attach to the human's live game if `debuff dev` has it open in a browser, else start a private " +
-        "headless copy, paused. Returns the mode, state and how many notes the human has flagged. Replaces any running session.",
+        "headless copy, paused. Returns the mode, state and how many notes the human has flagged. Replaces any running session. " +
+        "A headless copy holds a browser (about ten Chromium processes) until game_stop, so call that when you are done; it also closes after 15 idle minutes.",
       inputSchema: {
         ...root,
         page: z.string().optional().describe('Path to open in headless mode. Default "/".'),
@@ -318,6 +341,8 @@ export function createServer(options: ServerOptions): McpServer {
       },
     },
     safely(async ({ root: r, page, mode, viewport, reducedMotion }) => {
+      clearTimeout(idleTimer);
+      idleClosed = false;
       await session?.stop();
       session = undefined;
       sessionRoot = rootOf(r);
@@ -326,6 +351,7 @@ export function createServer(options: ServerOptions): McpServer {
         ...(mode ? { mode } : {}),
         ...(viewport ? { width: viewport[0], height: viewport[1] } : {}),
       });
+      watchIdle();
       const warnings: string[] = [];
       if (viewport && session.mode === "live") warnings.push("viewport only applies to headless mode; the human's tab keeps its size");
       if (reducedMotion !== undefined) {
@@ -691,6 +717,8 @@ export function createServer(options: ServerOptions): McpServer {
       inputSchema: {},
     },
     safely(async () => {
+      clearTimeout(idleTimer);
+      idleClosed = false;
       await session?.stop();
       session = undefined;
       return json({ ok: true });
@@ -727,6 +755,7 @@ export function createServer(options: ServerOptions): McpServer {
 
   const close = server.close.bind(server);
   server.close = async () => {
+    clearTimeout(idleTimer);
     await session?.stop();
     session = undefined;
     await close();

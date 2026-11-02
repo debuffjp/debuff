@@ -1,9 +1,10 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { stepUntil } from "../src/scenario/browser.js";
-import { captureDiffMessage, compare, pick, unusedBaselines } from "../src/scenario/index.js";
+import { captureDiffMessage, compare, pick, runScenarios, unusedBaselines } from "../src/scenario/index.js";
 import { comparisonError, runStep } from "../src/scenario/run.js";
 import type { ScenarioReport, Step } from "../src/scenario/types.js";
 
@@ -176,4 +177,62 @@ describe("unusedBaselines", () => {
   it("is empty without baselines", () => {
     expect(unusedBaselines(mkdtempSync(join(tmpdir(), "debuff-baselines-")), [])).toEqual([]);
   });
+});
+
+describe("scenario browser failures", () => {
+  const template = fileURLToPath(new URL("../../../templates/basic", import.meta.url));
+  const run = async (name: string, script: () => unknown, extra: object = {}) => {
+    // Inside the project: a temp folder can be on another drive, which a relative path can't reach.
+    const dir = join(template, ".debuff", "test-scenarios");
+    mkdirSync(dir, { recursive: true });
+    const file = join(dir, `${name}.json`);
+    writeFileSync(file, JSON.stringify({ name, ...extra, steps: [{ "probe:run": null }, { wait: 1 }] }));
+    const plugin = {
+      name: "probe",
+      scenarioSteps: [
+        {
+          name: "run",
+          run: async (_: unknown, context: { evaluate: <R, A>(fn: (arg: A) => R, arg: A) => Promise<R> }) => {
+            await context.evaluate(script, undefined);
+            return undefined;
+          },
+        },
+      ],
+    };
+    const [report] = await runScenarios({
+      root: template,
+      files: [relative(template, file)],
+      plugins: [plugin] as never,
+      update: false,
+      strict: false,
+    });
+    if (!report) throw new Error("no report");
+    return report;
+  };
+
+  it("fails a hung game at its step and stops the scenario", async () => {
+    const report = await run(
+      "hung",
+      () => {
+        for (;;);
+      },
+      { stepTimeout: 1 },
+    );
+    expect(report.ok).toBe(false);
+    expect(report.steps).toHaveLength(1);
+    expect(report.steps[0]?.message).toMatch(/stopped responding/);
+  }, 60_000);
+
+  it("reports console errors and failed requests as warnings without failing", async () => {
+    const report = await run("noisy", async () => {
+      console.error("boom\nsecond line");
+      await fetch("/assets/definitely-missing.png");
+      await fetch("/definitely-missing.json");
+    });
+    expect(report.ok).toBe(true);
+    expect(report.warnings).toContain("console error: boom");
+    expect(report.warnings.some((w) => /definitely-missing\.png \(HTTP 404\)/.test(w))).toBe(true);
+    expect(report.warnings.some((w) => /definitely-missing\.json \(got the HTML page/.test(w))).toBe(true);
+    expect(report.warnings.some((w) => w.includes("Failed to load resource"))).toBe(false);
+  }, 60_000);
 });
