@@ -20,7 +20,7 @@ export function offscreenHint(r: OffscreenReading): string | undefined {
   if (r.offscreen < MIN_OFFSCREEN || r.offscreen / r.sprites < MIN_SHARE) return undefined;
   return (
     `${r.offscreen} of ${r.sprites} sprites were drawn outside the view. Skip them with camera.sees(x, y, w, h), ` +
-    "or pass { camera } to tilemap.draw."
+    "or pass { camera } to tilemap.draw. See https://debuff.jp/docs/big-worlds"
   );
 }
 
