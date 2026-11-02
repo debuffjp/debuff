@@ -49,8 +49,8 @@ game.start();
 | `BitmapFont` | Pixel font from a sprite-sheet grid. Widths are measured from the glyph pixels; crisp at any integer scale |
 | `ParamRegistry`, `ParamGroup` | Typed, ranged, unit-annotated values; `describe()` is JSON |
 | `Random` | Seeded PRNG: `next`, `range`, `int`, `pick` |
-| `FixedClock` | Fixed-step accumulator with render interpolation |
-| `Storage` | `localStorage` wrapper that never throws |
+| `FixedClock` | Fixed-step accumulator with render interpolation. `budgetMs` (added in 0.28) keeps a heavy simulation from collapsing the frame rate |
+| `Storage` | `localStorage` wrapper that never throws. From 0.28, `set` and `reset` return whether the write reached storage |
 | `FrameStats` | Allocation-free frame interval / work timings |
 | `clamp`, `lerp`, `damp`, `approach`, `overlaps`, `circlesOverlap` | Math helpers |
 | `SpatialHash` | A grid for "what's near this" queries (`near`, `nearest`), rebuilt each step; see [Finding what's near](#finding-whats-near). Added in 0.26 |

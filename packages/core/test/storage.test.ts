@@ -4,6 +4,25 @@ import { Storage } from "../src/index.js";
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Storage", () => {
+  it("reports whether a write reached storage, and keeps the older save when it didn't", () => {
+    const mem = new Map<string, string>();
+    let full = false;
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => mem.get(k) ?? null,
+      setItem: (k: string, v: string) => {
+        if (full) throw new Error("quota");
+        mem.set(k, v);
+      },
+    });
+    const s = new Storage("t", { best: 0 });
+    expect(s.set("best", 1)).toBe(true);
+    full = true;
+    expect(s.set("best", 2)).toBe(false);
+    expect(s.get("best")).toBe(2);
+    expect(s.reset()).toBe(false);
+    expect(new Storage("t", { best: 0 }).get("best")).toBe(1);
+  });
+
   it("persists and merges defaults", () => {
     const mem = new Map<string, string>();
     vi.stubGlobal("localStorage", { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => mem.set(k, v) });

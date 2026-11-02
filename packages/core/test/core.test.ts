@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { FixedClock, ParamRegistry, Random } from "../src/index.js";
 
 describe("FixedClock", () => {
@@ -18,6 +18,31 @@ describe("FixedClock", () => {
     let steps = 0;
     clock.advance(10, () => steps++);
     expect(steps).toBe(3);
+  });
+
+  it("drops the backlog when budgetMs is spent, keeping the leftover fraction of a step", () => {
+    const clock = new FixedClock({ step: 0.1, maxFrame: 1, budgetMs: 25 });
+    let ms = 0;
+    const now = vi.spyOn(performance, "now").mockImplementation(() => ms);
+    let steps = 0;
+    const update = () => {
+      steps++;
+      ms += 10;
+    };
+    const alpha = clock.advance(0.55, update);
+    now.mockRestore();
+    expect(steps).toBe(3); // 0, 10 and 20 ms are under budget; 30 ms is not
+    expect(clock.tick).toBe(3);
+    expect(alpha).toBeCloseTo(0.5);
+    clock.advance(0.05, () => steps++);
+    expect(steps).toBe(4);
+  });
+
+  it("always takes at least one step, so a budget can't stop the game", () => {
+    const clock = new FixedClock({ step: 0.1, budgetMs: 0 });
+    let steps = 0;
+    clock.advance(0.1, () => steps++);
+    expect(steps).toBe(1);
   });
 });
 

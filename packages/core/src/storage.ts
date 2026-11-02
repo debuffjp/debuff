@@ -83,17 +83,32 @@ export class Storage<T extends object> {
     return this.value[key];
   }
 
-  set<K extends keyof T>(key: K, v: T[K]): void {
+  /**
+   * Change a field. Returns whether it reached storage: `false` means the value lives in memory only, and a
+   * reload gets the last save that fitted (storage full, private mode, or no localStorage). Before 0.28 it
+   * returned nothing. localStorage usually holds about 5 MB per origin.
+   */
+  set<K extends keyof T>(key: K, v: T[K]): boolean {
     this.value = { ...this.value, [key]: v };
-    this.write();
+    return this.write();
   }
 
-  reset(): void {
+  /** Back to the defaults. Returns whether that reached storage, like `set`. */
+  reset(): boolean {
     this.value = { ...this.defaults };
-    this.write();
+    return this.write();
   }
 
-  private write(): void {
-    local(this.key, JSON.stringify(this.value));
+  private write(): boolean {
+    const json = JSON.stringify(this.value);
+    try {
+      if (!globalThis.localStorage) return false;
+      globalThis.localStorage.setItem(this.key, json);
+      return true;
+    } catch (error) {
+      if (typeof import.meta.env !== "undefined" && import.meta.env.DEV === true)
+        console.warn(`[debuff] Save "${this.key}" (${json.length} characters) didn't reach storage, so a reload loses it.`, error);
+      return false;
+    }
   }
 }
