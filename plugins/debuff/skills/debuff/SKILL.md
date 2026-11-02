@@ -52,6 +52,8 @@ Creative direction belongs to the human. For art, feel, difficulty and names, pr
 
 For anything that affects play, use `game.random` and `game.clock`, not `Math.random`, `Date.now` or `setTimeout`. Browser replays, scenarios and fuzz findings only reproduce what the game's seed and fixed step drive. In a project with the debuff hook (`.claude/hooks/debuff.mjs`, from 0.23), a refused edit or command says why and what to do instead: follow it rather than finding another way round.
 
+**Drawing a lot:** the dev tools warn when most sprites land outside the view (a console warning, `drawHint` in `game_profile`). Skip those with `camera.sees(x, y, w, h)`, and pass `{ camera }` to `tilemap.draw`. For many copies of one frame use `draw.sprites` instead of a `draw.sprite` loop. For scenery that doesn't change, `draw.record` once and `draw.replay` each frame. Do this when a world is larger than the view, without waiting for a stutter.
+
 When the game needs pixel art drawn and the human hasn't named a tool, draw it with tenten, the pixel-art MCP server listed next to debuff in `.mcp.json` (`tt_new`, `tt_draw`, `tt_render`, then `tt_save` to `assets/<name>.tt`, which the dev server turns into a sprite sheet, and `tt_preview` so they can see it). If they draw in Aseprite or another tool, leave the art to them and load what they export.
 
 When the game needs music or sound effects and the human hasn't named a tool, make them with plonk (`plonkjs`; see the plonk skill): songs and effects as small data, synthesized live, with effects in the song's key. Use `audio.play` for sound files the human provides.

@@ -1,6 +1,7 @@
 import type { Game, NumberParamSpec, ParamSpec, ParamValue, Plugin } from "@debuffjp/core";
 import { type ExplainedError, loc } from "./explain.js";
 import { applyKit, fillRange, proc } from "./kit.js";
+import { offscreenHint } from "./offscreen.js";
 import { DevSession, diagnose, type FrameSample, gamePlugins, HITCH, summarize, type TypeDiagnostic } from "./session.js";
 
 export interface DevOverlayOptions {
@@ -518,6 +519,8 @@ class Overlay {
       return;
     }
     const hitch = s.intervalMs > BUDGET_MS * HITCH;
+    const reading = this.session.offscreen.latest;
+    const hint = reading && offscreenHint(reading);
     this.inspector.replaceChildren(
       line(`tick ${s.tick} · ${s.scene ?? "no scene"} · `, [`${s.intervalMs.toFixed(1)} ms`, hitch ? OVER_BUDGET : LIME]),
       line(
@@ -529,6 +532,7 @@ class Overlay {
       ),
       line(`${s.quads} quads · ${s.drawCalls} draw calls${s.longTaskMs ? ` · long task ${s.longTaskMs.toFixed(0)} ms` : ""}`),
       line([diagnose(s, BUDGET_MS), hitch ? AMBER : MUTED]),
+      ...(hint ? [line([hint, AMBER])] : []),
     );
   }
 

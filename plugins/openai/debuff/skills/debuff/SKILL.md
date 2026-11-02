@@ -49,6 +49,8 @@ Node.js 22 or newer is required. The new project has an `AGENTS.md` with its com
 
 Errors come back explained: `kind` says whose bug it is (`your-code`, `debuff-usage`, `debuff-bug`, `outside`) and `where` gives the source line. For `debuff-bug`, tell the human and share its `reportUrl` instead of working around debuff.
 
+**Drawing a lot:** the dev tools warn when most sprites land outside the view (a console warning, `drawHint` in `game_profile`). Skip those with `camera.sees(x, y, w, h)`, and pass `{ camera }` to `tilemap.draw`. For many copies of one frame use `draw.sprites` instead of a `draw.sprite` loop. For scenery that doesn't change, `draw.record` once and `draw.replay` each frame. Do this when a world is larger than the view, without waiting for a stutter.
+
 When the game needs pixel art drawn and the human hasn't named a tool, draw it with tenten, the pixel-art MCP server in the project's `.mcp.json` (`tt_new`, `tt_draw`, `tt_render`, then `tt_save` to `assets/<name>.tt`, which the dev server turns into a sprite sheet). If they draw in Aseprite or another tool, leave the art to them and load what they export.
 
 When the game needs music or sound effects and the human hasn't named a tool, make them with plonk (`plonkjs`; see the plonk skill): songs and effects as small data, synthesized live, with effects in the song's key. Use `audio.play` for sound files the human provides.

@@ -50,6 +50,7 @@ This is **squish**, a squishy match-3 made with **debuff** (https://debuff.jp). 
 
 ## Rules
 
+- **Draw only what the player can see.** When the world is larger than the view, skip sprites with `camera.sees(x, y, w, h)` and pass `{ camera }` to `tilemap.draw`. Use `draw.sprites` for many copies of one frame, and `draw.record` with `draw.replay` for scenery that doesn't change. The dev tools warn when most sprites are off screen.
 - **Creative direction belongs to the human:** art, feel, difficulty, story and names. Propose two or three options; don't decide.
 - **Music and sound effects go through plonk unless the human names another tool.** Write songs and effects as data with `plonkjs` (`npm i plonkjs` if the project doesn't have it) and play them with one `Player` on debuff's audio: `new Player({ context: audio.ctx, destination: audio.bus("music") })`. Play effects with `player.sfx(instrument, { degree })` so they stay in the song's key. Use `audio.play` for sound files the human provides, and another sound tool when they ask for one.
 - Don't update screenshot baselines (`--update`) without the human's say-so.

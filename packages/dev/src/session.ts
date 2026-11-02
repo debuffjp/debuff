@@ -3,6 +3,7 @@ import { myaku, type Profiler } from "myaku";
 import { DevClips } from "./clips.js";
 import { type ExplainedError, errorKey, explainError, mapLocation } from "./explain.js";
 import type { DrivableInput } from "./index.js";
+import { OffscreenSampler } from "./offscreen.js";
 import { fastForward, InputRecording, pagePath, type Replay, type ReplayTarget, type RewindRequest, storeRewind } from "./replay.js";
 
 /** A `game.emit` call, as the dev tools saw it. */
@@ -270,6 +271,8 @@ export class DevSession {
 
   /** myaku: hitches explained (`profile()`), with debuff's update and render as spans. */
   readonly profiler: Profiler;
+  /** Counts sprites drawn outside the view, one frame in sixty. */
+  readonly offscreen: OffscreenSampler;
   /** Rolling clip recording (off until turned on), for devlogs and press kits. */
   readonly clips: DevClips;
   private readonly unsubscribeSpans: (() => void)[];
@@ -277,6 +280,7 @@ export class DevSession {
   private constructor(readonly game: Game) {
     this.recorder = new FrameRecorder(game);
     this.profiler = myaku();
+    this.offscreen = new OffscreenSampler(game);
     this.clips = new DevClips(game);
     let updateStart = 0;
     let renderStart = 0;

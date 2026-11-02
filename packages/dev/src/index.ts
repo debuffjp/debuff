@@ -2,6 +2,7 @@ import type { Game, ParamDescription, ParamValue, Plugin } from "@debuffjp/core"
 import type { Report } from "myaku";
 import { type ClipStatus, fitFrame, type SavedCapture, STILL_SIZES } from "./clips.js";
 import type { ExplainedError } from "./explain.js";
+import { offscreenHint } from "./offscreen.js";
 import { type PadStep, pointerOp, pressSource, type Replay, releaseSource, takeRewind, toPadState } from "./replay.js";
 import { DevSession, type FrameSample, type GameEventRecord, gamePlugins, type Note, type TypeDiagnostic } from "./session.js";
 
@@ -129,7 +130,7 @@ export interface DevHooks {
    * myaku's report: frame-time percentiles, hitches per minute, and the worst hitches explained (cause,
    * confidence, the script to look at, a hint), with debuff's update and render as spans.
    */
-  profile(): Report;
+  profile(): Report & { drawHint?: string };
   /**
    * Everything played since page load (keys, pointer, param changes) up to `toTick` (default: now), as a
    * scenario that replays it exactly. Pass a note's `tick` to get the session leading up to that note.
@@ -354,7 +355,10 @@ function createHooks(game: Game, session: DevSession, options: DevHooksOptions, 
     params: () => game.params.describe(),
     setParam: (group, key, value) => session.setParam(group, key, value, who()),
     frames: (n = 60) => session.recorder.recent(n),
-    profile: () => session.profiler.report(),
+    profile: () => {
+      const hint = session.offscreen.latest && offscreenHint(session.offscreen.latest);
+      return hint ? { ...session.profiler.report(), drawHint: hint } : session.profiler.report();
+    },
     keepForReload: () => {
       if (!controlled && options.keepState !== false) session.keepForReload();
     },
