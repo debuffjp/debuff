@@ -1,5 +1,13 @@
 # @debuffjp/tilemap
 
+## 0.28.0
+
+### Patch Changes
+
+- Updated dependencies [ac9a247]
+- Updated dependencies [ac9a247]
+  - @debuffjp/core@0.28.0
+
 ## 0.27.0
 
 ### Patch Changes

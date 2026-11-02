@@ -1,5 +1,18 @@
 # @debuffjp/mcp
 
+## 0.28.0
+
+### Minor Changes
+
+- b018c1a: Scenarios, fuzz runs and headless MCP games now fail with `game_hung` when a call into the game takes over 60 s, instead of hanging forever; a scenario's `stepTimeout` changes the limit. A page crash fails the scenario and stops it. Scenario reports gain `warnings`: console errors and failed requests, which don't fail the run. New `scenarios.renderer` config: `"software"` draws with SwiftShader so captures don't depend on the graphics card; the default stays `"gpu"`, so existing baselines keep working.
+- b018c1a: Fewer repeat test runs and idle browsers. A headless `game_start` closes its browser and dev server after 15 idle minutes. The agent guide, MCP tool descriptions and the `untested` hook now say to run only the tests a change touches while working and the whole suite once at the end. Dev-server type-check messages go through Vite's logger, so they no longer land in the MCP server's stdout.
+
+### Patch Changes
+
+- Updated dependencies [b018c1a]
+- Updated dependencies [b018c1a]
+  - @debuffjp/cli@0.28.0
+
 ## 0.27.0
 
 ### Patch Changes

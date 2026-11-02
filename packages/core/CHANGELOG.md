@@ -1,5 +1,12 @@
 # @debuffjp/core
 
+## 0.28.0
+
+### Minor Changes
+
+- ac9a247: `clock: { budgetMs }` stops a frame catching up once its steps have used that many milliseconds. A simulation too heavy for real time then runs slower at a steady frame rate: in a test with 20 ms steps, 7 fps became 50 fps at the same simulation speed.
+- ac9a247: `Storage.set` and `reset` return whether the write reached storage, and dev builds warn when it fails. Before, a save over the localStorage quota failed silently and a reload got the last save that fitted.
+
 ## 0.27.0
 
 ### Patch Changes
