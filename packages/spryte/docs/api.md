@@ -46,6 +46,8 @@ const bits = new Uint32Array(data.buffer);
 draw.sprites(dot, data, n, {}, { stride: 4, scale: 2, color: 3 });
 ```
 
+`sprites` reads its arrays during the call and doesn't keep them. A view of wasm memory detaches when that memory grows (unless the memory is shared), and a detached array has length 0, so nothing draws. Recreate the view after growth, or each frame. From 0.12.1 spryte warns once per renderer in browsers that report `ArrayBuffer.prototype.detached`; before, it drew nothing with no message.
+
 `count` is clamped to whole records, and an offset without `stride` throws.
 
 **Colours** are CSS hex strings (`#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`), numbers `0xRRGGBBAA`, or any CSS colour (resolved once through a canvas, then cached).

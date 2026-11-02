@@ -52,6 +52,7 @@ const WHITE = 0xffffffff;
  * Everything batches automatically; call order is draw order.
  */
 export class Draw {
+  private warnedDetached = false;
   /** Global alpha multiplier for subsequent draws. */
   alpha = 1;
   /**
@@ -415,6 +416,9 @@ export class Draw {
    * ```ts
    * draw.sprites(itemFrames, pos, n, {}, { frame: itemKind });
    * ```
+   *
+   * Arrays are read during the call and not kept. An array viewing wasm memory detaches when that memory grows, and
+   * a detached array has length 0, so nothing draws: recreate the view after growth, or each frame.
    */
   sprites(
     frame: Frame | TextureSource | readonly Frame[],
@@ -440,7 +444,10 @@ export class Draw {
         if (field !== undefined) count = Math.min(count, field.length);
       }
     }
-    if (count <= 0) return;
+    if (count <= 0) {
+      this.warnIfDetached(positions, each);
+      return;
+    }
     // Under a custom shader, the per-copy program runs the effect: route plain copies through it too.
     if (stride || this.shader || (each && (each.scale || each.rotation || each.color || each.frame))) {
       this.spritesEach(frame, positions, count, o, each ?? NO_EACH);
@@ -453,6 +460,19 @@ export class Draw {
     const snap = !smooth && t[1] === 0 && t[2] === 0;
     this.quads += count;
     this.backend.quads(t, this.m, positions, count, f.image, f.x, f.y, f.w, f.h, this.spriteColor(o), o.flash ?? 0, smooth, snap);
+  }
+
+  private warnIfDetached(positions: ArrayLike<number>, each?: SpritesEach): void {
+    if (this.warnedDetached) return;
+    if (
+      !isDetached(positions) &&
+      !(each && (isDetached(each.scale) || isDetached(each.rotation) || isDetached(each.color) || isDetached(each.frame)))
+    )
+      return;
+    this.warnedDetached = true;
+    console.warn(
+      "spryte: draw.sprites got a detached array, so nothing drew. If it views wasm memory, recreate the view after the memory grows",
+    );
   }
 
   private spritesEach(
@@ -829,6 +849,10 @@ export class Draw {
 const IDENTITY: Matrix = [1, 0, 0, 1, 0, 0];
 
 /** Stands in while `record()` runs: only `draw.sprite` can be recorded, so anything reaching the backend throws. */
+function isDetached(array: unknown): boolean {
+  return (array as { buffer?: { detached?: boolean } } | undefined)?.buffer?.detached === true;
+}
+
 function recording(was: Backend): Backend {
   const fail = () => {
     throw new Error("spryte: only draw.sprite can be recorded into a layer (with push, translate and pop)");
