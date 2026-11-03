@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { tools as webMcpTools } from "../../../packages/dev/src/webmcp.js";
 import { createServer } from "../src/index.js";
 import { summarizeFrames } from "../src/server.js";
 
@@ -37,6 +38,16 @@ describe("debuff MCP server", () => {
       expect.arrayContaining(["inspect_project", "list_assets", "build", "run_scenarios", "game_start", "game_step", "game_capture"]),
     );
     expect(tools.every((t) => t.description && t.inputSchema)).toBe(true);
+  });
+
+  it("matches the WebMCP tools @debuffjp/dev registers in the browser", async () => {
+    const { tools } = await client.listTools();
+    for (const tool of webMcpTools({} as never)) {
+      const server = tools.find((t) => t.name === tool.name);
+      expect(server, tool.name).toBeDefined();
+      const args = Object.keys((tool.inputSchema as { properties?: object })?.properties ?? {});
+      expect(Object.keys(server?.inputSchema.properties ?? {}), tool.name).toEqual(expect.arrayContaining(args));
+    }
   });
 
   it("type-checks the project without a browser", { timeout: 60_000 }, async () => {

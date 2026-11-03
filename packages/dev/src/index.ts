@@ -5,6 +5,7 @@ import type { ExplainedError } from "./explain.js";
 import { offscreenHint } from "./offscreen.js";
 import { type PadStep, pointerOp, pressSource, type Replay, releaseSource, takeRewind, toPadState } from "./replay.js";
 import { DevSession, type FrameSample, type GameEventRecord, gamePlugins, type Note, type TypeDiagnostic } from "./session.js";
+import { registerWebMcp } from "./webmcp.js";
 
 /** The parts of `@debuffjp/input`'s `Input` the hooks drive. Structural, so `dev` does not depend on `input`. */
 export interface DrivableInput {
@@ -210,6 +211,11 @@ export interface DevHooksOptions {
    * replayed with the new code to the tick you were on. Default true.
    */
   keepState?: boolean;
+  /**
+   * Register the dev hooks as WebMCP tools (`document.modelContext`) when the browser supports it, so an
+   * in-browser agent can play and inspect the game. Experimental. Default true.
+   */
+  webmcp?: boolean;
 }
 
 /** Dev-server endpoints for the agent link (see `@debuffjp/cli`). */
@@ -233,7 +239,9 @@ export function devTools(options: DevHooksOptions = {}): Plugin {
       const rewind = options.input && !hooks.controlled ? takeRewind() : undefined;
       if (rewind && options.input) session.restore(rewind, { game, input: options.input, command: hooks.command });
       const unlink = options.agentLink === false || hooks.controlled ? undefined : linkAgent(game, session, options, errors);
+      const unregister = options.webmcp === false || hooks.controlled ? undefined : registerWebMcp(hooks);
       return () => {
+        unregister?.();
         unlink?.();
         delete window.__DEBUFF_DEV__;
         session.release();

@@ -58,4 +58,8 @@ Because the inputs are replayed with the **new** code, a change to how the game 
 
 Under `debuff dev`, the page listens for commands from `@debuffjp/mcp` over the dev server, so agents work on the game you're looking at. Pass `agentLink: false` to opt out.
 
+## WebMCP (experimental)
+
+Since 0.29, when the browser has `document.modelContext`, the dev hooks register as [WebMCP](https://webmachinelearning.github.io/webmcp/) tools, so a browser agent can play the game with no MCP server: `game_state`, `game_step`, `game_pause`, `game_input`, `game_command`, `game_params`, `game_set_param`, `game_capture`, `game_errors` and `game_notes`. They have the same names and arguments as `@debuffjp/mcp`. Without the API this does nothing. Pass `webmcp: false` to opt out.
+
 Open the page with `?debuff-scenario` to stop the loop so time advances only through `step()`. `debuff scenario` uses this mode.
