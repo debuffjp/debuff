@@ -2,7 +2,7 @@ import type { Game, NumberParamSpec, ParamSpec, ParamValue, Plugin } from "@debu
 import { type ExplainedError, groupTypeErrors, loc, type TypeErrorGroup, typeErrorText } from "./explain.js";
 import { applyKit, fillRange, proc } from "./kit.js";
 import { offscreenHint } from "./offscreen.js";
-import { DevSession, diagnose, type FrameSample, gamePlugins, HITCH, summarize, type TypeDiagnostic } from "./session.js";
+import { DevSession, diagnose, type FrameSample, gamePlugins, HITCH, summarize } from "./session.js";
 
 export interface DevOverlayOptions {
   /** Key (KeyboardEvent.code) that toggles the overlay. Default "Backquote". */
