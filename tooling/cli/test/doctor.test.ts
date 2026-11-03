@@ -37,6 +37,20 @@ const failed = (r: DoctorResult) => r.checks.filter((c) => !c.ok).map((c) => c.i
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
 describe("runDoctor", () => {
+  it("advises allowing .ts imports only when the tsconfig clearly doesn't", async () => {
+    project();
+    const run = async (json: string) => {
+      writeFileSync(join(root, "tsconfig.json"), json);
+      return check(await runDoctor(root, { browser: false, env }), "tsconfig");
+    };
+    const missing = await run('{ "compilerOptions": { "noEmit": true } }');
+    expect(missing).toMatchObject({ ok: false, required: false });
+    expect(missing?.fix).toContain("allowImportingTsExtensions");
+    expect((await run('{ "compilerOptions": { "noEmit": true, "allowImportingTsExtensions": true } }'))?.ok).toBe(true);
+    expect((await run('{ "extends": "./base.json", "compilerOptions": { "noEmit": true } }'))?.ok).toBe(true);
+    expect((await run('{ "compilerOptions": { "outDir": "dist" } }'))?.ok).toBe(true);
+  });
+
   it("passes a healthy project", async () => {
     const r = await runDoctor(project(), { browser: false, env });
     expect(failed(r)).toEqual([]);

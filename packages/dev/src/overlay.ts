@@ -924,7 +924,7 @@ function typeCard(g: TypeErrorGroup): HTMLElement {
   head.append(chip(g.testsOnly ? "type error in tests" : "type error", color), hint(`TS${g.code}`));
   if (g.places.length > 1) head.append(hint(`×${g.places.length}`));
   const msg = el("div", {}, g.message);
-  Object.assign(msg.style, { color: "#fde68a", margin: "3px 0", overflowWrap: "anywhere", whiteSpace: "pre-wrap" });
+  Object.assign(msg.style, { color: g.testsOnly ? TEXT : "#fde68a", margin: "3px 0", overflowWrap: "anywhere", whiteSpace: "pre-wrap" });
   card.append(head, msg, ...g.places.map((d) => editorLink(`${d.file}:${d.line}:${d.column}`)));
   if (g.fix) {
     const tip = el("div", {}, `fix: ${g.fix}`);

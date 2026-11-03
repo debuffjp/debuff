@@ -77,7 +77,7 @@ export async function runDoctor(root: string, options: DoctorOptions = {}): Prom
   }
   if (config) checks.push(...(await assets(root, config)));
   if (config?.isolation) checks.push(isolation(root, config.isolation.embed));
-  checks.push(saves(root), agentFiles(root), agentSkills(root), agentHooks(root));
+  checks.push(saves(root), tsconfig(root), agentFiles(root), agentSkills(root), agentHooks(root));
   if (options.browser !== false) checks.push(await browser());
   if (options.live && config) checks.push(await runtimeHooks(root));
   if (!updateCheckOff(env)) checks.push(await newest());
@@ -312,6 +312,22 @@ function saves(root: string): DoctorCheck {
       fix: "Restore it from git, or delete it and run `npx debuff build --accept-saves`",
     };
   }
+}
+
+// tsconfig.json can hold comments, and `extends` can set this elsewhere, so this reads the text and only speaks up when sure.
+function tsconfig(root: string): DoctorCheck {
+  const base = { id: "tsconfig", group: "config", required: false } as const;
+  const file = join(root, "tsconfig.json");
+  const text = existsSync(file) ? readFileSync(file, "utf8") : "";
+  if (!/"noEmit"\s*:\s*true/.test(text) || /"extends"|"allowImportingTsExtensions"/.test(text)) {
+    return { ...base, ok: true, message: "tsconfig.json has nothing to change" };
+  }
+  return {
+    ...base,
+    ok: false,
+    message: "tsconfig.json doesn't allow .ts import paths, so a test importing one reports TS5097",
+    fix: 'Add "allowImportingTsExtensions": true to compilerOptions in tsconfig.json',
+  };
 }
 
 const MCP_JSON = `${JSON.stringify({ mcpServers: { debuff: { command: "npx", args: ["-y", "@debuffjp/mcp"] } } }, null, 2)}
