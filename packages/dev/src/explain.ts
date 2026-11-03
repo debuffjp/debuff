@@ -1,3 +1,5 @@
+import type { TypeDiagnostic } from "./session.js";
+
 /** Whose problem an error is, so the fix starts in the right place. */
 export type ErrorKind =
   /** Thrown from the game's own code. */
@@ -303,4 +305,47 @@ function vlq(s: string): number[] {
     }
   }
   return out;
+}
+
+/** Type errors with the same code and message, one per message, with every place it occurs. */
+export interface TypeErrorGroup {
+  code: number;
+  message: string;
+  /** What to do about it, for codes with a known fix. */
+  fix?: string;
+  /** True when every place is a test file, so the game itself isn't affected. */
+  testsOnly: boolean;
+  places: TypeDiagnostic[];
+}
+
+const TYPE_FIXES: Record<number, string> = {
+  5097: 'add "allowImportingTsExtensions": true to compilerOptions in tsconfig.json (needs noEmit, which debuff templates set)',
+};
+
+/** Whether a project-relative file is a test rather than game code. */
+export function isTestFile(file: string): boolean {
+  return /(^|\/)(tests?|__tests__)\//.test(file) || /\.(test|spec)\.[cm]?[jt]sx?$/.test(file);
+}
+
+/** Groups repeated type errors, with those touching game code first. */
+export function groupTypeErrors(types: readonly TypeDiagnostic[]): TypeErrorGroup[] {
+  const groups = new Map<string, TypeErrorGroup>();
+  for (const d of types) {
+    const key = `${d.code}\0${d.message}`;
+    const g = groups.get(key);
+    if (g) {
+      g.places.push(d);
+      g.testsOnly &&= isTestFile(d.file);
+    } else {
+      const fix = TYPE_FIXES[d.code];
+      groups.set(key, { code: d.code, message: d.message, ...(fix ? { fix } : {}), testsOnly: isTestFile(d.file), places: [d] });
+    }
+  }
+  return [...groups.values()].sort((a, b) => Number(a.testsOnly) - Number(b.testsOnly));
+}
+
+/** A type error group as text to paste to an agent. */
+export function typeErrorText(g: TypeErrorGroup): string {
+  const where = g.places.map((d) => `${d.file}:${d.line}:${d.column}`).join("\n");
+  return `TS${g.code}: ${g.message}\n${where}${g.fix ? `\nFix: ${g.fix}` : ""}\n`;
 }

@@ -7,6 +7,7 @@
     "types": ["@debuffjp/cli/client"],
     "strict": true,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "skipLibCheck": true
   },
   "include": ["src", "tests", ".debuff/assets.d.ts"]

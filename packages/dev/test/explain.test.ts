@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { groupTypeErrors, isTestFile, typeErrorText } from "../src/explain.js";
 import { explainError } from "../src/index.js";
 
 const origin = "http://localhost:5173";
@@ -109,5 +110,25 @@ describe("decodeMappings", () => {
     const { decodeMappings } = await import("../src/explain.js");
     // Line 1: col 0 → src 0, line 0, col 0. Line 2: col 2 → line 1, col 4 (relative +1, +4).
     expect(decodeMappings("AAAA;EACI")).toEqual([[["0", "0", "0", "0"]], [["2", "0", "1", "4"]]]);
+  });
+});
+
+describe("groupTypeErrors", () => {
+  const d = (file: string, code = 5097, message = "m") => ({ file, line: 1, column: 22, code, message });
+  it("collapses repeats and suggests a known fix", () => {
+    const [g] = groupTypeErrors([d("tests/_a.mts"), d("tests/_b.mts")]);
+    expect(g?.places).toHaveLength(2);
+    expect(g?.testsOnly).toBe(true);
+    expect(typeErrorText(g as NonNullable<typeof g>)).toContain("tests/_b.mts:1:22");
+    expect(g?.fix).toContain("allowImportingTsExtensions");
+  });
+  it("puts game errors first and isn't tests-only if one place is game code", () => {
+    const groups = groupTypeErrors([d("tests/a.ts", 2322), d("src/a.ts", 2345), d("tests/b.ts", 2551), d("src/b.ts", 2551)]);
+    expect(groups.map((g) => g.code)).toEqual([2345, 2551, 2322]);
+    expect(groups[1]?.testsOnly).toBe(false);
+  });
+  it("recognises test files", () => {
+    for (const f of ["tests/a.ts", "src/test/a.ts", "src/a.test.ts", "a.spec.tsx"]) expect(isTestFile(f)).toBe(true);
+    for (const f of ["src/latest/a.ts", "src/contest.ts"]) expect(isTestFile(f)).toBe(false);
   });
 });

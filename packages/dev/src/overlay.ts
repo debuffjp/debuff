@@ -1,5 +1,5 @@
 import type { Game, NumberParamSpec, ParamSpec, ParamValue, Plugin } from "@debuffjp/core";
-import { type ExplainedError, loc } from "./explain.js";
+import { type ExplainedError, groupTypeErrors, loc, type TypeErrorGroup, typeErrorText } from "./explain.js";
 import { applyKit, fillRange, proc } from "./kit.js";
 import { offscreenHint } from "./offscreen.js";
 import { DevSession, diagnose, type FrameSample, gamePlugins, HITCH, summarize, type TypeDiagnostic } from "./session.js";
@@ -283,7 +283,7 @@ class Overlay {
       this.session.rewind(tick);
     });
     for (const type of ["keydown", "keyup"] as const) this.scrub.addEventListener(type, (e) => e.stopPropagation());
-    timelineRow.append(this.scrub, this.scrubLabel);
+    timelineRow.append(hint("rewind"), this.scrub, this.scrubLabel);
     this.addPane("log", this.errorsBox, this.activityBox, noteRow, replayRow, timelineRow);
 
     this.body = el("div");
@@ -576,21 +576,27 @@ class Overlay {
     this.errorBadge.title = "Show errors in the log tab";
     const types = session.typeErrors;
     this.typeBadge.hidden = types.length === 0;
-    this.typeBadge.textContent = `${types.length} type error${types.length === 1 ? "" : "s"}`;
+    const groups = groupTypeErrors(types);
+    const inTests = groups.filter((g) => g.testsOnly).reduce((n, g) => n + g.places.length, 0);
+    const inGame = types.length - inTests;
+    this.typeBadge.textContent = inGame
+      ? `${inGame} type error${inGame === 1 ? "" : "s"}${inTests ? ` + ${inTests} in tests` : ""}`
+      : `${inTests} type error${inTests === 1 ? "" : "s"} in tests`;
+    this.typeBadge.style.color = inGame ? AMBER : MUTED;
     this.typeBadge.title = "Type errors from the dev server's check; the game still runs. Show them in the log tab";
     this.errorsBox.replaceChildren(
       ...errors
         .slice(-5)
         .reverse()
         .map((e) => errorCard(e, () => this.session.clearErrors())),
-      ...types.slice(0, 5).map(typeCard),
-      ...(types.length > 5 ? [hint(`+${types.length - 5} more type errors: run tsc to see them all`)] : []),
+      ...groups.slice(0, 5).map(typeCard),
+      ...(groups.length > 5 ? [hint(`+${groups.length - 5} more type errors: run tsc to see them all`)] : []),
     );
 
     // Activity log, newest first.
     const entries = session.activity.slice(-30).reverse();
     this.activityBox.replaceChildren(
-      ...(entries.length ? [] : [hint("nothing yet: your changes, an agent's and notes show here")]),
+      ...(entries.length ? [] : [hint("no activity yet: your changes, an agent's and notes show here")]),
       ...entries.map((a) => {
         const r = row();
         r.style.alignItems = "baseline";
@@ -910,14 +916,24 @@ function editorLink(where: string): HTMLElement {
   return link;
 }
 
-function typeCard(d: TypeDiagnostic): HTMLElement {
+function typeCard(g: TypeErrorGroup): HTMLElement {
+  const color = g.testsOnly ? MUTED : AMBER;
   const card = el("div", { "data-error-kind": "type", class: "dk-card" });
-  card.style.setProperty("--c", AMBER);
+  card.style.setProperty("--c", color);
   const head = row();
-  head.append(chip("type error", AMBER), hint(`TS${d.code}`));
-  const msg = el("div", {}, d.message);
+  head.append(chip(g.testsOnly ? "type error in tests" : "type error", color), hint(`TS${g.code}`));
+  if (g.places.length > 1) head.append(hint(`×${g.places.length}`));
+  const msg = el("div", {}, g.message);
   Object.assign(msg.style, { color: "#fde68a", margin: "3px 0", overflowWrap: "anywhere", whiteSpace: "pre-wrap" });
-  card.append(head, msg, editorLink(`${d.file}:${d.line}:${d.column}`));
+  card.append(head, msg, ...g.places.map((d) => editorLink(`${d.file}:${d.line}:${d.column}`)));
+  if (g.fix) {
+    const tip = el("div", {}, `fix: ${g.fix}`);
+    Object.assign(tip.style, { color: TEXT, margin: "3px 0" });
+    card.append(tip);
+  }
+  const copy = button("copy for agent", () => copyText(typeErrorText(g)));
+  copy.title = "Copy the error, every place it occurs and any known fix";
+  card.append(copy);
   return card;
 }
 
