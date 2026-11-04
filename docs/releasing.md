@@ -12,7 +12,7 @@ If a publish stops partway, re-run the Release workflow (Actions → Release →
 
 ## The spryte mirror
 
-After publishing, the Release workflow runs `scripts/sync-spryte-mirror.mjs`, which copies `packages/spryte` to [debuffjp/spryte](https://github.com/debuffjp/spryte) when the versions differ. It needs the secret `SPRYTE_MIRROR_TOKEN` (contents write on that repo) and skips with a warning without it. Run the script with no flags for a dry run, or with `--push` to sync using your own git credentials. Change the mirror through this repo: its own `.github`, `docs/brand`, `docs/charts` and lockfile are the only files a sync leaves alone.
+After publishing, the Release workflow runs `scripts/sync-spryte-mirror.mjs`, which copies `packages/spryte` to [debuffjp/spryte](https://github.com/debuffjp/spryte) when the versions differ. It needs the secret `SPRYTE_MIRROR_TOKEN` (contents write on that repo) and skips with a warning without it. Commits to the package by anyone but the maintainer are replayed first, so the mirror lists them as authors; one that doesn't apply gets a `Co-authored-by` line on the sync commit. Run the script with no flags for a dry run, or with `--push` to sync using your own git credentials. Change the mirror through this repo: its own `.github`, `docs/brand`, `docs/charts` and lockfile are the only files a sync leaves alone.
 
 ## npm trusted publishing
 

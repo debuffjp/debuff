@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Copies packages/spryte onto github.com/debuffjp/spryte when the version here differs from the mirror's.
 // Dry run by default: prints what would change. --push commits and pushes. --dir <path> keeps the clone.
+// Commits by outside contributors are replayed first, so the mirror lists them as authors.
 // In CI the release job sets SPRYTE_MIRROR_TOKEN; without it, --push uses your own git credentials.
 import { execFileSync, execSync } from "node:child_process";
 import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
@@ -10,6 +11,9 @@ import { dirname, join } from "node:path";
 const PACKAGE = "packages/spryte";
 // Files only the mirror has. Its CI differs too: there it runs alone, outside the workspace.
 const MIRROR_OWNED = [".git", ".github", "docs/brand", "docs/charts", "package-lock.json"];
+const MAINTAINERS = ["gregjworrall@gmail.com"];
+const BOT = "github-actions[bot]";
+const BOT_EMAIL = "41898282+github-actions[bot]@users.noreply.github.com";
 
 const args = process.argv.slice(2);
 const push = args.includes("--push");
@@ -33,9 +37,8 @@ const root = git(process.cwd(), "rev-parse", "--show-toplevel");
 const source = join(root, PACKAGE);
 const token = process.env.SPRYTE_MIRROR_TOKEN;
 const auth = token ? `x-access-token:${token}@` : "";
-execFileSync("git", ["clone", "--quiet", "--depth", "1", `https://${auth}github.com/debuffjp/spryte.git`, clone], {
-  stdio: "inherit",
-});
+const url = process.env.SPRYTE_MIRROR_URL ?? `https://${auth}github.com/debuffjp/spryte.git`;
+execFileSync("git", ["clone", "--quiet", "-c", "core.autocrlf=false", url, clone], { stdio: "inherit" });
 
 const from = version(clone);
 const to = version(source);
@@ -43,6 +46,33 @@ if (from === to) {
   console.log(`spryte mirror already at ${to}`);
   process.exit(0);
 }
+
+// Replayed patches land on the mirror's older tree, so one that doesn't apply credits its author on the sync commit.
+function replayContributors() {
+  const lastSynced = git(clone, "log", "-1", "--grep=from debuff@", "--format=%s").match(/from debuff@([0-9a-f]+)$/)?.[1];
+  if (!lastSynced) return [];
+  const already = new Set(git(clone, "log", "--format=%ae %s").split("\n"));
+  const commits = git(root, "log", "--reverse", "--no-merges", "--format=%H%x09%aN%x09%aE%x09%s", `${lastSynced}..HEAD`, "--", PACKAGE);
+  const unapplied = [];
+  for (const line of commits.split("\n").filter(Boolean)) {
+    const [hash, name, email, subject] = line.split("\t");
+    if (MAINTAINERS.includes(email) || email.includes("[bot]") || already.has(`${email} ${subject}`)) continue;
+    const input = execFileSync("git", ["format-patch", "-1", hash, "--stdout", `--relative=${PACKAGE}`], { cwd: root });
+    try {
+      execFileSync("git", ["am", "--quiet", "--keep-cr"], { cwd: clone, input, stdio: ["pipe", "ignore", "ignore"] });
+      console.log(`replayed ${hash.slice(0, 7)} by ${name}`);
+    } catch {
+      git(clone, "am", "--abort");
+      console.log(`could not replay ${hash.slice(0, 7)} by ${name}: crediting on the sync commit`);
+      unapplied.push(`Co-authored-by: ${name} <${email}>`);
+    }
+  }
+  return [...new Set(unapplied)];
+}
+
+process.env.GIT_COMMITTER_NAME = BOT;
+process.env.GIT_COMMITTER_EMAIL = BOT_EMAIL;
+const credits = replayContributors();
 
 clearUnowned(clone);
 for (const file of git(root, "ls-files", "--", PACKAGE).split("\n")) {
@@ -65,13 +95,13 @@ const sha = git(root, "rev-parse", "--short", "HEAD");
 git(
   clone,
   "-c",
-  "user.name=github-actions[bot]",
+  `user.name=${BOT}`,
   "-c",
-  "user.email=41898282+github-actions[bot]@users.noreply.github.com",
+  `user.email=${BOT_EMAIL}`,
   "commit",
   "--quiet",
   "-m",
-  `Sync spryte ${to} from debuff@${sha}`,
+  [`Sync spryte ${to} from debuff@${sha}`, credits.join("\n")].join("\n\n").trim(),
 );
 git(clone, "push", "--quiet", "origin", "HEAD:main");
 console.log(`synced spryte ${from} to ${to}`);
