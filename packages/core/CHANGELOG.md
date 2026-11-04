@@ -1,5 +1,12 @@
 # @debuffjp/core
 
+## 0.29.1
+
+### Patch Changes
+
+- Updated dependencies [d43cd3d]
+  - spryte@0.12.2
+
 ## 0.29.0
 
 No changes in this release.
