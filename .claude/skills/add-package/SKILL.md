@@ -26,7 +26,7 @@ Copy the shape of `packages/juice` (the plainest runtime package):
 - Other debuff packages it needs at runtime are `peerDependencies` (see `docs/architecture.md`), not `dependencies`.
 - `tsconfig.json` extending `../../tsconfig.base.json` with `rootDir: src`, `outDir: dist`.
 - `src/index.ts` as the only entry unless there is a reason for subpath exports.
-- `test/*.test.ts`. The root `vitest.config.ts` picks up `packages/*/test` and `tooling/*/test` already.
+- `test/*.test.ts`. The root `vitest.config.ts` picks up `packages/*/test` and `tooling/*/test` already. A runtime package also gets a copy of `packages/juice/vitest.config.ts`, so `npx vitest run` in its folder uses happy-dom and `src/` like the root run does.
 - `README.md`: one-line summary, install, a short example, link to debuff.jp.
 
 ## 3. Register it
