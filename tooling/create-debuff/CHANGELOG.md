@@ -1,5 +1,9 @@
 # create-debuff
 
+## 0.29.2
+
+No changes in this release.
+
 ## 0.29.1
 
 No changes in this release.
