@@ -25,7 +25,7 @@ const REDUCED_SHAKE = 0.25;
  *   grows with the container in both directions, so a bigger window or monitor shows more of the game rather
  *   than bigger pixels. `width`/`height` are the minimum: a container too small for them at `pixelSize` scales
  *   down by whole device pixels instead, and one too small even at one device pixel per unit scales down by a
- *   fraction to fit, like `fit` (pixels aren't crisp then). Before 0.29.2 it stopped at one device pixel per unit,
+ *   fraction to fit, like `fit` (pixels aren't crisp then). Before 0.29.3 it stopped at one device pixel per unit,
  *   so the canvas overflowed the container. Like `expand`, lay out from `game.width`/`game.height` each frame.
  * - `none`: canvas stays at its logical size in CSS pixels.
  */
