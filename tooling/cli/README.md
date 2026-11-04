@@ -26,6 +26,8 @@ npx debuff --help
 
 Add `--json` for machine-readable output and `--root <dir>` to target another project.
 
+From 0.29.1, size reports use Brotli quality 11 for code and HTML, and quality 4 for assets, source maps and other files. This avoids spending minutes recompressing large assets just to report their size. Before 0.29.1, every file used quality 11. This applies to `debuff build`, `debuff report`, `debuff inspect`, the MCP build tool and `buildReport()`. Raw and gzip measurements keep their previous settings. Reports measure compressed sizes without writing compressed files; your host chooses how to compress downloads.
+
 Once a day, at the end of a command, the CLI prints one line on stderr when a newer debuff is out (from 0.21). From 0.24, `debuff dev` prints it under its banner instead, since it never exits. The hint is never printed in `--json` mode, and it's off in CI and with `DEBUFF_UPDATE_CHECK=0`. Agents get the same news from the agent hook at session start (below).
 
 ## Exit codes and errors

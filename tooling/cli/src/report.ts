@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, extname, join, relative, sep } from "node:path";
-import { brotliCompressSync, gzipSync } from "node:zlib";
+import { brotliCompressSync, constants, gzipSync } from "node:zlib";
 import { lime, paint, pc, pink, sky } from "create-debuff";
 import { DebuffError } from "./errors.js";
 
@@ -9,6 +9,7 @@ export interface FileReport {
   kind: "code" | "html" | "asset" | "map" | "other";
   bytes: number;
   gzip: number;
+  /** Brotli quality 11 for code and HTML, 4 for other files (all 11 before 0.29.1). */
   brotli: number;
   /** Code fetched only when needed (a dynamic import), not at startup. */
   lazy?: boolean;
@@ -52,7 +53,15 @@ export function buildReport(dir: string): BuildReport {
     const data = readFileSync(file);
     const path = relative(dir, file).split(sep).join("/");
     const kind = kindOf(path);
-    files.push({ path, kind, bytes: data.length, gzip: gzipSync(data).length, brotli: brotliCompressSync(data).length });
+    // Keep code budgets comparable, but don't spend maximum-quality compression time on large assets or maps.
+    const quality = kind === "code" || kind === "html" ? 11 : 4;
+    files.push({
+      path,
+      kind,
+      bytes: data.length,
+      gzip: gzipSync(data).length,
+      brotli: brotliCompressSync(data, { params: { [constants.BROTLI_PARAM_QUALITY]: quality } }).length,
+    });
     if (kind === "code" || kind === "html") {
       const text = data.toString("utf8");
       for (const token of DEV_TOKENS) if (text.includes(token)) leaks.push({ path, token });

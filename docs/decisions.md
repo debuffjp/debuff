@@ -2,6 +2,14 @@
 
 Small choices that the code and the [ADRs](adr/) don't settle, with the options considered. Add an entry when you make one. A decision that changes the architecture gets an ADR instead.
 
+## Build reports spend maximum Brotli effort on code and HTML
+
+Papercut #21 reproduced with 40 binary files of 8 MiB each: `debuff build --json` took 234.48 s on macOS arm64 with Node 26.7.0. `buildReport` compressed every file at Node's default Brotli quality 11. From 0.29.1 it uses quality 4 for assets, source maps and other files, keeping quality 11 for code and HTML so existing code budgets stay comparable. Raw bytes, gzip settings and shipped files stay the same. Considered: lowering quality for every file (changes code budgets), skipping compressed asset sizes (changes the report's contract) and caching reports (adds cache invalidation and still leaves the first build slow).
+
+## mossfell's long flash checks get a local 120 s step budget
+
+The accessibility scenario captures 300 frames in one flash check. Two fresh Linux CI runs hit the default 60 s step limit (papercut #42), so this scenario sets `stepTimeout: 120`. The frame counts and flash assertions stay the same. Considered: splitting each check (could miss flashes across the boundary), raising the default for every project (delays real hang detection elsewhere) and setting a budget on this one scenario.
+
 ## agent-cli is a repo script, not npm scripts or an MCP tool
 
 `bin/agent-cli` (logic in `scripts/agent-cli.mjs`) gathers the lookups and commands that 98 past agent sessions in this repo repeated: status, check with only the failures, one-file tests, exports, docs search, versions, release, site, papercuts and ports. Options considered: more `npm run` scripts (no `--json`, no arguments without `--`, and npm's banner on every call), tools on the debuff MCP server (that server is for people making games, not for working on debuff) and a script with no dependencies. The script won: one entry point with `--help` and `--json`, nothing to install, and it runs where the agent already has a shell.
