@@ -48,6 +48,13 @@ jobs:
         run: node scripts/papercuts-fixed.mjs
         env:
           PAPERCUTS_FIX_TOKEN: ${{ secrets.PAPERCUTS_FIX_TOKEN }}
+      - name: Sync the spryte mirror
+        continue-on-error: true
+        run: |
+          if [ -z "$SPRYTE_MIRROR_TOKEN" ]; then echo "::warning::SPRYTE_MIRROR_TOKEN is not set, so debuffjp/spryte was not synced"; exit 0; fi
+          node scripts/sync-spryte-mirror.mjs --push
+        env:
+          SPRYTE_MIRROR_TOKEN: ${{ secrets.SPRYTE_MIRROR_TOKEN }}
       - uses: changesets/action@v2
         id: changesets
         with:

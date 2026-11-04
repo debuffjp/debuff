@@ -2,6 +2,10 @@
 
 Small choices that the code and the [ADRs](adr/) don't settle, with the options considered. Add an entry when you make one. A decision that changes the architecture gets an ADR instead.
 
+## The spryte mirror gets a copy on each release, not a subtree split
+
+`debuffjp/spryte` stopped at 0.7.3 while npm reached 0.12.1, because the `git subtree split` from ADR 0013 was a manual step. The mirror also has its own files (issue templates, dependabot, its standalone CI, brand images, charts and a lockfile) that a split doesn't contain. `scripts/sync-spryte-mirror.mjs` runs from the Release workflow and commits a copy of the package on top of the mirror's history when the versions differ, leaving those files alone and regenerating the lockfile. Considered: force-pushing the split (deletes the mirror's files and rewrites public history) and merging the split (keeps per-commit history on the mirror but conflicts wherever the mirror diverged). The cost is one mirror commit per release: per-commit history stays in this repo, and each sync message names the debuff commit.
+
 ## Build reports spend maximum Brotli effort on code and HTML
 
 Papercut #21 reproduced with 40 binary files of 8 MiB each: `debuff build --json` took 234.48 s on macOS arm64 with Node 26.7.0. `buildReport` compressed every file at Node's default Brotli quality 11. From 0.29.1 it uses quality 4 for assets, source maps and other files, keeping quality 11 for code and HTML so existing code budgets stay comparable. Raw bytes, gzip settings and shipped files stay the same. Considered: lowering quality for every file (changes code budgets), skipping compressed asset sizes (changes the report's contract) and caching reports (adds cache invalidation and still leaves the first build slow).

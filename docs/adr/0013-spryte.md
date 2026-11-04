@@ -22,6 +22,8 @@ ADR 0007's comparison with PixiJS was one non-interleaved run per renderer. Pixi
    - compares **like for like**: `draw.sprite` against PixiJS `Sprite`, and `draw.sprites` against `ParticleContainer` with the same dynamic properties. Both renderers use nearest filtering, no antialiasing and whole-pixel rounding (PixiJS with `roundPixels: true`).
 5. **Correctness is checked on a real GPU.** `packages/spryte/browser-test` proves the bulk paths, render targets and shaders draw the same pixels as the simple path. It runs in `npm run check`.
 
+Update, 2026-11-04: the mirror had picked up files of its own and fallen behind, so `git subtree split` no longer fits. `scripts/sync-spryte-mirror.mjs` now copies the package over on release. See `docs/decisions.md`.
+
 ## Consequences
 
 - Results and their caveats live in [`packages/spryte/docs/benchmarks.md`](../../packages/spryte/docs/benchmarks.md). The site, READMEs and blog posts quote that page and link to it.

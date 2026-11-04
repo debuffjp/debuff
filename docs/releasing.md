@@ -10,6 +10,10 @@
 
 If a publish stops partway, re-run the Release workflow (Actions → Release → Run workflow). It skips packages that are already on npm.
 
+## The spryte mirror
+
+After publishing, the Release workflow runs `scripts/sync-spryte-mirror.mjs`, which copies `packages/spryte` to [debuffjp/spryte](https://github.com/debuffjp/spryte) when the versions differ. It needs the secret `SPRYTE_MIRROR_TOKEN` (contents write on that repo) and skips with a warning without it. Run the script with no flags for a dry run, or with `--push` to sync using your own git credentials. Change the mirror through this repo: its own `.github`, `docs/brand`, `docs/charts` and lockfile are the only files a sync leaves alone.
+
 ## npm trusted publishing
 
 CI authenticates to npm with OIDC trusted publishing: there is no `NPM_TOKEN` secret, and every publish carries a provenance attestation. Each package needs a trusted publisher configured once on npmjs.com (package → Settings → Trusted publishing → GitHub Actions): organization `debuffjp`, repository `debuff`, workflow `release.yml`, no environment. Once it works, set the package's publishing access to "Require two-factor authentication and disallow tokens".

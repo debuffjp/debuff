@@ -108,3 +108,9 @@ All of our projects are free and MIT licensed. Studios after performance help or
 ## Licence
 
 MIT
+
+## Sponsors
+
+<a href="https://wvd.sh"><img src="https://avatars.githubusercontent.com/u/185831036?s=128&v=4" width="64" height="64" alt="Wavedash"></a>
+
+Thanks to [Wavedash](https://wvd.sh). [Sponsor spryte](https://github.com/sponsors/debuffjp) to join them.
