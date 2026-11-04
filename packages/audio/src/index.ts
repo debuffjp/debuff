@@ -93,6 +93,11 @@ export class Audio {
     return this.buffers.has(id);
   }
 
+  /** A decoded sound, to play through your own nodes (a positional audio plugin, say). */
+  buffer(id: string): AudioBuffer | undefined {
+    return this.buffers.get(id);
+  }
+
   play(id: string, options: PlayOptions = {}): Voice {
     const buffer = this.buffers.get(id);
     if (!buffer) throw new Error(`Audio "${id}" not decoded. Call audio.decode("${id}", assets.audio("${id}")) first.`);
