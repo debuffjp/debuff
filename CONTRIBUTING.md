@@ -41,3 +41,7 @@ Significant choices are recorded in `docs/adr/`. To propose a change in directio
 ## Releases
 
 [Changesets](https://github.com/changesets/changesets) manages versions. All `@debuffjp/*` packages and `create-debuff` share one version. Merging the bot's "Version packages" PR publishes to npm.
+
+## Papercuts
+
+Looking for something to fix? [papercuts.debuff.jp](https://papercuts.debuff.jp) ranks open friction by the time it costs. Point your agent at <https://papercuts.debuff.jp/contribute.md>, or copy the prompt from a papercut's page. Put "papercut #N" in the PR title and end the commit message with `Fixes papercut #N`.
