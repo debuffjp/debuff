@@ -1,5 +1,6 @@
 {
   "$schema": "../node_modules/@debuffjp/cli/schema/scenario.schema.json",
+  "stepTimeout": 120,
   "steps": [
     { "wait": 20 },
     { "contrast": [0, 2, 256, 12] },
