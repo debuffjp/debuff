@@ -1,5 +1,6 @@
 /** Web Audio facade: decoded buffers, music/sfx buses, autoplay unlock, and a tiny
- *  parametric synth for placeholder or stylised sound effects. */
+ *  parametric synth for placeholder blips. Music and sound effects made in code go through plonk (`plonkjs`) on
+ *  `bus("music")`. */
 export type Bus = "sfx" | "music";
 
 export interface PlayOptions {
@@ -111,7 +112,11 @@ export class Audio {
     return this.voice(src, gain);
   }
 
-  /** Synthesize a short blip/zap/hit without any asset. */
+  /**
+   * Synthesize a short blip/zap/hit without any asset: one oscillator with a pitch slide, for a placeholder until
+   * the game has its sound. For sound effects a game keeps, use plonk's `player.sfx(instrument, { degree })`, which
+   * plays in the song's key (see `bus`).
+   */
   synth(o: SynthOptions): Voice {
     const t = this.ctx.currentTime;
     const attack = o.attack ?? 0.005;
