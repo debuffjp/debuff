@@ -24,7 +24,7 @@ player.play(theme); // a plonk Song
 player.sfx({ wave: "square", decay: 0.1, sustain: 0 }, { degree: 5 }); // a pickup in the song's key
 ```
 
-Use `play` for sound files the game ships. `synth` is a single oscillator with a pitch slide: fine as a placeholder while a game has no sound yet, but it can't make a convincing coin, explosion or power-up. Before 0.29.2, this README suggested `synth` for stylised SFX too.
+Use `play` for sound files the game ships. `synth` is a single oscillator with a pitch slide: fine as a placeholder while a game has no sound yet, but it can't make a convincing coin, explosion or power-up. Before 0.29.3, this README suggested `synth` for stylised SFX too.
 
 ```ts
 audio.synth({ freq: 660, freqEnd: 220, decay: 0.15 }); // placeholder, no file needed
