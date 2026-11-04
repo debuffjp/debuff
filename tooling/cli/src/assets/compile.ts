@@ -33,6 +33,19 @@ function walk(dir: string): string[] {
 
 const sha = (data: Buffer | string) => createHash("sha256").update(data).digest("hex");
 
+/**
+ * Largest image side the build accepts without a warning. WebGL2 only promises 2048, but in practice
+ * every WebGL2 device allows 4096. A bigger image fails to upload on a GPU with a lower limit and draws
+ * black. See docs/decisions.md.
+ */
+const TEXTURE_LIMIT = 4096;
+
+/** A PNG's size from its header (big-endian u32 width and height at byte 16 and 20), or undefined for other files. */
+function pngSize(data: Buffer): { w: number; h: number } | undefined {
+  if (data.length < 24 || data.readUInt32BE(0) !== 0x89504e47) return undefined;
+  return { w: data.readUInt32BE(16), h: data.readUInt32BE(20) };
+}
+
 /** The importer claiming `rel`: the longest matching suffix wins, plugins before built-ins on ties. */
 function pick(rel: string, importers: AssetImporter[]): { importer: AssetImporter; ext: string } | undefined {
   const lower = rel.toLowerCase();
@@ -77,6 +90,7 @@ export async function compileAssets(root: string, options: CompileOptions = {}):
   const importedBy: Record<string, string> = {};
   const consumed = new Set<string>();
   const results: { file: SourceFile; importer: AssetImporter; result: ImportResult }[] = [];
+  const oversized = new Set<string>();
 
   // Plugin importers run first so they can consume files (e.g. a sheet's PNG) before built-ins see them.
   const ordered = files
@@ -117,6 +131,13 @@ export async function compileAssets(root: string, options: CompileOptions = {}):
       if (!bytes) {
         warnings.push(`${importer.name}: asset "${id}" points at ${entry.src}, which is neither a source file nor a generated output`);
         continue;
+      }
+      const size = pngSize(bytes);
+      if (size && (size.w > TEXTURE_LIMIT || size.h > TEXTURE_LIMIT) && !oversized.has(entry.src)) {
+        oversized.add(entry.src);
+        warnings.push(
+          `${entry.src}: ${size.w}×${size.h} is larger than ${TEXTURE_LIMIT} pixels on a side, so it draws black on GPUs with a smaller texture limit; split it into several images`,
+        );
       }
       assets[id] = { ...entry, bytes: bytes.length, hash: sha(bytes).slice(0, 12) };
       importedBy[id] = importer.name;
