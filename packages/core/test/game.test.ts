@@ -159,6 +159,18 @@ describe("Game", () => {
     expect([wide.width, wide.height, wide.renderScale]).toEqual([683, 384, 2]);
   });
 
+  it("pixel mode scales below one device pixel to fit a container smaller than the minimum (papercut #25)", () => {
+    const { canvas } = fakeCanvas();
+    const box = document.createElement("div");
+    Object.defineProperties(box, { clientWidth: { value: 1024 }, clientHeight: { value: 768 } });
+    box.append(canvas);
+    const g = new Game({ canvas, width: 1280, height: 720, scale: "pixel", pixelSize: 1 });
+    // 1280 doesn't fit in 1024 at one device pixel, so it scales by 0.8 like "fit" and keeps the minimum width.
+    expect([canvas.style.width, canvas.style.height]).toEqual(["1024px", "768px"]);
+    expect([g.width, g.height]).toEqual([1280, 960]);
+    expect(g.renderScale).toBe(0.8);
+  });
+
   it("maps client coordinates to logical coordinates", () => {
     const { game, canvas } = makeGame();
     canvas.getBoundingClientRect = () => ({ left: 10, top: 20, width: 640, height: 360 }) as DOMRect;
