@@ -21,6 +21,8 @@ draw.sprite(assets.frame("coin"), x, y); // any image, atlased or not
 | `assets/level1/map.json` | `level1/map` | `level1` |
 | `assets/hero@16x24.png` | `hero` (grid 16x24) | `default` |
 
+Keep each image within 4096 pixels on a side: a GPU with a smaller texture limit draws a bigger one black, and the CLI warns about it. Spread a long run of frames over several sheets. Before 0.29.3, the CLI didn't warn.
+
 ## API
 
 - `load(groups?, onProgress?)`: preload one or more groups

@@ -101,6 +101,8 @@ import { buildReport, compileAssets, runScenarios } from "@debuffjp/cli";
 
 Put source assets in `assets/`. The pipeline builds an in-memory manifest (`/assets/manifest.json`). Only files the manifest references are served in dev and emitted in builds, and sources are never modified.
 
+The pipeline warns about a PNG wider or taller than 4096 pixels, because a GPU with a smaller texture limit draws it black. Split a long sprite strip into several sheets. Before 0.29.3, there was no warning.
+
 Add tooling plugins in `debuff.config.ts`:
 
 ```ts

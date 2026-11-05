@@ -38,6 +38,26 @@ describe("compileAssets (built-in importer)", () => {
     expect(findUnused(root, manifest)).toEqual(["level1/map"]);
   });
 
+  it("warns when an image is larger than 4096 pixels on a side (papercut #30)", async () => {
+    // Only the PNG header is needed: width and height are big-endian u32 at byte 16 and 20.
+    const header = (w: number, h: number) => {
+      const png = Buffer.alloc(33);
+      png.writeUInt32BE(0x89504e47, 0);
+      png.writeUInt32BE(w, 16);
+      png.writeUInt32BE(h, 20);
+      return png;
+    };
+    const root = project({});
+    mkdirSync(join(root, "assets"));
+    writeFileSync(join(root, "assets/strip@44x80.png"), header(19800, 80));
+    writeFileSync(join(root, "assets/fits@44x80.png"), header(4096, 80));
+    const { manifest, warnings } = await compileAssets(root);
+    expect(manifest.assets.strip).toMatchObject({ type: "image", grid: { frameWidth: 44, frameHeight: 80 } });
+    expect(warnings).toEqual([
+      "assets/strip@44x80.png: 19800×80 is larger than 4096 pixels on a side, so it draws black on GPUs with a smaller texture limit; split it into several images",
+    ]);
+  });
+
   it("is deterministic", async () => {
     const root = project({ "assets/b.txt": "b", "assets/a.txt": "a" });
     expect(JSON.stringify((await compileAssets(root)).manifest)).toBe(JSON.stringify((await compileAssets(root)).manifest));
