@@ -1,5 +1,11 @@
 # @debuffjp/tilemap
 
+## 0.30.0
+
+### Patch Changes
+
+- @debuffjp/core@0.30.0
+
 ## 0.29.2
 
 ### Patch Changes

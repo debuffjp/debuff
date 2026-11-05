@@ -1,5 +1,9 @@
 # @debuffjp/input
 
+## 0.30.0
+
+No changes in this release.
+
 ## 0.29.2
 
 No changes in this release.

@@ -1,5 +1,15 @@
 # @debuffjp/audio
 
+## 0.30.0
+
+### Minor Changes
+
+- 1360baf: Add `audio.buffer(id)`, which returns a decoded sound so plugins can play it through their own nodes.
+
+### Patch Changes
+
+- 6cfb2c2: The README and JSDoc point music and sound effects at plonk (`plonkjs`) on `audio.bus("music")`, with `player.sfx` for effects in the song's key. `synth` stays, documented as a placeholder. Before 0.29.3 they suggested `synth` for stylised SFX, which steered agents to blips.
+
 ## 0.29.2
 
 No changes in this release.
