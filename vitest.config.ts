@@ -2,10 +2,11 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { defineConfig } from "vitest/config";
 
 // Tests import other debuff packages by name. Point those imports at src/ so tests never run against a
-// stale or missing dist/ (the pre-push hook runs tsc and vitest at the same time).
-const alias = ["packages", "tooling"].flatMap((group) =>
-  readdirSync(group).flatMap((dir) => {
-    const path = `${group}/${dir}`;
+// stale or missing dist/ (the pre-push hook runs tsc and vitest at the same time). Package configs import
+// it too, so paths start from this file rather than the working directory.
+export const alias = ["packages", "tooling"].flatMap((group) =>
+  readdirSync(`${import.meta.dirname}/${group}`).flatMap((dir) => {
+    const path = `${import.meta.dirname}/${group}/${dir}`;
     if (!existsSync(`${path}/package.json`)) return [];
     const pkg = JSON.parse(readFileSync(`${path}/package.json`, "utf8"));
     return Object.entries<string | Record<string, string>>(pkg.exports ?? {}).flatMap(([sub, target]) => {
@@ -13,7 +14,7 @@ const alias = ["packages", "tooling"].flatMap((group) =>
       const src = file?.match(/^\.\/dist\/(.*)\.js$/)?.[1];
       if (!src) return [];
       const name = sub === "." ? pkg.name : `${pkg.name}/${sub.slice(2)}`;
-      return [{ find: new RegExp(`^${name.replace(/[/.]/g, "\\$&")}$`), replacement: `${import.meta.dirname}/${path}/src/${src}.ts` }];
+      return [{ find: new RegExp(`^${name.replace(/[/.]/g, "\\$&")}$`), replacement: `${path}/src/${src}.ts` }];
     });
   }),
 );
