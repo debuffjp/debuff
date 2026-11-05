@@ -1,9 +1,12 @@
+import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { parseAst } from "vite";
 import { describe, expect, it } from "vitest";
 import { checkSaves, compareSaves, findSaves, type SaveInfo } from "../src/index.js";
+import { scanSaves } from "../src/saves.js";
 
 const find = (code: string) => findSaves(parseAst(code), "src/main.ts");
 
@@ -75,5 +78,46 @@ describe("comparing saves", () => {
     expect(JSON.parse(readFileSync(join(root, "saves.json"), "utf8")).saves[0].fields.best).toBe("number");
     expect(checkSaves(root, { accept: true })?.issues.map((i) => i.level)).toEqual(["note"]);
     expect(JSON.parse(readFileSync(join(root, "saves.json"), "utf8")).saves[0].fields.best).toBe("string");
+  });
+});
+
+describe("saves in debuff test", () => {
+  const bin = fileURLToPath(new URL("../bin/debuff.js", import.meta.url));
+  /** A project whose saved best score became an object, with saves.json still recording a number. */
+  const project = () => {
+    const root = mkdtempSync(join(tmpdir(), "debuff-test-saves-"));
+    mkdirSync(join(root, "src", "scenes"), { recursive: true });
+    writeFileSync(join(root, "package.json"), JSON.stringify({ name: "g", private: true, type: "module" }));
+    writeFileSync(
+      join(root, "src", "scenes", "play.ts"),
+      `import { Storage } from "@debuffjp/core";\ninterface Best { score: number }\nexport const save = new Storage("game", { best: { score: 0 } as Best });\n`,
+    );
+    writeFileSync(
+      join(root, "saves.json"),
+      JSON.stringify({ version: 1, saves: [{ key: "game", file: "src/scenes/play.ts", fields: { best: "number" } }] }),
+    );
+    return root;
+  };
+  const run = (root: string, ...args: string[]) =>
+    spawnSync(process.execPath, [bin, "test", "--root", root, ...args], {
+      encoding: "utf8",
+      env: { ...process.env, DEBUFF_TELEMETRY: "off" },
+    });
+
+  it("finds saves in TypeScript under src/", async () => {
+    expect((await scanSaves(project())).saves).toEqual([
+      { key: "game", file: "src/scenes/play.ts", fields: { best: "object", "best.score": "number" } },
+    ]);
+  });
+
+  it("reports a changed save like the build, and accepts it with --accept-saves", () => {
+    const root = project();
+    const checked = run(root);
+    expect(checked.status).toBe(0);
+    expect(checked.stdout + checked.stderr).toContain('field "best" changed from number to object');
+    const accepted = run(root, "--accept-saves", "--json");
+    expect(accepted.status).toBe(0);
+    expect(JSON.parse(readFileSync(join(root, "saves.json"), "utf8")).saves[0].fields.best).toBe("object");
+    expect(run(root).stdout).toContain("saves: game unchanged");
   });
 });

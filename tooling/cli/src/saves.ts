@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { dirname, join, relative } from "node:path";
 
 /**
  * Save compatibility (ADR 0014). The Vite plugin finds `new Storage("key", { ...defaults })` calls during a
@@ -188,11 +188,14 @@ export function compareSaves(previous: SaveInfo[], current: SavesFound): SaveIss
   return issues;
 }
 
-/** Read what the build found, compare it with saves.json, and write saves.json on the first build or when accepted. */
-export function checkSaves(root: string, options: { accept?: boolean } = {}): SaveCheck | undefined {
+/**
+ * Read what the build found (or `found`, from {@link scanSaves}), compare it with saves.json, and write saves.json
+ * on the first build or when accepted.
+ */
+export function checkSaves(root: string, options: { accept?: boolean; found?: SavesFound } = {}): SaveCheck | undefined {
   const foundFile = join(root, SAVES_FOUND);
-  if (!existsSync(foundFile)) return undefined;
-  const found = JSON.parse(readFileSync(foundFile, "utf8")) as SavesFound;
+  if (!options.found && !existsSync(foundFile)) return undefined;
+  const found = options.found ?? (JSON.parse(readFileSync(foundFile, "utf8")) as SavesFound);
   const lockFile = join(root, SAVES_FILE);
   const lock = existsSync(lockFile) ? (JSON.parse(readFileSync(lockFile, "utf8")) as { saves?: SaveInfo[] }) : undefined;
   const issues = lock ? compareSaves(lock.saves ?? [], found) : [];
@@ -206,6 +209,32 @@ export function checkSaves(root: string, options: { accept?: boolean } = {}): Sa
       : issues,
     accepted: accept,
   };
+}
+
+/**
+ * Saves in the game's source under src/, for `debuff test`, which doesn't bundle the game. The build reads the
+ * modules it bundles instead, so a file outside src/ or one the game never imports can differ between the two.
+ */
+export async function scanSaves(root: string): Promise<SavesFound> {
+  const { parseAst, transformWithOxc } = await import("vite");
+  const found: SavesFound = { saves: [], unchecked: [] };
+  const src = join(root, "src");
+  if (!existsSync(src)) return found;
+  for (const rel of readdirSync(src, { recursive: true, encoding: "utf8" }).sort()) {
+    const path = join(src, rel);
+    if (!/\.[cm]?[jt]sx?$/.test(rel) || rel.endsWith(".d.ts") || !statSync(path).isFile()) continue;
+    const code = readFileSync(path, "utf8");
+    if (!code.includes("@debuffjp/core") || !code.includes("Storage")) continue;
+    const file = relative(root, path).replaceAll("\\", "/");
+    try {
+      const f = findSaves(parseAst((await transformWithOxc(code, path)).code), file);
+      found.saves.push(...f.saves);
+      found.unchecked.push(...f.unchecked);
+    } catch {
+      found.unchecked.push({ file, reason: "it couldn't be parsed" });
+    }
+  }
+  return found;
 }
 
 /** Write what the plugin found during a build. */

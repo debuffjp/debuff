@@ -12,7 +12,7 @@ import { inspectProject } from "./inspect.js";
 import { autoPapercut, failureSignal, type PapercutSignal, SLOW_SECONDS, slowSignal } from "./papercut.js";
 import type { ToolingPlugin } from "./plugin.js";
 import { type BuildReport, buildReport, formatReport } from "./report.js";
-import { checkSaves, type SaveCheck } from "./saves.js";
+import { checkSaves, SAVES_FILE, type SaveCheck, scanSaves } from "./saves.js";
 import { createDevServer, viteConfig } from "./vite.js";
 
 const cli = new Cli("debuff");
@@ -333,8 +333,9 @@ cli
   .command("test [...files]", "Run logic tests (tests/**/*.test.ts) against the real game in Node, no browser")
   .option("--root <dir>", "Project root")
   .option("-t, --filter <text>", "Only run tests whose name contains this text")
+  .option("--accept-saves", "Accept changes to the game's saves and update saves.json")
   .option("--json", "Machine-readable output")
-  .action(async (files: string[], o: Common & { filter?: string }) => {
+  .action(async (files: string[], o: Common & { filter?: string; acceptSaves?: boolean }) => {
     const { runTests, formatResult, formatSummary, findTests } = await import("keiko/runner");
     const root = rootOf(o);
     if (!findTests(root, files).length) {
@@ -342,11 +343,19 @@ cli
       if (!existsSync(join(root, "package.json")))
         throw new DebuffError("not_a_project", `No package.json in ${root}`, "Run from the game's folder, or pass --root <dir>");
       markTested(root);
+      const saves = await testSaves(root, o.acceptSaves ?? false);
       if (o.json)
         console.log(
-          JSON.stringify({ ok: true, passed: 0, failed: 0, skipped: 0, todo: 0, durationMs: 0, results: [], outside: [] }, null, 2),
+          JSON.stringify(
+            { ok: true, passed: 0, failed: 0, skipped: 0, todo: 0, durationMs: 0, results: [], outside: [], ...(saves ? { saves } : {}) },
+            null,
+            2,
+          ),
         );
-      else p.log.info(`No tests yet. Add one in tests/, e.g. tests/movement.test.ts. Guide: ${sky("https://debuff.jp/docs/testing")}`);
+      else {
+        p.log.info(`No tests yet. Add one in tests/, e.g. tests/movement.test.ts. Guide: ${sky("https://debuff.jp/docs/testing")}`);
+        if (saves) printSaves(saves);
+      }
       return 0;
     }
     if (!o.json) header("tests", "fast hands, no browser");
@@ -368,8 +377,12 @@ cli
           }),
     });
     markTested(root);
-    if (o.json) emit(report);
-    else finish(report.ok, report.ok ? "all good" : "some tests failed", formatSummary(report));
+    const saves = await testSaves(root, o.acceptSaves ?? false);
+    if (o.json) emit(saves ? { ...report, saves } : report);
+    else {
+      if (saves) printSaves(saves);
+      finish(report.ok, report.ok ? "all good" : "some tests failed", formatSummary(report));
+    }
     return report.ok ? 0 : 1;
   });
 
@@ -548,6 +561,15 @@ function report(root: string, json: boolean, acceptSaves = false): number {
       );
   }
   return r.leaks.length || saveErrors.length ? 1 : 0;
+}
+
+/**
+ * The build's saves check (ADR 0014) for `debuff test`, read from src/ since tests don't bundle the game. It only
+ * reports: `debuff build` is what fails on a save error. Without saves.json, it waits for the build (or --accept-saves).
+ */
+async function testSaves(root: string, accept: boolean): Promise<SaveCheck | undefined> {
+  if (!accept && !existsSync(join(root, SAVES_FILE))) return undefined;
+  return checkSaves(root, { accept, found: await scanSaves(root) });
 }
 
 /** Saves the build found and what changed since saves.json (ADR 0014). Notes only show when something changed. */
