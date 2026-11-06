@@ -71,6 +71,15 @@ describe("DOM input: right button, wheel and touch", () => {
     expect([...pointer.touches.keys()]).toEqual([1]);
   });
 
+  it("lets go of a touch pointerDown that touchUp(1) ended, so mouse moves reach the game again", () => {
+    const { pointer, driver } = page();
+    driver.pointerDown(10, 10, "touch");
+    driver.touchUp(1); // the same contact, ended through the touch API
+    expect(pointer.down).toBe(false);
+    driver.pointerMove(30, 30);
+    expect(pointer.x).toBe(30); // before, the move went to the ended touch and was dropped
+  });
+
   it("sends a pen as pointer events only", () => {
     const { pointer, driver, seen } = page();
     driver.touchDown(9, 1, 2, "pen");

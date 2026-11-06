@@ -229,7 +229,12 @@ export function genericDriver(window: Window & { __KEIKO__?: KeikoHooks }, clock
     wheel: (dy, dx) => dom.wheel(dy, dx),
     touchDown: (id, x, y, kind) => dom.touch("down", id, x, y, kind),
     touchMove: (id, x, y) => dom.touch("move", id, x, y),
-    touchUp: (id) => dom.touch("up", id),
+    touchUp: (id) => {
+      // A touch pointerDown is contact 1: ending it here ends that hold too, or later pointer moves would keep
+      // going to a contact that's gone.
+      if (id === 1) contact = false;
+      dom.touch("up", id);
+    },
     params: () => {
       const p = hooks().params;
       if (!p) throw missing("params", "params()");
