@@ -168,3 +168,65 @@ describe("dev hooks: pointer kind", () => {
     game.dispose();
   });
 });
+
+describe("agent link", () => {
+  class FakeEventSource {
+    static CLOSED = 2;
+    static last: FakeEventSource | undefined;
+    readyState = 1;
+    readonly listeners: Record<string, ((e: MessageEvent<string>) => void)[]> = {};
+    constructor(readonly url: string) {
+      FakeEventSource.last = this;
+    }
+    addEventListener(type: string, fn: (e: MessageEvent<string>) => void) {
+      const list = this.listeners[type] ?? [];
+      list.push(fn);
+      this.listeners[type] = list;
+    }
+    close() {
+      this.readyState = 2;
+    }
+    send(method: string, args: unknown[]) {
+      const data = JSON.stringify({ id: "1", method, args });
+      for (const fn of this.listeners.command ?? []) fn(new MessageEvent("command", { data }));
+    }
+  }
+
+  it("shares one set of hooks with window.__DEBUFF_DEV__, so either can let go of what the other holds", async () => {
+    vi.stubGlobal("EventSource", FakeEventSource);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response()),
+    );
+    window.history.replaceState(null, "", "/");
+    const canvas = document.createElement("canvas");
+    const ctx = new Proxy({}, { get: (_t, k) => (k === "canvas" ? canvas : () => undefined), set: () => true });
+    vi.spyOn(canvas, "getContext").mockImplementation(((type: string) =>
+      type === "2d" ? ctx : null) as unknown as typeof canvas.getContext);
+    const game = new Game({ canvas, width: 100, height: 100, scale: "none" });
+    game.add({ id: "play" }).go("play");
+    const seen: string[] = [];
+    const input = {
+      keys: { press: vi.fn(), release: vi.fn() },
+      pointer: {
+        press: () => seen.push("press"),
+        move() {},
+        release: () => seen.push("release"),
+        touchStart: (id: number) => seen.push(`start ${id}`),
+        touchMove() {},
+        touchEnd: (id: number) => seen.push(`end ${id}`),
+      },
+    };
+    const hooks = exposeDevHooks(game, { input, webmcp: false });
+    const link = FakeEventSource.last as FakeEventSource;
+    link.send("pointerDown", [10, 10, "touch"]);
+    await Promise.resolve();
+    hooks.pointerUp();
+    expect(seen.at(-1)).toMatch(/^end /); // the touch the agent started, not a mouse release
+    link.send("reducedMotion", [true]);
+    await Promise.resolve();
+    expect(hooks.state().reducedMotionForced).toBe(true);
+    game.dispose();
+    vi.unstubAllGlobals();
+  });
+});

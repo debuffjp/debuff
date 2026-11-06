@@ -244,7 +244,7 @@ export function devTools(options: DevHooksOptions = {}): Plugin {
       // A rewind reloaded the page: replay to the chosen tick before the first frame runs.
       const rewind = options.input && !hooks.controlled ? takeRewind() : undefined;
       if (rewind && options.input) session.restore(rewind, { game, input: options.input, command: hooks.command });
-      const unlink = options.agentLink === false || hooks.controlled ? undefined : linkAgent(game, session, options, errors);
+      const unlink = options.agentLink === false || hooks.controlled ? undefined : linkAgent(session, hooks);
       const unregister = options.webmcp === false || hooks.controlled ? undefined : registerWebMcp(hooks);
       return () => {
         unregister?.();
@@ -425,9 +425,12 @@ function createHooks(game: Game, session: DevSession, options: DevHooksOptions, 
  * Agent link (page side): listen for commands from the dev server over Server-Sent Events, run them
  * on the dev hooks as "agent", and post results back. Silent when the page isn't served by `debuff dev`.
  */
-function linkAgent(game: Game, session: DevSession, options: DevHooksOptions, errors: ExplainedError[]): (() => void) | undefined {
+/**
+ * Runs agent commands from the dev server through the same hooks as `window.__DEBUFF_DEV__`. One set of hooks
+ * means one held dev contact and one forced reduced-motion snapshot, whichever surface set them.
+ */
+function linkAgent(session: DevSession, hooks: DevHooks): (() => void) | undefined {
   if (typeof EventSource === "undefined" || !/^https?:$/.test(location.protocol)) return undefined;
-  const hooks = createHooks(game, session, options, errors, () => "agent");
   const events = new EventSource(AGENT_EVENTS);
   events.addEventListener("error", () => {
     // 404 (not served by debuff dev) closes the stream for good; nothing else to do.
