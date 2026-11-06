@@ -48,7 +48,10 @@ export class ClipRecorder {
   private readonly bitrate: number;
   private stream: MediaStream | undefined;
   private slots: (Slot | undefined)[] = [undefined, undefined];
-  private timers: ReturnType<typeof setTimeout>[] = [];
+  /** Each slot's next restart. One per slot, so restarting a slot early (in `clip()`) replaces its schedule. */
+  private readonly timers: (ReturnType<typeof setTimeout> | undefined)[] = [undefined, undefined];
+  /** A `clip()` in progress: a second call while it runs gets the same clip instead of stopping the slot again. */
+  private clipping: Promise<Clip | undefined> | undefined;
   private now: () => number;
 
   constructor(
@@ -79,14 +82,14 @@ export class ClipRecorder {
     if (!this.mimeType) return false;
     this.stream = this.canvas.captureStream(this.fps);
     this.cycle(0);
-    this.timers.push(setTimeout(() => this.cycle(1), (this.seconds * 1000) / 2));
+    this.timers[1] = setTimeout(() => this.cycle(1), (this.seconds * 1000) / 2);
     return true;
   }
 
   /** Stop recording and drop anything buffered. */
   stop(): void {
     for (const t of this.timers) clearTimeout(t);
-    this.timers = [];
+    this.timers.fill(undefined);
     for (const slot of this.slots) if (slot && slot.recorder.state !== "inactive") slot.recorder.stop();
     this.slots = [undefined, undefined];
     for (const track of this.stream?.getTracks() ?? []) track.stop();
@@ -94,7 +97,19 @@ export class ClipRecorder {
   }
 
   /** The recent past as a video, or `undefined` if not recording. Recording carries on afterwards. */
-  async clip(): Promise<Clip | undefined> {
+  clip(): Promise<Clip | undefined> {
+    // Two calls close together (a double tap on a share button) would both pick the same oldest window, and
+    // the second would take over its stop handler, leaving the first waiting forever. Share the clip instead.
+    if (!this.clipping) {
+      const p = this.takeClip().finally(() => {
+        if (this.clipping === p) this.clipping = undefined;
+      });
+      this.clipping = p;
+    }
+    return this.clipping;
+  }
+
+  private async takeClip(): Promise<Clip | undefined> {
     const at = this.now();
     const live = this.slots.filter((s): s is Slot => s !== undefined);
     if (!live.length || !this.mimeType) return undefined;
@@ -124,11 +139,10 @@ export class ClipRecorder {
     };
     recorder.start(1000);
     this.slots[index] = slot;
-    const timer = setTimeout(() => {
-      this.timers = this.timers.filter((t) => t !== timer);
-      this.cycle(index);
-    }, this.seconds * 1000);
-    this.timers.push(timer);
+    // Replace this slot's schedule: a slot restarted early by clip() must not also restart at its old time,
+    // or the two windows drift together and clips come out much shorter than `seconds / 2`.
+    clearTimeout(this.timers[index]);
+    this.timers[index] = setTimeout(() => this.cycle(index), this.seconds * 1000);
   }
 }
 

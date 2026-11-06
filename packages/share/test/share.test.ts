@@ -44,16 +44,23 @@ describe("share", () => {
 
 class FakeRecorder {
   static isTypeSupported = (t: string) => t === "video/webm;codecs=vp8";
+  /** When each recorder started, in fake-timer milliseconds. */
+  static started: number[] = [];
+  /** Browsers fire `stop` after stop() returns; set to mimic that. */
+  static asyncStop = false;
   state = "inactive";
   ondataavailable: ((e: { data: Blob }) => void) | null = null;
   onstop: (() => void) | null = null;
   start() {
     this.state = "recording";
+    FakeRecorder.started.push(Date.now());
     this.ondataavailable?.({ data: new Blob(["frame"]) });
   }
   stop() {
+    if (this.state === "inactive") return;
     this.state = "inactive";
-    this.onstop?.();
+    if (FakeRecorder.asyncStop) queueMicrotask(() => this.onstop?.());
+    else this.onstop?.();
   }
 }
 
@@ -90,5 +97,39 @@ describe("ClipRecorder", () => {
     clips.stop();
     expect(track.stop).toHaveBeenCalled();
     expect(clips.recording).toBe(false);
+  });
+
+  function recording(seconds = 10) {
+    vi.useFakeTimers({ now: 0 });
+    vi.stubGlobal("MediaRecorder", FakeRecorder);
+    FakeRecorder.started = [];
+    FakeRecorder.asyncStop = false;
+    const canvas = document.createElement("canvas");
+    (HTMLCanvasElement.prototype as unknown as { captureStream: unknown }).captureStream = () => ({ getTracks: () => [] });
+    const clips = new ClipRecorder(canvas, { seconds });
+    clips.start();
+    return clips;
+  }
+
+  it("keeps the two windows half a window apart after a clip", async () => {
+    const clips = recording(10);
+    vi.advanceTimersByTime(7000);
+    await clips.clip(); // restarts the older window at 7 s
+    FakeRecorder.started = [];
+    vi.advanceTimersByTime(8000); // to 15 s: only the other window (started at 5 s) is due
+    expect(FakeRecorder.started).toEqual([15000]);
+    clips.stop();
+  });
+
+  it("gives every caller a clip when clip() is called twice at once", async () => {
+    const clips = recording(10);
+    FakeRecorder.asyncStop = true;
+    vi.advanceTimersByTime(7000);
+    const results: unknown[] = [];
+    for (const p of [clips.clip(), clips.clip()]) void p.then((c) => results.push(c));
+    await vi.advanceTimersByTimeAsync(10);
+    expect(results).toHaveLength(2); // a double tap on a share button: neither caller hangs
+    for (const c of results) expect((c as { blob: Blob }).blob).toBeInstanceOf(Blob);
+    clips.stop();
   });
 });
