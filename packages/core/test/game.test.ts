@@ -321,6 +321,71 @@ describe("Game loop errors", () => {
   });
 });
 
+describe("Game loop restarts", () => {
+  it("keeps one frame loop when stop() and start() run inside a frame", () => {
+    const pending = new Map<number, FrameRequestCallback>();
+    let nextId = 0;
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+      pending.set(++nextId, cb);
+      return nextId;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (id: number) => pending.delete(id));
+    const tick = (now: number) => {
+      const due = [...pending.values()];
+      pending.clear();
+      for (const cb of due) cb(now);
+    };
+    const { game } = makeGame({ splash: false });
+    let restart = true;
+    let updates = 0;
+    game
+      .add({
+        id: "play",
+        update: () => {
+          updates++;
+          if (!restart) return;
+          restart = false;
+          game.stop();
+          game.start();
+        },
+      })
+      .go("play");
+    game.start();
+    const start = performance.now();
+    tick(start + 20);
+    expect(pending.size).toBe(1);
+    tick(start + 40);
+    tick(start + 60);
+    expect(pending.size).toBe(1);
+    expect(game.isRunning).toBe(true);
+    game.stop();
+    tick(start + 80);
+    expect(pending.size).toBe(0);
+    expect(updates).toBeGreaterThan(0);
+    game.dispose();
+    vi.unstubAllGlobals();
+  });
+
+  it("schedules nothing more after stop() inside a frame", () => {
+    const pending = new Map<number, FrameRequestCallback>();
+    let nextId = 0;
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+      pending.set(++nextId, cb);
+      return nextId;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (id: number) => pending.delete(id));
+    const { game } = makeGame({ splash: false });
+    game.add({ id: "play", update: () => game.stop() }).go("play");
+    game.start();
+    const [cb] = [...pending.values()];
+    pending.clear();
+    cb?.(performance.now() + 20);
+    expect(pending.size).toBe(0);
+    game.dispose();
+    vi.unstubAllGlobals();
+  });
+});
+
 describe("Game dev warnings", () => {
   function setup() {
     vi.stubEnv("DEV", true);

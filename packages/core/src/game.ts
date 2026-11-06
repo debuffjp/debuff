@@ -141,6 +141,7 @@ export class Game {
   private readonly onSplashSkip = () => this.skipSplash();
   private lastTime = 0;
   private running = false;
+  private loopGeneration = 0;
   /** Whether the caller wants the loop running; visibility pausing respects this. */
   private wanted = false;
   private observer: ResizeObserver | undefined;
@@ -428,8 +429,12 @@ export class Game {
     if (this.running) return;
     this.running = true;
     this.lastTime = performance.now();
+    // Each run() owns one loop. stop() then start() inside a frame starts a new run, and the old
+    // closure must not reschedule itself on the way out, or two loops render every vsync.
+    const generation = ++this.loopGeneration;
+    const current = () => this.running && generation === this.loopGeneration;
     const loop = (now: number) => {
-      if (!this.running) return;
+      if (!current()) return;
       const elapsed = (now - this.lastTime) / 1000;
       if (this.splashLeft > 0) {
         // The splash holds the game's first frame; time starts when it ends.
@@ -457,6 +462,7 @@ export class Game {
           throw error;
         }
       }
+      if (!current()) return;
       this.lastTime = now;
       this.frameHandle = requestAnimationFrame(loop);
     };
