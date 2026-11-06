@@ -77,6 +77,9 @@ export class Pointer {
     }
     this.capture(e.pointerId);
     const { x, y } = this.toLogical(e.clientX, e.clientY);
+    // A down for a contact we still hold means its up never reached us (released outside the window
+    // without capture): end the stale contact so this press counts.
+    if (this.touches.has(e.pointerId)) this.touchEnd(e.pointerId);
     this.touchStart(e.pointerId, x, y, kindOf(e));
     e.preventDefault();
   };
@@ -85,11 +88,22 @@ export class Pointer {
     if (e.pointerType === "mouse" && e.button > 0) this.syncButtons(e.buttons);
     if (!this.touches.has(e.pointerId) && !e.isPrimary) return;
     const { x, y } = this.toLogical(e.clientX, e.clientY);
+    // The main button pressed or let go while the right or middle is held: a press or release, not a move.
+    if (e.pointerType === "mouse" && e.button === 0) {
+      if (e.buttons & 1 && !this.touches.has(e.pointerId)) {
+        this.touchStart(e.pointerId, x, y, "mouse");
+        return;
+      }
+      if (!(e.buttons & 1) && this.touches.has(e.pointerId)) {
+        this.touchEnd(e.pointerId);
+        return;
+      }
+    }
     if (this.touches.has(e.pointerId)) this.touchMove(e.pointerId, x, y);
     // A drag that started outside the element counts as a contact, but not as a press.
     else if (e.buttons) this.addContact(e.pointerId, x, y, kindOf(e));
-    // Hover: the primary pointer follows the mouse while no button is down.
-    if (e.isPrimary && e.pointerId !== this.primaryId) this.move(x, y);
+    // Hover: the primary pointer follows the mouse while it isn't held (by this or another contact).
+    if (e.isPrimary && !this.down) this.move(x, y);
   };
   // Right-click shouldn't open the browser menu over a game.
   private readonly onContextMenu = (e: Event) => e.preventDefault();
@@ -102,7 +116,10 @@ export class Pointer {
   private readonly onUp = (e: PointerEvent) => {
     if (e.pointerType === "mouse") this.syncButtons(e.buttons);
     this.touchEnd(e.pointerId);
-    if (e.isPrimary) this.release();
+    // Only the contact the primary follows releases it (touchEnd did that). A primary pressed with no contact
+    // (simulated, or a contact we lost) is released by any primary up. Another device's up, such as a mouse
+    // click while a finger holds the pointer on a touch laptop, leaves it alone.
+    if (e.isPrimary && this.primaryId === undefined) this.release();
   };
 
   constructor(element: HTMLElement, toLogical: ToLogical) {
