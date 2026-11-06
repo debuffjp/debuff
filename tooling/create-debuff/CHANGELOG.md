@@ -1,5 +1,11 @@
 # create-debuff
 
+## 0.31.1
+
+### Patch Changes
+
+- 7bf16bf: `npm create debuff --yes my-game` (and `--no-git my-game` or `--color my-game`) finds the directory again. Before, any argument after a `--` flag was taken to be that flag's value, so it stopped with "Pass a directory". Only `--template` takes a value.
+
 ## 0.31.0
 
 No changes in this release.

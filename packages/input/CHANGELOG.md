@@ -1,5 +1,12 @@
 # @debuffjp/input
 
+## 0.31.1
+
+### Patch Changes
+
+- 9d0c3d8: The primary pointer stays with the contact that pressed it. On a touch laptop, a mouse click or hover while a finger holds the pointer no longer releases or moves it. A left click made while the right button is held now presses (and its release releases) the pointer; before, it was lost. A click after a `pointerup` that never arrived (released outside the window) presses again instead of being swallowed.
+- c7f8be7: The key or tap that skips the start-up splash no longer also counts as a press in the first game step, so it can't skip a title screen too. `game.hooks.splashEnd(fn)` is new: it fires once when the splash ends, and `Input` clears its press and release edges there while keeping held keys held.
+
 ## 0.31.0
 
 No changes in this release.
