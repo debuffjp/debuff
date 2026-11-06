@@ -1,5 +1,5 @@
 /**
- * henka (変化, "change"): mutation testing that asks whether your tests notice when something changes.
+ * henka (変化, "change"): tests for your tests. It breaks the code under test one small change at a time and checks that a test fails each time.
  * henka runs nothing itself: an adapter runs your tests clean, lists mutants, then runs them again with
  * each mutant applied. keiko ships an adapter for web games (`npx keiko mutate`).
  *

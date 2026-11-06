@@ -12,7 +12,7 @@ Usage:
   keiko [files...] [options]
   keiko init            Write a first test for your game, for the engine it uses
   keiko mutate [files...]
-                        Check your tests notice changes: push each param to the end of
+                        Test your tests: push each param to the end of
                         its range (a test should fail), change the random seed and the
                         frame rate (no test should). Writes mutants.out/
 

@@ -1,7 +1,7 @@
 {
   "name": "henka",
   "version": "0.1.0",
-  "description": "Mutation testing for any test runner: change one thing, see whether your tests notice",
+  "description": "Tests for your tests: mutation testing for Vitest projects and any test runner",
   "keywords": [
     "mutation-testing",
     "mutation",

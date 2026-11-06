@@ -295,12 +295,12 @@ npx keiko -t "pause"          # tests whose full name contains "pause" (case-ins
 npx keiko --json              # a report for tools and agents
 npx keiko --root games/demo   # a project in another folder
 npx keiko --no-debuff         # drive a debuff game through __KEIKO__ instead (--debuff forces the opposite)
-npx keiko mutate              # do your tests notice changes? (keiko 0.8+)
+npx keiko mutate              # test your tests (keiko 0.8+)
 ```
 
 Exits with 1 when a test fails. For tools, the same runner is `runTests()` from `keiko/runner`.
 
-## Do your tests notice? (`keiko mutate`)
+## Test your tests (`keiko mutate`)
 
 From keiko 0.8. Passing tests can still check very little: a test that only asserts the player "reaches top speed" passes whether top speed is 140 or 600. `keiko mutate` changes the game and reruns your tests, using [henka](../henka) to judge the results:
 

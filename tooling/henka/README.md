@@ -1,6 +1,6 @@
 # henka
 
-**変化 (henka): change.** Mutation testing for any test runner: change one thing, then see whether your tests notice.
+**変化 (henka): change.** Tests for your tests. henka breaks your code on purpose, one small change at a time, and checks that a test fails each time.
 
 Coverage says which lines ran. It doesn't say whether a test would fail if those lines did something else. henka answers that. It runs your tests clean, then once per mutant (a small, deliberate change), and sorts each mutant by what happened:
 
