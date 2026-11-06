@@ -21,6 +21,14 @@ Runs tests/**/*.test.ts (and src/**/*.test.ts) against your real game in Node, w
 Options:
   -t, --filter <text>   Only run tests whose full name contains this text
                         (case-insensitive substring, not a regex)
+      --changed         Only run tests whose code or files changed since they
+                        last passed, plus new and failed ones. Every run
+                        records what each test used, so this compares with
+                        the last run in the same queue
+      --queue <name>    The queue to record into and compare with (default:
+                        "default"). Give each loop its own: --queue push in a
+                        pre-push hook still runs everything changed since the
+                        last push, whatever ran in between
       --root <dir>      Project root (default: the current folder)
       --json            Print a machine-readable report
       --out <dir>       Where keiko mutate writes its results (default: mutants.out)
@@ -42,6 +50,8 @@ export async function main(argv: string[]): Promise<number> {
       json: { type: "boolean" },
       out: { type: "string" },
       debuff: { type: "boolean" },
+      changed: { type: "boolean" },
+      queue: { type: "string" },
       help: { type: "boolean", short: "h" },
     },
   });
@@ -69,8 +79,10 @@ export async function main(argv: string[]): Promise<number> {
     ...(values.filter ? { filter: values.filter } : {}),
     ...(values.debuff === undefined ? {} : { debuff: values.debuff }),
   };
+  // Every run records into its queue (it costs a few percent), so `--changed` always has the last run to compare with.
+  const impact = { queue: values.queue ?? "default", ...(values.changed ? { changed: true } : {}) };
   if (mutating) return mutateCommand(options, resolve(root, values.out ?? "mutants.out"), values.json ?? false);
-  const report = await runTests({ ...options, ...(values.json ? {} : { onResult: (r) => console.log(formatResult(r)) }) });
+  const report = await runTests({ ...options, ...impact, ...(values.json ? {} : { onResult: (r) => console.log(formatResult(r)) }) });
   if (values.json) console.log(JSON.stringify(report, null, 2));
   else console.log(`\n${report.ok ? pc.green("✔") : pc.red("✖")} ${formatSummary(report)}\n`);
   return report.ok ? 0 : 1;

@@ -37,6 +37,7 @@ export function formatSummary(report: TestReport): string {
   if (report.failed) parts.push(pc.red(`${report.failed} failed`));
   if (report.skipped) parts.push(`${report.skipped} skipped`);
   if (report.todo) parts.push(`${report.todo} todo`);
+  if (report.unchanged) parts.push(pc.dim(`${report.unchanged} unchanged`));
   const outside = report.outside
     .map((e) => `\n${pc.red("✖")} outside any test: ${e.message}${e.where ? pc.dim(` (${e.where})`) : ""}`)
     .join("");

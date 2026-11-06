@@ -230,17 +230,29 @@ export function createServer(options: ServerOptions): McpServer {
       annotations: { readOnlyHint: false, destructiveHint: false },
       description:
         "Run the logic tests in tests/**/*.test.ts (keiko): the real game in Node, no browser, in milliseconds. Each failure has its message, " +
-        "the source line, and the game's tick, scene and state when it failed. While iterating pass `files` or `filter` to run only what your change touches, and run everything once when the work is done. Write a test for each mechanic you add.",
+        "the source line, and the game's tick, scene and state when it failed. After each edit pass `changed: true`: only the tests whose code or files changed since they last passed run (keiko records what each test ran), and `due` says why each one ran. " +
+        "Run everything once when the work is done. A new mechanic gets a test; a fix, a tweak or a variant goes into the existing test for that mechanic (another assertion, a test.sweep value) instead of a new one.",
       inputSchema: {
         ...root,
         files: z.array(z.string()).optional().describe("Test files relative to the root. Default: all."),
         filter: z.string().optional().describe("Only run tests whose name contains this text."),
+        changed: z
+          .boolean()
+          .optional()
+          .describe("Only run tests whose code or files changed since they last passed, plus new and failed ones."),
       },
     },
-    safely(async ({ root: r, files, filter }) => {
+    safely(async ({ root: r, files, filter, changed }) => {
       const dir = rootOf(r);
       const { runTests } = await import("keiko/runner");
-      const report = await runTests({ root: dir, files: files ?? [], vite: await viteConfig(dir), ...(filter ? { filter } : {}) });
+      const report = await runTests({
+        root: dir,
+        files: files ?? [],
+        vite: await viteConfig(dir),
+        queue: "default",
+        ...(changed ? { changed: true } : {}),
+        ...(filter ? { filter } : {}),
+      });
       markTested(dir);
       // Passing tests don't need their (empty) logs or details; keep the result small for the agent.
       return json({

@@ -296,9 +296,25 @@ npx keiko --json              # a report for tools and agents
 npx keiko --root games/demo   # a project in another folder
 npx keiko --no-debuff         # drive a debuff game through __KEIKO__ instead (--debuff forces the opposite)
 npx keiko mutate              # test your tests (keiko 0.8+)
+npx keiko --changed           # only the tests whose code or files changed (keiko 0.9+)
 ```
 
 Exits with 1 when a test fails. For tools, the same runner is `runTests()` from `keiko/runner`.
+
+## Only what changed (`--changed`)
+
+From 0.9, every `npx keiko` run records what each test used: the functions of your code it ran (V8 coverage, a few percent slower) and the files its page loaded or it replayed. `npx keiko --changed` then runs only the tests that are new, failed last time, or used something that changed since they last passed. The rest are counted as unchanged:
+
+```
+✔ shoots
+1 passed · 7 unchanged in 340 ms
+```
+
+Every test boots the whole game, so which files a test imports says nothing. keiko compares what each test ran instead: an edit inside a function a test never called, a type-only edit or a new test elsewhere leaves it out, while an edit to the update loop every test runs brings them all back. A change to the lockfile, `package.json`, `tsconfig.json`, or a Vite or debuff config runs everything. `--json` lists why each test ran in `due` (`new`, `failed`, `setup`, `code` or `input`).
+
+Runs record into a named queue, `default` unless you pass `--queue <name>`, and `--changed` compares with the last run in the same queue. Give each loop its own: an agent runs `--changed` after every edit, and a pre-push hook with `npx keiko --changed --queue push` still runs everything changed since the last push, whatever ran in between. Queues live in `node_modules/.cache/keiko`; delete it to start over. In `runTests()` recording is off unless you pass `queue` or `changed`.
+
+What it can't see: code outside the project root (a linked package) and changes inside `node_modules`, which the lockfile stands in for. A test that reads the clock or the network for real (outside keiko's virtual clock) can change without its code changing. Run the whole suite before you ship.
 
 ## Test your tests (`keiko mutate`)
 
