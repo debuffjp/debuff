@@ -1,0 +1,4274 @@
+{
+  "adapter": "vitest",
+  "baseline": {
+    "failed": [],
+    "passed": 9,
+    "durationMs": 18398
+  },
+  "outcomes": [
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:5:20:*→/",
+        "label": "packages/juice/src/ease.ts:5:20 t * t → t / t",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 5,
+        "column": 20,
+        "start": 106,
+        "end": 107,
+        "replacement": "/"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 3493
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:6:21:*→/",
+        "label": "packages/juice/src/ease.ts:6:21 t * (2 - t) → t / (2 - t)",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 6,
+        "column": 21,
+        "start": 131,
+        "end": 132,
+        "replacement": "/"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 5890
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:6:26:-→+",
+        "label": "packages/juice/src/ease.ts:6:26 2 - t → 2 + t",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 6,
+        "column": 26,
+        "start": 136,
+        "end": 137,
+        "replacement": "+"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 2403
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:6:24:2→0",
+        "label": "packages/juice/src/ease.ts:6:24 2 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 6,
+        "column": 24,
+        "start": 134,
+        "end": 135,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 4509
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:7:24:<→<=",
+        "label": "packages/juice/src/ease.ts:7:24 t < 0.5 → t <= 0.5",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 7,
+        "column": 24,
+        "start": 165,
+        "end": 166,
+        "replacement": "<="
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 7634
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:7:26:0.5→0",
+        "label": "packages/juice/src/ease.ts:7:26 0.5 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 7,
+        "column": 26,
+        "start": 167,
+        "end": 170,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 3160
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:7:38:*→/",
+        "label": "packages/juice/src/ease.ts:7:38 2 * t * t → 2 * t / t",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 7,
+        "column": 38,
+        "start": 179,
+        "end": 180,
+        "replacement": "/"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 3376
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:7:34:*→/",
+        "label": "packages/juice/src/ease.ts:7:34 2 * t → 2 / t",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 7,
+        "column": 34,
+        "start": 175,
+        "end": 176,
+        "replacement": "/"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 3373
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:7:32:2→0",
+        "label": "packages/juice/src/ease.ts:7:32 2 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 7,
+        "column": 32,
+        "start": 173,
+        "end": 174,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 6209
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:7:47:+→-",
+        "label": "packages/juice/src/ease.ts:7:47 -1 + (4 - 2 * t) * t → -1 - (4 - 2 * t) * t",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 7,
+        "column": 47,
+        "start": 188,
+        "end": 189,
+        "replacement": "-"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 2981
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:7:45:1→0",
+        "label": "packages/juice/src/ease.ts:7:45 1 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 7,
+        "column": 45,
+        "start": 186,
+        "end": 187,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 3314
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:7:61:*→/",
+        "label": "packages/juice/src/ease.ts:7:61 (4 - 2 * t) * t → (4 - 2 * t) / t",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 7,
+        "column": 61,
+        "start": 202,
+        "end": 203,
+        "replacement": "/"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4813
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:7:52:-→+",
+        "label": "packages/juice/src/ease.ts:7:52 4 - 2 * t → 4 + 2 * t",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 7,
+        "column": 52,
+        "start": 193,
+        "end": 194,
+        "replacement": "+"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 2536
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:7:50:4→0",
+        "label": "packages/juice/src/ease.ts:7:50 4 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 7,
+        "column": 50,
+        "start": 191,
+        "end": 192,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 2496
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:7:56:*→/",
+        "label": "packages/juice/src/ease.ts:7:56 2 * t → 2 / t",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 7,
+        "column": 56,
+        "start": 197,
+        "end": 198,
+        "replacement": "/"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 5164
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:7:54:2→0",
+        "label": "packages/juice/src/ease.ts:7:54 2 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 7,
+        "column": 54,
+        "start": 195,
+        "end": 196,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 2629
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:8:25:*→/",
+        "label": "packages/juice/src/ease.ts:8:25 t * t * t → t * t / t",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 8,
+        "column": 25,
+        "start": 232,
+        "end": 233,
+        "replacement": "/"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 2652
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:8:21:*→/",
+        "label": "packages/juice/src/ease.ts:8:21 t * t → t / t",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 8,
+        "column": 21,
+        "start": 228,
+        "end": 229,
+        "replacement": "/"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 2434
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:9:22:-→+",
+        "label": "packages/juice/src/ease.ts:9:22 1 - (1 - t) ** 3 → 1 + (1 - t) ** 3",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 9,
+        "column": 22,
+        "start": 258,
+        "end": 259,
+        "replacement": "+"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 2386
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:9:20:1→0",
+        "label": "packages/juice/src/ease.ts:9:20 1 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 9,
+        "column": 20,
+        "start": 256,
+        "end": 257,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 2386
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:9:27:-→+",
+        "label": "packages/juice/src/ease.ts:9:27 1 - t → 1 + t",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 9,
+        "column": 27,
+        "start": 263,
+        "end": 264,
+        "replacement": "+"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 2461
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:9:25:1→0",
+        "label": "packages/juice/src/ease.ts:9:25 1 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 9,
+        "column": 25,
+        "start": 261,
+        "end": 262,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 2501
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:9:35:3→0",
+        "label": "packages/juice/src/ease.ts:9:35 3 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 9,
+        "column": 35,
+        "start": 271,
+        "end": 272,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 2635
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:10:25:<→<=",
+        "label": "packages/juice/src/ease.ts:10:25 t < 0.5 → t <= 0.5",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 10,
+        "column": 25,
+        "start": 298,
+        "end": 299,
+        "replacement": "<="
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 5581
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:10:27:0.5→0",
+        "label": "packages/juice/src/ease.ts:10:27 0.5 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 10,
+        "column": 27,
+        "start": 300,
+        "end": 303,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 2731
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:10:43:*→/",
+        "label": "packages/juice/src/ease.ts:10:43 4 * t * t * t → 4 * t * t / t",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 10,
+        "column": 43,
+        "start": 316,
+        "end": 317,
+        "replacement": "/"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 2530
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:10:39:*→/",
+        "label": "packages/juice/src/ease.ts:10:39 4 * t * t → 4 * t / t",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 10,
+        "column": 39,
+        "start": 312,
+        "end": 313,
+        "replacement": "/"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 22939
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:10:35:*→/",
+        "label": "packages/juice/src/ease.ts:10:35 4 * t → 4 / t",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 10,
+        "column": 35,
+        "start": 308,
+        "end": 309,
+        "replacement": "/"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 33515
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:10:33:4→0",
+        "label": "packages/juice/src/ease.ts:10:33 4 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 10,
+        "column": 33,
+        "start": 306,
+        "end": 307,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 56504
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:10:51:-→+",
+        "label": "packages/juice/src/ease.ts:10:51 1 - (-2 * t + 2) ** 3 / 2 → 1 + (-2 * t + 2) ** 3 / 2",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 10,
+        "column": 51,
+        "start": 324,
+        "end": 325,
+        "replacement": "+"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 45654
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:10:49:1→0",
+        "label": "packages/juice/src/ease.ts:10:49 1 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 10,
+        "column": 49,
+        "start": 322,
+        "end": 323,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 4017
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:10:71:/→*",
+        "label": "packages/juice/src/ease.ts:10:71 (-2 * t + 2) ** 3 / 2 → (-2 * t + 2) ** 3 * 2",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 10,
+        "column": 71,
+        "start": 344,
+        "end": 345,
+        "replacement": "*"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 7118
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:10:61:+→-",
+        "label": "packages/juice/src/ease.ts:10:61 -2 * t + 2 → -2 * t - 2",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 10,
+        "column": 61,
+        "start": 334,
+        "end": 335,
+        "replacement": "-"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 3677
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:10:57:*→/",
+        "label": "packages/juice/src/ease.ts:10:57 -2 * t → -2 / t",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 10,
+        "column": 57,
+        "start": 330,
+        "end": 331,
+        "replacement": "/"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 6512
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:10:55:2→0",
+        "label": "packages/juice/src/ease.ts:10:55 2 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 10,
+        "column": 55,
+        "start": 328,
+        "end": 329,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 3407
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:10:63:2→0",
+        "label": "packages/juice/src/ease.ts:10:63 2 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 10,
+        "column": 63,
+        "start": 336,
+        "end": 337,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 3111
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:10:69:3→0",
+        "label": "packages/juice/src/ease.ts:10:69 3 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 10,
+        "column": 69,
+        "start": 342,
+        "end": 343,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 2000
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:10:73:2→0",
+        "label": "packages/juice/src/ease.ts:10:73 2 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 10,
+        "column": 73,
+        "start": 346,
+        "end": 347,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 1783
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:11:46:+→-",
+        "label": "packages/juice/src/ease.ts:11:46 1 + 2.70158 * (t - 1) ** 3 + 1.70158 * (t - 1) ** 2 → 1 + 2.70158 * (t - 1) ** 3 - 1.70158 * (t - 1) ** 2",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 11,
+        "column": 46,
+        "start": 395,
+        "end": 396,
+        "replacement": "-"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 1724
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:11:21:+→-",
+        "label": "packages/juice/src/ease.ts:11:21 1 + 2.70158 * (t - 1) ** 3 → 1 - 2.70158 * (t - 1) ** 3",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 11,
+        "column": 21,
+        "start": 370,
+        "end": 371,
+        "replacement": "-"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 1674
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:11:19:1→0",
+        "label": "packages/juice/src/ease.ts:11:19 1 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 11,
+        "column": 19,
+        "start": 368,
+        "end": 369,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 1531
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:11:31:*→/",
+        "label": "packages/juice/src/ease.ts:11:31 2.70158 * (t - 1) ** 3 → 2.70158 / (t - 1) ** 3",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 11,
+        "column": 31,
+        "start": 380,
+        "end": 381,
+        "replacement": "/"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 1519
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:11:23:2.70158→0",
+        "label": "packages/juice/src/ease.ts:11:23 2.70158 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 11,
+        "column": 23,
+        "start": 372,
+        "end": 379,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 1832
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:11:36:-→+",
+        "label": "packages/juice/src/ease.ts:11:36 t - 1 → t + 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 11,
+        "column": 36,
+        "start": 385,
+        "end": 386,
+        "replacement": "+"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 1617
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:11:38:1→0",
+        "label": "packages/juice/src/ease.ts:11:38 1 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 11,
+        "column": 38,
+        "start": 387,
+        "end": 388,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 1593
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:11:44:3→0",
+        "label": "packages/juice/src/ease.ts:11:44 3 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 11,
+        "column": 44,
+        "start": 393,
+        "end": 394,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 1626
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:11:56:*→/",
+        "label": "packages/juice/src/ease.ts:11:56 1.70158 * (t - 1) ** 2 → 1.70158 / (t - 1) ** 2",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 11,
+        "column": 56,
+        "start": 405,
+        "end": 406,
+        "replacement": "/"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 1569
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:11:48:1.70158→0",
+        "label": "packages/juice/src/ease.ts:11:48 1.70158 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 11,
+        "column": 48,
+        "start": 397,
+        "end": 404,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 1591
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:11:61:-→+",
+        "label": "packages/juice/src/ease.ts:11:61 t - 1 → t + 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 11,
+        "column": 61,
+        "start": 410,
+        "end": 411,
+        "replacement": "+"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 1943
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:11:63:1→0",
+        "label": "packages/juice/src/ease.ts:11:63 1 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 11,
+        "column": 63,
+        "start": 412,
+        "end": 413,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 1880
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:11:69:2→0",
+        "label": "packages/juice/src/ease.ts:11:69 2 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 11,
+        "column": 69,
+        "start": 418,
+        "end": 419,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 2123
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:12:31:||→&&",
+        "label": "packages/juice/src/ease.ts:12:31 t === 0 || t === 1 → t === 0 && t === 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 12,
+        "column": 31,
+        "start": 451,
+        "end": 453,
+        "replacement": "&&"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > squash springs back to 1"],
+      "durationMs": 1997
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:12:25:===→!==",
+        "label": "packages/juice/src/ease.ts:12:25 t === 0 → t !== 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 12,
+        "column": 25,
+        "start": 445,
+        "end": 448,
+        "replacement": "!=="
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3772
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:12:29:0→1",
+        "label": "packages/juice/src/ease.ts:12:29 0 → 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 12,
+        "column": 29,
+        "start": 449,
+        "end": 450,
+        "replacement": "1"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3672
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:12:36:===→!==",
+        "label": "packages/juice/src/ease.ts:12:36 t === 1 → t !== 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 12,
+        "column": 36,
+        "start": 456,
+        "end": 459,
+        "replacement": "!=="
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > squash springs back to 1"],
+      "durationMs": 2332
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:12:40:1→0",
+        "label": "packages/juice/src/ease.ts:12:40 1 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 12,
+        "column": 40,
+        "start": 460,
+        "end": 461,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > squash springs back to 1"],
+      "durationMs": 2331
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:12:113:+→-",
+        "label": "packages/juice/src/ease.ts:12:113 2 ** (-10 * t) * Math.sin((t * 10 - 0.75) * ((2 * Math.PI... → 2 ** (-10 * t) * Math.sin((t * 10 - 0.75) * ((2 * Math.PI...",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 12,
+        "column": 113,
+        "start": 533,
+        "end": 534,
+        "replacement": "-"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4201
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:12:63:*→/",
+        "label": "packages/juice/src/ease.ts:12:63 2 ** (-10 * t) * Math.sin((t * 10 - 0.75) * ((2 * Math.PI... → 2 ** (-10 * t) / Math.sin((t * 10 - 0.75) * ((2 * Math.PI...",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 12,
+        "column": 63,
+        "start": 483,
+        "end": 484,
+        "replacement": "/"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4193
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:12:48:2→0",
+        "label": "packages/juice/src/ease.ts:12:48 2 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 12,
+        "column": 48,
+        "start": 468,
+        "end": 469,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3582
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:12:58:*→/",
+        "label": "packages/juice/src/ease.ts:12:58 -10 * t → -10 / t",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 12,
+        "column": 58,
+        "start": 478,
+        "end": 479,
+        "replacement": "/"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3525
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:12:55:10→0",
+        "label": "packages/juice/src/ease.ts:12:55 10 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 12,
+        "column": 55,
+        "start": 475,
+        "end": 477,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4407
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:12:90:*→/",
+        "label": "packages/juice/src/ease.ts:12:90 (t * 10 - 0.75) * ((2 * Math.PI) / 3) → (t * 10 - 0.75) / ((2 * Math.PI) / 3)",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 12,
+        "column": 90,
+        "start": 510,
+        "end": 511,
+        "replacement": "/"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4363
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:12:82:-→+",
+        "label": "packages/juice/src/ease.ts:12:82 t * 10 - 0.75 → t * 10 + 0.75",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 12,
+        "column": 82,
+        "start": 502,
+        "end": 503,
+        "replacement": "+"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3606
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:12:77:*→/",
+        "label": "packages/juice/src/ease.ts:12:77 t * 10 → t / 10",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 12,
+        "column": 77,
+        "start": 497,
+        "end": 498,
+        "replacement": "/"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3648
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:12:79:10→0",
+        "label": "packages/juice/src/ease.ts:12:79 10 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 12,
+        "column": 79,
+        "start": 499,
+        "end": 501,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 5080
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:12:84:0.75→0",
+        "label": "packages/juice/src/ease.ts:12:84 0.75 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 12,
+        "column": 84,
+        "start": 504,
+        "end": 508,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4634
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:12:107:/→*",
+        "label": "packages/juice/src/ease.ts:12:107 (2 * Math.PI) / 3 → (2 * Math.PI) * 3",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 12,
+        "column": 107,
+        "start": 527,
+        "end": 528,
+        "replacement": "*"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4596
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:12:96:*→/",
+        "label": "packages/juice/src/ease.ts:12:96 2 * Math.PI → 2 / Math.PI",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 12,
+        "column": 96,
+        "start": 516,
+        "end": 517,
+        "replacement": "/"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4325
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:12:94:2→0",
+        "label": "packages/juice/src/ease.ts:12:94 2 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 12,
+        "column": 94,
+        "start": 514,
+        "end": 515,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 5158
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:12:109:3→0",
+        "label": "packages/juice/src/ease.ts:12:109 3 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 12,
+        "column": 109,
+        "start": 529,
+        "end": 530,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 5073
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:12:115:1→0",
+        "label": "packages/juice/src/ease.ts:12:115 1 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 12,
+        "column": 115,
+        "start": 535,
+        "end": 536,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3286
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:14:15:7.5625→0",
+        "label": "packages/juice/src/ease.ts:14:15 7.5625 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 14,
+        "column": 15,
+        "start": 575,
+        "end": 581,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 1672
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:15:15:2.75→0",
+        "label": "packages/juice/src/ease.ts:15:15 2.75 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 15,
+        "column": 15,
+        "start": 597,
+        "end": 601,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 1661
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:16:11:<→<=",
+        "label": "packages/juice/src/ease.ts:16:11 t < 1 / d → t <= 1 / d",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 16,
+        "column": 11,
+        "start": 613,
+        "end": 614,
+        "replacement": "<="
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3156
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:16:15:/→*",
+        "label": "packages/juice/src/ease.ts:16:15 1 / d → 1 * d",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 16,
+        "column": 15,
+        "start": 617,
+        "end": 618,
+        "replacement": "*"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 1615
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:16:13:1→0",
+        "label": "packages/juice/src/ease.ts:16:13 1 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 16,
+        "column": 13,
+        "start": 615,
+        "end": 616,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 1657
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:16:33:*→/",
+        "label": "packages/juice/src/ease.ts:16:33 n * t * t → n * t / t",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 16,
+        "column": 33,
+        "start": 635,
+        "end": 636,
+        "replacement": "/"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 3385
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:16:29:*→/",
+        "label": "packages/juice/src/ease.ts:16:29 n * t → n / t",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 16,
+        "column": 29,
+        "start": 631,
+        "end": 632,
+        "replacement": "/"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 1763
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:17:11:<→<=",
+        "label": "packages/juice/src/ease.ts:17:11 t < 2 / d → t <= 2 / d",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 17,
+        "column": 11,
+        "start": 650,
+        "end": 651,
+        "replacement": "<="
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3487
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:17:15:/→*",
+        "label": "packages/juice/src/ease.ts:17:15 2 / d → 2 * d",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 17,
+        "column": 15,
+        "start": 654,
+        "end": 655,
+        "replacement": "*"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 1819
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:17:13:2→0",
+        "label": "packages/juice/src/ease.ts:17:13 2 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 17,
+        "column": 13,
+        "start": 652,
+        "end": 653,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3440
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:18:19:-→+",
+        "label": "packages/juice/src/ease.ts:18:19 t - 1.5 / d → t + 1.5 / d",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 18,
+        "column": 19,
+        "start": 679,
+        "end": 680,
+        "replacement": "+"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3901
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:18:25:/→*",
+        "label": "packages/juice/src/ease.ts:18:25 1.5 / d → 1.5 * d",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 18,
+        "column": 25,
+        "start": 685,
+        "end": 686,
+        "replacement": "*"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 5270
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:18:21:1.5→0",
+        "label": "packages/juice/src/ease.ts:18:21 1.5 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 18,
+        "column": 21,
+        "start": 681,
+        "end": 684,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 5152
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:19:24:+→-",
+        "label": "packages/juice/src/ease.ts:19:24 n * u * u + 0.75 → n * u * u - 0.75",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 19,
+        "column": 24,
+        "start": 713,
+        "end": 714,
+        "replacement": "-"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 6037
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:19:20:*→/",
+        "label": "packages/juice/src/ease.ts:19:20 n * u * u → n * u / u",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 19,
+        "column": 20,
+        "start": 709,
+        "end": 710,
+        "replacement": "/"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 5852
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:19:16:*→/",
+        "label": "packages/juice/src/ease.ts:19:16 n * u → n / u",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 19,
+        "column": 16,
+        "start": 705,
+        "end": 706,
+        "replacement": "/"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 6224
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:19:26:0.75→0",
+        "label": "packages/juice/src/ease.ts:19:26 0.75 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 19,
+        "column": 26,
+        "start": 715,
+        "end": 719,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 5908
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:21:11:<→<=",
+        "label": "packages/juice/src/ease.ts:21:11 t < 2.5 / d → t <= 2.5 / d",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 21,
+        "column": 11,
+        "start": 737,
+        "end": 738,
+        "replacement": "<="
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4371
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:21:17:/→*",
+        "label": "packages/juice/src/ease.ts:21:17 2.5 / d → 2.5 * d",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 21,
+        "column": 17,
+        "start": 743,
+        "end": 744,
+        "replacement": "*"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 2068
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:21:13:2.5→0",
+        "label": "packages/juice/src/ease.ts:21:13 2.5 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 21,
+        "column": 13,
+        "start": 739,
+        "end": 742,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4438
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:22:19:-→+",
+        "label": "packages/juice/src/ease.ts:22:19 t - 2.25 / d → t + 2.25 / d",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 22,
+        "column": 19,
+        "start": 768,
+        "end": 769,
+        "replacement": "+"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4255
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:22:26:/→*",
+        "label": "packages/juice/src/ease.ts:22:26 2.25 / d → 2.25 * d",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 22,
+        "column": 26,
+        "start": 775,
+        "end": 776,
+        "replacement": "*"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4388
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:22:21:2.25→0",
+        "label": "packages/juice/src/ease.ts:22:21 2.25 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 22,
+        "column": 21,
+        "start": 770,
+        "end": 774,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4499
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:23:24:+→-",
+        "label": "packages/juice/src/ease.ts:23:24 n * u * u + 0.9375 → n * u * u - 0.9375",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 23,
+        "column": 24,
+        "start": 803,
+        "end": 804,
+        "replacement": "-"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4452
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:23:20:*→/",
+        "label": "packages/juice/src/ease.ts:23:20 n * u * u → n * u / u",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 23,
+        "column": 20,
+        "start": 799,
+        "end": 800,
+        "replacement": "/"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4388
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:23:16:*→/",
+        "label": "packages/juice/src/ease.ts:23:16 n * u → n / u",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 23,
+        "column": 16,
+        "start": 795,
+        "end": 796,
+        "replacement": "/"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4339
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:23:26:0.9375→0",
+        "label": "packages/juice/src/ease.ts:23:26 0.9375 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 23,
+        "column": 26,
+        "start": 805,
+        "end": 811,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4331
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:25:17:-→+",
+        "label": "packages/juice/src/ease.ts:25:17 t - 2.625 / d → t + 2.625 / d",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 25,
+        "column": 17,
+        "start": 835,
+        "end": 836,
+        "replacement": "+"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 2156
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:25:25:/→*",
+        "label": "packages/juice/src/ease.ts:25:25 2.625 / d → 2.625 * d",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 25,
+        "column": 25,
+        "start": 843,
+        "end": 844,
+        "replacement": "*"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 2227
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:25:19:2.625→0",
+        "label": "packages/juice/src/ease.ts:25:19 2.625 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 25,
+        "column": 19,
+        "start": 837,
+        "end": 842,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 2312
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:26:22:+→-",
+        "label": "packages/juice/src/ease.ts:26:22 n * u * u + 0.984375 → n * u * u - 0.984375",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 26,
+        "column": 22,
+        "start": 869,
+        "end": 870,
+        "replacement": "-"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 2517
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:26:18:*→/",
+        "label": "packages/juice/src/ease.ts:26:18 n * u * u → n * u / u",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 26,
+        "column": 18,
+        "start": 865,
+        "end": 866,
+        "replacement": "/"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 2365
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:26:14:*→/",
+        "label": "packages/juice/src/ease.ts:26:14 n * u → n / u",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 26,
+        "column": 14,
+        "start": 861,
+        "end": 862,
+        "replacement": "/"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 2692
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/ease.ts:26:24:0.984375→0",
+        "label": "packages/juice/src/ease.ts:26:24 0.984375 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/ease.ts",
+        "line": 26,
+        "column": 24,
+        "start": 871,
+        "end": 879,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["ease > all curves map 0→0 and 1→1"],
+      "durationMs": 2640
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:61:30:{\n    const r = this.random;\n    const range = (v: [number, number]) => v[0] + (v[1] - v[0]) * r();\n    const count = o.count ?? 10;\n    const colors = o.colors ?? [\"#fff\"];\n    for (let i = 0; i < count && this.live.length < this.max; i++) {\n      const p = this.pool.pop() ?? ({} as Particle);\n      const angle = (o.angle ?? 0) + (r() - 0.5) * (o.spread ?? Math.PI * 2);\n      const speed = range(o.speed ?? [40, 120]);\n      p.x = o.x;\n      p.y = o.y;\n      p.vx = Math.cos(angle) * speed;\n      p.vy = Math.sin(angle) * speed;\n      p.maxLife = p.life = range(o.life ?? [0.3, 0.6]);\n      p.size = range(o.size ?? [2, 4]);\n      p.sizeEnd = o.sizeEnd ?? 0;\n      p.color = colors[Math.floor(r() * colors.length)] ?? \"#fff\";\n      p.gravity = o.gravity ?? 0;\n      p.drag = o.drag ?? 1;\n      p.circle = o.shape === \"circle\";\n      p.additive = o.additive ?? false;\n      this.live.push(p);\n    }\n  }→{}",
+        "label": "packages/juice/src/particles.ts:61:30 { const r = this.random; const range = (v: [number, numbe... → {}",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 61,
+        "column": 30,
+        "start": 1528,
+        "end": 2433,
+        "replacement": "{}"
+      },
+      "outcome": "caught",
+      "failed": ["Particles > emits, expires and reuses"],
+      "durationMs": 2692
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:63:49:+→-",
+        "label": "packages/juice/src/particles.ts:63:49 v[0] + (v[1] - v[0]) * r() → v[0] - (v[1] - v[0]) * r()",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 63,
+        "column": 49,
+        "start": 1605,
+        "end": 1606,
+        "replacement": "-"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 5053
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:63:46:0→1",
+        "label": "packages/juice/src/particles.ts:63:46 0 → 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 63,
+        "column": 46,
+        "start": 1602,
+        "end": 1603,
+        "replacement": "1"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4504
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:63:65:*→/",
+        "label": "packages/juice/src/particles.ts:63:65 (v[1] - v[0]) * r() → (v[1] - v[0]) / r()",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 63,
+        "column": 65,
+        "start": 1621,
+        "end": 1622,
+        "replacement": "/"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4122
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:63:57:-→+",
+        "label": "packages/juice/src/particles.ts:63:57 v[1] - v[0] → v[1] + v[0]",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 63,
+        "column": 57,
+        "start": 1613,
+        "end": 1614,
+        "replacement": "+"
+      },
+      "outcome": "caught",
+      "failed": ["Particles > emits, expires and reuses"],
+      "durationMs": 2034
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:63:54:1→0",
+        "label": "packages/juice/src/particles.ts:63:54 1 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 63,
+        "column": 54,
+        "start": 1610,
+        "end": 1611,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4611
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:63:61:0→1",
+        "label": "packages/juice/src/particles.ts:63:61 0 → 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 63,
+        "column": 61,
+        "start": 1617,
+        "end": 1618,
+        "replacement": "1"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4599
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:64:30:10→0",
+        "label": "packages/juice/src/particles.ts:64:30 10 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 64,
+        "column": 30,
+        "start": 1657,
+        "end": 1659,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4955
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:66:18:0→1",
+        "label": "packages/juice/src/particles.ts:66:18 0 → 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 66,
+        "column": 18,
+        "start": 1719,
+        "end": 1720,
+        "replacement": "1"
+      },
+      "outcome": "caught",
+      "failed": ["Particles.draw > draws shapes and groups additive blending"],
+      "durationMs": 4915
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:66:31:&&→||",
+        "label": "packages/juice/src/particles.ts:66:31 i < count && this.live.length < this.max → i < count || this.live.length < this.max",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 66,
+        "column": 31,
+        "start": 1732,
+        "end": 1734,
+        "replacement": "||"
+      },
+      "outcome": "caught",
+      "failed": ["Particles.draw > draws shapes and groups additive blending"],
+      "durationMs": 2384
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:66:23:<→<=",
+        "label": "packages/juice/src/particles.ts:66:23 i < count → i <= count",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 66,
+        "column": 23,
+        "start": 1724,
+        "end": 1725,
+        "replacement": "<="
+      },
+      "outcome": "caught",
+      "failed": ["Particles.draw > draws shapes and groups additive blending"],
+      "durationMs": 4283
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:66:51:<→<=",
+        "label": "packages/juice/src/particles.ts:66:51 this.live.length < this.max → this.live.length <= this.max",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 66,
+        "column": 51,
+        "start": 1752,
+        "end": 1753,
+        "replacement": "<="
+      },
+      "outcome": "caught",
+      "failed": ["Particles > emits, expires and reuses"],
+      "durationMs": 3985
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:66:64:++→--",
+        "label": "packages/juice/src/particles.ts:66:64 i++ → i--",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 66,
+        "column": 64,
+        "start": 1765,
+        "end": 1767,
+        "replacement": "--"
+      },
+      "outcome": "caught",
+      "failed": ["Particles.draw > draws shapes and groups additive blending"],
+      "durationMs": 2067
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:68:36:+→-",
+        "label": "packages/juice/src/particles.ts:68:36 (o.angle ?? 0) + (r() - 0.5) * (o.spread ?? Math.PI * 2) → (o.angle ?? 0) - (r() - 0.5) * (o.spread ?? Math.PI * 2)",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 68,
+        "column": 36,
+        "start": 1859,
+        "end": 1860,
+        "replacement": "-"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 5025
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:68:33:0→1",
+        "label": "packages/juice/src/particles.ts:68:33 0 → 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 68,
+        "column": 33,
+        "start": 1856,
+        "end": 1857,
+        "replacement": "1"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4825
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:68:50:*→/",
+        "label": "packages/juice/src/particles.ts:68:50 (r() - 0.5) * (o.spread ?? Math.PI * 2) → (r() - 0.5) / (o.spread ?? Math.PI * 2)",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 68,
+        "column": 50,
+        "start": 1873,
+        "end": 1874,
+        "replacement": "/"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4542
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:68:43:-→+",
+        "label": "packages/juice/src/particles.ts:68:43 r() - 0.5 → r() + 0.5",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 68,
+        "column": 43,
+        "start": 1866,
+        "end": 1867,
+        "replacement": "+"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4482
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:68:45:0.5→0",
+        "label": "packages/juice/src/particles.ts:68:45 0.5 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 68,
+        "column": 45,
+        "start": 1868,
+        "end": 1871,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4054
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:68:73:*→/",
+        "label": "packages/juice/src/particles.ts:68:73 Math.PI * 2 → Math.PI / 2",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 68,
+        "column": 73,
+        "start": 1896,
+        "end": 1897,
+        "replacement": "/"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3970
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:68:75:2→0",
+        "label": "packages/juice/src/particles.ts:68:75 2 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 68,
+        "column": 75,
+        "start": 1898,
+        "end": 1899,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3974
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:69:39:40→0",
+        "label": "packages/juice/src/particles.ts:69:39 40 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 69,
+        "column": 39,
+        "start": 1940,
+        "end": 1942,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3922
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:69:43:120→0",
+        "label": "packages/juice/src/particles.ts:69:43 120 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 69,
+        "column": 43,
+        "start": 1944,
+        "end": 1947,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4448
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:72:30:*→/",
+        "label": "packages/juice/src/particles.ts:72:30 Math.cos(angle) * speed → Math.cos(angle) / speed",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 72,
+        "column": 30,
+        "start": 2014,
+        "end": 2015,
+        "replacement": "/"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4360
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:73:30:*→/",
+        "label": "packages/juice/src/particles.ts:73:30 Math.sin(angle) * speed → Math.sin(angle) / speed",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 73,
+        "column": 30,
+        "start": 2052,
+        "end": 2053,
+        "replacement": "/"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 7949
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:74:45:0.3→0",
+        "label": "packages/juice/src/particles.ts:74:45 0.3 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 74,
+        "column": 45,
+        "start": 2105,
+        "end": 2108,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 7883
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:74:50:0.6→0",
+        "label": "packages/juice/src/particles.ts:74:50 0.6 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 74,
+        "column": 50,
+        "start": 2110,
+        "end": 2113,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 5485
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:75:33:2→0",
+        "label": "packages/juice/src/particles.ts:75:33 2 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 75,
+        "column": 33,
+        "start": 2149,
+        "end": 2150,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 5555
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:75:36:4→0",
+        "label": "packages/juice/src/particles.ts:75:36 4 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 75,
+        "column": 36,
+        "start": 2152,
+        "end": 2153,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4677
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:76:32:0→1",
+        "label": "packages/juice/src/particles.ts:76:32 0 → 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 76,
+        "column": 32,
+        "start": 2188,
+        "end": 2189,
+        "replacement": "1"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4581
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:77:39:*→/",
+        "label": "packages/juice/src/particles.ts:77:39 r() * colors.length → r() / colors.length",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 77,
+        "column": 39,
+        "start": 2229,
+        "end": 2230,
+        "replacement": "/"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4474
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:78:32:0→1",
+        "label": "packages/juice/src/particles.ts:78:32 0 → 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 78,
+        "column": 32,
+        "start": 2289,
+        "end": 2290,
+        "replacement": "1"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4187
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:79:26:1→0",
+        "label": "packages/juice/src/particles.ts:79:26 1 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 79,
+        "column": 26,
+        "start": 2317,
+        "end": 2318,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4213
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:80:26:===→!==",
+        "label": "packages/juice/src/particles.ts:80:26 o.shape === \"circle\" → o.shape !== \"circle\"",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 80,
+        "column": 26,
+        "start": 2345,
+        "end": 2348,
+        "replacement": "!=="
+      },
+      "outcome": "caught",
+      "failed": ["Particles.draw > draws shapes and groups additive blending"],
+      "durationMs": 4411
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:86:28:{\n    for (let i = this.live.length - 1; i >= 0; i--) {\n      const p = this.live[i];\n      if (!p) continue;\n      p.life -= dt;\n      if (p.life <= 0) {\n        // Swap-remove to avoid shifting.\n        const last = this.live.pop();\n        if (last && last !== p) this.live[i] = last;\n        this.pool.push(p);\n        continue;\n      }\n      const d = p.drag === 1 ? 1 : p.drag ** dt;\n      p.vx *= d;\n      p.vy = p.vy * d + p.gravity * dt;\n      p.x += p.vx * dt;\n      p.y += p.vy * dt;\n    }\n  }→{}",
+        "label": "packages/juice/src/particles.ts:86:28 { for (let i = this.live.length - 1; i >= 0; i--) { const... → {}",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 86,
+        "column": 28,
+        "start": 2462,
+        "end": 2966,
+        "replacement": "{}"
+      },
+      "outcome": "caught",
+      "failed": ["Particles > emits, expires and reuses"],
+      "durationMs": 1746
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:87:35:-→+",
+        "label": "packages/juice/src/particles.ts:87:35 this.live.length - 1 → this.live.length + 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 87,
+        "column": 35,
+        "start": 2498,
+        "end": 2499,
+        "replacement": "+"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3511
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:87:37:1→0",
+        "label": "packages/juice/src/particles.ts:87:37 1 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 87,
+        "column": 37,
+        "start": 2500,
+        "end": 2501,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3585
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:87:42:>=→>",
+        "label": "packages/juice/src/particles.ts:87:42 i >= 0 → i > 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 87,
+        "column": 42,
+        "start": 2505,
+        "end": 2507,
+        "replacement": ">"
+      },
+      "outcome": "caught",
+      "failed": ["Particles > emits, expires and reuses"],
+      "durationMs": 1957
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:87:45:0→1",
+        "label": "packages/juice/src/particles.ts:87:45 0 → 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 87,
+        "column": 45,
+        "start": 2508,
+        "end": 2509,
+        "replacement": "1"
+      },
+      "outcome": "caught",
+      "failed": ["Particles > emits, expires and reuses"],
+      "durationMs": 1914
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:87:49:--→++",
+        "label": "packages/juice/src/particles.ts:87:49 i-- → i++",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 87,
+        "column": 49,
+        "start": 2512,
+        "end": 2514,
+        "replacement": "++"
+      },
+      "outcome": "caught",
+      "failed": ["(timed out after 92 s)"],
+      "durationMs": 92136
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:89:11:!→",
+        "label": "packages/juice/src/particles.ts:89:11 !p → p",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 89,
+        "column": 11,
+        "start": 2558,
+        "end": 2559,
+        "replacement": ""
+      },
+      "outcome": "caught",
+      "failed": ["Particles > emits, expires and reuses"],
+      "durationMs": 2020
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:90:14:-=→+=",
+        "label": "packages/juice/src/particles.ts:90:14 p.life -= dt → p.life += dt",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 90,
+        "column": 14,
+        "start": 2585,
+        "end": 2587,
+        "replacement": "+="
+      },
+      "outcome": "caught",
+      "failed": ["Particles > emits, expires and reuses"],
+      "durationMs": 2019
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:91:18:<=→<",
+        "label": "packages/juice/src/particles.ts:91:18 p.life <= 0 → p.life < 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 91,
+        "column": 18,
+        "start": 2609,
+        "end": 2611,
+        "replacement": "<"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3488
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:91:21:0→1",
+        "label": "packages/juice/src/particles.ts:91:21 0 → 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 91,
+        "column": 21,
+        "start": 2612,
+        "end": 2613,
+        "replacement": "1"
+      },
+      "outcome": "caught",
+      "failed": ["Particles > emits, expires and reuses"],
+      "durationMs": 2105
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:94:18:&&→||",
+        "label": "packages/juice/src/particles.ts:94:18 last && last !== p → last || last !== p",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 94,
+        "column": 18,
+        "start": 2714,
+        "end": 2716,
+        "replacement": "||"
+      },
+      "outcome": "caught",
+      "failed": ["Particles > emits, expires and reuses"],
+      "durationMs": 2239
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:94:26:!==→===",
+        "label": "packages/juice/src/particles.ts:94:26 last !== p → last === p",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 94,
+        "column": 26,
+        "start": 2722,
+        "end": 2725,
+        "replacement": "==="
+      },
+      "outcome": "caught",
+      "failed": ["Particles > emits, expires and reuses"],
+      "durationMs": 1992
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:98:24:===→!==",
+        "label": "packages/juice/src/particles.ts:98:24 p.drag === 1 → p.drag !== 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 98,
+        "column": 24,
+        "start": 2826,
+        "end": 2829,
+        "replacement": "!=="
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 5147
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:98:28:1→0",
+        "label": "packages/juice/src/particles.ts:98:28 1 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 98,
+        "column": 28,
+        "start": 2830,
+        "end": 2831,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4696
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:98:32:1→0",
+        "label": "packages/juice/src/particles.ts:98:32 1 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 98,
+        "column": 32,
+        "start": 2834,
+        "end": 2835,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3821
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:99:12:*=→/=",
+        "label": "packages/juice/src/particles.ts:99:12 p.vx *= d → p.vx /= d",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 99,
+        "column": 12,
+        "start": 2863,
+        "end": 2865,
+        "replacement": "/="
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4215
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:100:23:+→-",
+        "label": "packages/juice/src/particles.ts:100:23 p.vy * d + p.gravity * dt → p.vy * d - p.gravity * dt",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 100,
+        "column": 23,
+        "start": 2891,
+        "end": 2892,
+        "replacement": "-"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4550
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:100:19:*→/",
+        "label": "packages/juice/src/particles.ts:100:19 p.vy * d → p.vy / d",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 100,
+        "column": 19,
+        "start": 2887,
+        "end": 2888,
+        "replacement": "/"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 5540
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:100:35:*→/",
+        "label": "packages/juice/src/particles.ts:100:35 p.gravity * dt → p.gravity / dt",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 100,
+        "column": 35,
+        "start": 2903,
+        "end": 2904,
+        "replacement": "/"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4599
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:101:11:+=→-=",
+        "label": "packages/juice/src/particles.ts:101:11 p.x += p.vx * dt → p.x -= p.vx * dt",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 101,
+        "column": 11,
+        "start": 2919,
+        "end": 2921,
+        "replacement": "-="
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3909
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:101:19:*→/",
+        "label": "packages/juice/src/particles.ts:101:19 p.vx * dt → p.vx / dt",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 101,
+        "column": 19,
+        "start": 2927,
+        "end": 2928,
+        "replacement": "/"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3908
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:102:11:+=→-=",
+        "label": "packages/juice/src/particles.ts:102:11 p.y += p.vy * dt → p.y -= p.vy * dt",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 102,
+        "column": 11,
+        "start": 2943,
+        "end": 2945,
+        "replacement": "-="
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4146
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:102:19:*→/",
+        "label": "packages/juice/src/particles.ts:102:19 p.vy * dt → p.vy / dt",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 102,
+        "column": 19,
+        "start": 2951,
+        "end": 2952,
+        "replacement": "/"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3634
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:107:30:{\n    const baseAlpha = draw.alpha;\n    let additive = false;\n    for (const p of this.live) {\n      if (p.additive !== additive) {\n        additive = p.additive;\n        draw.blend(additive ? \"add\" : \"normal\");\n      }\n      const t = p.life / p.maxLife;\n      const s = p.size * (p.sizeEnd + (1 - p.sizeEnd) * t);\n      draw.alpha = baseAlpha * Math.min(1, t * 2);\n      if (p.circle) draw.circle(p.x, p.y, s / 2, p.color);\n      else draw.rect(p.x - s / 2, p.y - s / 2, s, s, p.color);\n    }\n    if (additive) draw.blend(\"normal\");\n    draw.alpha = baseAlpha;\n  }→{}",
+        "label": "packages/juice/src/particles.ts:107:30 { const baseAlpha = draw.alpha; let additive = false; for... → {}",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 107,
+        "column": 30,
+        "start": 3104,
+        "end": 3670,
+        "replacement": "{}"
+      },
+      "outcome": "caught",
+      "failed": ["Particles.draw > draws shapes and groups additive blending"],
+      "durationMs": 4126
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:111:22:!==→===",
+        "label": "packages/juice/src/particles.ts:111:22 p.additive !== additive → p.additive === additive",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 111,
+        "column": 22,
+        "start": 3220,
+        "end": 3223,
+        "replacement": "==="
+      },
+      "outcome": "caught",
+      "failed": ["Particles.draw > draws shapes and groups additive blending"],
+      "durationMs": 4761
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:115:24:/→*",
+        "label": "packages/juice/src/particles.ts:115:24 p.life / p.maxLife → p.life * p.maxLife",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 115,
+        "column": 24,
+        "start": 3347,
+        "end": 3348,
+        "replacement": "*"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4331
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:116:24:*→/",
+        "label": "packages/juice/src/particles.ts:116:24 p.size * (p.sizeEnd + (1 - p.sizeEnd) * t) → p.size / (p.sizeEnd + (1 - p.sizeEnd) * t)",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 116,
+        "column": 24,
+        "start": 3383,
+        "end": 3384,
+        "replacement": "/"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3752
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:116:37:+→-",
+        "label": "packages/juice/src/particles.ts:116:37 p.sizeEnd + (1 - p.sizeEnd) * t → p.sizeEnd - (1 - p.sizeEnd) * t",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 116,
+        "column": 37,
+        "start": 3396,
+        "end": 3397,
+        "replacement": "-"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3930
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:116:55:*→/",
+        "label": "packages/juice/src/particles.ts:116:55 (1 - p.sizeEnd) * t → (1 - p.sizeEnd) / t",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 116,
+        "column": 55,
+        "start": 3414,
+        "end": 3415,
+        "replacement": "/"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3787
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:116:42:-→+",
+        "label": "packages/juice/src/particles.ts:116:42 1 - p.sizeEnd → 1 + p.sizeEnd",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 116,
+        "column": 42,
+        "start": 3401,
+        "end": 3402,
+        "replacement": "+"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3723
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:116:40:1→0",
+        "label": "packages/juice/src/particles.ts:116:40 1 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 116,
+        "column": 40,
+        "start": 3399,
+        "end": 3400,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3487
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:117:30:*→/",
+        "label": "packages/juice/src/particles.ts:117:30 baseAlpha * Math.min(1, t * 2) → baseAlpha / Math.min(1, t * 2)",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 117,
+        "column": 30,
+        "start": 3449,
+        "end": 3450,
+        "replacement": "/"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3217
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:117:41:1→0",
+        "label": "packages/juice/src/particles.ts:117:41 1 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 117,
+        "column": 41,
+        "start": 3460,
+        "end": 3461,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 2932
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:117:46:*→/",
+        "label": "packages/juice/src/particles.ts:117:46 t * 2 → t / 2",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 117,
+        "column": 46,
+        "start": 3465,
+        "end": 3466,
+        "replacement": "/"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 2795
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:117:48:2→0",
+        "label": "packages/juice/src/particles.ts:117:48 2 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 117,
+        "column": 48,
+        "start": 3467,
+        "end": 3468,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 2740
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:118:45:/→*",
+        "label": "packages/juice/src/particles.ts:118:45 s / 2 → s * 2",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 118,
+        "column": 45,
+        "start": 3515,
+        "end": 3516,
+        "replacement": "*"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 2712
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:118:47:2→0",
+        "label": "packages/juice/src/particles.ts:118:47 2 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 118,
+        "column": 47,
+        "start": 3517,
+        "end": 3518,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 2833
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:119:26:-→+",
+        "label": "packages/juice/src/particles.ts:119:26 p.x - s / 2 → p.x + s / 2",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 119,
+        "column": 26,
+        "start": 3555,
+        "end": 3556,
+        "replacement": "+"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3015
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:119:30:/→*",
+        "label": "packages/juice/src/particles.ts:119:30 s / 2 → s * 2",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 119,
+        "column": 30,
+        "start": 3559,
+        "end": 3560,
+        "replacement": "*"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3079
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:119:32:2→0",
+        "label": "packages/juice/src/particles.ts:119:32 2 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 119,
+        "column": 32,
+        "start": 3561,
+        "end": 3562,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 2957
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:119:39:-→+",
+        "label": "packages/juice/src/particles.ts:119:39 p.y - s / 2 → p.y + s / 2",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 119,
+        "column": 39,
+        "start": 3568,
+        "end": 3569,
+        "replacement": "+"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 2909
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:119:43:/→*",
+        "label": "packages/juice/src/particles.ts:119:43 s / 2 → s * 2",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 119,
+        "column": 43,
+        "start": 3572,
+        "end": 3573,
+        "replacement": "*"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3351
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:119:45:2→0",
+        "label": "packages/juice/src/particles.ts:119:45 2 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 119,
+        "column": 45,
+        "start": 3574,
+        "end": 3575,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4248
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:125:17:{\n    this.pool.push(...this.live);\n    this.live.length = 0;\n  }→{}",
+        "label": "packages/juice/src/particles.ts:125:17 { this.pool.push(...this.live); this.live.length = 0; } → {}",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 125,
+        "column": 17,
+        "start": 3688,
+        "end": 3753,
+        "replacement": "{}"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4858
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/particles.ts:127:24:0→1",
+        "label": "packages/juice/src/particles.ts:127:24 0 → 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/particles.ts",
+        "line": 127,
+        "column": 24,
+        "start": 3747,
+        "end": 3748,
+        "replacement": "1"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4093
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/recipes.ts:11:69:0.3→0",
+        "label": "packages/juice/src/recipes.ts:11:69 0.3 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/recipes.ts",
+        "line": 11,
+        "column": 69,
+        "start": 448,
+        "end": 451,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3348
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/recipes.ts:11:85:0.25→0",
+        "label": "packages/juice/src/recipes.ts:11:85 0.25 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/recipes.ts",
+        "line": 11,
+        "column": 85,
+        "start": 464,
+        "end": 468,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3355
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/recipes.ts:13:21:+→-",
+        "label": "packages/juice/src/recipes.ts:13:21 1 + amount → 1 - amount",
+        "expect": "noticed",
+        "file": "packages/juice/src/recipes.ts",
+        "line": 13,
+        "column": 21,
+        "start": 544,
+        "end": 545,
+        "replacement": "-"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > squash springs back to 1"],
+      "durationMs": 1700
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/recipes.ts:13:19:1→0",
+        "label": "packages/juice/src/recipes.ts:13:19 1 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/recipes.ts",
+        "line": 13,
+        "column": 19,
+        "start": 542,
+        "end": 543,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > squash springs back to 1"],
+      "durationMs": 1755
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/recipes.ts:14:21:-→+",
+        "label": "packages/juice/src/recipes.ts:14:21 1 - amount → 1 + amount",
+        "expect": "noticed",
+        "file": "packages/juice/src/recipes.ts",
+        "line": 14,
+        "column": 21,
+        "start": 574,
+        "end": 575,
+        "replacement": "+"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3341
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/recipes.ts:14:19:1→0",
+        "label": "packages/juice/src/recipes.ts:14:19 1 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/recipes.ts",
+        "line": 14,
+        "column": 19,
+        "start": 572,
+        "end": 573,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3382
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/recipes.ts:15:38:1→0",
+        "label": "packages/juice/src/recipes.ts:15:38 1 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/recipes.ts",
+        "line": 15,
+        "column": 38,
+        "start": 621,
+        "end": 622,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > squash springs back to 1"],
+      "durationMs": 1735
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/recipes.ts:15:49:1→0",
+        "label": "packages/juice/src/recipes.ts:15:49 1 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/recipes.ts",
+        "line": 15,
+        "column": 49,
+        "start": 632,
+        "end": 633,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3177
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/trail.ts:14:36:{\n    this.xs.push(x);\n    this.ys.push(y);\n    if (this.xs.length > this.length) {\n      this.xs.shift();\n      this.ys.shift();\n    }\n  }→{}",
+        "label": "packages/juice/src/trail.ts:14:36 { this.xs.push(x); this.ys.push(y); if (this.xs.length > ... → {}",
+        "expect": "noticed",
+        "file": "packages/juice/src/trail.ts",
+        "line": 14,
+        "column": 36,
+        "start": 356,
+        "end": 495,
+        "replacement": "{}"
+      },
+      "outcome": "caught",
+      "failed": ["Trail > keeps the most recent points and draws fading segments"],
+      "durationMs": 3222
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/trail.ts:17:24:>→>=",
+        "label": "packages/juice/src/trail.ts:17:24 this.xs.length > this.length → this.xs.length >= this.length",
+        "expect": "noticed",
+        "file": "packages/juice/src/trail.ts",
+        "line": 17,
+        "column": 24,
+        "start": 423,
+        "end": 424,
+        "replacement": ">="
+      },
+      "outcome": "caught",
+      "failed": ["Trail > keeps the most recent points and draws fading segments"],
+      "durationMs": 3397
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/trail.ts:23:17:{\n    this.xs.length = 0;\n    this.ys.length = 0;\n  }→{}",
+        "label": "packages/juice/src/trail.ts:23:17 { this.xs.length = 0; this.ys.length = 0; } → {}",
+        "expect": "noticed",
+        "file": "packages/juice/src/trail.ts",
+        "line": 23,
+        "column": 17,
+        "start": 513,
+        "end": 566,
+        "replacement": "{}"
+      },
+      "outcome": "caught",
+      "failed": ["Trail > keeps the most recent points and draws fading segments"],
+      "durationMs": 1804
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/trail.ts:24:22:0→1",
+        "label": "packages/juice/src/trail.ts:24:22 0 → 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/trail.ts",
+        "line": 24,
+        "column": 22,
+        "start": 536,
+        "end": 537,
+        "replacement": "1"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3309
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/trail.ts:25:22:0→1",
+        "label": "packages/juice/src/trail.ts:25:22 0 → 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/trail.ts",
+        "line": 25,
+        "column": 22,
+        "start": 560,
+        "end": 561,
+        "replacement": "1"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3441
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/trail.ts:28:30:{\n    const n = this.xs.length;\n    if (n < 2) return;\n    const baseAlpha = draw.alpha;\n    for (let i = 1; i < n; i++) {\n      const t = i / (n - 1);\n      draw.alpha = baseAlpha * t;\n      draw.line(this.xs[i - 1] ?? 0, this.ys[i - 1] ?? 0, this.xs[i] ?? 0, this.ys[i] ?? 0, this.width * t, this.color);\n    }\n    draw.alpha = baseAlpha;\n  }→{}",
+        "label": "packages/juice/src/trail.ts:28:30 { const n = this.xs.length; if (n < 2) return; const base... → {}",
+        "expect": "noticed",
+        "file": "packages/juice/src/trail.ts",
+        "line": 28,
+        "column": 30,
+        "start": 597,
+        "end": 941,
+        "replacement": "{}"
+      },
+      "outcome": "caught",
+      "failed": ["Trail > keeps the most recent points and draws fading segments"],
+      "durationMs": 3523
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/trail.ts:30:11:<→<=",
+        "label": "packages/juice/src/trail.ts:30:11 n < 2 → n <= 2",
+        "expect": "noticed",
+        "file": "packages/juice/src/trail.ts",
+        "line": 30,
+        "column": 11,
+        "start": 639,
+        "end": 640,
+        "replacement": "<="
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3428
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/trail.ts:30:13:2→0",
+        "label": "packages/juice/src/trail.ts:30:13 2 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/trail.ts",
+        "line": 30,
+        "column": 13,
+        "start": 641,
+        "end": 642,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3512
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/trail.ts:32:18:1→0",
+        "label": "packages/juice/src/trail.ts:32:18 1 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/trail.ts",
+        "line": 32,
+        "column": 18,
+        "start": 703,
+        "end": 704,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["Trail > keeps the most recent points and draws fading segments"],
+      "durationMs": 3929
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/trail.ts:32:23:<→<=",
+        "label": "packages/juice/src/trail.ts:32:23 i < n → i <= n",
+        "expect": "noticed",
+        "file": "packages/juice/src/trail.ts",
+        "line": 32,
+        "column": 23,
+        "start": 708,
+        "end": 709,
+        "replacement": "<="
+      },
+      "outcome": "caught",
+      "failed": ["Trail > keeps the most recent points and draws fading segments"],
+      "durationMs": 3940
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/trail.ts:32:29:++→--",
+        "label": "packages/juice/src/trail.ts:32:29 i++ → i--",
+        "expect": "noticed",
+        "file": "packages/juice/src/trail.ts",
+        "line": 32,
+        "column": 29,
+        "start": 714,
+        "end": 716,
+        "replacement": "--"
+      },
+      "outcome": "caught",
+      "failed": ["(error) [vitest-pool]: Worker forks emitted error."],
+      "durationMs": 61948
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/trail.ts:33:19:/→*",
+        "label": "packages/juice/src/trail.ts:33:19 i / (n - 1) → i * (n - 1)",
+        "expect": "noticed",
+        "file": "packages/juice/src/trail.ts",
+        "line": 33,
+        "column": 19,
+        "start": 738,
+        "end": 739,
+        "replacement": "*"
+      },
+      "outcome": "caught",
+      "failed": ["Trail > keeps the most recent points and draws fading segments"],
+      "durationMs": 2110
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/trail.ts:33:24:-→+",
+        "label": "packages/juice/src/trail.ts:33:24 n - 1 → n + 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/trail.ts",
+        "line": 33,
+        "column": 24,
+        "start": 743,
+        "end": 744,
+        "replacement": "+"
+      },
+      "outcome": "caught",
+      "failed": ["Trail > keeps the most recent points and draws fading segments"],
+      "durationMs": 2179
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/trail.ts:33:26:1→0",
+        "label": "packages/juice/src/trail.ts:33:26 1 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/trail.ts",
+        "line": 33,
+        "column": 26,
+        "start": 745,
+        "end": 746,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["Trail > keeps the most recent points and draws fading segments"],
+      "durationMs": 2356
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/trail.ts:34:30:*→/",
+        "label": "packages/juice/src/trail.ts:34:30 baseAlpha * t → baseAlpha / t",
+        "expect": "noticed",
+        "file": "packages/juice/src/trail.ts",
+        "line": 34,
+        "column": 30,
+        "start": 778,
+        "end": 779,
+        "replacement": "/"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4915
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/trail.ts:35:27:-→+",
+        "label": "packages/juice/src/trail.ts:35:27 i - 1 → i + 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/trail.ts",
+        "line": 35,
+        "column": 27,
+        "start": 809,
+        "end": 810,
+        "replacement": "+"
+      },
+      "outcome": "caught",
+      "failed": ["Trail > keeps the most recent points and draws fading segments"],
+      "durationMs": 1915
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/trail.ts:35:29:1→0",
+        "label": "packages/juice/src/trail.ts:35:29 1 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/trail.ts",
+        "line": 35,
+        "column": 29,
+        "start": 811,
+        "end": 812,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["Trail > keeps the most recent points and draws fading segments"],
+      "durationMs": 1820
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/trail.ts:35:35:0→1",
+        "label": "packages/juice/src/trail.ts:35:35 0 → 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/trail.ts",
+        "line": 35,
+        "column": 35,
+        "start": 817,
+        "end": 818,
+        "replacement": "1"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3430
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/trail.ts:35:48:-→+",
+        "label": "packages/juice/src/trail.ts:35:48 i - 1 → i + 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/trail.ts",
+        "line": 35,
+        "column": 48,
+        "start": 830,
+        "end": 831,
+        "replacement": "+"
+      },
+      "outcome": "caught",
+      "failed": ["Trail > keeps the most recent points and draws fading segments"],
+      "durationMs": 26271
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/trail.ts:35:50:1→0",
+        "label": "packages/juice/src/trail.ts:35:50 1 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/trail.ts",
+        "line": 35,
+        "column": 50,
+        "start": 832,
+        "end": 833,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["Trail > keeps the most recent points and draws fading segments"],
+      "durationMs": 15007
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/trail.ts:35:56:0→1",
+        "label": "packages/juice/src/trail.ts:35:56 0 → 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/trail.ts",
+        "line": 35,
+        "column": 56,
+        "start": 838,
+        "end": 839,
+        "replacement": "1"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3319
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/trail.ts:35:73:0→1",
+        "label": "packages/juice/src/trail.ts:35:73 0 → 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/trail.ts",
+        "line": 35,
+        "column": 73,
+        "start": 855,
+        "end": 856,
+        "replacement": "1"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3255
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/trail.ts:35:90:0→1",
+        "label": "packages/juice/src/trail.ts:35:90 0 → 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/trail.ts",
+        "line": 35,
+        "column": 90,
+        "start": 872,
+        "end": 873,
+        "replacement": "1"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3255
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/trail.ts:35:104:*→/",
+        "label": "packages/juice/src/trail.ts:35:104 this.width * t → this.width / t",
+        "expect": "noticed",
+        "file": "packages/juice/src/trail.ts",
+        "line": 35,
+        "column": 104,
+        "start": 886,
+        "end": 887,
+        "replacement": "/"
+      },
+      "outcome": "caught",
+      "failed": ["Trail > keeps the most recent points and draws fading segments"],
+      "durationMs": 3348
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:46:62:0→1",
+        "label": "packages/juice/src/tween.ts:46:62 0 → 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 46,
+        "column": 62,
+        "start": 1339,
+        "end": 1340,
+        "replacement": "1"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3354
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:53:44:1e-6→0",
+        "label": "packages/juice/src/tween.ts:53:44 1e-6 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 53,
+        "column": 44,
+        "start": 1540,
+        "end": 1544,
+        "replacement": "0"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3439
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:54:35:===→!==",
+        "label": "packages/juice/src/tween.ts:54:35 typeof options.ease === \"function\" → typeof options.ease !== \"function\"",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 54,
+        "column": 35,
+        "start": 1581,
+        "end": 1584,
+        "replacement": "!=="
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > interpolates and completes"],
+      "durationMs": 3383
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:55:31:0→1",
+        "label": "packages/juice/src/tween.ts:55:31 0 → 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 55,
+        "column": 31,
+        "start": 1676,
+        "end": 1677,
+        "replacement": "1"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > interpolates and completes"],
+      "durationMs": 1579
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:56:13:0→1",
+        "label": "packages/juice/src/tween.ts:56:13 0 → 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 56,
+        "column": 13,
+        "start": 1691,
+        "end": 1692,
+        "replacement": "1"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > interpolates and completes"],
+      "durationMs": 1885
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:58:33:0→1",
+        "label": "packages/juice/src/tween.ts:58:33 0 → 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 58,
+        "column": 33,
+        "start": 1761,
+        "end": 1762,
+        "replacement": "1"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > interpolates and completes"],
+      "durationMs": 1683
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:68:21:{\n        a.done = true;\n      }→{}",
+        "label": "packages/juice/src/tween.ts:68:21 { a.done = true; } → {}",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 68,
+        "column": 21,
+        "start": 1952,
+        "end": 1984,
+        "replacement": "{}"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3867
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:79:57:{\n    for (const a of this.active) {\n      if (a.target !== target || a.done) continue;\n      if (!props) {\n        a.done = true;\n        continue;\n      }\n      for (const key of props) delete a.to[key];\n      if (Object.keys(a.to).length === 0) a.done = true;\n    }\n  }→{}",
+        "label": "packages/juice/src/tween.ts:79:57 { for (const a of this.active) { if (a.target !== target ... → {}",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 79,
+        "column": 57,
+        "start": 2255,
+        "end": 2527,
+        "replacement": "{}"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > kill can stop just some properties; has reports what's still running"],
+      "durationMs": 2120
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:81:31:||→&&",
+        "label": "packages/juice/src/tween.ts:81:31 a.target !== target || a.done → a.target !== target && a.done",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 81,
+        "column": 31,
+        "start": 2322,
+        "end": 2324,
+        "replacement": "&&"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 5306
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:81:20:!==→===",
+        "label": "packages/juice/src/tween.ts:81:20 a.target !== target → a.target === target",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 81,
+        "column": 20,
+        "start": 2311,
+        "end": 2314,
+        "replacement": "==="
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > kill can stop just some properties; has reports what's still running"],
+      "durationMs": 7295
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:82:11:!→",
+        "label": "packages/juice/src/tween.ts:82:11 !props → props",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 82,
+        "column": 11,
+        "start": 2353,
+        "end": 2354,
+        "replacement": ""
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > squash leaves a move on the same target running"],
+      "durationMs": 6130
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:87:36:===→!==",
+        "label": "packages/juice/src/tween.ts:87:36 Object.keys(a.to).length === 0 → Object.keys(a.to).length !== 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 87,
+        "column": 36,
+        "start": 2496,
+        "end": 2499,
+        "replacement": "!=="
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > squash leaves a move on the same target running"],
+      "durationMs": 4394
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:87:40:0→1",
+        "label": "packages/juice/src/tween.ts:87:40 0 → 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 87,
+        "column": 40,
+        "start": 2500,
+        "end": 2501,
+        "replacement": "1"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > squash leaves a move on the same target running"],
+      "durationMs": 2169
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:92:47:{\n    return this.active.some((a) => a.target === target && !a.done && (prop === undefined || prop in a.to));\n  }→{ return true; }",
+        "label": "packages/juice/src/tween.ts:92:47 { return this.active.some((a) => a.target === target && !... → { return true; }",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 92,
+        "column": 47,
+        "start": 2674,
+        "end": 2787,
+        "replacement": "{ return true; }"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > kill can stop just some properties; has reports what's still running"],
+      "durationMs": 1995
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:92:47:{\n    return this.active.some((a) => a.target === target && !a.done && (prop === undefined || prop in a.to));\n  }→{ return false; }",
+        "label": "packages/juice/src/tween.ts:92:47 { return this.active.some((a) => a.target === target && !... → { return false; }",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 92,
+        "column": 47,
+        "start": 2674,
+        "end": 2787,
+        "replacement": "{ return false; }"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > squash leaves a move on the same target running"],
+      "durationMs": 1558
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:93:67:&&→||",
+        "label": "packages/juice/src/tween.ts:93:67 a.target === target && !a.done && (prop === undefined || ... → a.target === target && !a.done || (prop === undefined || ...",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 93,
+        "column": 67,
+        "start": 2742,
+        "end": 2744,
+        "replacement": "||"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > kill can stop just some properties; has reports what's still running"],
+      "durationMs": 1717
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:93:56:&&→||",
+        "label": "packages/juice/src/tween.ts:93:56 a.target === target && !a.done → a.target === target || !a.done",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 93,
+        "column": 56,
+        "start": 2731,
+        "end": 2733,
+        "replacement": "||"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > kill can stop just some properties; has reports what's still running"],
+      "durationMs": 2278
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:93:45:===→!==",
+        "label": "packages/juice/src/tween.ts:93:45 a.target === target → a.target !== target",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 93,
+        "column": 45,
+        "start": 2720,
+        "end": 2723,
+        "replacement": "!=="
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > squash leaves a move on the same target running"],
+      "durationMs": 2120
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:93:59:!→",
+        "label": "packages/juice/src/tween.ts:93:59 !a.done → a.done",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 93,
+        "column": 59,
+        "start": 2734,
+        "end": 2735,
+        "replacement": ""
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > squash leaves a move on the same target running"],
+      "durationMs": 2199
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:93:90:||→&&",
+        "label": "packages/juice/src/tween.ts:93:90 prop === undefined || prop in a.to → prop === undefined && prop in a.to",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 93,
+        "column": 90,
+        "start": 2765,
+        "end": 2767,
+        "replacement": "&&"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > squash leaves a move on the same target running"],
+      "durationMs": 1803
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:93:76:===→!==",
+        "label": "packages/juice/src/tween.ts:93:76 prop === undefined → prop !== undefined",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 93,
+        "column": 76,
+        "start": 2751,
+        "end": 2754,
+        "replacement": "!=="
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > kill can stop just some properties; has reports what's still running"],
+      "durationMs": 1744
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:100:28:{\n    for (const a of this.active) {\n      if (a.done) continue;\n      let step = dt;\n      if (a.delay > 0) {\n        a.delay -= step;\n        if (a.delay > 0) continue;\n        step = -a.delay;\n        a.delay = 0;\n      }\n      a.time += step;\n      const span = a.yoyo ? a.duration * 2 : a.duration;\n      let t = Math.min(a.time / a.duration, a.yoyo ? 2 : 1);\n      if (t > 1) t = 2 - t;\n      const k = a.easing(t);\n      for (const key in a.to) {\n        const from = a.from[key] ?? 0;\n        a.target[key] = from + ((a.to[key] ?? from) - from) * k;\n      }\n      if (a.time >= span) {\n        if (a.repeat !== 0) {\n          a.time -= span;\n          if (a.repeat > 0) a.repeat--;\n        } else {\n          a.done = true;\n          a.onComplete?.();\n          a.resolve();\n        }\n      }\n    }\n    if (this.active.some((a) => a.done)) this.active = this.active.filter((a) => !a.done);\n  }→{}",
+        "label": "packages/juice/src/tween.ts:100:28 { for (const a of this.active) { if (a.done) continue; le... → {}",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 100,
+        "column": 28,
+        "start": 2876,
+        "end": 3777,
+        "replacement": "{}"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > interpolates and completes"],
+      "durationMs": 1730
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:104:19:>→>=",
+        "label": "packages/juice/src/tween.ts:104:19 a.delay > 0 → a.delay >= 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 104,
+        "column": 19,
+        "start": 2980,
+        "end": 2981,
+        "replacement": ">="
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4049
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:104:21:0→1",
+        "label": "packages/juice/src/tween.ts:104:21 0 → 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 104,
+        "column": 21,
+        "start": 2982,
+        "end": 2983,
+        "replacement": "1"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > respects delay and yoyo"],
+      "durationMs": 2160
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:105:17:-=→+=",
+        "label": "packages/juice/src/tween.ts:105:17 a.delay -= step → a.delay += step",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 105,
+        "column": 17,
+        "start": 3003,
+        "end": 3005,
+        "replacement": "+="
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > respects delay and yoyo"],
+      "durationMs": 1927
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:106:21:>→>=",
+        "label": "packages/juice/src/tween.ts:106:21 a.delay > 0 → a.delay >= 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 106,
+        "column": 21,
+        "start": 3032,
+        "end": 3033,
+        "replacement": ">="
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4077
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:106:23:0→1",
+        "label": "packages/juice/src/tween.ts:106:23 0 → 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 106,
+        "column": 23,
+        "start": 3034,
+        "end": 3035,
+        "replacement": "1"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4274
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:107:16:-→",
+        "label": "packages/juice/src/tween.ts:107:16 -a.delay → a.delay",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 107,
+        "column": 16,
+        "start": 3062,
+        "end": 3063,
+        "replacement": ""
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > kill can stop just some properties; has reports what's still running"],
+      "durationMs": 2645
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:108:19:0→1",
+        "label": "packages/juice/src/tween.ts:108:19 0 → 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 108,
+        "column": 19,
+        "start": 3090,
+        "end": 3091,
+        "replacement": "1"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > respects delay and yoyo"],
+      "durationMs": 2463
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:110:14:+=→-=",
+        "label": "packages/juice/src/tween.ts:110:14 a.time += step → a.time -= step",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 110,
+        "column": 14,
+        "start": 3114,
+        "end": 3116,
+        "replacement": "-="
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > interpolates and completes"],
+      "durationMs": 2118
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:111:40:*→/",
+        "label": "packages/juice/src/tween.ts:111:40 a.duration * 2 → a.duration / 2",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 111,
+        "column": 40,
+        "start": 3162,
+        "end": 3163,
+        "replacement": "/"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > respects delay and yoyo"],
+      "durationMs": 2051
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:111:42:2→0",
+        "label": "packages/juice/src/tween.ts:111:42 2 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 111,
+        "column": 42,
+        "start": 3164,
+        "end": 3165,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > respects delay and yoyo"],
+      "durationMs": 1885
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:112:31:/→*",
+        "label": "packages/juice/src/tween.ts:112:31 a.time / a.duration → a.time * a.duration",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 112,
+        "column": 31,
+        "start": 3210,
+        "end": 3211,
+        "replacement": "*"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > squash springs back to 1"],
+      "durationMs": 1955
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:112:54:2→0",
+        "label": "packages/juice/src/tween.ts:112:54 2 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 112,
+        "column": 54,
+        "start": 3233,
+        "end": 3234,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > respects delay and yoyo"],
+      "durationMs": 1839
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:112:58:1→0",
+        "label": "packages/juice/src/tween.ts:112:58 1 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 112,
+        "column": 58,
+        "start": 3237,
+        "end": 3238,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > interpolates and completes"],
+      "durationMs": 1810
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:113:13:>→>=",
+        "label": "packages/juice/src/tween.ts:113:13 t > 1 → t >= 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 113,
+        "column": 13,
+        "start": 3253,
+        "end": 3254,
+        "replacement": ">="
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4142
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:113:15:1→0",
+        "label": "packages/juice/src/tween.ts:113:15 1 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 113,
+        "column": 15,
+        "start": 3255,
+        "end": 3256,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > interpolates and completes"],
+      "durationMs": 2518
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:113:24:-→+",
+        "label": "packages/juice/src/tween.ts:113:24 2 - t → 2 + t",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 113,
+        "column": 24,
+        "start": 3264,
+        "end": 3265,
+        "replacement": "+"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > respects delay and yoyo"],
+      "durationMs": 1822
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:113:22:2→0",
+        "label": "packages/juice/src/tween.ts:113:22 2 → 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 113,
+        "column": 22,
+        "start": 3262,
+        "end": 3263,
+        "replacement": "0"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > respects delay and yoyo"],
+      "durationMs": 2425
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:116:37:0→1",
+        "label": "packages/juice/src/tween.ts:116:37 0 → 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 116,
+        "column": 37,
+        "start": 3366,
+        "end": 3367,
+        "replacement": "1"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4452
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:117:30:+→-",
+        "label": "packages/juice/src/tween.ts:117:30 from + ((a.to[key] ?? from) - from) * k → from - ((a.to[key] ?? from) - from) * k",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 117,
+        "column": 30,
+        "start": 3398,
+        "end": 3399,
+        "replacement": "-"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > interpolates and completes"],
+      "durationMs": 2260
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:117:61:*→/",
+        "label": "packages/juice/src/tween.ts:117:61 ((a.to[key] ?? from) - from) * k → ((a.to[key] ?? from) - from) / k",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 117,
+        "column": 61,
+        "start": 3429,
+        "end": 3430,
+        "replacement": "/"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > interpolates and completes"],
+      "durationMs": 2757
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:117:53:-→+",
+        "label": "packages/juice/src/tween.ts:117:53 (a.to[key] ?? from) - from → (a.to[key] ?? from) + from",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 117,
+        "column": 53,
+        "start": 3421,
+        "end": 3422,
+        "replacement": "+"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > squash springs back to 1"],
+      "durationMs": 2884
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:119:18:>=→>",
+        "label": "packages/juice/src/tween.ts:119:18 a.time >= span → a.time > span",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 119,
+        "column": 18,
+        "start": 3459,
+        "end": 3461,
+        "replacement": ">"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > kill can stop just some properties; has reports what's still running"],
+      "durationMs": 2747
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:120:22:!==→===",
+        "label": "packages/juice/src/tween.ts:120:22 a.repeat !== 0 → a.repeat === 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 120,
+        "column": 22,
+        "start": 3491,
+        "end": 3494,
+        "replacement": "==="
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > interpolates and completes"],
+      "durationMs": 2605
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:120:26:0→1",
+        "label": "packages/juice/src/tween.ts:120:26 0 → 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 120,
+        "column": 26,
+        "start": 3495,
+        "end": 3496,
+        "replacement": "1"
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > interpolates and completes"],
+      "durationMs": 2464
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:121:18:-=→+=",
+        "label": "packages/juice/src/tween.ts:121:18 a.time -= span → a.time += span",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 121,
+        "column": 18,
+        "start": 3517,
+        "end": 3519,
+        "replacement": "+="
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3887
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:122:24:>→>=",
+        "label": "packages/juice/src/tween.ts:122:24 a.repeat > 0 → a.repeat >= 0",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 122,
+        "column": 24,
+        "start": 3549,
+        "end": 3550,
+        "replacement": ">="
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3932
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:122:26:0→1",
+        "label": "packages/juice/src/tween.ts:122:26 0 → 1",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 122,
+        "column": 26,
+        "start": 3551,
+        "end": 3552,
+        "replacement": "1"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 4000
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:122:37:--→++",
+        "label": "packages/juice/src/tween.ts:122:37 a.repeat-- → a.repeat++",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 122,
+        "column": 37,
+        "start": 3562,
+        "end": 3564,
+        "replacement": "++"
+      },
+      "outcome": "missed",
+      "failed": [],
+      "durationMs": 3967
+    },
+    {
+      "mutant": {
+        "id": "packages/juice/src/tween.ts:130:82:!→",
+        "label": "packages/juice/src/tween.ts:130:82 !a.done → a.done",
+        "expect": "noticed",
+        "file": "packages/juice/src/tween.ts",
+        "line": 130,
+        "column": 82,
+        "start": 3764,
+        "end": 3765,
+        "replacement": ""
+      },
+      "outcome": "caught",
+      "failed": ["Tweens > interpolates and completes"],
+      "durationMs": 1996
+    }
+  ],
+  "counts": {
+    "caught": 134,
+    "missed": 132,
+    "held": 0,
+    "brittle": 0,
+    "unviable": 0
+  },
+  "ok": false
+}

@@ -39,7 +39,7 @@ Added before henka's first release, so henka is useful without keiko: `npx henka
 | Patch a copy of the project (cargo-mutants) | a rebuild | a watcher can see half-written files | a copy per job |
 | A warm Vitest per job, one mutated file per run (chosen) | one file re-transformed, its test files run | none found yet | none |
 
-A fresh process per mutant was tried first and spent most of each run starting Vitest. Measured on `@debuffjp/juice` (2026-11-06, Windows 11, 2 jobs) against the Stryker trial: 266 mutants, 134 caught and 132 missed. Of the 152 mutants both tools make, the verdicts agree on all but one, and that one is the comparison script pairing two identical `2 * t` edits on one line. henka took 10 min 38 s, a median 3.4 s per mutant, with the CPU at 97% from other work; Stryker took 5 min 17 s on a quieter machine, so the two times don't compare directly. The likely cost, not yet measured on its own, is Vitest starting a worker and the test environment for every test file it runs.
+A fresh process per mutant was tried first and spent most of each run starting Vitest. Measured on `@debuffjp/juice` (2026-11-06, Windows 11, 2 jobs) against the Stryker trial: 266 mutants, 134 caught and 132 missed. Of the 152 mutants both tools make, the verdicts agree on all 152 (`bench/mutation`; 8 of them match two identical Stryker edits on one line by text). henka took 10 min 38 s, a median 3.4 s per mutant, with the CPU at 97% from other work; Stryker took 5 min 17 s on a quieter machine, so the two times don't compare directly. The likely cost, not yet measured on its own, is Vitest starting a worker and the test environment for every test file it runs.
 
 ## Later
 

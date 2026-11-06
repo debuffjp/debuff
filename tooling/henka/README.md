@@ -2,6 +2,19 @@
 
 **変化 (henka): change.** Tests for your tests. henka breaks your code on purpose, one small change at a time, and checks that a test fails each time.
 
+```bash
+npx henka
+```
+
+debuff's effects package, `@debuffjp/juice`, has 94% line coverage and nine passing tests. henka changed one line in its particle system:
+
+```diff
+- p.x += p.vx * dt;
++ p.x -= p.vx * dt;
+```
+
+Every particle now flies the wrong way, and all nine tests still pass. Of the 266 changes henka made to juice, 132 passed every test, and 69 of those are real gaps in code the tests run ([the runs](https://github.com/debuffjp/debuff/tree/main/bench/mutation), [the write-up](https://debuff.jp/research/what-coverage-missed)). Each miss names a line and a change no test checks, which is what the next test should cover, by you or by an agent: `mutants.out/missed.txt` lists them one per line.
+
 Coverage says which lines ran. It doesn't say whether a test would fail if those lines did something else. henka answers that. It runs your tests clean, then once per mutant (a small, deliberate change), and sorts each mutant by what happened:
 
 | Outcome | Expected | What it means |
@@ -43,6 +56,8 @@ henka reads each file with Vite's parser and makes these mutants:
 | Function bodies | emptied, or returning `0`, `""`, `true` or `false` to match the return type |
 
 String joins, types, imports and object keys are left alone. Put `// henka-skip` on or above a line to skip it, or `// henka-skip-file` anywhere in a file.
+
+For a miss, test the behaviour the line controls rather than the change: a test that a particle moves by its velocity times `dt` catches both `-=` and `/` on the line above. Some misses change nothing a test could see (`<` to `<=` where two pieces of a curve meet at the same value); skip those. Defaults someone will tune, such as a particle burst's speed, are better tested by what they control than pinned. You don't need every mutant caught: start with the code you'd least like to break, and use `--since main` on each branch.
 
 henka first runs the tests related to your files with nothing changed, and notes which test files load each source file. Then each job (`--jobs`, half the cores up to 4 by default) keeps a Vitest process open and runs one mutant after another: a Vite plugin swaps in the changed code as the file loads, only the test files that load it run, and they stop at the first failure. Nothing on disk changes. A file no test loads is reported as missed without a run. A run that takes more than 5x the baseline (at least 20 s) is killed and counts as caught, since the mutant hung the tests; the next mutant gets a fresh process.
 

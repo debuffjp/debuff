@@ -1,0 +1,26 @@
+{
+  "testRunner": "vitest",
+  "vitest": {
+    "configFile": "vitest.mutation.config.ts"
+  },
+  "mutate": ["packages/juice/src/**/*.ts"],
+  "coverageAnalysis": "perTest",
+  "concurrency": 2,
+  "reporters": ["clear-text", "json", "progress"],
+  "jsonReporter": {
+    "fileName": "reports/mutation/juice.json"
+  },
+  "ignorePatterns": [
+    "/bench",
+    "/templates",
+    "/compat",
+    "/docs",
+    "/fonts",
+    "/plugins",
+    "/tooling/*/test",
+    "/tooling/*/templates",
+    "/packages/*/dist"
+  ],
+  "tsconfigFile": "none.json",
+  "tempDirName": ".stryker-tmp"
+}
