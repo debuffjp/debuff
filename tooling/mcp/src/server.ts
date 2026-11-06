@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import {
   autoPapercut,
@@ -25,6 +25,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { registerPrompts } from "./prompts.js";
 import { type GameSession, startSession } from "./session.js";
+import { runTestsInChild } from "./tests.js";
 
 type Content = { type: "text"; text: string } | { type: "image"; data: string; mimeType: string };
 
@@ -257,9 +258,15 @@ export function createServer(options: ServerOptions): McpServer {
     },
     safely(async ({ root: r, files, filter }) => {
       const dir = rootOf(r);
-      const { runTests } = await import("keiko/runner");
-      const report = await runTests({ root: dir, files: files ?? [], vite: await viteConfig(dir), ...(filter ? { filter } : {}) });
-      markTested(dir);
+      if (!existsSync(join(dir, "package.json"))) throw new Error(`No package.json in ${dir}. Pass the game's folder as root.`);
+      const { findTests } = await import("keiko/runner");
+      // No test files: answer here (finding them patches nothing), as `debuff test` does.
+      if (!findTests(dir, files ?? []).length) {
+        markTested(dir);
+        return json({ ok: true, passed: 0, failed: 0, skipped: 0, todo: 0, durationMs: 0, results: [], outside: [] });
+      }
+      // In a child process: keiko swaps process globals while a test runs, and here they're the server's.
+      const report = await runTestsInChild(dir, { files: files ?? [], ...(filter ? { filter } : {}) });
       // Passing tests don't need their (empty) logs or details; keep the result small for the agent.
       return json({
         ...report,

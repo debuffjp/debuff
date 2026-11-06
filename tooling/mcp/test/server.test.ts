@@ -81,6 +81,25 @@ describe("debuff MCP server", () => {
     expect(result.checks.map((c: { id: string }) => c.id)).toEqual(expect.arrayContaining(["node-version", "debuff-versions", "browser"]));
   });
 
+  it("runs the logic tests in their own process, leaving this one's timers and clock alone", { timeout: 60_000 }, async () => {
+    const before = { setTimeout: globalThis.setTimeout, Date: globalThis.Date, now: performance.now };
+    const report = await data("run_tests", {});
+    expect(report).toMatchObject({ ok: true, failed: 0 });
+    expect(report.passed).toBeGreaterThan(0);
+    expect(report.results.every((r: { status: string; fullName: string }) => r.status === "pass" && r.fullName)).toBe(true);
+    const filtered = await data("run_tests", { filter: "no test is called this" });
+    expect(filtered.passed).toBe(0);
+    expect({ setTimeout: globalThis.setTimeout, Date: globalThis.Date, now: performance.now }).toEqual(before);
+  });
+
+  it("explains a run_tests root that isn't a project", async () => {
+    const empty = mkdtempSync(join(tmpdir(), "debuff-mcp-notests-"));
+    const result = await call("run_tests", { root: empty });
+    rmSync(empty, { recursive: true, force: true });
+    expect(result.isError).toBe(true);
+    expect(result.content[0]?.text).toMatch(/package\.json/);
+  });
+
   it("explains live tools need a running game", async () => {
     const result = await call("game_state");
     expect(result.isError).toBe(true);
