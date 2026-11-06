@@ -1,5 +1,25 @@
 # @debuffjp/cli
 
+## 0.31.0
+
+### Minor Changes
+
+- 821ffdc: Replays say where they stop matching the session they recorded.
+  
+  - Dev tools: a recording keeps a checkpoint every 60 ticks, a short hash of each part of the game's state (`scene`, `events`, `state.<key>` for each top-level key of `inspect()`, `plugins.<name>`). `replay()` writes them as `{ "checkpoint": { ... } }` steps. Rewinding checks them on the way and, if the state stops matching, adds a warning and an activity log entry naming the tick and the parts. A code reload doesn't check them, since new code is meant to play differently. New dev hook: `checkpoint()`.
+  - `debuff scenario`: the first checkpoint that differs adds one warning, for example `the game's state stopped matching the recording at tick 180: state.player differs (it matched at tick 120)`, with the likely causes. The scenario still passes. Before 0.31, a replay that drifted played on silently.
+  - MCP: `game_replay` says the saved file has checkpoints that `run_scenarios` checks.
+  - keiko: `game.replay()` skips `checkpoint` steps instead of failing with "unknown step".
+
+### Patch Changes
+
+- 5facc9b: `debuff scenario` sends each run of input, `wait` and `checkpoint` steps to the page in one call, up to ten seconds of play at a time, instead of one call per step. Recorded replays have a step on nearly every tick, so a five-minute replay with mouse input took 90 to 106 s before 0.31 and now takes under 3 s. Results are still reported per step: a failing step fails alone and the rest still run. When the game hangs inside a batch, the message names the range of steps it was in.
+- 0f779c5: Warn when an asset PNG is wider or taller than 4096 pixels. A GPU with a smaller texture limit draws such an image black, so a long sprite strip like a 19800×80 grid now gets a warning from `debuff dev`, `debuff build` and `debuff assets` saying to split it. Before 0.29.3, the build said nothing.
+- Updated dependencies [67d5880]
+- Updated dependencies [821ffdc]
+  - keiko@0.8.0
+  - create-debuff@0.31.0
+
 ## 0.30.0
 
 ### Patch Changes
