@@ -27,7 +27,11 @@ function walk(dir: string): string[] {
   if (!existsSync(dir)) return [];
   return readdirSync(dir).flatMap((name) => {
     const path = join(dir, name);
-    return statSync(path).isDirectory() ? walk(path) : [path];
+    // A dangling symlink (Emacs writes `.#name` lock links while a file is being edited) has nothing to stat:
+    // skip it instead of failing the whole compile.
+    const stat = statSync(path, { throwIfNoEntry: false });
+    if (!stat) return [];
+    return stat.isDirectory() ? walk(path) : [path];
   });
 }
 

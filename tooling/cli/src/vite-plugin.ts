@@ -106,7 +106,7 @@ export function debuff(options: DebuffViteOptions = {}): PluginOption[] {
   let root = process.cwd();
   let current: Promise<CompileResult> | undefined;
   const compile = () => {
-    current = compileAssets(root, {
+    const p = compileAssets(root, {
       plugins: options.plugins ?? [],
       ...(options.atlas === undefined ? {} : { atlas: options.atlas }),
     }).then((r) => {
@@ -114,7 +114,13 @@ export function debuff(options: DebuffViteOptions = {}): PluginOption[] {
       writeAssetTypes(root, r.manifest);
       return r;
     });
-    return current;
+    current = p;
+    // A failed compile isn't kept: the next request compiles again, so fixing the cause (a permission, a file
+    // being written) is enough without touching another file in assets/. Callers still see this rejection.
+    p.catch(() => {
+      if (current === p) current = undefined;
+    });
+    return p;
   };
   const latest = () => current ?? compile();
 
@@ -145,7 +151,9 @@ export function debuff(options: DebuffViteOptions = {}): PluginOption[] {
       return serving && id === RELOAD_CLIENT ? RELOAD_CLIENT_CODE : undefined;
     },
     buildStart() {
-      compile();
+      // Nothing awaits this one: report a failure here instead of leaving an unhandled rejection, which ends
+      // the process on Node 15 and later. The first request or generateBundle compiles again and shows it.
+      compile().catch((err: unknown) => console.error(`[debuff] ${err instanceof Error ? err.message : String(err)}`));
       saves.clear();
     },
     transform(code, id) {
