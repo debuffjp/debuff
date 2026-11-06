@@ -14,7 +14,7 @@ audio.volume("music", 0.5);
 
 ## Music and sound effects
 
-For music and sound effects made in code, use [plonk](../plonk) (`plonkjs`): songs and effects are small data, synthesized live, and effects play in the song's key. Give it this package's context and music bus so it shares the game's volume and mute:
+For music and sound effects made in code, use [plonk](https://debuff.jp/plonk/) (`plonkjs`): songs and effects are small data, synthesized live, and effects play in the song's key. Give it this package's context and music bus so it shares the game's volume and mute:
 
 ```ts
 import { Player } from "plonkjs";
