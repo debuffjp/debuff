@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -107,6 +107,24 @@ describe("upgrade", () => {
       lodash: "^4.0.0",
     });
     expect(pkg.devDependencies).toEqual({ "@debuffjp/cli": "~0.20.0", "create-debuff": "^0.20.0" });
+  });
+
+  it("notices an upgrade whose install never finished, so a rerun completes it", async () => {
+    const root = project({ "@debuffjp/core": "^0.20.0", "@debuffjp/input": "^0.20.0" }); // package.json already moved
+    // No node_modules at all (Yarn Plug'n'Play): nothing to compare, so nothing is stale.
+    expect((await runUpgrade(root, { to: "0.20.0", install: false })).stale).toEqual([]);
+    const installed = (name: string, version: string) => {
+      const d = join(root, "node_modules", ...name.split("/"));
+      mkdirSync(d, { recursive: true });
+      writeFileSync(join(d, "package.json"), JSON.stringify({ name, version }));
+    };
+    installed("@debuffjp/core", "0.19.0"); // the install was interrupted: still the old version
+    installed("@debuffjp/input", "0.20.0");
+    const result = await runUpgrade(root, { to: "0.20.0", install: false });
+    expect(result.changes).toBe(false);
+    expect(result.stale).toEqual(["@debuffjp/core"]);
+    installed("@debuffjp/core", "0.20.0");
+    expect((await runUpgrade(root, { to: "0.20.0", install: false })).stale).toEqual([]);
   });
 
   it("changes nothing on a dry run or when already current, and never downgrades without --to", async () => {
