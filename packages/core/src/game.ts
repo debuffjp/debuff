@@ -151,6 +151,9 @@ export class Game {
   private lastTime = 0;
   private running = false;
   private loopGeneration = 0;
+  /** Inside go(): a nested go() is queued in `queuedScene` and runs after. */
+  private switching = false;
+  private queuedScene: string | undefined;
   /** Whether the caller wants the loop running; visibility pausing respects this. */
   private wanted = false;
   private observer: ResizeObserver | undefined;
@@ -288,11 +291,28 @@ export class Game {
   go(id: string): void {
     const next = this.scenes.get(id);
     if (!next) throw new Error(`Unknown scene "${id}". Added: ${this.sceneList()}`);
-    const previous = this.active;
-    previous?.exit?.(this);
-    this.active = next;
-    next.enter?.(this);
-    this.hooks.emit("sceneChange", next, previous);
+    // A switch asked for during a switch (from exit, enter or a sceneChange listener) runs once this one is
+    // done, so listeners see every change in order and an exit() that switches scene can't recurse.
+    if (this.switching) {
+      this.queuedScene = id;
+      return;
+    }
+    this.switching = true;
+    try {
+      const previous = this.active;
+      previous?.exit?.(this);
+      this.active = next;
+      next.enter?.(this);
+      this.hooks.emit("sceneChange", next, previous);
+    } catch (error) {
+      this.queuedScene = undefined;
+      throw error;
+    } finally {
+      this.switching = false;
+    }
+    const queued = this.queuedScene;
+    this.queuedScene = undefined;
+    if (queued !== undefined) this.go(queued);
   }
 
   start(): void {

@@ -351,6 +351,35 @@ describe("Game loop errors", () => {
   });
 });
 
+describe("scene switches inside a switch", () => {
+  it("finishes the current switch first, so sceneChange arrives in order", () => {
+    const { game } = makeGame();
+    const changes: string[] = [];
+    game.hooks.sceneChange((next, prev) => changes.push(`${prev?.id ?? "-"}>${next.id}`));
+    game
+      .add({ id: "a" })
+      .add({ id: "boot", enter: () => game.go("menu") }) // a scene that redirects at once
+      .add({ id: "menu" });
+    game.go("a");
+    game.go("boot");
+    expect(changes).toEqual(["->a", "a>boot", "boot>menu"]);
+    expect(game.scene?.id).toBe("menu");
+  });
+
+  it("doesn't recurse when exit() switches scene", () => {
+    const { game } = makeGame();
+    let exits = 0;
+    game
+      .add({ id: "a", exit: () => (exits++, game.go("c")) })
+      .add({ id: "b" })
+      .add({ id: "c" });
+    game.go("a");
+    game.go("b");
+    expect(exits).toBe(1);
+    expect(game.scene?.id).toBe("c");
+  });
+});
+
 describe("pauseWhenHidden", () => {
   it("resumes a game halted for a hidden tab when it is turned off", () => {
     vi.stubGlobal("requestAnimationFrame", () => 1);
