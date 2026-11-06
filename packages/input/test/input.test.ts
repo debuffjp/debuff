@@ -299,6 +299,60 @@ describe("right and middle buttons", () => {
   });
 });
 
+describe("primary pointer ownership", () => {
+  // Each pointer type has its own primary: on a touch laptop a finger and the mouse are both `isPrimary`.
+  const ev = (type: string, init: { id: number; kind: string; x?: number; button?: number; buttons?: number }) =>
+    new PointerEvent(type, {
+      pointerId: init.id,
+      pointerType: init.kind,
+      clientX: init.x ?? 0,
+      clientY: 0,
+      isPrimary: true,
+      button: init.button ?? (type === "pointermove" ? -1 : 0),
+      buttons: init.buttons ?? 0,
+      cancelable: true,
+    });
+
+  it("keeps a held finger as the primary when a mouse clicks or hovers meanwhile", () => {
+    const h = host();
+    const input = new Input(h, { bindings: { tap: ["Pointer"] } });
+    h.canvas.dispatchEvent(ev("pointerdown", { id: 5, kind: "touch", x: 20, buttons: 1 }));
+    h.canvas.dispatchEvent(ev("pointermove", { id: 1, kind: "mouse", x: 100 })); // hover
+    expect(input.pointer.x).toBe(10);
+    h.canvas.dispatchEvent(ev("pointerdown", { id: 1, kind: "mouse", x: 100, buttons: 1 }));
+    h.canvas.dispatchEvent(ev("pointerup", { id: 1, kind: "mouse", x: 100 }));
+    expect(input.pointer.down).toBe(true);
+    h.canvas.dispatchEvent(ev("pointermove", { id: 5, kind: "touch", x: 40, buttons: 1 }));
+    expect(input.pointer.x).toBe(20); // the finger still drives the pointer
+    h.canvas.dispatchEvent(ev("pointerup", { id: 5, kind: "touch", x: 40 }));
+    expect(input.pointer.down).toBe(false);
+    input.dispose();
+  });
+
+  it("presses and releases the main button when it changes while the right button is held", () => {
+    const h = host();
+    const input = new Input(h, { bindings: { place: ["Pointer"], remove: ["PointerRight"] } });
+    h.canvas.dispatchEvent(ev("pointerdown", { id: 1, kind: "mouse", button: 2, buttons: 2 }));
+    h.canvas.dispatchEvent(ev("pointermove", { id: 1, kind: "mouse", x: 30, button: 0, buttons: 3 }));
+    expect([input.pressed("place"), input.down("place"), input.down("remove")]).toEqual([true, true, true]);
+    h.endStep();
+    h.canvas.dispatchEvent(ev("pointermove", { id: 1, kind: "mouse", x: 30, button: 0, buttons: 2 }));
+    expect([input.released("place"), input.down("place"), input.down("remove")]).toEqual([true, false, true]);
+    input.dispose();
+  });
+
+  it("presses again after a pointerup that never arrived", () => {
+    const h = host();
+    const input = new Input(h, { bindings: { tap: ["Pointer"] } });
+    h.canvas.dispatchEvent(ev("pointerdown", { id: 1, kind: "mouse", x: 10, buttons: 1 }));
+    input.pointer.release(); // e.g. the up landed outside the window with no capture; only the primary was let go
+    h.endStep();
+    h.canvas.dispatchEvent(ev("pointerdown", { id: 1, kind: "mouse", x: 50, buttons: 1 }));
+    expect([input.pressed("tap"), input.down("tap"), input.pointer.x]).toEqual([true, true, 25]);
+    input.dispose();
+  });
+});
+
 describe("pointer kind and touches", () => {
   const touch = (type: string, id: number, x: number, isPrimary: boolean) =>
     new PointerEvent(type, { pointerId: id, pointerType: "touch", clientX: x, clientY: 0, isPrimary, buttons: 1, cancelable: true });
