@@ -61,3 +61,11 @@ From 0.24.2 `debuff dev` reports bugs the dev tools catch inside debuff, and thi
 ## Biome's Markdown formatter stays off
 
 Biome 2.6 formats Markdown by default, which would reformat every README, ADR and changeset in one commit. The bump to 2.6.3 turns it off in `biome.json`, so the upgrade changes no files. The new lint rules it brings (`useMathMinMax`, `useDateNow`) stay warnings: rewriting core's `clamp` as `Math.min(Math.max(...))` changes what it returns for NaN. Considered: accepting the reformat (a large diff nobody reviewed for meaning), and staying on 2.5 (dependabot keeps reopening the bump).
+
+## keiko mutate: what a param mutant tries, and where results go
+
+A number param goes to each end of its declared range, or to 0 and double its value when it has none; a boolean flips. debuff rejects values outside a param's range (`ParamGroup.set` throws), so the out-of-range values first planned (x0, x2, a flipped sign) would have been unviable for every debuff game. The range ends are values a designer could ship, so a missed one means no test depends on the param anywhere in its range. Considered: halving and doubling clamped to the range (more mutants, and the halves mostly duplicate what the ends show).
+
+Seed and frame-rate mutants are reported as unviable for debuff games rather than left out, so nothing is skipped without a line saying why. The seed offset is 7919, the same one `test.deterministic` uses for its second run.
+
+Results go to `mutants.out/`, the folder cargo-mutants and mutant.cafe use, so agents that know either tool know where to look. Considered: `.debuff/mutants` (keiko runs outside debuff projects too) and `.keiko/` (a new hidden folder for one command). The command is `keiko mutate`, a subcommand like `keiko init`, rather than a `henka` binary: henka has no runner of its own.

@@ -295,9 +295,40 @@ npx keiko -t "pause"          # tests whose full name contains "pause" (case-ins
 npx keiko --json              # a report for tools and agents
 npx keiko --root games/demo   # a project in another folder
 npx keiko --no-debuff         # drive a debuff game through __KEIKO__ instead (--debuff forces the opposite)
+npx keiko mutate              # do your tests notice changes? (keiko 0.8+)
 ```
 
 Exits with 1 when a test fails. For tools, the same runner is `runTests()` from `keiko/runner`.
+
+## Do your tests notice? (`keiko mutate`)
+
+From keiko 0.8. Passing tests can still check very little: a test that only asserts the player "reaches top speed" passes whether top speed is 140 or 600. `keiko mutate` changes the game and reruns your tests, using [henka](../henka) to judge the results:
+
+- **Params:** each number param goes to each end of its range (debuff's `min` and `max`; 0 and double for games without ranges), and each boolean flips. A test should fail. If none does, the mutant is **missed**: nothing tests what that param does.
+- **Random seed:** `Math.random()` gets a different seed. Every test should still pass. If one fails, it's **brittle**: it depends on exact random draws.
+- **Frame rate:** the virtual clock runs at 30 fps instead of 60. Every test should still pass. A failure means a test counts frames or the game moves by frames instead of time.
+
+A mutant changes the game's default, so a test that sets the param itself (`play({ params })`, `test.sweep`) keeps its own value.
+
+```bash
+npx keiko mutate                  # every test
+npx keiko mutate tests/jump.test.ts
+npx keiko mutate --json           # the report for tools and agents
+npx keiko mutate --out reports/m  # where results go (default mutants.out/)
+```
+
+```
+✔ caught   player.runSpeed 110 → 20
+✖ missed   player.airAccel 600 → 100
+✖ missed   player.airAccel 600 → 4000
+- unviable Math.random() seed +7919
+```
+
+Results also go to `mutants.out/`: `outcomes.json`, plus `caught.txt`, `missed.txt`, `held.txt`, `brittle.txt` and `unviable.txt`. Add the folder to `.gitignore`. It exits with 1 when a mutant is missed or brittle, or when a test fails with nothing changed.
+
+To kill a missed param mutant, test the behaviour the param controls ("the player can't outrun the camera", "an air turn is slower than a ground turn"). Avoid pinning the exact value: params are there to be tuned.
+
+debuff games step on their own fixed time step and seed their own generator (`game.random`), so the seed and frame-rate mutants are reported as unviable for them; only params apply. Each mutant runs the whole suite once, so expect a few seconds per mutant. A param change that sends the game into an endless loop inside one frame hangs the run.
 
 ## What runs, and what doesn't
 

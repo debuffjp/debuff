@@ -15,7 +15,7 @@ import { realClearTimeout, realNow, realSetTimeout, sleep, VirtualClock } from "
 import { type DebuffDevHooks, debuffDriver, genericDriver, type KeikoHooks } from "./driver.js";
 import { type EngineWatch, watchEngines } from "./engines.js";
 import { type HeadlessPage, openPage } from "./environment.js";
-import { Playtest } from "./playtest.js";
+import { type ParamValue, Playtest } from "./playtest.js";
 import { type Booter, type PlayOptions, registry, type TestCase } from "./registry.js";
 import { show } from "./values.js";
 
@@ -37,6 +37,23 @@ export interface RunTestsOptions {
   debuff?: boolean;
   /** Called as each test finishes, for live output. */
   onResult?: (result: TestResult) => void;
+  /** @internal What `keiko mutate` changes in every game this run boots. */
+  mutation?: Mutation;
+  /** @internal Called with each booted game, before the mutation and the test's own params are set. */
+  onBoot?: (game: Playtest) => void;
+}
+
+/** @internal A change applied to every game a run boots. Params change the game's defaults, so a test that sets one keeps its value. */
+export interface Mutation {
+  params?: Record<string, ParamValue>;
+  /** Added to the `Math.random()` seed. */
+  seedOffset?: number;
+  fps?: number;
+}
+
+/** @internal The game refused a mutation (a param it doesn't have, or a value it rejects). */
+export class MutationError extends Error {
+  override readonly name = "MutationError";
 }
 
 export interface TestResult {
@@ -248,9 +265,12 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
       if (!scripts.length) throw new Error(`play(): ${pagePath} has no <script type="module" src="…">, so there's no game to boot.`);
       // `epoch` isn't public: test.deterministic moves the date for its second run.
       const { epoch } = play as PlayOptions & { epoch?: number };
+      const { mutation } = options;
+      const seed = mutation?.seedOffset ? (play.seed ?? 1) + mutation.seedOffset : play.seed;
+      const fps = mutation?.fps ?? play.fps;
       const clock = new VirtualClock({
-        ...(play.seed === undefined ? {} : { seed: play.seed }),
-        ...(play.fps ? { fps: play.fps } : {}),
+        ...(seed === undefined ? {} : { seed }),
+        ...(fps ? { fps } : {}),
         ...(epoch === undefined ? {} : { epoch }),
       });
       page = openPage({
@@ -344,6 +364,14 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
       }
       await current.settle(Math.max(0, limit - realNow()));
       alive();
+      options.onBoot?.(game);
+      if (mutation?.params) {
+        try {
+          game.set(mutation.params);
+        } catch (err) {
+          throw new MutationError(err instanceof Error ? err.message : String(err), { cause: err });
+        }
+      }
       if (play.params) game.set(play.params);
       // A browser paints a game's first frame before a player can act, and engines often need it (to build
       // scenes, or to hit-test pointers against what they drew). debuff games wait for steps from tick 0.

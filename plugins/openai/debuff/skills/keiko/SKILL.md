@@ -56,4 +56,5 @@ test.deterministic("a run plays the same twice", (game) => game.hold("ArrowRight
 - Write one test per mechanic you build or fix, and watch it fail before the fix when you can.
 - Assert on outcomes (position, score, scene), not exact tick counts, for flows that load or animate.
 - If `test.deterministic` fails, read its message: it says whether loads were in flight (assert on the outcome) or points at `Math.random`, `Date.now` or real-time timers in game logic.
+- To check the tests themselves, run `npx keiko mutate --json` (keiko 0.8+). A `missed` param means no test notices it at either end of its range: add a test of the behaviour it controls, not of its exact value. A `brittle` mutant means a test depends on exact random draws or frame counts.
 - keiko can't see pixels or sound. For what's drawn, use screenshots in a real browser.

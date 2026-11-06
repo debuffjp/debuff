@@ -1,0 +1,50 @@
+{
+  "name": "henka",
+  "version": "0.1.0",
+  "description": "Mutation testing for any test runner: change one thing, see whether your tests notice",
+  "keywords": [
+    "mutation-testing",
+    "mutation",
+    "testing",
+    "test-quality",
+    "game",
+    "gamedev",
+    "web-game",
+    "keiko",
+    "debuff"
+  ],
+  "license": "MIT",
+  "funding": "https://github.com/sponsors/debuffjp",
+  "homepage": "https://github.com/debuffjp/debuff/tree/main/tooling/henka#readme",
+  "bugs": "https://github.com/debuffjp/debuff/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/debuffjp/debuff.git",
+    "directory": "tooling/henka"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22.4"
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

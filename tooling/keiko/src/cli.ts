@@ -1,14 +1,20 @@
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
+import { BaselineError, formatReport, mutate, type Outcome, type Report, writeOut } from "henka";
 import pc from "./ansi.js";
 import { init } from "./init.js";
-import { findTests, formatResult, formatSummary, runTests } from "./runner.js";
+import { keikoAdapter } from "./mutate.js";
+import { findTests, formatResult, formatSummary, type RunTestsOptions, runTests } from "./runner.js";
 
 const HELP = `keiko: fast, deterministic tests for web games
 
 Usage:
   keiko [files...] [options]
   keiko init            Write a first test for your game, for the engine it uses
+  keiko mutate [files...]
+                        Check your tests notice changes: push each param to the end of
+                        its range (a test should fail), change the random seed and the
+                        frame rate (no test should). Writes mutants.out/
 
 Runs tests/**/*.test.ts (and src/**/*.test.ts) against your real game in Node, with no browser.
 
@@ -17,6 +23,7 @@ Options:
                         (case-insensitive substring, not a regex)
       --root <dir>      Project root (default: the current folder)
       --json            Print a machine-readable report
+      --out <dir>       Where keiko mutate writes its results (default: mutants.out)
       --debuff          Drive the game through debuff's dev hooks (default: detected)
       --no-debuff       Drive the game through window.__KEIKO__ and the virtual clock
   -h, --help            Show this help
@@ -33,6 +40,7 @@ export async function main(argv: string[]): Promise<number> {
       filter: { type: "string", short: "t" },
       root: { type: "string" },
       json: { type: "boolean" },
+      out: { type: "string" },
       debuff: { type: "boolean" },
       help: { type: "boolean", short: "h" },
     },
@@ -43,7 +51,9 @@ export async function main(argv: string[]): Promise<number> {
   }
   const root = resolve(values.root ?? process.cwd());
   if (positionals[0] === "init") return init(root);
-  if (!findTests(root, positionals).length) {
+  const mutating = positionals[0] === "mutate";
+  const files = mutating ? positionals.slice(1) : positionals;
+  if (!findTests(root, files).length) {
     if (values.json)
       console.log(JSON.stringify({ ok: true, passed: 0, failed: 0, skipped: 0, todo: 0, durationMs: 0, results: [], outside: [] }));
     else
@@ -53,14 +63,41 @@ export async function main(argv: string[]): Promise<number> {
     return 0;
   }
   if (!values.json) console.log(`\n${pc.bold("keiko")} ${pc.dim("稽古 · practice for web games")}\n`);
-  const report = await runTests({
+  const options = {
     root,
-    files: positionals,
+    files,
     ...(values.filter ? { filter: values.filter } : {}),
     ...(values.debuff === undefined ? {} : { debuff: values.debuff }),
-    ...(values.json ? {} : { onResult: (r) => console.log(formatResult(r)) }),
-  });
+  };
+  if (mutating) return mutateCommand(options, resolve(root, values.out ?? "mutants.out"), values.json ?? false);
+  const report = await runTests({ ...options, ...(values.json ? {} : { onResult: (r) => console.log(formatResult(r)) }) });
   if (values.json) console.log(JSON.stringify(report, null, 2));
   else console.log(`\n${report.ok ? pc.green("✔") : pc.red("✖")} ${formatSummary(report)}\n`);
+  return report.ok ? 0 : 1;
+}
+
+const MARK: Record<Outcome, string> = {
+  caught: pc.green("✔ caught  "),
+  held: pc.green("✔ held    "),
+  missed: pc.red("✖ missed  "),
+  brittle: pc.red("✖ brittle "),
+  unviable: pc.dim("- unviable"),
+};
+
+/** `keiko mutate`: exit 1 when a mutant was missed or brittle, or the tests fail with nothing changed. */
+async function mutateCommand(options: RunTestsOptions, out: string, json: boolean): Promise<number> {
+  if (!json) console.log(pc.dim("Running the tests with nothing changed first…"));
+  let report: Report;
+  try {
+    report = await mutate(keikoAdapter(options), json ? {} : { onOutcome: (o) => console.log(`${MARK[o.outcome]} ${o.mutant.label}`) });
+  } catch (err) {
+    if (!(err instanceof BaselineError)) throw err;
+    if (json) console.log(JSON.stringify({ ok: false, error: err.message, failed: err.failed }, null, 2));
+    else console.log(`\n${pc.red("✖")} ${err.message}\n`);
+    return 1;
+  }
+  writeOut(report, out);
+  if (json) console.log(JSON.stringify(report, null, 2));
+  else console.log(`\n${formatReport(report)}\n\n${pc.dim(`Written to ${out}`)}\n`);
   return report.ok ? 0 : 1;
 }

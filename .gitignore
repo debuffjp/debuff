@@ -25,3 +25,6 @@ tooling/mcp/server.json
 /compat/.real/
 /.heal/
 .env.local
+
+# keiko mutate results
+mutants.out/
