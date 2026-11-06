@@ -71,6 +71,11 @@ describe("runTests", { timeout: 60_000 }, () => {
     expect(r?.logs.join("\n")).toMatch(/cleaned up/);
   });
 
+  it("says so when a test drives a game that a later play() replaced", async () => {
+    const r = (await runTests({ root: fixture, files: ["hooks/replaced-game.test.ts"] })).results[0];
+    expect(r).toMatchObject({ status: "pass" });
+  });
+
   it("filters by name and reports files that fail to load", async () => {
     const filtered = await runTests({ root: fixture, files: ["tests/dot.test.ts", "broken/syntax.test.ts"], filter: "WALKS" });
     expect(filtered.results.map((r) => [r.name, r.status])).toEqual([
