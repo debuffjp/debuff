@@ -303,11 +303,10 @@ Exits with 1 when a test fails. For tools, the same runner is `runTests()` from 
 
 ## Only what changed (`--changed`)
 
-From 0.9, every `npx keiko` run records what each test used: the functions of your code it ran (V8 coverage, a few percent slower) and the files its page loaded or it replayed. `npx keiko --changed` then runs only the tests that are new, failed last time, or used something that changed since they last passed. The rest are counted as unchanged:
+From 0.9, every `npx keiko` run records what each test used: the functions of your code it ran (V8 coverage, a few percent slower) and the files its page loaded or it replayed. `npx keiko --changed` then runs only the tests that are new, failed last time, or used something that changed since they last passed. The rest are counted as unchanged. In debuff's platformer template, after an edit to the scenario file that one of its eight tests replays:
 
 ```
-✔ shoots
-1 passed · 7 unchanged in 340 ms
+1 passed · 7 unchanged in 1347 ms
 ```
 
 Every test boots the whole game, so which files a test imports says nothing. keiko compares what each test ran instead: an edit inside a function a test never called, a type-only edit or a new test elsewhere leaves it out, while an edit to the update loop every test runs brings them all back. A change to the lockfile, `package.json`, `tsconfig.json`, or a Vite or debuff config runs everything. `--json` lists why each test ran in `due` (`new`, `failed`, `setup`, `code` or `input`).
