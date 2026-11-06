@@ -180,7 +180,14 @@ async function runImporter(importer: AssetImporter, file: SourceFile, root: stri
   const cacheable = cacheDir && importer !== builtinImporter;
   const key = cacheable ? sha(`${importer.name}\0${JSON.stringify(file)}\0${sha(readFileSync(file.path))}`) : "";
   const cacheFile = cacheable ? join(cacheDir, `${key}.json`) : "";
-  if (cacheable && existsSync(cacheFile)) return JSON.parse(readFileSync(cacheFile, "utf8")) as ImportResult;
+  if (cacheable && existsSync(cacheFile)) {
+    // An entry cut short (the process was killed mid-write) is a miss: import again and rewrite it, instead of
+    // warning about this asset on every run until someone clears .debuff/cache.
+    try {
+      const cached = JSON.parse(readFileSync(cacheFile, "utf8")) as ImportResult;
+      if (cached && typeof cached.assets === "object") return cached;
+    } catch {}
+  }
   const result = "command" in importer ? await runCommandImporter(importer, file, root) : await importer.import(file);
   if (!result || typeof result !== "object" || typeof result.assets !== "object") {
     throw new Error(`importer "${importer.name}" returned an invalid result (expected { assets: {...} })`);
@@ -273,15 +280,20 @@ function packAtlases(
 
 type CachedAtlas = { png: Uint8Array; width: number; height: number; rects: Map<string, { x: number; y: number; w: number; h: number }> };
 
+/** A cached atlas, or undefined to build it again: never cached, or an entry a killed process left half-written. */
 function readAtlasCache(cacheDir: string, key: string): CachedAtlas[] | undefined {
   const meta = join(cacheDir, `${key}.json`);
   if (!existsSync(meta)) return undefined;
-  const entries = JSON.parse(readFileSync(meta, "utf8")) as {
-    width: number;
-    height: number;
-    rects: [string, { x: number; y: number; w: number; h: number }][];
-  }[];
-  return entries.map((e, i) => ({ ...e, png: readFileSync(join(cacheDir, `${key}-${i}.png`)), rects: new Map(e.rects) }));
+  try {
+    const entries = JSON.parse(readFileSync(meta, "utf8")) as {
+      width: number;
+      height: number;
+      rects: [string, { x: number; y: number; w: number; h: number }][];
+    }[];
+    return entries.map((e, i) => ({ ...e, png: readFileSync(join(cacheDir, `${key}-${i}.png`)), rects: new Map(e.rects) }));
+  } catch {
+    return undefined;
+  }
 }
 
 function writeAtlasCache(cacheDir: string, key: string, atlases: CachedAtlas[]): void {

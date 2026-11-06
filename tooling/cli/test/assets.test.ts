@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -113,6 +113,34 @@ describe("compileAssets (plugin importers)", () => {
     writeFileSync(join(root, "assets/hero.sheet.json"), '{"changed":true}');
     await compileAssets(root, { plugins: [counting] });
     expect(calls).toBe(2);
+  });
+
+  it("treats a cache entry cut short (a killed process) as a miss and imports again", async () => {
+    const root = project({ "assets/hero.sheet.json": "{}" });
+    let calls = 0;
+    const counting: ToolingPlugin = {
+      name: "counting",
+      apiVersion: 1,
+      assets: [
+        {
+          name: "counting",
+          extensions: [".sheet.json"],
+          import: (file) => {
+            calls++;
+            return { assets: { [file.id]: { type: "json", src: `assets/${file.rel}` } } };
+          },
+        },
+      ],
+    };
+    await compileAssets(root, { plugins: [counting] });
+    const cacheDir = join(root, ".debuff", "cache", "assets");
+    for (const f of readdirSync(cacheDir)) writeFileSync(join(cacheDir, f), '{"assets":'); // half-written
+    const { manifest, warnings } = await compileAssets(root, { plugins: [counting] });
+    expect(calls).toBe(2);
+    expect(Object.keys(manifest.assets)).toContain("hero");
+    expect(warnings).toEqual([]);
+    await compileAssets(root, { plugins: [counting] });
+    expect(calls).toBe(2); // and the entry was written again
   });
 
   it("runs command importers over stdin/stdout in any language", async () => {
