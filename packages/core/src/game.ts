@@ -348,11 +348,24 @@ export class Game {
     }
     const pending: [string, unknown][] = [[name, detail]];
     this.pendingEvents = pending;
+    // A listener that throws mustn't hide this event from the others or drop the events queued behind it:
+    // every listener hears every event, then the first error is rethrown.
+    let failed: { error: unknown } | undefined;
     try {
-      for (let i = 0; i < pending.length; i++) this.hooks.emit("gameEvent", ...(pending[i] as [string, unknown]));
+      for (let i = 0; i < pending.length; i++) {
+        const [eventName, eventDetail] = pending[i] as [string, unknown];
+        for (const fn of this.hooks.list("gameEvent")) {
+          try {
+            fn(eventName, eventDetail);
+          } catch (error) {
+            failed ??= { error };
+          }
+        }
+      }
     } finally {
       this.pendingEvents = undefined;
     }
+    if (failed) throw failed.error;
   }
 
   /** Hit-stop: pause simulation for `seconds` (rendering continues). */
