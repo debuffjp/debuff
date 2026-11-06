@@ -65,6 +65,29 @@ describe("DevSession", () => {
     s.release();
   });
 
+  it("follows the game loop when game code stops or starts it", () => {
+    vi.stubGlobal("requestAnimationFrame", () => 0);
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+    const game = makeGame();
+    const s = DevSession.acquire(game);
+    expect(s.paused).toBe(false); // never started: a step()-driven game isn't paused
+    game.start();
+    expect(s.paused).toBe(false);
+    game.stop(); // game code, such as a game-over screen
+    expect([s.paused, s.pausedBy]).toEqual([true, "game"]);
+    s.resume(); // the overlay's play button
+    expect([game.isStarted, s.paused]).toEqual([true, false]);
+    s.pause();
+    expect([game.isStarted, s.pausedBy]).toEqual([false, "you"]);
+    game.start(); // game code restarts it while the dev tools had it paused
+    expect([s.paused, s.pausedBy]).toEqual([false, undefined]);
+    s.pause();
+    expect(game.isStarted).toBe(false); // pause works again straight away
+    s.release();
+    game.dispose();
+    vi.unstubAllGlobals();
+  });
+
   it("captures notes with state and tracks agent presence", () => {
     const game = makeGame();
     const s = DevSession.acquire(game);
