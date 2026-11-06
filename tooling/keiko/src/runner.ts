@@ -234,6 +234,7 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
   let page: HeadlessPage | undefined;
   let engines: EngineWatch | undefined;
   const closePage = async () => {
+    reg.current?.retire();
     reg.current = undefined;
     const p = page;
     page = undefined;
