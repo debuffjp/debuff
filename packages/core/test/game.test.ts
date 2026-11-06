@@ -256,6 +256,36 @@ describe("Game splash", () => {
     vi.unstubAllEnvs();
   });
 
+  it("fires splashEnd once when the splash ends, before the first step", () => {
+    const tick = withRaf();
+    const { game } = makeGame({ splash: { duration: 5 } });
+    const seen: number[] = [];
+    game.hooks.splashEnd(() => seen.push(game.clock.tick));
+    game.start();
+    tick(16);
+    dispatchEvent(new KeyboardEvent("keydown", { code: "Space" }));
+    dispatchEvent(new KeyboardEvent("keydown", { code: "Space" }));
+    tick(16);
+    tick(16);
+    expect(seen).toEqual([0]);
+    game.dispose();
+    expect(seen).toEqual([0]);
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("fires no splashEnd without a splash", () => {
+    withRaf();
+    const { game } = makeGame({ splash: false });
+    const seen: number[] = [];
+    game.hooks.splashEnd(() => seen.push(1));
+    game.start();
+    game.dispose();
+    expect(seen).toEqual([]);
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
   it("can be turned off", () => {
     const tick = withRaf();
     const { game } = makeGame({ splash: false });

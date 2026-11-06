@@ -204,11 +204,11 @@ export class Game {
 
   /** End the start-up splash now (if it is showing or pending). */
   skipSplash(): void {
-    if (this.splashTotal > 0) {
-    }
+    const showing = this.splashTotal > 0;
     this.splashTotal = this.splashLeft = 0;
     removeEventListener("keydown", this.onSplashSkip);
     removeEventListener("pointerdown", this.onSplashSkip);
+    if (showing) this.hooks.emit("splashEnd");
   }
 
   /** Install a plugin. Throws if the name is invalid or already installed. */

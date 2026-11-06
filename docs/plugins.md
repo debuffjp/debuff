@@ -26,6 +26,7 @@ Install with `game.use(plugin)`. It returns the game, so calls chain. A plugin m
 | `game.hooks.beforeRender / afterRender(fn(ctx, alpha))` | drawing under or over the scene. `afterRender` is in logical units, outside the camera |
 | `game.hooks.renderScene(fn(draw, render))` | post effects: draw the world through a target, `filter()` or shader. Call `render()` once. `afterRender` stays outside |
 | `game.hooks.sceneChange(fn(next, previous))` | reacting to scene switches |
+| `game.hooks.splashEnd(fn())` | dropping input made during the start-up splash, as `@debuffjp/input` does (from 0.31.1). Not fired without a splash |
 | `game.hooks.gameEvent(fn(name, detail))` | reacting to `game.emit`. An event emitted from a listener is delivered after the current one, so every listener sees the same order |
 | `game.params.define("<name>", schema)` | tunable settings, visible to tools and agents |
 | `game.inspect.register("<name>", () => json)` | state for dev tools and scenarios (`__DEBUFF_DEV__.state().plugins.<name>`) |
