@@ -65,6 +65,12 @@ describe("runTests", { timeout: 60_000 }, () => {
     expect(formatSummary(report)).toMatch(/2 passed · .*6 failed.* · 1 skipped · 1 todo in \d+ ms/);
   });
 
+  it("runs afterEach even when beforeEach throws, and reports the beforeEach error", async () => {
+    const r = (await runTests({ root: fixture, files: ["hooks/before-throws.test.ts"] })).results[0];
+    expect(r).toMatchObject({ status: "fail", error: { message: "setup broke" } });
+    expect(r?.logs.join("\n")).toMatch(/cleaned up/);
+  });
+
   it("filters by name and reports files that fail to load", async () => {
     const filtered = await runTests({ root: fixture, files: ["tests/dot.test.ts", "broken/syntax.test.ts"], filter: "WALKS" });
     expect(filtered.results.map((r) => [r.name, r.status])).toEqual([
