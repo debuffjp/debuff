@@ -53,6 +53,20 @@ describe("updateHint", () => {
   });
 });
 
+describe("user config writes", () => {
+  it("keeps `debuff telemetry off` run while an update check was waiting on the registry", async () => {
+    dir = mkdtempSync(join(tmpdir(), "debuff-hint-"));
+    const configFile = join(dir, "config.json");
+    const fetch = (async () => {
+      // Another debuff process turns telemetry off during the 1.5 s registry call.
+      writeFileSync(configFile, JSON.stringify({ telemetry: false, telemetryNotice: true }));
+      return new Response(JSON.stringify({ version: "0.21.0" }));
+    }) as unknown as typeof globalThis.fetch;
+    await updateHint("0.20.0", { env: {}, configFile, fetch, now: 0 });
+    expect(JSON.parse(readFileSync(configFile, "utf8"))).toMatchObject({ telemetry: false, latestVersion: "0.21.0" });
+  });
+});
+
 describe("upgradeNote", () => {
   it("tells the agent at most once a day, reusing a fresh registry check", async () => {
     dir = mkdtempSync(join(tmpdir(), "debuff-note-"));
