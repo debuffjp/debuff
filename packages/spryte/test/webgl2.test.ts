@@ -321,6 +321,33 @@ describe("WebGL2Backend", () => {
       expect(shaderSources.filter((s) => s.includes("frameUv()")).length).toBeGreaterThanOrEqual(2);
     });
 
+    it("run a custom shader on a rect with uv and frameUv() across it, and leave vector shapes to the built-in effect", () => {
+      const { gl, calls, shaderSources } = fakeGL();
+      const draw = new Draw(new WebGL2Backend(gl), false);
+      const effect = "vec4 effect(vec4 color, vec2 uv) { return color * distance(frameUv(), vec2(0.5)); }";
+      const vignette = new Shader(effect);
+      draw.begin("#000", 100, 50, 1);
+      draw.withShader(vignette, () => draw.rect(0, 0, 100, 50, "#000"));
+      draw.end();
+      // A rect is a quad over the 1x1 white texture: uv runs (0, 0) to (1, 1) across it, not (0, 0).
+      const quad = sprite(calls, 0);
+      expect(quad[12]).toBeLessThan(16);
+      expect(quad.slice(6, 10)).toEqual([0, 0, 1, 1]);
+      draw.begin("#000", 100, 50, 1);
+      draw.withShader(vignette, () => roundRect(draw, 0, 0, 100, 50, 4, "#000"));
+      draw.end();
+      // Sources arrive as vertex, fragment pairs.
+      const pairs = Array.from({ length: shaderSources.length / 2 }, (_, i) => [shaderSources[i * 2], shaderSources[i * 2 + 1]]);
+      // The rect's program runs the effect, with frameUv() from the quad's corner.
+      const custom = pairs.filter(([, fs]) => fs?.includes(effect));
+      expect(custom).toHaveLength(1);
+      expect(custom[0]?.[0]).toContain("v_local = a_corner;");
+      // Vector shapes have their own program, built with the built-in effect only.
+      const shape = pairs.filter(([vs]) => vs?.includes("a_posuv"));
+      expect(shape).toHaveLength(1);
+      expect(shape[0]?.[1]).not.toContain(effect);
+    });
+
     it("write the same instance on the short path as on the full one", () => {
       const run = (warm: boolean) => {
         const { gl, calls } = fakeGL();

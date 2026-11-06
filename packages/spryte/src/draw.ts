@@ -692,7 +692,10 @@ export class Draw {
     return new Shader(source);
   }
 
-  /** Run `fn` with everything drawn through `shader`, then restore the previous one. Nests. WebGL2 only (see `Shader`). */
+  /**
+   * Run `fn` with everything drawn through `shader`, except the vector shapes and `mesh`, which draw without it. Then
+   * restore the previous one. Nests. WebGL2 only (see `Shader`).
+   */
   withShader(shader: Shader, fn: () => void): void {
     const outer = this.shader;
     // Switch the backend first: if the shader fails to compile, nothing has changed.

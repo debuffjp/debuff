@@ -450,6 +450,67 @@ vec4 effect(vec4 color, vec2 uv) {
     pixelAt(inTarget, 15, 15).join() === "0,255,0,255" && pixelAt(inTarget, 45, 15).join() === "255,0,0,255",
     `${pixelAt(inTarget, 15, 15)} / ${pixelAt(inTarget, 45, 15)}`,
   );
+
+  // frameUv() runs (0, 0) to (1, 1) across a rect and across a target drawn as a sprite; a target's uv runs bottom to top.
+  const position = `vec4 effect(vec4 color, vec2 uv) { return vec4(frameUv(), 0.0, 1.0); }`;
+  const texture = `vec4 effect(vec4 color, vec2 uv) { return vec4(uv, 0.0, 1.0); }`;
+  const corners = (px: Uint8Array) => [pixelAt(px, 0, 0), pixelAt(px, W - 1, H - 1)].map((p) => [p[0], p[1]]);
+  const across = (px: Uint8Array) => {
+    const [tl, br] = corners(px) as [number[], number[]];
+    return Math.max(...tl) < 4 && Math.min(...br) > 251;
+  };
+  const viaTarget = (source: string) => (draw: Draw) => {
+    const t = draw.createTarget(W, H);
+    draw.into(t, () => draw.rect(0, 0, W, H, "#fff"));
+    draw.withShader(draw.createShader(source), () => draw.sprite(t, 0, 0, { origin: [0, 0] }));
+  };
+  const rectPos = await render((draw) => draw.withShader(draw.createShader(position), () => draw.rect(0, 0, W, H, "#fff")), "webgl2", 1);
+  const targetPos = await render(viaTarget(position), "webgl2", 1);
+  const targetUv = await render(viaTarget(texture), "webgl2", 1);
+  check(
+    "frameUv() covers a rect and a target (0, 0) to (1, 1); a target's uv.y runs bottom to top",
+    across(rectPos) && across(targetPos) && pixelAt(targetUv, 0, 0)[1] > 251 && pixelAt(targetUv, 0, H - 1)[1] < 4,
+    JSON.stringify([corners(rectPos), corners(targetPos), corners(targetUv)]),
+  );
+
+  // The documented full-screen vignette: a rect over the view, no render target.
+  const vignette = await render(
+    (draw) => {
+      draw.rect(0, 0, W, H, "#fff");
+      const s = draw.createShader(`
+        uniform float strength;
+        vec4 effect(vec4 color, vec2 uv) {
+          float d = distance(frameUv(), vec2(0.5));
+          return color * clamp(d * strength, 0.0, 1.0);
+        }
+      `);
+      s.set("strength", 1.2);
+      draw.withShader(s, () => draw.rect(0, 0, W, H, "#000"));
+    },
+    "webgl2",
+    1,
+  );
+  const centre = pixelAt(vignette, W / 2, H / 2)[0] as number;
+  const corner = pixelAt(vignette, 0, 0)[0] as number;
+  check("a rect inside withShader darkens the edges and not the centre (vignette)", centre > 250 && corner < 60, `${centre} / ${corner}`);
+
+  // Vector shapes draw without the custom effect.
+  const shapes = await render(
+    (draw) => {
+      const s = draw.createShader(`vec4 effect(vec4 color, vec2 uv) { return vec4(0.0, 1.0, 0.0, 1.0); }`);
+      draw.withShader(s, () => {
+        roundRect(draw, 10, 10, 20, 20, 4, "#f00");
+        polygon(draw, [40, 10, 60, 10, 60, 30, 40, 30], "#f00");
+      });
+    },
+    "webgl2",
+    1,
+  );
+  check(
+    "vector shapes inside withShader draw without the effect",
+    pixelAt(shapes, 20, 20).join() === "255,0,0,255" && pixelAt(shapes, 50, 20).join() === "255,0,0,255",
+    `${pixelAt(shapes, 20, 20)} / ${pixelAt(shapes, 50, 20)}`,
+  );
 }
 
 // ---- Adversarial QA (expected to FAIL on the current source) ----
