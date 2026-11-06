@@ -24,7 +24,58 @@ export type ReplayStep =
   /** The gamepad state from this tick's poll on (`null` = disconnected). Only changes are recorded. */
   | { pad: PadStep | null }
   | { set: Record<string, ParamValue> }
-  | { command: string; args?: unknown[] };
+  | { command: string; args?: unknown[] }
+  /** What the game's state was at this tick when it was recorded, so a replay can tell when it stops matching. */
+  | { checkpoint: Checkpoint };
+
+/**
+ * A short hash of each part of the game's state, keyed by its `DevState` path: `scene`, `events`, one
+ * `state.<key>` per top-level key of the scene's `inspect()` (or `state` when it isn't an object) and
+ * `plugins.<name>`. A part that differs from the recording names where a replay went its own way.
+ */
+export type Checkpoint = Record<string, string>;
+
+/** Ticks between checkpoints in a recording: one a second at 60 Hz. */
+const CHECKPOINT_EVERY = 60;
+
+/** The parts of `DevState` that come from the game itself, which a checkpoint hashes. */
+export interface CheckpointSource {
+  scene: string | undefined;
+  state: unknown;
+  plugins: Record<string, unknown>;
+  events: Record<string, number>;
+}
+
+export function checkpointOf({ scene, state, plugins, events }: CheckpointSource): Checkpoint {
+  const out: Checkpoint = { scene: hash(scene ?? ""), events: hash(events) };
+  if (state !== null && typeof state === "object" && !Array.isArray(state))
+    for (const [key, value] of Object.entries(state)) out[`state.${key}`] = hash(value);
+  else out.state = hash(state);
+  for (const [name, value] of Object.entries(plugins)) out[`plugins.${name}`] = hash(value);
+  return out;
+}
+
+/** The parts of two checkpoints that differ, including parts only one of them has. */
+export function checkpointDrift(expected: Checkpoint, actual: Checkpoint): string[] {
+  return [...new Set([...Object.keys(expected), ...Object.keys(actual)])].filter((k) => expected[k] !== actual[k]);
+}
+
+/** Where a replay stopped matching its recording. */
+export interface Drift {
+  tick: number;
+  /** The last tick whose checkpoint matched (0 if none did). */
+  matched: number;
+  /** The parts that differ. */
+  parts: string[];
+}
+
+/** 32-bit FNV-1a of the value's JSON, as 8 hex digits. */
+function hash(value: unknown): string {
+  const text = JSON.stringify(value) ?? "undefined";
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
+  return (h >>> 0).toString(16).padStart(8, "0");
+}
 
 /** A recorded session as a scenario: run it with `debuff scenario <file>` to replay it exactly. */
 export interface Replay {
@@ -84,10 +135,32 @@ export class InputRecording {
   /** Last recorded pointer position per tick, to keep moves compact. */
   private lastMoveTick = -1;
 
+  /**
+   * `checkpoint`, when given, is recorded every `CHECKPOINT_EVERY` ticks, just before that tick's step and
+   * after its input: the same moment a scenario reaches after the step's `wait` and input.
+   */
   constructor(
     private readonly game: Game,
     input: DrivableInput,
+    checkpoint?: () => Checkpoint,
   ) {
+    if (checkpoint) {
+      const clock = game.clock;
+      const advance = clock.advance;
+      clock.advance = (elapsed, update) =>
+        advance.call(clock, elapsed, (dt) => {
+          if (clock.tick > 0 && clock.tick % CHECKPOINT_EVERY === 0) {
+            // A scene whose inspect() can't be serialised just gets no checkpoints; the game keeps running.
+            try {
+              this.add({ checkpoint: checkpoint() });
+            } catch {}
+          }
+          update(dt);
+        });
+      this.restore.push(() => {
+        clock.advance = advance;
+      });
+    }
     let nested = false;
     const wrap = <T extends object, K extends keyof T>(target: T, key: K, record: (...args: never[]) => ReplayStep | null | undefined) => {
       const original = target[key] as unknown as (...args: unknown[]) => unknown;
@@ -300,9 +373,17 @@ export interface ReplayTarget {
 
 /**
  * Play `steps` into the game up to `toTick`, without drawing, exactly as `debuff scenario` would.
- * Input goes through the (recorded) input, so the recording picks the session up again.
+ * Input goes through the (recorded) input, so the recording picks the session up again. With `verify`,
+ * each checkpoint in `steps` is compared with the game's, and the first one that differs is returned.
  */
-export function fastForward({ game, input, command }: ReplayTarget, steps: ReplayStep[], toTick: number): void {
+export function fastForward(
+  { game, input, command }: ReplayTarget,
+  steps: ReplayStep[],
+  toTick: number,
+  verify?: () => Checkpoint,
+): Drift | undefined {
+  let drift: Drift | undefined;
+  let matched = 0;
   const held = new Set<string>();
   let pointerHeld = false;
   const touches = new Set<number>();
@@ -343,6 +424,11 @@ export function fastForward({ game, input, command }: ReplayTarget, steps: Repla
         game.params.group(group)?.set(key, value);
       }
     else if ("command" in step) command(step.command, ...(step.args ?? []));
+    else if ("checkpoint" in step && verify && !drift) {
+      const parts = checkpointDrift(step.checkpoint, verify());
+      if (parts.length) drift = { tick: game.clock.tick, matched, parts };
+      else matched = game.clock.tick;
+    }
   }
   if (game.clock.tick < toTick) game.step(toTick - game.clock.tick, false);
   // Nobody is physically holding these any more: let go, or they'd stay stuck down.
@@ -357,4 +443,5 @@ export function fastForward({ game, input, command }: ReplayTarget, steps: Repla
     game.start();
   }
   game.redraw();
+  return drift;
 }

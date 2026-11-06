@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { stepUntil } from "../src/scenario/browser.js";
 import { captureDiffMessage, compare, pick, runScenarios, unusedBaselines } from "../src/scenario/index.js";
-import { comparisonError, runStep } from "../src/scenario/run.js";
+import { CheckpointCheck, comparisonError, runStep } from "../src/scenario/run.js";
 import type { ScenarioReport, Step } from "../src/scenario/types.js";
 
 describe("compare", () => {
@@ -142,6 +142,35 @@ describe("runStep: tap with a key and malformed comparisons", () => {
     expect(until.failures[0]).toMatch(/^until: scene: expected a comparison object like \{ "eq": "play" \}/);
     expect(comparisonError({ equals: 1 })).toMatch(/with eq, gt, gte, lt, lte or approx, got \{"equals":1\}/);
     expect(comparisonError({ eq: 0 })).toBeUndefined();
+  });
+});
+
+describe("CheckpointCheck", () => {
+  const game = (states: Record<string, string>[]) => {
+    let tick = 0;
+    return (async (method: string) => {
+      if (method !== "checkpoint") throw new Error(`unexpected ${method}`);
+      tick += 60;
+      return { tick, checkpoint: states.shift() };
+    }) as Parameters<CheckpointCheck["check"]>[1];
+  };
+
+  it("warns once, at the first checkpoint that differs, with the parts and the last match", async () => {
+    const check = new CheckpointCheck();
+    const call = game([{ scene: "a", "state.x": "1" }, { scene: "a", "state.x": "2", "state.y": "1" }, { scene: "b" }]);
+    expect(await check.check({ scene: "a", "state.x": "1" }, call)).toBeUndefined();
+    const warning = await check.check({ scene: "a", "state.x": "1" }, call);
+    expect(warning).toContain("stopped matching the recording at tick 120: state.x, state.y differ (it matched at tick 60).");
+    expect(await check.check({ scene: "a" }, call)).toBeUndefined();
+  });
+
+  it("says when the game's dev tools are too old to check", async () => {
+    const check = new CheckpointCheck();
+    const old = (async () => {
+      throw new Error('Unknown dev hook "checkpoint"');
+    }) as Parameters<CheckpointCheck["check"]>[1];
+    expect(await check.check({ scene: "a" }, old)).toBe('checkpoints not checked: Unknown dev hook "checkpoint"');
+    expect(await check.check({ scene: "a" }, old)).toBeUndefined();
   });
 });
 

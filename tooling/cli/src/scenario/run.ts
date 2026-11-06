@@ -251,10 +251,17 @@ async function runOne(page: Page, base: string, name: string, scenario: Scenario
   };
   const steps: StepResult[] = [];
   const captures: CaptureResult[] = [];
+  const checkpoints = new CheckpointCheck();
 
   for (const [index, step] of scenario.steps.entries()) {
     let message: string | undefined;
     try {
+      if ("checkpoint" in step) {
+        const warning = await checkpoints.check(step.checkpoint, call);
+        if (warning) warnings.push(warning);
+        steps.push({ index, step, ok: true });
+        continue;
+      }
       // Plugin steps are namespaced ("plugin:step"); everything else is a built-in step.
       const key = Object.keys(step)[0] ?? "";
       if (key.includes(":")) {
@@ -310,6 +317,39 @@ async function runOne(page: Page, base: string, name: string, scenario: Scenario
 }
 
 type Call = <R>(method: string, ...args: unknown[]) => Promise<R>;
+
+/**
+ * Compares a replay's checkpoints with the game's, warning once at the first that differs: every later one
+ * would differ too. Exported for tests.
+ */
+export class CheckpointCheck {
+  private matched = 0;
+  private done = false;
+
+  async check(expected: Record<string, string>, call: Call): Promise<string | undefined> {
+    if (this.done) return undefined;
+    let now: { tick: number; checkpoint: Record<string, string> };
+    try {
+      now = await call("checkpoint");
+    } catch (err) {
+      this.done = true;
+      return `checkpoints not checked: ${err instanceof Error ? err.message : String(err)}`;
+    }
+    const parts = [...new Set([...Object.keys(expected), ...Object.keys(now.checkpoint)])].filter((k) => expected[k] !== now.checkpoint[k]);
+    if (!parts.length) {
+      this.matched = now.tick;
+      return undefined;
+    }
+    this.done = true;
+    return (
+      `the game's state stopped matching the recording at tick ${now.tick}: ${parts.join(", ")} ${parts.length === 1 ? "differs" : "differ"}` +
+      (this.matched ? ` (it matched at tick ${this.matched}).` : ".") +
+      " That's expected if the game changed since it was recorded. Otherwise this replay doesn't reproduce the session: look for Math.random()," +
+      " Date.now() or real-time timers in game logic, a load finishing on a different frame, or logic that depends on the window size."
+    );
+  }
+}
+
 type Capture = (name: string, tolerance: number) => Promise<string | undefined>;
 type Until = (conditions: Record<string, Comparison>, within: number) => Promise<{ ticks: number; met: boolean }>;
 type Sample = (steps: number) => Promise<{ frames: number[][]; stepSeconds: number }>;

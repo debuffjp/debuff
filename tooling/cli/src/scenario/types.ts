@@ -60,6 +60,11 @@ export type Step =
   | { set: Record<string, number | boolean> }
   /** Run a command the game registered with `devTools({ commands })`. */
   | { command: string; args?: unknown[] }
+  /**
+   * Recorded replays emit these: a hash of each part of the game's state at this tick when it was recorded.
+   * The first one that differs adds a warning naming the tick and the parts; it never fails the scenario.
+   */
+  | { checkpoint: Record<string, string> }
   /** Assert on dev state paths: "scene", "tick", "state.score", "stats.fps", "events.coin" (times `game.emit("coin")` ran). */
   | { expect: Record<string, Comparison> }
   /**

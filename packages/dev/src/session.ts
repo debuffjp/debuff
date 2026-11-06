@@ -4,7 +4,17 @@ import { DevClips } from "./clips.js";
 import { type ExplainedError, errorKey, explainError, mapLocation } from "./explain.js";
 import type { DrivableInput } from "./index.js";
 import { OffscreenSampler } from "./offscreen.js";
-import { fastForward, InputRecording, pagePath, type Replay, type ReplayTarget, type RewindRequest, storeRewind } from "./replay.js";
+import {
+  type Checkpoint,
+  checkpointOf,
+  fastForward,
+  InputRecording,
+  pagePath,
+  type Replay,
+  type ReplayTarget,
+  type RewindRequest,
+  storeRewind,
+} from "./replay.js";
 
 /** A `game.emit` call, as the dev tools saw it. */
 export interface GameEventRecord {
@@ -396,7 +406,13 @@ export class DevSession {
 
   /** Start recording this input for replays. Idempotent. */
   attachInput(input: DrivableInput): void {
-    this.recording ??= new InputRecording(this.game, input);
+    this.recording ??= new InputRecording(this.game, input, () => this.checkpoint());
+  }
+
+  /** The game's state now, hashed part by part (see `Checkpoint`). */
+  checkpoint(): Checkpoint {
+    const { game } = this;
+    return checkpointOf({ scene: game.scene?.id, state: game.scene?.inspect?.(), plugins: gamePlugins(game), events: this.eventCounts });
   }
 
   /**
@@ -441,7 +457,13 @@ export class DevSession {
     if (!recording) return;
     for (const w of request.timeline.warnings) recording.warn(w);
     const t0 = performance.now();
-    fastForward(target, request.timeline.steps, request.tick);
+    // After a code reload the new code is meant to play differently, so only a rewind checks the checkpoints.
+    const drift = fastForward(
+      target,
+      request.timeline.steps,
+      request.tick,
+      request.reason === "reload" ? undefined : () => this.checkpoint(),
+    );
     if (request.reason === "reload") {
       const ms = Math.round(performance.now() - t0);
       this.log("you", "kept your place", `replayed ${request.tick} ticks with the new code in ${ms} ms`);
@@ -451,6 +473,14 @@ export class DevSession {
     this.timeline = { replay: request.timeline, tick: this.game.clock.tick, events: recording.count };
     this.pause("you", `rewound to tick ${request.tick}`);
     this.log("you", "rewound", `to tick ${request.tick} of ${request.timeline.ticks}`);
+    if (drift) {
+      const message =
+        `Rewinding didn't reproduce the session: ${drift.parts.join(", ")} differed from the recording at tick ${drift.tick}` +
+        (drift.matched ? ` (matched at tick ${drift.matched}).` : ".") +
+        " Look for Math.random(), Date.now() or real-time timers in game logic.";
+      recording.warn(message);
+      this.log("debuff", "rewind drifted", message);
+    }
   }
 
   setSpeed(scale: number, who = "you"): void {

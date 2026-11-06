@@ -32,8 +32,9 @@ All arguments and return values are JSON-serialisable.
 | `keepForReload()` | save the session for a state-preserving reload; the `debuff dev` client calls it just before a code change reloads the page |
 | `luminance(cols, rows, region?)` | the current frame's WCAG relative luminance on a grid, for the scenario flash and contrast checks |
 | `events(sinceTick?)` | the latest `game.emit` calls with tick and detail; `state().events` counts them by name |
-| `rewind(tick)` | reload and replay this session's inputs to `tick`, then pause: the exact state at that moment. Within the known session you can go forward again until new play branches off. Live games only |
-| `replay(toTick?)` | everything played since load (keys, pointer, param changes) up to `toTick`, as a scenario that replays it exactly, plus `warnings` for anything it can't reproduce. Needs `devTools({ input })` |
+| `rewind(tick)` | reload and replay this session's inputs to `tick`, then pause: the exact state at that moment. Within the known session you can go forward again until new play branches off. From 0.31 it checks the recording's checkpoints on the way and adds a warning (and an activity log entry) if the state stops matching. Live games only |
+| `replay(toTick?)` | everything played since load (keys, pointer, param changes) up to `toTick`, as a scenario that replays it exactly, plus `warnings` for anything it can't reproduce. From 0.31 it also holds a `checkpoint` step every 60 ticks: a hash of each part of the state (`scene`, `events`, `state.<key>` per top-level key of `inspect()`, `plugins.<name>`), so `debuff scenario` can say at which tick a replay stopped matching. Needs `devTools({ input })` |
+| `checkpoint()` | `{ tick, checkpoint }`: the state now, hashed the same way, for comparing with a replay's `checkpoint` steps. Added in 0.31 |
 
 ## Overlay
 

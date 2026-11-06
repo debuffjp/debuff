@@ -643,6 +643,8 @@ export class Playtest<S = any> {
         break; // Needs real pixels: `debuff scenario` checks it.
       case "capture":
         break; // Nothing is rendered headless; captures belong to `debuff scenario`.
+      case "checkpoint":
+        break; // Recorded state hashes: `debuff scenario` compares them.
       default:
         throw new Error(key.includes(":") ? `plugin step "${key}" only runs under \`debuff scenario\`` : `unknown step ${show(step)}`);
     }

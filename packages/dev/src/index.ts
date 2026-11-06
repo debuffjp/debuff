@@ -3,7 +3,7 @@ import type { Report } from "myaku";
 import { type ClipStatus, fitFrame, type SavedCapture, STILL_SIZES } from "./clips.js";
 import type { ExplainedError } from "./explain.js";
 import { offscreenHint } from "./offscreen.js";
-import { type PadStep, pointerOp, pressSource, type Replay, releaseSource, takeRewind, toPadState } from "./replay.js";
+import { type Checkpoint, type PadStep, pointerOp, pressSource, type Replay, releaseSource, takeRewind, toPadState } from "./replay.js";
 import { DevSession, type FrameSample, type GameEventRecord, gamePlugins, type Note, type TypeDiagnostic } from "./session.js";
 import { registerWebMcp } from "./webmcp.js";
 
@@ -137,6 +137,8 @@ export interface DevHooks {
    * scenario that replays it exactly. Pass a note's `tick` to get the session leading up to that note.
    */
   replay(toTick?: number): Replay;
+  /** The game's state now, hashed part by part, to compare with a replay's `checkpoint` steps. */
+  checkpoint(): { tick: number; checkpoint: Checkpoint };
   /**
    * Reload and replay this session's inputs to `tick`, then pause there: the exact state at that moment.
    * Within the known session you can go forward again, until new play branches off.
@@ -379,6 +381,7 @@ function createHooks(game: Game, session: DevSession, options: DevHooksOptions, 
       if (!session.recording) throw new Error("Replays need input: use devTools({ input })");
       return session.recording.toReplay(toTick);
     },
+    checkpoint: () => ({ tick: game.clock.tick, checkpoint: session.checkpoint() }),
     notes: () => session.notes.map((n) => ({ ...n })),
     errors: () => errors.map((e) => ({ ...e })),
     typeErrors: () => session.typeErrors.map((e) => ({ ...e })),
@@ -452,7 +455,7 @@ function linkAgent(game: Game, session: DevSession, options: DevHooksOptions, er
 export { CAPTURE_ENDPOINT, CLIP_SECONDS, type ClipStatus, DevClips, type SavedCapture, STILL_SIZES } from "./clips.js";
 export { type ErrorKind, type ExplainedError, explainError, type SourceLocation } from "./explain.js";
 export { type DevOverlayOptions, devOverlay } from "./overlay.js";
-export { InputRecording, type PadStep, type Replay, type ReplayStep } from "./replay.js";
+export { type Checkpoint, InputRecording, type PadStep, type Replay, type ReplayStep } from "./replay.js";
 export {
   type Activity,
   DevSession,

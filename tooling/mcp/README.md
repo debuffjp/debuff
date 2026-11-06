@@ -48,7 +48,7 @@ For Claude Desktop, `mcpb/manifest.json` describes a desktop extension that asks
 | `game_frames` | Recent frame breakdown: update/render ms, catch-up steps, quads, draw calls, long tasks; `summary` gives percentiles and the 3 slowest |
 | `game_notes` | Moments the human flagged in the overlay, with the state at that tick |
 | `game_rewind` | Live mode: take the human's game back (or forward) to a tick, paused, with its exact state then |
-| `game_replay` | Save the live session up to a tick (for example a note's) as a scenario in `.debuff/replays/` that reproduces it |
+| `game_replay` | Save the live session up to a tick (for example a note's) as a scenario in `.debuff/replays/` that reproduces it. From 0.31 it holds state checkpoints, so `run_scenarios` warns at the tick where the replay stops matching |
 | `game_input` | `press` / `release` keys (and `PointerRight` / `PointerMiddle`); `tap`, `pointer_down` (with an optional `kind`: mouse, touch or pen), `pointer_move`, `pointer_up`; `wheel` (`dy`, `dx`); `touch_down`, `touch_move`, `touch_up` by contact `id` |
 | `game_state` | Scene, tick, logical width/height, renderer, frame stats, `reducedMotion`, your `inspect()` data |
 | `game_command` | Run a command the game registered with `devTools({ commands })`, with JSON args |

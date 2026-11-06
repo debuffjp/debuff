@@ -656,7 +656,8 @@ export function createServer(options: ServerOptions): McpServer {
       description:
         "Everything played since the game loaded (keys, pointer, param changes) up to `toTick` (default: now), saved as a scenario " +
         "in .debuff/replays/ that replays it exactly. Use a note's `tick` to reproduce what the human saw when they flagged it, then " +
-        "run_scenarios with the returned file. `warnings` lists anything a replay can't reproduce (for example slow motion).",
+        "run_scenarios with the returned file. `warnings` lists anything a replay can't reproduce (for example slow motion). " +
+        "The file holds a checkpoint of the game's state every second, so if the replay stops matching, run_scenarios warns with the tick and the parts of the state that differ.",
       inputSchema: { toTick: z.number().int().min(0).optional().describe("Last tick to include. Default: the current tick.") },
     },
     safely(async ({ toTick }) => {

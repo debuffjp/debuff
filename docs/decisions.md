@@ -69,3 +69,9 @@ A number param goes to each end of its declared range, or to 0 and double its va
 Seed and frame-rate mutants are reported as unviable for debuff games rather than left out, so nothing is skipped without a line saying why. The seed offset is 7919, the same one `test.deterministic` uses for its second run.
 
 Results go to `mutants.out/`, the folder cargo-mutants and mutant.cafe use, so agents that know either tool know where to look. Considered: `.debuff/mutants` (keiko runs outside debuff projects too) and `.keiko/` (a new hidden folder for one command). The command is `keiko mutate`, a subcommand like `keiko init`, rather than a `henka` binary: henka has no runner of its own.
+
+## Replay checkpoints hash each part of the state and only warn
+
+From 0.31 a recording keeps a checkpoint every 60 ticks, so a replay can say where it stopped matching (the idea comes from rollback engines such as bones, which compare state checksums to find desyncs). Each checkpoint is an 8-digit FNV-1a hash per part: `scene`, `events`, each top-level key of `inspect()` and each plugin snapshot. Considered: one hash per checkpoint (25 bytes, but a drift only names the tick) and the full state per checkpoint (names the exact path, but a few minutes of play could make a replay megabytes). Per-part hashes cost a few hundred bytes a second and name the area, such as `state.enemies`.
+
+A drift is a warning, not a failure. Replays get saved as regression scenarios, and every later change to the game would fail them on checkpoints even when the captures and `expect` steps still pass. Considered: failing (brittle in exactly that way) and rewriting checkpoints with `--update` (edits the user's scenario file, where `--update` only ever writes baselines). The camera is left out of the hash because its size follows the window, which differs between the human's tab and a scenario's viewport.

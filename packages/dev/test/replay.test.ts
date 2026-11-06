@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Gamepads } from "../../input/src/gamepad.js";
 import { Pointer } from "../../input/src/pointer.js";
 import { DevSession, type DrivableInput, InputRecording, type Replay } from "../src/index.js";
-import { fastForward, type RewindRequest, storeRewind, takeRewind } from "../src/replay.js";
+import { checkpointDrift, checkpointOf, fastForward, type RewindRequest, storeRewind, takeRewind } from "../src/replay.js";
 
 function makeGame() {
   const canvas = document.createElement("canvas");
@@ -70,12 +70,12 @@ describe("InputRecording", () => {
 });
 
 /** A tiny game whose state depends on held keys, params and the seeded RNG: a good determinism probe. */
-function makeSim() {
+function makeSim(seed?: number) {
   const canvas = document.createElement("canvas");
   const ctx = new Proxy({}, { get: (_t, k) => (k === "canvas" ? canvas : () => undefined), set: () => true });
   vi.spyOn(canvas, "getContext").mockImplementation(((type: string) =>
     type === "2d" ? ctx : null) as unknown as typeof canvas.getContext);
-  const game = new Game({ canvas, width: 100, height: 100, scale: "none" });
+  const game = new Game({ canvas, width: 100, height: 100, scale: "none", ...(seed === undefined ? {} : { seed }) });
   const speed = game.params.define("player", { speed: { type: "number", default: 1, min: 0, max: 10 } });
   const held = new Set<string>();
   const input: DrivableInput = {
@@ -90,6 +90,7 @@ function makeSim() {
         if (held.has("ArrowRight")) sim.x += speed.values.speed;
         sim.noise += game.random.next();
       },
+      inspect: () => ({ ...sim }),
     })
     .go("play");
   return { game, input, sim };
@@ -180,6 +181,86 @@ describe("state-preserving reload", () => {
     expect(second.sim.x).toBe(30); // the replay let go of ArrowRight: nobody is holding it now
     expect(b.activity.at(-1)?.action).toBe("kept your place");
     b.release();
+  });
+});
+
+describe("checkpoints", () => {
+  /** Record `ticks` of play holding ArrowRight from tick 60, through a dev session (which records checkpoints). */
+  function record(ticks: number) {
+    const live = makeSim();
+    const session = DevSession.acquire(live.game);
+    session.attachInput(live.input);
+    live.game.step(60);
+    live.input.keys.press("ArrowRight");
+    live.game.step(ticks - 60);
+    const replay = session.known() as Replay;
+    session.release();
+    return replay;
+  }
+  const target = (sim: ReturnType<typeof makeSim>) => ({ game: sim.game, input: sim.input, command: () => undefined });
+
+  it("hash each part of the state every 60 ticks, after that tick's input", () => {
+    const replay = record(130);
+    expect(replay.steps.map((s) => Object.keys(s)[0])).toEqual(["wait", "press", "checkpoint", "wait", "checkpoint", "wait"]);
+    expect(Object.keys((replay.steps[2] as { checkpoint: object }).checkpoint)).toEqual(["scene", "events", "state.x", "state.noise"]);
+  });
+
+  it("let a replay name the first tick and parts that stopped matching", () => {
+    const replay = record(200);
+    const same = makeSim();
+    const verify = (sim: ReturnType<typeof makeSim>) => () =>
+      checkpointOf({ scene: sim.game.scene?.id, state: sim.game.scene?.inspect?.(), plugins: {}, events: {} });
+    expect(fastForward(target(same), replay.steps, replay.ticks, verify(same))).toBeUndefined();
+
+    const bumped = makeSim();
+    bumped.game.hooks.afterUpdate(() => {
+      if (bumped.game.clock.tick === 130) bumped.sim.x += 1;
+    });
+    expect(fastForward(target(bumped), replay.steps, replay.ticks, verify(bumped))).toEqual({
+      tick: 180,
+      matched: 120,
+      parts: ["state.x"],
+    });
+
+    const reseeded = makeSim(2);
+    expect(fastForward(target(reseeded), replay.steps, replay.ticks, verify(reseeded))).toEqual({
+      tick: 60,
+      matched: 0,
+      parts: ["state.noise"],
+    });
+  });
+
+  it("warn when a rewind doesn't reproduce the session, but not after a code reload", () => {
+    const replay = record(130);
+    for (const reason of ["rewind", "reload"] as const) {
+      const sim = makeSim(2);
+      const session = DevSession.acquire(sim.game);
+      session.attachInput(sim.input);
+      session.restore({ v: 1, page: location.pathname, timeline: replay, tick: 130, reason }, target(sim));
+      const warnings = session.recording?.toReplay().warnings ?? [];
+      if (reason === "rewind") {
+        expect(warnings).toEqual([expect.stringContaining("state.noise differed from the recording at tick 60")]);
+        expect(session.activity.at(-1)?.action).toBe("rewind drifted");
+      } else expect(warnings).toEqual([]);
+      session.release();
+    }
+  });
+
+  it("split plugins and non-object state, and count parts only one side has as different", () => {
+    const a = checkpointOf({ scene: "play", state: 3, plugins: { tilemap: { w: 2 } }, events: { coin: 1 } });
+    expect(Object.keys(a)).toEqual(["scene", "events", "state", "plugins.tilemap"]);
+    const b = checkpointOf({ scene: "play", state: 3, plugins: {}, events: { coin: 2 } });
+    expect(checkpointDrift(a, b)).toEqual(["events", "plugins.tilemap"]);
+  });
+
+  it("skip a state that can't be serialised and keep the game running", () => {
+    const sim = makeSim();
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    const rec = new InputRecording(sim.game, sim.input, () => checkpointOf({ scene: "play", state: cyclic, plugins: {}, events: {} }));
+    sim.game.step(130);
+    expect(sim.game.clock.tick).toBe(130);
+    expect(rec.toReplay().steps).toEqual([{ wait: 130 }]);
   });
 });
 
