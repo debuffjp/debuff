@@ -1,6 +1,5 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
-import { userConfigFile } from "./telemetry.js";
+import { readFileSync } from "node:fs";
+import { updateUserConfig, userConfigFile } from "./telemetry.js";
 
 /** The registry document for the newest debuff release. The CLI's version is the whole group's (one `fixed` group). */
 const LATEST = "https://registry.npmjs.org/@debuffjp/cli/latest";
@@ -63,10 +62,8 @@ export async function updateHint(
   if (config.updateCheckedAt !== undefined && now - config.updateCheckedAt < DAY) return undefined;
   const latest = await latestVersion({ fetch: options.fetch, timeoutMs: 1500 });
   if (latest === undefined) return undefined;
-  try {
-    mkdirSync(dirname(file), { recursive: true });
-    writeFileSync(file, `${JSON.stringify({ ...config, updateCheckedAt: now, latestVersion: latest }, null, 2)}\n`);
-  } catch {}
+  // Merge into the file as it is now: it may have changed during the registry call (`debuff telemetry off`).
+  updateUserConfig(file, { updateCheckedAt: now, latestVersion: latest });
   return isNewer(latest, installed) ? `debuff ${latest} is out (you have ${installed}): npx debuff upgrade` : undefined;
 }
 
@@ -90,10 +87,7 @@ export async function upgradeNote(
   const fresh = config.updateCheckedAt !== undefined && now - config.updateCheckedAt < DAY;
   const latest = fresh ? config.latestVersion : await latestVersion({ fetch: options.fetch, timeoutMs: 1500 });
   if (latest === undefined || !isNewer(latest, installed)) return undefined;
-  try {
-    mkdirSync(dirname(file), { recursive: true });
-    const checked = fresh ? {} : { updateCheckedAt: now, latestVersion: latest };
-    writeFileSync(file, `${JSON.stringify({ ...config, ...checked, upgradeNotedAt: now }, null, 2)}\n`);
-  } catch {}
+  const checked = fresh ? {} : { updateCheckedAt: now, latestVersion: latest };
+  updateUserConfig(file, { ...checked, upgradeNotedAt: now });
   return `debuff ${latest} is out; this project has ${installed}. Tell the human once, with the changes that matter to them (https://github.com/debuffjp/debuff/blob/main/tooling/cli/CHANGELOG.md). If they want it, \`npx debuff upgrade\` moves every debuff package together and refreshes the skills and hooks. Don't upgrade without their go-ahead.`;
 }
