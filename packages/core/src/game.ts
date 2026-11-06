@@ -112,8 +112,17 @@ export class Game {
     this.camera.motionScale = value ? REDUCED_SHAKE : 1;
   }
 
-  /** Pause automatically while the tab is hidden. */
-  pauseWhenHidden = true;
+  /** Pause automatically while the tab is hidden. Turning it off while hidden resumes a started game. */
+  get pauseWhenHidden(): boolean {
+    return this.hiddenPauses;
+  }
+
+  set pauseWhenHidden(value: boolean) {
+    this.hiddenPauses = value;
+    if (!value && this.wanted) this.run();
+  }
+
+  private hiddenPauses = true;
   /** Current backing-store pixels per logical unit (CSS scale × devicePixelRatio). */
   renderScale = 1;
 
