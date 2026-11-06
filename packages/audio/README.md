@@ -36,5 +36,6 @@ audio.synth({ freq: 660, freqEnd: 220, decay: 0.15 }); // placeholder, no file n
 - `play(id, { bus, volume, rate, rateJitter, pan, loop })` → `Voice`
 - `synth({ wave, freq, freqEnd, attack, decay, volume, bus })` → `Voice` (`wave`: any `OscillatorType` or `"noise"`)
 - `voice.stop(fadeSeconds?)`
+- `stream(url, { bus, volume, loop })` → `Stream`: a long track played from an `<audio>` element, with `pause()`, `resume()`, `volume(value, fadeSeconds?)` and `stop(fadeSeconds?)`. A track the browser blocks starts on the next gesture. `stop()` is final; before 0.31.1, `resume()` after `stop(fade)` restarted a track that was about to be unloaded.
 - `bus("sfx" | "music")` → `GainNode`, to plug in other audio such as plonk
 - `volume("sfx" | "music" | "master", value)`, `unlocked`, `ctx` (the underlying `AudioContext`)

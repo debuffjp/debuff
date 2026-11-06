@@ -27,10 +27,11 @@ export interface StreamOptions {
   loop?: boolean;
 }
 
-/** A streamed track. */
+/** A streamed track. `stop()` is final: it unloads the track, and `pause()`/`resume()` do nothing after it. */
 export interface Stream extends Voice {
   readonly element: HTMLAudioElement;
   pause(): void;
+  /** Carry on after `pause()`. Does nothing after `stop()` (before 0.31.1 it restarted a stopping track). */
   resume(): void;
   volume(value: number, fadeSeconds?: number): void;
 }
@@ -60,13 +61,10 @@ export class Audio {
     this.buses = { sfx: this.ctx.createGain(), music: this.ctx.createGain() };
     this.buses.sfx.connect(this.master);
     this.buses.music.connect(this.master);
-    // Browsers start the context suspended until a user gesture.
+    // Browsers start the context suspended until a user gesture, and can suspend it again later (iOS does
+    // on a phone call or an app switch, as "interrupted"). Every gesture resumes it unless it's running.
     const unlock = () => {
-      void this.ctx.resume();
-      if (this.ctx.state === "running") {
-        removeEventListener("pointerdown", unlock);
-        removeEventListener("keydown", unlock);
-      }
+      if (this.ctx.state !== "running" && this.ctx.state !== "closed") void this.ctx.resume();
     };
     addEventListener("pointerdown", unlock);
     addEventListener("keydown", unlock);
@@ -172,19 +170,43 @@ export class Audio {
       .createMediaElementSource(el)
       .connect(gain)
       .connect(this.buses[options.bus ?? "music"]);
-    let wanted = true;
+    let state: "playing" | "paused" | "stopped" = "playing";
+    // A blocked play() waits for the next chance: the context unlocking, or a user gesture (media elements
+    // have their own autoplay rules, so the context can already be running while the element is blocked).
+    // Only one wait is armed at a time, however often the stream is paused and resumed meanwhile.
+    let retry: AbortController | undefined;
+    const disarm = () => {
+      retry?.abort();
+      retry = undefined;
+    };
     const start = () => {
-      if (wanted) el.play().catch(() => this.ctx.addEventListener("statechange", start, { once: true }));
+      if (state !== "playing") return;
+      el.play().catch(() => {
+        if (state !== "playing" || retry) return;
+        retry = new AbortController();
+        const again = () => {
+          disarm();
+          start();
+        };
+        const opts = { once: true, signal: retry.signal };
+        this.ctx.addEventListener("statechange", again, opts);
+        addEventListener("pointerdown", again, opts);
+        addEventListener("keydown", again, opts);
+      });
     };
     start();
     return {
       element: el,
       pause: () => {
-        wanted = false;
+        if (state === "stopped") return;
+        state = "paused";
+        disarm();
         el.pause();
       },
       resume: () => {
-        wanted = true;
+        // stop() is final: it unloads the element. Call stream() again to play the track afresh.
+        if (state !== "paused") return;
+        state = "playing";
         start();
       },
       volume: (value, fadeSeconds = 0) => {
@@ -192,7 +214,9 @@ export class Audio {
         else gain.gain.value = value;
       },
       stop: (fadeSeconds = 0) => {
-        wanted = false;
+        if (state === "stopped") return;
+        state = "stopped";
+        disarm();
         const end = () => {
           el.pause();
           el.removeAttribute("src");
