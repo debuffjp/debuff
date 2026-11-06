@@ -102,6 +102,23 @@ describe("reload", () => {
     expect(assets.json("config")).toEqual({ url: expect.stringMatching(/\?t=/) });
   });
 
+  it("keeps a first fetch's value when a reload that started after it fails", async () => {
+    let finishFirst: (r: unknown) => void = () => {};
+    const slow = new Promise((r) => {
+      finishFirst = r;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => (url.includes("?t=") ? stubResponse(url, 500) : slow)),
+    );
+    const assets = new Assets(manifest);
+    const first = assets.fetch("config");
+    await expect(assets.reload("config")).rejects.toThrow(/HTTP 500/);
+    finishFirst(await stubResponse("assets/config.json"));
+    await first;
+    expect(assets.json("config")).toEqual({ url: "assets/config.json" }); // loaded, not "not loaded yet"
+  });
+
   it("runs every listener even if one throws, then reports the error", async () => {
     stubFetch();
     const assets = new Assets(manifest);
