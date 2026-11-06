@@ -70,8 +70,22 @@ Seed and frame-rate mutants are reported as unviable for debuff games rather tha
 
 Results go to `mutants.out/`, the folder cargo-mutants and mutant.cafe use, so agents that know either tool know where to look. Considered: `.debuff/mutants` (keiko runs outside debuff projects too) and `.keiko/` (a new hidden folder for one command). The command is `keiko mutate`, a subcommand like `keiko init`, rather than a `henka` binary: henka has no runner of its own.
 
+Changed in henka 0.1.0 (before its first release): henka gained its own `henka` command for Vitest projects, since source mutants need a runner and Vitest is the one Vite projects already have. `keiko mutate` stays a keiko subcommand.
+
 ## Replay checkpoints hash each part of the state and only warn
 
 From 0.31 a recording keeps a checkpoint every 60 ticks, so a replay can say where it stopped matching (the idea comes from rollback engines such as bones, which compare state checksums to find desyncs). Each checkpoint is an 8-digit FNV-1a hash per part: `scene`, `events`, each top-level key of `inspect()` and each plugin snapshot. Considered: one hash per checkpoint (25 bytes, but a drift only names the tick) and the full state per checkpoint (names the exact path, but a few minutes of play could make a replay megabytes). Per-part hashes cost a few hundred bytes a second and name the area, such as `state.enemies`.
 
 A drift is a warning, not a failure. Replays get saved as regression scenarios, and every later change to the game would fail them on checkpoints even when the captures and `expect` steps still pass. Considered: failing (brittle in exactly that way) and rewriting checkpoints with `--update` (edits the user's scenario file, where `--update` only ever writes baselines). The camera is left out of the hash because its size follows the window, which differs between the human's tab and a scenario's viewport.
+
+## henka source mutants: a warm Vitest per job, a Vite plugin, test files from the baseline
+
+Each job keeps a Vitest process open whose only change is a Vite plugin that returns the mutated text for one file; between mutants it invalidates that file in every project's module graph and in the workers. The baseline turns on Vitest 5's `experimental.importDurations` with no limit, which lists every module each test file ran, so a mutant run goes straight to the test files that loaded its file instead of working out Vitest's `related` graph again. Considered:
+
+- Stryker's schemata, every mutant compiled into the code at once behind a switch. No re-transform per mutant, but the instrumented code has to type-check and survive every other plugin's transform, and a mutant in code that runs at import needs a full reload (Stryker's "static" mutants).
+- cargo-mutants' way, patching a copy of the project on disk. Needs a copy per job (the debuff repo is gigabytes with `node_modules`) and a watcher could pick up a half-written file.
+- A fresh Vitest process per mutant, the first version. Simplest, but starting Vitest was most of each run.
+
+A run past the timeout has its process tree killed (taskkill on Windows, a process group elsewhere), counts as caught, and the job starts a new process. `fsModuleCache` is off in mutant runs so a mutated transform never lands in Vitest 5's disk cache. A file that another `enforce: "pre"` plugin changed before henka's plugin runs is reported as unviable rather than mutated blind.
+
+The operators are the smallest set that finds the gaps a game's tests leave: arithmetic, comparison boundaries, logic, sign, number literals and function bodies. Left out for now: string literals (mostly log and error text), array and object literals, optional chaining and regular expressions, which Stryker has.

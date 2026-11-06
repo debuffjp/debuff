@@ -36,6 +36,8 @@ export interface RunResult {
   failed: string[];
   passed: number;
   durationMs: number;
+  /** Anything the reader should know about this run, such as "no test loads this file". */
+  note?: string;
 }
 
 /** How a mutant run ended: a run, or why the mutant couldn't be applied. */
@@ -51,6 +53,8 @@ export interface Adapter {
   mutants(): Promise<Mutant[]> | Mutant[];
   /** Run the tests with one mutant applied. */
   run(mutant: Mutant): Promise<MutantRun>;
+  /** Called once when henka is done with the adapter, after the last run or a failure. */
+  close?(): Promise<void>;
 }
 
 /**
@@ -68,7 +72,7 @@ export interface MutantOutcome {
   /** Tests that failed with the mutant applied. */
   failed: string[];
   durationMs: number;
-  /** Why an unviable mutant couldn't be applied. */
+  /** Why an unviable mutant couldn't be applied, or the run's note. */
   reason?: string;
 }
 
@@ -100,27 +104,51 @@ function judge(expect: Expectation, anyFailed: boolean): Outcome {
 export interface MutateOptions {
   /** Called as each mutant finishes, for live output. */
   onOutcome?: (outcome: MutantOutcome) => void;
+  /** Mutants to run at once. Only for adapters whose runs don't share state. Default 1. */
+  jobs?: number;
 }
 
-/** Run the baseline, then every mutant in turn. Never throws for a missed mutant; check `report.ok`. */
+/** Run the baseline, then every mutant. Never throws for a missed mutant; check `report.ok`. Outcomes keep the adapter's order. */
 export async function mutate(adapter: Adapter, options: MutateOptions = {}): Promise<Report> {
+  try {
+    return await mutateWith(adapter, options);
+  } finally {
+    await adapter.close?.();
+  }
+}
+
+async function mutateWith(adapter: Adapter, options: MutateOptions): Promise<Report> {
   const baseline = await adapter.baseline();
   if (baseline.failed.length) throw new BaselineError(baseline.failed);
-  const counts: Record<Outcome, number> = { caught: 0, missed: 0, held: 0, brittle: 0, unviable: 0 };
-  const outcomes: MutantOutcome[] = [];
+  const mutants = await adapter.mutants();
   const seen = new Set<string>();
-  for (const mutant of await adapter.mutants()) {
-    if (seen.has(mutant.id)) throw new Error(`${adapter.name} listed mutant ${mutant.id} twice`);
-    seen.add(mutant.id);
-    const run = await adapter.run(mutant);
-    const outcome: MutantOutcome =
-      "unviable" in run
-        ? { mutant, outcome: "unviable", failed: [], durationMs: 0, reason: run.unviable }
-        : { mutant, outcome: judge(mutant.expect, run.failed.length > 0), failed: run.failed, durationMs: run.durationMs };
-    counts[outcome.outcome]++;
-    outcomes.push(outcome);
-    options.onOutcome?.(outcome);
+  for (const { id } of mutants) {
+    if (seen.has(id)) throw new Error(`${adapter.name} listed mutant ${id} twice`);
+    seen.add(id);
   }
+  const outcomes: MutantOutcome[] = new Array(mutants.length);
+  let next = 0;
+  const worker = async () => {
+    for (let i = next++; i < mutants.length; i = next++) {
+      const mutant = mutants[i] as Mutant;
+      const run = await adapter.run(mutant);
+      const outcome: MutantOutcome =
+        "unviable" in run
+          ? { mutant, outcome: "unviable", failed: [], durationMs: 0, reason: run.unviable }
+          : {
+              mutant,
+              outcome: judge(mutant.expect, run.failed.length > 0),
+              failed: run.failed,
+              durationMs: run.durationMs,
+              ...(run.note ? { reason: run.note } : {}),
+            };
+      outcomes[i] = outcome;
+      options.onOutcome?.(outcome);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(options.jobs ?? 1, mutants.length)) }, worker));
+  const counts: Record<Outcome, number> = { caught: 0, missed: 0, held: 0, brittle: 0, unviable: 0 };
+  for (const o of outcomes) counts[o.outcome]++;
   return { adapter: adapter.name, baseline, outcomes, counts, ok: counts.missed + counts.brittle === 0 };
 }
 

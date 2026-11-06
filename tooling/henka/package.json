@@ -29,9 +29,22 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./vitest": {
+      "types": "./dist/vitest.d.ts",
+      "default": "./dist/vitest.js"
+    },
+    "./source": {
+      "types": "./dist/source.d.ts",
+      "default": "./dist/source.js"
+    },
+    "./vite": {
+      "types": "./dist/plugin.d.ts",
+      "default": "./dist/plugin.js"
     }
   },
   "files": [
+    "bin",
     "dist",
     "README.md"
   ],
@@ -42,9 +55,26 @@
     "build": "tsc -b"
   },
   "devDependencies": {
-    "@types/node": "^26.6.5"
+    "@types/node": "^26.6.5",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
   },
   "publishConfig": {
     "access": "public"
+  },
+  "peerDependencies": {
+    "vite": ">=8",
+    "vitest": ">=5"
+  },
+  "peerDependenciesMeta": {
+    "vite": {
+      "optional": true
+    },
+    "vitest": {
+      "optional": true
+    }
+  },
+  "bin": {
+    "henka": "bin/henka.js"
   }
 }
