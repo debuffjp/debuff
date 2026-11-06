@@ -351,6 +351,26 @@ describe("Game loop errors", () => {
   });
 });
 
+describe("pauseWhenHidden", () => {
+  it("resumes a game halted for a hidden tab when it is turned off", () => {
+    vi.stubGlobal("requestAnimationFrame", () => 1);
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+    let hidden = false;
+    const spy = vi.spyOn(document, "hidden", "get").mockImplementation(() => hidden);
+    const { game } = makeGame({ splash: false });
+    game.add({ id: "play" }).go("play");
+    game.start();
+    hidden = true;
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(game.isRunning).toBe(false);
+    game.pauseWhenHidden = false; // an agent's hidden browser tab, say
+    expect(game.isRunning).toBe(true);
+    game.dispose();
+    spy.mockRestore();
+    vi.unstubAllGlobals();
+  });
+});
+
 describe("Game loop error phase", () => {
   it("doesn't report a stale phase left by an earlier step() that threw", () => {
     const callbacks: FrameRequestCallback[] = [];
