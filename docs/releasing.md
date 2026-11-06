@@ -20,6 +20,8 @@ CI authenticates to npm with OIDC trusted publishing: there is no `NPM_TOKEN` se
 
 A brand-new package can't be configured before it exists, so publish its first version locally (`npm login`, then `npm run release`), then add the trusted publisher.
 
+For a minute or two after that first publish, npm says the package "is being processed" and the registry shows only a `0.0.0-stage` placeholder ("Temporary package placeholder for staged publishing"). That isn't a staged release: `npm stage list` is empty and there's nothing to approve. Wait, then check with `npm view <name> versions --prefer-online` (npm caches the placeholder otherwise, and `npm install` fails with `ETARGET`). Once the real version is up, `npm deprecate <name>@0.0.0-stage "placeholder"` keeps anyone from installing the placeholder by name.
+
 ## Publishing locally (fallback)
 
 ```bash
