@@ -7,7 +7,7 @@ import { DebuffError } from "../errors.js";
 import type { StepDef } from "../plugin.js";
 import { createDevServer } from "../vite.js";
 import { analyzeFlashes, contrastGrid, contrastRatio, FLASH_GRID } from "./a11y.js";
-import { callHook, callHooks, diffImages, hooksReady, sampleFrames, stepUntil } from "./browser.js";
+import { callHook, callHooks, diffImages, hooksProbe, hooksReady, sampleFrames, stepUntil } from "./browser.js";
 import type { CaptureResult, Comparison, RunOptions, Scenario, ScenarioReport, Step, StepResult } from "./types.js";
 
 /** Pixels whose summed RGB delta exceeds this count as different (absorbs anti-aliasing noise). */
@@ -196,6 +196,65 @@ export async function runScenarios(options: RunOptions): Promise<ScenarioReport[
   return reports;
 }
 
+const DEV_TOOLS_LINE = "`if (import.meta.env.DEV) game.use(devTools({ input }))` (from @debuffjp/dev)";
+
+/**
+ * The `dev_hooks_missing` error for a page whose dev hooks weren't ready in time, naming the likely cause:
+ * the URL losing `?debuff-scenario`, no import of @debuffjp/dev in src/, a failed request or console error
+ * while loading, or a game that waits for something before installing its dev tools.
+ */
+export function devHooksMissing(
+  path: string,
+  probe: { hooks: boolean; scenarioQuery: boolean; url: string },
+  warnings: string[],
+  importsDev: boolean | undefined,
+): DebuffError {
+  if (probe.hooks)
+    return probe.scenarioQuery
+      ? new DebuffError(
+          "dev_hooks_missing",
+          `__DEBUFF_DEV__ is not in scenario mode: ${path} set it, but its \`controlled\` flag isn't true.`,
+          "Update the dev tools to match the CLI: npm i -D @debuffjp/dev@latest",
+        )
+      : new DebuffError(
+          "dev_hooks_missing",
+          `__DEBUFF_DEV__ is not in scenario mode: the page's URL lost its ?debuff-scenario query before the dev tools started (now ${probe.url}).`,
+          "Keep `location.search` when the game changes its URL (history.replaceState or a redirect), or install the dev tools before it does",
+        );
+  if (importsDev === false)
+    return new DebuffError(
+      "dev_hooks_missing",
+      `__DEBUFF_DEV__ is missing on ${path}: nothing in src/ imports @debuffjp/dev, so the game never installs its dev hooks.`,
+      `Add ${DEV_TOOLS_LINE} to src/main.ts`,
+    );
+  if (warnings.length)
+    return new DebuffError(
+      "dev_hooks_missing",
+      `__DEBUFF_DEV__ is missing: ${path} never set it within 15 s. While loading: ${warnings[0]}`,
+      "Fix that failed request or console error (open the page under `npx debuff dev` to see it), then run the scenario again",
+    );
+  return new DebuffError(
+    "dev_hooks_missing",
+    importsDev
+      ? `__DEBUFF_DEV__ is missing: ${path} loaded without errors and src/ imports @debuffjp/dev, but the game didn't install its dev tools within 15 s. It may wait for a click, a sound unlock or a slow load first.`
+      : `__DEBUFF_DEV__ is missing: ${path} loaded without errors, but within 15 s the game either doesn't install the dev tools from @debuffjp/dev or waits for a click, a sound unlock or a slow load first.`,
+    `Install the dev tools right after \`new Game(...)\`, before anything it waits for: ${DEV_TOOLS_LINE}`,
+  );
+}
+
+/** Whether a source file in `root/src` mentions @debuffjp/dev; undefined when there is no src folder. */
+export function importsDevTools(root: string): boolean | undefined {
+  const src = join(root, "src");
+  if (!existsSync(src)) return undefined;
+  return readdirSync(src, { recursive: true, withFileTypes: true }).some(
+    (file) =>
+      file.isFile() &&
+      /\.(?:[cm]?[jt]sx?|vue|svelte)$/.test(file.name) &&
+      !relative(src, file.parentPath).split(/[\\/]/).includes("node_modules") &&
+      readFileSync(join(file.parentPath, file.name), "utf8").includes("@debuffjp/dev"),
+  );
+}
+
 async function runOne(page: Page, base: string, name: string, scenario: Scenario, options: RunOptions): Promise<ScenarioReport> {
   const started = Date.now();
   const url = new URL(scenario.page ?? "/", base);
@@ -228,10 +287,8 @@ async function runOne(page: Page, base: string, name: string, scenario: Scenario
     // A game that throws while loading never gets to its dev hooks: that's this scenario failing, not debuff.
     if (loadErrors.length)
       return { name, ok: false, steps: [], errors: loadErrors, warnings, captures: [], finalState: null, durationMs: Date.now() - started };
-    throw new DebuffError(
-      "dev_hooks_missing",
-      `__DEBUFF_DEV__ is missing: ${url.pathname} loaded without errors, but the game didn't expose its dev hooks within 15 s.`,
-    );
+    const probe = await page.evaluate(hooksProbe).catch(() => ({ hooks: false, scenarioQuery: true, url: url.pathname }));
+    throw devHooksMissing(url.pathname, probe, warnings, importsDevTools(options.root));
   } finally {
     page.off("pageerror", onError);
   }
