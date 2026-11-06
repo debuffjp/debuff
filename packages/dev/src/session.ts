@@ -457,13 +457,29 @@ export class DevSession {
     if (!recording) return;
     for (const w of request.timeline.warnings) recording.warn(w);
     const t0 = performance.now();
-    // After a code reload the new code is meant to play differently, so only a rewind checks the checkpoints.
-    const drift = fastForward(
-      target,
-      request.timeline.steps,
-      request.tick,
-      request.reason === "reload" ? undefined : () => this.checkpoint(),
-    );
+    const warn = (message: string) => {
+      recording.warn(message);
+      this.log("debuff", "replay skipped a step", message);
+    };
+    let drift: ReturnType<typeof fastForward>;
+    try {
+      // After a code reload the new code is meant to play differently, so only a rewind checks the checkpoints.
+      drift = fastForward(
+        { ...target, warn },
+        request.timeline.steps,
+        request.tick,
+        request.reason === "reload" ? undefined : () => this.checkpoint(),
+      );
+    } catch (error) {
+      // This runs inside the dev tools' plugin install: throwing would leave the hooks installed with no
+      // cleanup registered. Stop where the replay got to and say why instead.
+      const tick = this.game.clock.tick;
+      const message = `Replaying to tick ${request.tick} stopped at tick ${tick}: ${error instanceof Error ? error.message : String(error)}`;
+      recording.warn(message);
+      this.log("debuff", "replay failed", message);
+      this.pause("debuff", `replay stopped at tick ${tick}`);
+      return;
+    }
     if (request.reason === "reload") {
       const ms = Math.round(performance.now() - t0);
       this.log("you", "kept your place", `replayed ${request.tick} ticks with the new code in ${ms} ms`);
