@@ -70,7 +70,7 @@ More in [Why debuff](https://debuff.jp/docs/why). Agents can start from [llms.tx
 | [`myaku`](./packages/myaku) | Frame profiler for any web game: finds the hitches players feel and says why in plain words. Standalone; `debuff dev` runs it for you |
 | [`plonkjs`](./packages/plonk) | Game music made in code: songs as text, synthesized live with Web Audio, under 4 kB brotli. Standalone; plays through `audio.bus("music")` |
 | [`keiko`](./tooling/keiko) | Fast, deterministic logic tests for any web game: the real game in Node, no browser. Standalone; debuff integrates it |
-| [`henka`](./tooling/henka) | Mutation testing for any test runner: change one thing, see whether your tests notice. Standalone; `keiko mutate` uses it |
+| [`henka`](./tooling/henka) | Mutation testing: change one thing, see whether your tests notice. `npx henka` for Vitest projects, adapters for any runner. Standalone; `keiko mutate` uses it |
 | [`create-debuff`](./tooling/create-debuff) | `npm create debuff` scaffolder |
 | [`@debuffjp/mcp`](./tooling/mcp) | MCP server: agents inspect, build, test and play your game |
 
