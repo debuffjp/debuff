@@ -3,9 +3,9 @@ import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { stepUntil } from "../src/scenario/browser.js";
+import { callHooks, stepUntil } from "../src/scenario/browser.js";
 import { captureDiffMessage, compare, pick, runScenarios, unusedBaselines } from "../src/scenario/index.js";
-import { CheckpointCheck, comparisonError, runStep } from "../src/scenario/run.js";
+import { CheckpointCheck, comparisonError, nextBatch, runStep } from "../src/scenario/run.js";
 import type { ScenarioReport, Step } from "../src/scenario/types.js";
 
 describe("compare", () => {
@@ -146,31 +146,104 @@ describe("runStep: tap with a key and malformed comparisons", () => {
 });
 
 describe("CheckpointCheck", () => {
-  const game = (states: Record<string, string>[]) => {
-    let tick = 0;
-    return (async (method: string) => {
-      if (method !== "checkpoint") throw new Error(`unexpected ${method}`);
-      tick += 60;
-      return { tick, checkpoint: states.shift() };
-    }) as Parameters<CheckpointCheck["check"]>[1];
-  };
+  const at = (tick: number, checkpoint: Record<string, string>) => ({ tick, checkpoint });
 
-  it("warns once, at the first checkpoint that differs, with the parts and the last match", async () => {
+  it("warns once, at the first checkpoint that differs, with the parts and the last match", () => {
     const check = new CheckpointCheck();
-    const call = game([{ scene: "a", "state.x": "1" }, { scene: "a", "state.x": "2", "state.y": "1" }, { scene: "b" }]);
-    expect(await check.check({ scene: "a", "state.x": "1" }, call)).toBeUndefined();
-    const warning = await check.check({ scene: "a", "state.x": "1" }, call);
+    expect(check.check({ scene: "a", "state.x": "1" }, at(60, { scene: "a", "state.x": "1" }))).toBeUndefined();
+    const warning = check.check({ scene: "a", "state.x": "1" }, at(120, { scene: "a", "state.x": "2", "state.y": "1" }));
     expect(warning).toContain("stopped matching the recording at tick 120: state.x, state.y differ (it matched at tick 60).");
-    expect(await check.check({ scene: "a" }, call)).toBeUndefined();
+    expect(check.check({ scene: "a" }, at(180, { scene: "b" }))).toBeUndefined();
   });
 
-  it("says when the game's dev tools are too old to check", async () => {
+  it("says when the game's dev tools are too old to check", () => {
     const check = new CheckpointCheck();
-    const old = (async () => {
-      throw new Error('Unknown dev hook "checkpoint"');
-    }) as Parameters<CheckpointCheck["check"]>[1];
-    expect(await check.check({ scene: "a" }, old)).toBe('checkpoints not checked: Unknown dev hook "checkpoint"');
-    expect(await check.check({ scene: "a" }, old)).toBeUndefined();
+    expect(check.check({ scene: "a" }, null)).toMatch(/^checkpoints not checked: .*older than 0\.31/);
+    expect(check.check({ scene: "a" }, null)).toBeUndefined();
+  });
+});
+
+describe("nextBatch", () => {
+  it("groups input, waits and checkpoints, and stops at steps the runner plays itself", () => {
+    const steps: Step[] = [
+      { wait: 3 },
+      { press: "KeyA" },
+      { tap: "KeyT" },
+      { checkpoint: { scene: "1" } },
+      { expect: { tick: { eq: 4 } } },
+      { pointerMove: [1, 2] },
+    ];
+    const batch = nextBatch(steps, 0);
+    expect(batch.map((b) => b.index)).toEqual([0, 1, 2, 3]);
+    expect(batch.flatMap((b) => b.calls)).toEqual([
+      ["step", [3]],
+      ["press", ["KeyA"]],
+      ["press", ["KeyT"]],
+      ["step", [1]],
+      ["release", ["KeyT"]],
+      ["checkpoint", []],
+    ]);
+    expect(nextBatch(steps, 4)).toEqual([]);
+    expect(nextBatch(steps, 5).map((b) => b.index)).toEqual([5]);
+  });
+
+  it("caps a batch at ten seconds of play, keeps a long wait on its own and leaves malformed steps to runStep", () => {
+    const steps: Step[] = [{ wait: 400 }, { wait: 100 }, { wait: 200 }, { wait: 5000 }, { tap: 5 } as unknown as Step];
+    expect(nextBatch(steps, 0).map((b) => b.index)).toEqual([0, 1]);
+    expect(nextBatch(steps, 2).map((b) => b.index)).toEqual([2]);
+    expect(nextBatch(steps, 3).map((b) => b.index)).toEqual([3]);
+    expect(nextBatch(steps, 4)).toEqual([]);
+  });
+});
+
+describe("callHooks", () => {
+  const withHooks = async <R>(hooks: Record<string, unknown>, fn: () => Promise<R>) => {
+    (globalThis as { window?: unknown }).window = { __DEBUFF_DEV__: hooks };
+    try {
+      return await fn();
+    } finally {
+      delete (globalThis as { window?: unknown }).window;
+    }
+  };
+
+  it("makes the calls in order, returns only checkpoints, and stops at the first that throws", async () => {
+    const calls: string[] = [];
+    const hooks = {
+      step: (n: number) => calls.push(`step ${n}`),
+      press: async (c: string) => calls.push(`press ${c}`),
+      checkpoint: () => ({ tick: 3, checkpoint: { scene: "1" } }),
+      command: () => {
+        throw new Error("Unknown command");
+      },
+    };
+    const ok = await withHooks(hooks, () =>
+      callHooks([
+        ["step", [3]],
+        ["press", ["KeyA"]],
+        ["checkpoint", []],
+      ]),
+    );
+    expect(ok).toEqual({ checkpoints: { 2: { tick: 3, checkpoint: { scene: "1" } } } });
+    expect(calls).toEqual(["step 3", "press KeyA"]);
+    const bad = await withHooks(hooks, () =>
+      callHooks([
+        ["step", [1]],
+        ["command", ["warp"]],
+        ["step", [1]],
+      ]),
+    );
+    expect(bad).toEqual({ checkpoints: {}, failed: { at: 1, message: "Unknown command" } });
+  });
+
+  it("returns null for checkpoints and explains other hooks when the game's dev tools are older", async () => {
+    const result = await withHooks({ step: () => undefined }, () =>
+      callHooks([
+        ["checkpoint", []],
+        ["touchUp", [1]],
+      ]),
+    );
+    expect(result.checkpoints).toEqual({ 0: null });
+    expect(result.failed).toMatchObject({ at: 1, message: expect.stringContaining('Unknown dev hook "touchUp"') });
   });
 });
 

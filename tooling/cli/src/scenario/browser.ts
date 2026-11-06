@@ -15,6 +15,38 @@ export function callHook([method, args]: [string, unknown[]]): unknown {
   return fn(...args);
 }
 
+/**
+ * Make several dev hook calls in order, in one round trip. Stops at the first that throws and says which. Returns
+ * only what `checkpoint` calls return (by position); a game whose dev tools predate `checkpoint` returns `null`.
+ */
+export async function callHooks(
+  calls: [string, unknown[]][],
+): Promise<{ checkpoints: Record<number, unknown>; failed?: { at: number; message: string } }> {
+  const hooks = (window as unknown as { __DEBUFF_DEV__?: Hooks }).__DEBUFF_DEV__;
+  const checkpoints: Record<number, unknown> = {};
+  for (let at = 0; at < calls.length; at++) {
+    const [method, args] = calls[at] as [string, unknown[]];
+    try {
+      if (!hooks) throw new Error("window.__DEBUFF_DEV__ is missing. Call exposeDevHooks(game, { input }) in dev builds.");
+      const fn = hooks[method];
+      if (typeof fn !== "function") {
+        if (method === "checkpoint") {
+          checkpoints[at] = null;
+          continue;
+        }
+        throw new Error(
+          `Unknown dev hook "${method}": the game's @debuffjp/dev is older than this tool. Update it (npm i -D @debuffjp/dev@latest).`,
+        );
+      }
+      const value = await fn(...args);
+      if (method === "checkpoint") checkpoints[at] = value;
+    } catch (err) {
+      return { checkpoints, failed: { at, message: err instanceof Error ? err.message : String(err) } };
+    }
+  }
+  return { checkpoints };
+}
+
 export function hooksReady(): boolean {
   return (window as unknown as { __DEBUFF_DEV__?: { controlled?: boolean } }).__DEBUFF_DEV__?.controlled === true;
 }

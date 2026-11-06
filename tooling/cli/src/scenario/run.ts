@@ -7,7 +7,7 @@ import { DebuffError } from "../errors.js";
 import type { StepDef } from "../plugin.js";
 import { createDevServer } from "../vite.js";
 import { analyzeFlashes, contrastGrid, contrastRatio, FLASH_GRID } from "./a11y.js";
-import { callHook, diffImages, hooksReady, sampleFrames, stepUntil } from "./browser.js";
+import { callHook, callHooks, diffImages, hooksReady, sampleFrames, stepUntil } from "./browser.js";
 import type { CaptureResult, Comparison, RunOptions, Scenario, ScenarioReport, Step, StepResult } from "./types.js";
 
 /** Pixels whose summed RGB delta exceeds this count as different (absorbs anti-aliasing noise). */
@@ -253,15 +253,67 @@ async function runOne(page: Page, base: string, name: string, scenario: Scenario
   const captures: CaptureResult[] = [];
   const checkpoints = new CheckpointCheck();
 
-  for (const [index, step] of scenario.steps.entries()) {
-    let message: string | undefined;
-    try {
-      if ("checkpoint" in step) {
-        const warning = await checkpoints.check(step.checkpoint, call);
-        if (warning) warnings.push(warning);
-        steps.push({ index, step, ok: true });
+  const failed = () =>
+    ({
+      name,
+      ok: false,
+      steps,
+      errors: [],
+      warnings,
+      captures,
+      finalState: null,
+      durationMs: Date.now() - started,
+    }) satisfies ScenarioReport;
+  const all = scenario.steps;
+  let index = 0;
+  while (index < all.length) {
+    const batch = nextBatch(all, index);
+    if (batch.length) {
+      // Input, waits and checkpoints go to the page together: a recorded replay has a step on nearly every tick,
+      // and one round trip each made a five-minute replay take over a minute and a half.
+      const first = batch[0] as BatchStep;
+      const last = batch.at(-1) as BatchStep;
+      let result: Awaited<ReturnType<typeof callHooks>>;
+      try {
+        result = await guard(
+          page.evaluate(
+            callHooks,
+            batch.flatMap((b) => b.calls),
+          ),
+        );
+      } catch (err) {
+        const hung = err instanceof DebuffError && err.code === "game_hung";
+        let message = crashed
+          ? "The browser page crashed during this step."
+          : err instanceof Error
+            ? (err.message.split("\n")[0] ?? err.message)
+            : String(err);
+        if (batch.length > 1) message = `${message} (in steps ${first.index} to ${last.index})`;
+        steps.push({ index: first.index, step: first.step, ok: false, message });
+        if (hung || crashed) return failed();
+        index = last.index + 1;
         continue;
       }
+      index = last.index + 1;
+      let at = 0;
+      for (const b of batch) {
+        if (result.failed && result.failed.at < at + b.calls.length) {
+          steps.push({ index: b.index, step: b.step, ok: false, message: result.failed.message });
+          index = b.index + 1;
+          break;
+        }
+        if ("checkpoint" in b.step) {
+          const warning = checkpoints.check(b.step.checkpoint, result.checkpoints[at] as Parameters<CheckpointCheck["check"]>[1]);
+          if (warning) warnings.push(warning);
+        }
+        steps.push({ index: b.index, step: b.step, ok: true });
+        at += b.calls.length;
+      }
+      continue;
+    }
+    const step = all[index] as Step;
+    let message: string | undefined;
+    try {
       // Plugin steps are namespaced ("plugin:step"); everything else is a built-in step.
       const key = Object.keys(step)[0] ?? "";
       if (key.includes(":")) {
@@ -297,10 +349,11 @@ async function runOne(page: Page, base: string, name: string, scenario: Scenario
       const hung = err instanceof DebuffError && err.code === "game_hung";
       if (hung || crashed) {
         steps.push({ index, step, ok: false, message: crashed ? "The browser page crashed during this step." : message });
-        return { name, ok: false, steps, errors: [], warnings, captures, finalState: null, durationMs: Date.now() - started };
+        return failed();
       }
     }
     steps.push({ index, step, ok: !message, ...(message ? { message } : {}) });
+    index++;
   }
 
   const errors = await call<string[]>("errors");
@@ -326,14 +379,12 @@ export class CheckpointCheck {
   private matched = 0;
   private done = false;
 
-  async check(expected: Record<string, string>, call: Call): Promise<string | undefined> {
+  /** `now` is what the game's `checkpoint()` hook returned, or `null` when its dev tools are too old to have one. */
+  check(expected: Record<string, string>, now: { tick: number; checkpoint: Record<string, string> } | null): string | undefined {
     if (this.done) return undefined;
-    let now: { tick: number; checkpoint: Record<string, string> };
-    try {
-      now = await call("checkpoint");
-    } catch (err) {
+    if (!now) {
       this.done = true;
-      return `checkpoints not checked: ${err instanceof Error ? err.message : String(err)}`;
+      return "checkpoints not checked: the game's @debuffjp/dev is older than 0.31 (npm i -D @debuffjp/dev@latest)";
     }
     const parts = [...new Set([...Object.keys(expected), ...Object.keys(now.checkpoint)])].filter((k) => expected[k] !== now.checkpoint[k]);
     if (!parts.length) {
@@ -350,39 +401,93 @@ export class CheckpointCheck {
   }
 }
 
+type HookCall = [method: string, args: unknown[]];
+
+/**
+ * The dev hook calls that play an input, wait or checkpoint step, a message when such a step is malformed, or
+ * `undefined` for a step that needs the runner itself (assertions, captures, accessibility and plugin steps).
+ */
+export function hookCalls(step: Step): HookCall[] | string | undefined {
+  if ("wait" in step) return [["step", [step.wait]]];
+  if ("press" in step) return [["press", [step.press]]];
+  if ("release" in step) return [["release", [step.release]]];
+  if ("tap" in step) {
+    // A key code taps that key for one step, as keiko's `game.tap("Space")` does.
+    if (typeof step.tap === "string")
+      return [
+        ["press", [step.tap]],
+        ["step", [1]],
+        ["release", [step.tap]],
+      ];
+    if (Array.isArray(step.tap)) return [["tap", step.tap]];
+    return `tap: expected a key code like "KeyT" or a point [x, y], got ${JSON.stringify(step.tap)}`;
+  }
+  if ("pointerDown" in step) return [["pointerDown", step.pointerDown]];
+  if ("pointerMove" in step) return [["pointerMove", step.pointerMove]];
+  if ("pointerUp" in step) return [["pointerUp", []]];
+  if ("wheel" in step) return [["wheel", typeof step.wheel === "number" ? [step.wheel] : step.wheel]];
+  if ("touchDown" in step) return [["touchDown", step.touchDown]];
+  if ("touchMove" in step) return [["touchMove", step.touchMove]];
+  if ("touchUp" in step) return [["touchUp", [step.touchUp]]];
+  if ("pad" in step) return [["pad", [step.pad]]];
+  if ("command" in step) return [["command", [step.command, ...(step.args ?? [])]]];
+  if ("checkpoint" in step) return [["checkpoint", []]];
+  if ("set" in step) {
+    const calls: HookCall[] = [];
+    for (const [path, value] of Object.entries(step.set)) {
+      const dot = path.indexOf(".");
+      if (dot < 1) return `set: "${path}" must be "group.key"`;
+      calls.push(["setParam", [path.slice(0, dot), path.slice(dot + 1), value]]);
+    }
+    return calls;
+  }
+  return undefined;
+}
+
+interface BatchStep {
+  index: number;
+  step: Step;
+  calls: HookCall[];
+}
+
+/** Simulation steps one batch may cover (ten seconds at 60 Hz), so a hung game is still caught within `stepTimeout`. */
+const BATCH_TICKS = 600;
+const BATCH_CALLS = 2000;
+
+/**
+ * The run of steps from `from` that can go to the page in one round trip: empty when that step needs the runner or
+ * is malformed (`runStep` reports it). A single long `wait` is a batch of its own. Exported for tests.
+ */
+export function nextBatch(steps: readonly Step[], from: number): BatchStep[] {
+  const batch: BatchStep[] = [];
+  let ticks = 0;
+  let calls = 0;
+  for (let index = from; index < steps.length; index++) {
+    const step = steps[index] as Step;
+    const c = hookCalls(step);
+    if (!Array.isArray(c)) break;
+    const t = c.reduce((n, [method, args]) => n + (method === "step" ? Number(args[0]) || 0 : 0), 0);
+    if (batch.length && (ticks + t > BATCH_TICKS || calls + c.length > BATCH_CALLS)) break;
+    batch.push({ index, step, calls: c });
+    ticks += t;
+    calls += c.length;
+  }
+  return batch;
+}
+
 type Capture = (name: string, tolerance: number) => Promise<string | undefined>;
 type Until = (conditions: Record<string, Comparison>, within: number) => Promise<{ ticks: number; met: boolean }>;
 type Sample = (steps: number) => Promise<{ frames: number[][]; stepSeconds: number }>;
 
 /** Run one built-in step through the dev hooks (`call`). Returns a failure message, if any. Exported for tests. */
 export async function runStep(step: Step, call: Call, capture: Capture, until: Until, sample: Sample): Promise<string | undefined> {
-  if ("wait" in step) await call("step", step.wait);
-  else if ("press" in step) await call("press", step.press);
-  else if ("release" in step) await call("release", step.release);
-  else if ("tap" in step) {
-    // A key code taps that key for one step, as keiko's `game.tap("Space")` does.
-    if (typeof step.tap === "string") {
-      await call("press", step.tap);
-      await call("step", 1);
-      await call("release", step.tap);
-    } else if (Array.isArray(step.tap)) await call("tap", ...step.tap);
-    else return `tap: expected a key code like "KeyT" or a point [x, y], got ${JSON.stringify(step.tap)}`;
-  } else if ("pointerDown" in step) await call("pointerDown", ...step.pointerDown);
-  else if ("pointerMove" in step) await call("pointerMove", ...step.pointerMove);
-  else if ("pointerUp" in step) await call("pointerUp");
-  else if ("wheel" in step) await call("wheel", ...(typeof step.wheel === "number" ? [step.wheel] : step.wheel));
-  else if ("touchDown" in step) await call("touchDown", ...step.touchDown);
-  else if ("touchMove" in step) await call("touchMove", ...step.touchMove);
-  else if ("touchUp" in step) await call("touchUp", step.touchUp);
-  else if ("pad" in step) await call("pad", step.pad);
-  else if ("command" in step) await call("command", step.command, ...(step.args ?? []));
-  else if ("set" in step) {
-    for (const [path, value] of Object.entries(step.set)) {
-      const dot = path.indexOf(".");
-      if (dot < 1) return `set: "${path}" must be "group.key"`;
-      await call("setParam", path.slice(0, dot), path.slice(dot + 1), value);
-    }
-  } else if ("expect" in step) {
+  const calls = hookCalls(step);
+  if (typeof calls === "string") return calls;
+  if (calls) {
+    for (const [method, args] of calls) await call(method, ...args);
+    return undefined;
+  }
+  if ("expect" in step) {
     const state = await call<unknown>("state");
     const failures = Object.entries(step.expect).flatMap(([path, c]) => {
       const m = compare(pick(state, path), c);
