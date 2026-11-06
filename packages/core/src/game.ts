@@ -1,7 +1,7 @@
 import { createRenderer, type Draw } from "spryte";
 import { Camera } from "./camera.js";
 import { FixedClock, type FixedClockOptions } from "./clock.js";
-import { type GameErrorContext, Hooks } from "./hooks.js";
+import { type GameErrorContext, type GamePhase, Hooks } from "./hooks.js";
 import { InspectRegistry } from "./inspect.js";
 import { ParamRegistry } from "./params.js";
 import { type Plugin, PluginRegistry } from "./plugin.js";
@@ -134,7 +134,7 @@ export class Game {
   private active: Scene | undefined;
   private frameHandle = 0;
   /** What the frame is doing right now, so a loop error can say where it came from. */
-  private phase = "idle";
+  private phase: GamePhase = "idle";
   private splashTotal = 0;
   private splash: typeof drawSplash | undefined;
   private splashLeft = 0;
@@ -308,6 +308,9 @@ export class Game {
    *  can drive the game without requestAnimationFrame. */
   frame(elapsed: number, draw = true): void {
     const t0 = performance.now();
+    // Start from "idle" so an error outside the labelled parts never reports a phase left over from an
+    // earlier step that threw.
+    this.phase = "idle";
     const alpha = this.clock.advance(elapsed, (dt) => {
       if (this.freezeTime > 0) {
         // Epsilon absorbs float drift so freeze(n * step) pauses exactly n steps.
@@ -323,6 +326,7 @@ export class Game {
       this.phase = "afterUpdate";
       this.hooks.emit("afterUpdate", scaled);
     });
+    this.phase = "idle";
     this.lastAlpha = alpha;
     if (!draw) return;
     this.render(alpha);

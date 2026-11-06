@@ -351,6 +351,36 @@ describe("Game loop errors", () => {
   });
 });
 
+describe("Game loop error phase", () => {
+  it("doesn't report a stale phase left by an earlier step() that threw", () => {
+    const callbacks: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => callbacks.push(cb));
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+    const { game } = makeGame({ splash: false });
+    let broken = true;
+    game
+      .add({
+        id: "play",
+        update: () => {
+          if (broken) throw new Error("update broke");
+        },
+      })
+      .go("play");
+    expect(() => game.step(1)).toThrow("update broke");
+    broken = false;
+    vi.spyOn(game.draw, "begin").mockImplementationOnce(() => {
+      throw new Error("begin broke");
+    });
+    const seen: string[] = [];
+    game.hooks.error((_e, ctx) => seen.push(ctx.phase));
+    game.start();
+    expect(() => callbacks.shift()?.(performance.now() + 1)).toThrow("begin broke"); // a frame with no step
+    expect(seen).toEqual(["idle"]);
+    game.dispose();
+    vi.unstubAllGlobals();
+  });
+});
+
 describe("Game loop restarts", () => {
   it("keeps one frame loop when stop() and start() run inside a frame", () => {
     const pending = new Map<number, FrameRequestCallback>();

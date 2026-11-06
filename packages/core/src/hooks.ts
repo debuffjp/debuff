@@ -22,10 +22,16 @@ export interface HookArgs {
   splashEnd: [];
 }
 
+/**
+ * The part of a frame running: a scene's `update` (with the camera) or `render`, one of the hooks around them,
+ * or `"idle"` outside those (loop bookkeeping, `draw.begin`/`end`).
+ */
+export type GamePhase = "idle" | "beforeUpdate" | "update" | "afterUpdate" | "renderScene" | "beforeRender" | "render" | "afterRender";
+
 /** Where a loop error happened. */
 export interface GameErrorContext {
   /** The part of the frame that threw: `"update"`, `"render"` or a hook such as `"beforeUpdate"`. */
-  phase: string;
+  phase: GamePhase;
   scene: string | undefined;
   tick: number;
 }
