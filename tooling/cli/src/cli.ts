@@ -518,7 +518,15 @@ cli
     for (const line of result.doctor?.fixed ?? []) p.log.step(line);
     finish(
       ok,
-      !result.changes ? `already on ${result.to}` : o.dryRun ? `would move to ${result.to}` : `on ${result.to}`,
+      result.stale?.length
+        ? o.dryRun
+          ? `package.json is on ${result.to}, but the install never finished: run again without --dry-run`
+          : `on ${result.to} (finished an upgrade whose install hadn't completed)`
+        : !result.changes
+          ? `already on ${result.to}`
+          : o.dryRun
+            ? `would move to ${result.to}`
+            : `on ${result.to}`,
       result.changes ? pc.dim(`what changed: ${result.changelog}`) : "",
     );
     if (result.doctor && !result.doctor.ok) p.log.warn("Some setup checks still fail: run `npx debuff doctor` for the fixes");
