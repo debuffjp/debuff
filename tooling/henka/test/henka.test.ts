@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -48,18 +48,52 @@ describe("mutate", () => {
   it("rejects an adapter that lists a mutant twice", async () => {
     await expect(mutate(adapter([speed, speed], {}))).rejects.toThrow(/twice/);
   });
+
+  it("runs jobs at once and keeps the listed order", async () => {
+    let running = 0;
+    let most = 0;
+    const slow: Adapter = {
+      ...adapter([speed, accel, seed, fps], {}),
+      run: async (m) => {
+        most = Math.max(most, ++running);
+        await new Promise((done) => setTimeout(done, m === speed ? 30 : 5));
+        running--;
+        return run();
+      },
+    };
+    const report = await mutate(slow, { jobs: 2 });
+    expect(most).toBe(2);
+    expect(report.outcomes.map((o) => o.mutant.id)).toEqual([speed.id, accel.id, seed.id, fps.id]);
+  });
+
+  it("carries a run's note into the outcome", async () => {
+    const report = await mutate(adapter([speed], { [speed.id]: { ...run(), note: "no test loads this file" } }));
+    expect(report.outcomes[0]).toMatchObject({ outcome: "missed", reason: "no test loads this file" });
+  });
+
+  it("closes the adapter after a failure too", async () => {
+    let closed = 0;
+    const failing: Adapter = { ...adapter([speed], {}, run(["broken"])), close: async () => void closed++ };
+    await expect(mutate(failing)).rejects.toBeInstanceOf(BaselineError);
+    expect(closed).toBe(1);
+  });
 });
 
 describe("output", () => {
   it("writes outcomes.json and a list per outcome", async () => {
     const report = await mutate(adapter([speed, accel, big], { [speed.id]: run(["moves"]), [big.id]: { unviable: "no" } }));
-    const dir = join(mkdtempSync(join(tmpdir(), "henka-")), "mutants.out");
-    writeOut(report, dir);
-    expect(JSON.parse(readFileSync(join(dir, "outcomes.json"), "utf8")).counts.missed).toBe(1);
-    expect(readFileSync(join(dir, "missed.txt"), "utf8")).toBe("accel 1200 → 0\n");
-    expect(readFileSync(join(dir, "caught.txt"), "utf8")).toBe("speed 140 → 0 (failed: moves)\n");
-    expect(readFileSync(join(dir, "unviable.txt"), "utf8")).toBe("size → big: no\n");
-    expect(readFileSync(join(dir, "brittle.txt"), "utf8")).toBe("");
+    const tmp = mkdtempSync(join(tmpdir(), "henka-"));
+    const dir = join(tmp, "mutants.out");
+    try {
+      writeOut(report, dir);
+      expect(JSON.parse(readFileSync(join(dir, "outcomes.json"), "utf8")).counts.missed).toBe(1);
+      expect(readFileSync(join(dir, "missed.txt"), "utf8")).toBe("accel 1200 → 0\n");
+      expect(readFileSync(join(dir, "caught.txt"), "utf8")).toBe("speed 140 → 0 (failed: moves)\n");
+      expect(readFileSync(join(dir, "unviable.txt"), "utf8")).toBe("size → big: no\n");
+      expect(readFileSync(join(dir, "brittle.txt"), "utf8")).toBe("");
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
   });
 
   it("summarises counts and lists only what needs work", async () => {
