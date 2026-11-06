@@ -1,5 +1,14 @@
 # keiko
 
+## 0.8.1
+
+### Patch Changes
+
+- 4acdcf7: `afterEach` runs even when a `beforeEach` throws, as in Vitest and Jest. Before, a failing `beforeEach` skipped every `afterEach`, so their cleanup never ran. The test still fails with the `beforeEach` error.
+- fe45024: A headless image whose `src` changes before the first load finishes only reports the latest one, as browsers do. Before, the earlier load could still set its size and fire `load` or `error`. An `XMLHttpRequest.send()` that throws straight away no longer leaves the page waiting for a load that never comes.
+- 3ef4def: Driving a game after a later `play()` replaced it, or after its test ended, now throws "This game was replaced by a later play()". Before, the old game kept working against a closed page: it stepped a clock nothing used, so `until` timed out with a misleading message, or it drove another game's dev hooks.
+- a4d2449: The generic driver lets go of a touch `pointerDown` that `touchUp(1)` ended. Before, it still thought the contact was held, so later `pointerMove` calls went to the ended touch and never reached the game.
+
 ## 0.8.0
 
 ### Minor Changes
