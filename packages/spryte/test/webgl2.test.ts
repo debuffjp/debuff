@@ -196,6 +196,16 @@ describe("WebGL2Backend", () => {
     expect(count("texImage2D")).toBe(2);
   });
 
+  it("drops what a frame that never reached end() left in its batch", () => {
+    const { gl, count } = fakeGL();
+    const be = new WebGL2Backend(gl);
+    be.begin(0x000000ff, 100, 50, 1);
+    be.quad(M, image(), 0, 0, 16, 16, 0xffffffff, 0, false); // then the game threw before end()
+    be.begin(0x000000ff, 100, 50, 1);
+    be.end();
+    expect(count("drawArraysInstanced")).toBe(0); // the stale quad isn't drawn over the new frame
+  });
+
   it("doesn't keep drawing an image as the white placeholder after it loads", () => {
     const { gl, count } = fakeGL();
     const be = new WebGL2Backend(gl);

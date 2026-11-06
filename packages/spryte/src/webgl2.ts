@@ -528,6 +528,16 @@ export class WebGL2Backend implements Backend {
 
   begin(clear: number | null, width: number, height: number): void {
     if (this.lost) return;
+    // A frame that threw before end() left its batch pending. Drop it before anything below can flush it,
+    // or it would be drawn on top of this frame (with texture units that may no longer be bound).
+    this.count = 0;
+    this.unitCount = 0;
+    this.sprites = false;
+    this.armed = false;
+    if (this.shapes) {
+      this.shapes.count = 0;
+      this.shapes.icount = 0;
+    }
     const gl = this.gl;
     this.target = null;
     this.bindOutput();
