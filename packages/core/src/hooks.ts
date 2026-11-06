@@ -18,6 +18,8 @@ export interface HookArgs {
   gameEvent: [name: string, detail: unknown];
   /** The logical size changed (only in `scale: "expand"`). */
   resize: [width: number, height: number];
+  /** The start-up splash ended (timed out or skipped), just before the first step. */
+  splashEnd: [];
 }
 
 /** Where a loop error happened. */
@@ -49,6 +51,7 @@ export class Hooks {
     error: new Set(),
     gameEvent: new Set(),
     resize: new Set(),
+    splashEnd: new Set(),
   };
 
   beforeUpdate(fn: (dt: number) => void): Unsubscribe {
@@ -93,6 +96,15 @@ export class Hooks {
   /** The logical size changed: `scale: "expand"` grew or shrank the game to fit its container. Lay out again. */
   resize(fn: (width: number, height: number) => void): Unsubscribe {
     return this.on("resize", fn);
+  }
+
+  /**
+   * The start-up splash ended, just before the first step. Input that arrived during it (the tap or key that
+   * skipped it) shouldn't count as a press in the game: `@debuffjp/input` clears its press edges here. Not fired
+   * when there is no splash (turned off, or a dev build).
+   */
+  splashEnd(fn: () => void): Unsubscribe {
+    return this.on("splashEnd", fn);
   }
 
   /** Number of listeners per hook, for inspection. */

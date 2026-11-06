@@ -23,6 +23,23 @@ function host() {
 
 afterEach(() => vi.unstubAllGlobals());
 
+describe("Input and the splash", () => {
+  it("drops presses made during the splash, so the skip tap doesn't also press start", () => {
+    const h = host();
+    const ends = new Set<() => void>();
+    const input = new Input(
+      { ...h, hooks: { ...h.hooks, splashEnd: (fn: () => void) => (ends.add(fn), () => ends.delete(fn)) } },
+      { bindings: { start: ["Space", "PointerPrimary"] } },
+    );
+    window.dispatchEvent(new KeyboardEvent("keydown", { code: "Space" })); // the key that skips the splash
+    expect(input.pressed("start")).toBe(true);
+    for (const fn of ends) fn();
+    expect(input.pressed("start")).toBe(false);
+    expect(input.down("start")).toBe(true); // still held: a held key is still down
+    input.dispose();
+  });
+});
+
 describe("Keyboard", () => {
   it("latches a tap shorter than a step until endStep", () => {
     const k = new Keyboard();

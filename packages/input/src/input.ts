@@ -20,7 +20,11 @@ const UP: ButtonState = Object.freeze({ down: false, pressed: false, released: f
 export interface InputHost {
   canvas: HTMLElement;
   toLogical: ToLogical;
-  hooks: { afterUpdate(fn: (dt: number) => void): () => void };
+  hooks: {
+    afterUpdate(fn: (dt: number) => void): () => void;
+    /** The splash ended (`@debuffjp/core` 0.31.1 and later): input made during it is dropped. */
+    splashEnd?(fn: () => void): () => void;
+  };
 }
 
 export interface InputOptions<A extends string> {
@@ -74,7 +78,17 @@ export class Input<A extends string> {
     // Call through the host so a class method keeps its `this`.
     this.pointer = new Pointer(host.canvas, (x, y) => host.toLogical(x, y));
     this.pointer.captureWheel = options.captureWheel ?? false;
-    this.unhook = host.hooks.afterUpdate(() => this.endStep());
+    const unhookStep = host.hooks.afterUpdate(() => this.endStep());
+    // The tap or key that skips the splash would otherwise be a press in the first step (skipping a title
+    // screen too). Clear the edges, but keep what's held: a key still down stays down.
+    const unhookSplash = host.hooks.splashEnd?.(() => {
+      this.keys.endStep();
+      this.pointer.endStep();
+    });
+    this.unhook = () => {
+      unhookStep();
+      unhookSplash?.();
+    };
   }
 
   /** Any binding for the action is held. */
