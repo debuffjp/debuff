@@ -210,7 +210,13 @@ export function openPage({
     xhrProto.send = function (this: EventTarget, body?: unknown) {
       inflight++;
       this.addEventListener("loadend", () => inflight--, { once: true });
-      return send.call(this, body);
+      try {
+        return send.call(this, body);
+      } catch (error) {
+        // Thrown before anything started (not opened yet, say): no loadend will come, so settle() mustn't wait.
+        inflight--;
+        throw error;
+      }
     };
   }
   // ImageBitmaps report the size of what they were made from: an image, canvas or ImageData, or a Blob's header.
@@ -540,18 +546,25 @@ function headlessImage(window: Window, pageFetch: PageFetch) {
     let explicit: { width?: number; height?: number } = {};
     let complete = false;
     const fire = (type: "load" | "error") => img.dispatchEvent(new (window as unknown as { Event: typeof Event }).Event(type));
+    /** Bumped by every `src` set: only the latest load may set the size or fire events, as browsers cancel the rest. */
+    let generation = 0;
     const load = (value: string) => {
       source = value;
       complete = false;
+      const mine = ++generation;
       // The body is read inside the tracked fetch, so settle() also waits for the image to "decode".
       pageFetch(value)
         .then(async (res) => {
           if (!res.ok) throw new Error(`HTTP ${res.status} for ${value}`);
-          size = imageSize(new Uint8Array(await res.arrayBuffer()));
+          const next = imageSize(new Uint8Array(await res.arrayBuffer()));
+          if (mine !== generation) return;
+          size = next;
           complete = true;
           fire("load");
         })
-        .catch(() => fire("error"));
+        .catch(() => {
+          if (mine === generation) fire("error");
+        });
     };
     const prop = (name: string, get: () => unknown, set?: (v: never) => void) =>
       Object.defineProperty(img, name, { configurable: true, enumerable: true, get, ...(set ? { set } : {}) });
