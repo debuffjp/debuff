@@ -244,6 +244,14 @@ export class Game {
     return this.running;
   }
 
+  /**
+   * `start()` was called and `stop()` hasn't been since. Unlike `isRunning`, this stays true while the loop is
+   * halted for a hidden tab (`pauseWhenHidden`), and goes false when a loop error stops the game.
+   */
+  get isStarted(): boolean {
+    return this.wanted;
+  }
+
   add(scene: Scene): this {
     if (this.scenes.has(scene.id)) throw new Error(`Scene "${scene.id}" already added`);
     this.scenes.set(scene.id, scene);

@@ -52,7 +52,11 @@ export interface DevState {
   /** Seconds per fixed simulation step (the game's `clock.step`, 1/60 by default). */
   step: number;
   frozen: boolean;
-  /** Who paused the game ("you", "agent", "spike"…), or null while running. */
+  /**
+   * Who paused the game ("you", "agent", "spike", "error"…), or null while it's started. From 0.31.1 it follows
+   * the game loop: "game" when the game's own code called `game.stop()`, and null once anything calls
+   * `game.start()`. Before, it only knew about pauses made through the dev tools.
+   */
   pausedBy: string | null;
   /**
    * True while the tab is hidden (a background tab, a minimised window, a hidden agent browser). The browser stops
