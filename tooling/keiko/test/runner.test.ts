@@ -315,6 +315,29 @@ describe("headless page", () => {
     }
   });
 
+  it("ignores the load of an image src that was replaced before it finished", async () => {
+    const png = new Uint8Array(24);
+    const v = new DataView(png.buffer);
+    v.setUint32(0, 0x89504e47);
+    v.setUint32(16, 8);
+    v.setUint32(20, 8);
+    const realTimeout = setTimeout; // the page installs keiko's virtual clock as the global one
+    const page = openPage({ origin: "http://localhost:1/", path: "/", clock: new VirtualClock() });
+    try {
+      const img = new Image();
+      const events: string[] = [];
+      img.addEventListener("load", () => events.push("load"));
+      img.addEventListener("error", () => events.push("error"));
+      img.src = "http://localhost:1/never.png"; // nothing listens there: it fails, later
+      img.src = `data:image/png;base64,${Buffer.from(png).toString("base64")}`;
+      await new Promise((r) => realTimeout(r, 300));
+      expect(events).toEqual(["load"]); // before, the first src's failure fired an error too
+      expect([img.complete, img.naturalWidth]).toEqual([true, 8]);
+    } finally {
+      await page.dispose();
+    }
+  });
+
   it("reads image sizes from PNG, GIF and JPEG headers", () => {
     const png = new Uint8Array(24);
     const pv = new DataView(png.buffer);
