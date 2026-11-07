@@ -50,18 +50,22 @@ describe("debuff Vite plugin", () => {
     expect(emitted.map((e) => e.fileName)).toContain("assets/hero.png");
   });
 
-  it("compiles again after a failed compile instead of failing every request until a file changes", async () => {
-    const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    const root = project({ "assets/hero.png": "png", "assets/locked/a.png": "png" });
-    chmodSync(join(root, "assets", "locked"), 0o000);
-    const plugin = corePlugin(root);
-    plugin.buildStart(); // fails: logged, not an unhandled rejection
-    const emit = { emitFile: () => {} };
-    await expect(plugin.generateBundle.call(emit)).rejects.toThrow();
-    chmodSync(join(root, "assets", "locked"), 0o755);
-    await expect(plugin.generateBundle.call(emit)).resolves.toBeUndefined();
-    error.mockRestore();
-  });
+  // The failure comes from chmod 000 on a folder, which Windows ignores.
+  it.skipIf(process.platform === "win32")(
+    "compiles again after a failed compile instead of failing every request until a file changes",
+    async () => {
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      const root = project({ "assets/hero.png": "png", "assets/locked/a.png": "png" });
+      chmodSync(join(root, "assets", "locked"), 0o000);
+      const plugin = corePlugin(root);
+      plugin.buildStart(); // fails: logged, not an unhandled rejection
+      const emit = { emitFile: () => {} };
+      await expect(plugin.generateBundle.call(emit)).rejects.toThrow();
+      chmodSync(join(root, "assets", "locked"), 0o755);
+      await expect(plugin.generateBundle.call(emit)).resolves.toBeUndefined();
+      error.mockRestore();
+    },
+  );
 
   it("preloads the manifest and default-group images in the HTML", async () => {
     const root = project({ "assets/hero.png": "png", "assets/level2/boss.png": "png" });
