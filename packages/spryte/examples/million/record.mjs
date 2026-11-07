@@ -1,6 +1,8 @@
 // Measures the million-boid demo and records a clip of it, on a machine with a real GPU.
-//   npm run build -w spryte && npx vite build packages/spryte/examples/million --outDir dist-million
+//   npm run build -w spryte && npx vite build packages/spryte/examples/million --outDir ../../../../dist-million
 //   node packages/spryte/examples/million/record.mjs [dist-million] [out.mp4]
+// Vite resolves --outDir against the example folder, not your shell's, so the build above needs the ../../../../ to
+// land in dist-million at the repo root (from packages/spryte it is ../../dist-million, which lands in packages/spryte).
 // Needs playwright-core, Chrome or Chromium (CHROME=/path/to/chrome to choose one) and ffmpeg with libx264 on PATH.
 // 1. Live: loads the page as a visitor would and reports fps over 8 s for 1M, 250k and 50k boids.
 // 2. Clip: ?capture=1 steps the flock exactly 1/60 s per video frame and draws it on request, so a
@@ -36,7 +38,13 @@ const origin = `http://localhost:${server.address().port}/`;
 const browser = await chromium.launch({
   headless: true,
   ...(process.env.CHROME ? { executablePath: process.env.CHROME } : { channel: "chrome" }),
-  args: ["--ignore-gpu-blocklist", "--enable-gpu-rasterization", "--use-gl=angle"],
+  args: [
+    "--ignore-gpu-blocklist",
+    "--enable-gpu-rasterization",
+    "--use-gl=angle",
+    ...(process.env.UNCAPPED ? ["--disable-frame-rate-limit", "--disable-gpu-vsync"] : []),
+    ...(process.env.HIGH_GPU ? ["--force_high_performance_gpu"] : []),
+  ],
 });
 const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });
 page.on("pageerror", (e) => console.error("pageerror", e.message));
@@ -65,6 +73,12 @@ for (const n of [1_000_000, 250_000, 50_000]) {
   console.log(
     `live n=${n}: ${s.fps.toFixed(1)} fps over 8 s, simulate ${s.simMs.toFixed(1)} ms, draw ${s.drawMs.toFixed(1)} ms, ${s.kind}, ${s.workers} workers, isolated=${s.isolated}`,
   );
+}
+
+if (process.env.LIVE_ONLY) {
+  await browser.close();
+  server.close();
+  process.exit(0);
 }
 
 await page.goto(`${origin}?capture=1`);

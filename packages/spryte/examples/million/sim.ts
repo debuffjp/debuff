@@ -2,7 +2,8 @@
 // neighbours; at a million that's too slow, so this flock averages instead: each step bins the boids into a
 // coarse grid, and every boid steers toward its cell's average heading (alignment) and away from crowding,
 // down the density gradient between cells (separation). A slowly drifting swirl field and a wandering
-// attractor give the flock its shape.
+// attractor give the flock its shape. Soft walls keep it on screen, and the page can name rectangles (its title
+// and logo) for the flock to keep out of.
 //
 // The step is three kernels over shared typed arrays, so workers can split the boids between them: `bin`
 // (each worker sums its range into its own slot), `reduce` (merge the slots into per-cell averages, on one
@@ -10,12 +11,17 @@
 
 export const CELL = 24; // grid cell in px: the "neighbourhood" a boid averages over
 const ALI = 2.2;
-const SEP = 0.5; // push down the density gradient, per boid of difference between cells
+const SEP = 0.04; // push down the density gradient, per boid of difference between cells
 const SWIRL = 95;
 const PULL = 0.12;
 const MIN_SPEED = 55;
 const MAX_SPEED = 150;
 const FEAR = 140;
+/** Soft walls: inside this many px of an edge, boids are pushed back in, so the flock stays on screen. */
+const WALL = 70;
+const WALL_PUSH = 24;
+/** Push out of a keep-out rectangle, per px of depth. */
+const KEEP_PUSH = 40;
 /** Floats per cell in a partial-sum slot: count, vx, vy, x, y. */
 const PART = 5;
 /** Floats per cell in the averages: vx, vy, x, y, swirl x, swirl y, count. */
@@ -53,6 +59,8 @@ export interface StepParams {
    */
   gridX: number;
   gridY: number;
+  /** Rectangles the flock keeps out of (the title, the logo), flat: x0, y0, x1, y1 per rectangle. */
+  keep: readonly number[];
 }
 
 export function gridSize(width: number, height: number): { cols: number; rows: number } {
@@ -181,7 +189,7 @@ const WHEEL = new Uint32Array(64);
 /** Steer, move, wrap and colour boids `start..end`, from the cell they were binned into. */
 export function move(b: Buffers, p: StepParams, start: number, end: number): void {
   const { pos, vel, colors, cell, avg } = b;
-  const { dt, width: w, height: h } = p;
+  const { dt, width: w, height: h, keep } = p;
   const axp = w * (0.5 + 0.32 * Math.sin(p.t * 0.21));
   const ayp = h * (0.5 + 0.3 * Math.sin(p.t * 0.33 + 1.3));
   const scared = !Number.isNaN(p.scareX);
@@ -233,6 +241,28 @@ export function move(b: Buffers, p: StepParams, start: number, end: number): voi
         ay += dy * f;
       }
     }
+    if (x < WALL) ax += (WALL - x) * WALL_PUSH;
+    else if (x > w - WALL) ax -= (x - (w - WALL)) * WALL_PUSH;
+    if (y < WALL) ay += (WALL - y) * WALL_PUSH;
+    else if (y > h - WALL) ay -= (y - (h - WALL)) * WALL_PUSH;
+    for (let r = 0; r < keep.length; r += 4) {
+      const x0 = keep[r] as number;
+      const y0 = keep[r + 1] as number;
+      const x1 = keep[r + 2] as number;
+      const y1 = keep[r + 3] as number;
+      if (x > x0 && x < x1 && y > y0 && y < y1) {
+        // Out through the nearest edge.
+        const dl = x - x0;
+        const dr = x1 - x;
+        const dt2 = y - y0;
+        const db = y1 - y;
+        const m = Math.min(dl, dr, dt2, db);
+        if (m === dl) ax -= (dl + 8) * KEEP_PUSH;
+        else if (m === dr) ax += (dr + 8) * KEEP_PUSH;
+        else if (m === dt2) ay -= (dt2 + 8) * KEEP_PUSH;
+        else ay += (db + 8) * KEEP_PUSH;
+      }
+    }
     vx += ax * dt;
     vy += ay * dt;
     const sp = Math.sqrt(vx * vx + vy * vy) || 1;
@@ -241,10 +271,21 @@ export function move(b: Buffers, p: StepParams, start: number, end: number): voi
     vy *= sc;
     x += vx * dt;
     y += vy * dt;
-    if (x < 0) x += w;
-    else if (x >= w) x -= w;
-    if (y < 0) y += h;
-    else if (y >= h) y -= h;
+    // The walls turn boids back; this only catches the ones fast enough to get through.
+    if (x < 0) {
+      x = 0;
+      vx = Math.abs(vx);
+    } else if (x >= w) {
+      x = w - 1;
+      vx = -Math.abs(vx);
+    }
+    if (y < 0) {
+      y = 0;
+      vy = Math.abs(vy);
+    } else if (y >= h) {
+      y = h - 1;
+      vy = -Math.abs(vy);
+    }
     pos[xi] = x;
     pos[xi + 1] = y;
     vel[xi] = vx;

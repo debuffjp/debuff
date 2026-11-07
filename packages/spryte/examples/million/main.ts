@@ -55,6 +55,13 @@ const phase = (name: "bin" | "move", p: StepParams) =>
     ),
   );
 
+// The title block and the logo are HTML over the canvas: the flock keeps clear of them so the text stays readable.
+const keep: number[] = [];
+for (const el of document.querySelectorAll<HTMLElement>("#hud, #brand")) {
+  const r = el.getBoundingClientRect();
+  keep.push(r.left - 24, r.top - 24, r.right + 24, r.bottom + 24);
+}
+
 const scare = { x: Number.NaN, y: Number.NaN };
 canvas.addEventListener("pointermove", (e) => {
   scare.x = e.offsetX;
@@ -79,6 +86,7 @@ async function step(dt: number): Promise<number> {
     scareY: scare.y,
     gridX: jitter() * CELL,
     gridY: jitter() * CELL,
+    keep,
   };
   t += dt;
   if (workers.length) {
