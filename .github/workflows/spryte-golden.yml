@@ -38,7 +38,7 @@ jobs:
         env:
           SOFTWARE_GL: "1"
         run: >
-          npx -y komadori@0.1.0 golden-dist/rain --frames 120 --samples 3 --size 640x360
+          npx -y komadori@0.1.1 golden-dist/rain --frames 120 --samples 3 --size 640x360
           --golden packages/spryte/golden/showcase-rain --out golden-out/rain
       # The warp scene draws the word "WARP" with sans-serif, and the Linux runner rasterises text differently from the
       # machine the golden frames were made on. The first Linux run (PR 102) showed it: 0.27 to 0.28% of the pixels
@@ -49,7 +49,7 @@ jobs:
         env:
           SOFTWARE_GL: "1"
         run: >
-          npx -y komadori@0.1.0 golden-dist/warp --frames 120 --samples 3 --size 640x360
+          npx -y komadori@0.1.1 golden-dist/warp --frames 120 --samples 3 --size 640x360
           --golden packages/spryte/golden/showcase-warp --golden-tolerance 0.5 --out golden-out/warp
       - name: Upload the differences
         if: always()
