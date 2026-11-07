@@ -80,6 +80,20 @@ if (!drawElement(draw, menu, 40, 30, { w: 200, h: 80 })) showHtmlMenu(); // fals
 
 Chrome and Edge 157+. The element keeps its text, links and focus. `canDrawElements()` tells you before you draw. The first call moves the element into the canvas and draws nothing.
 
+## Render it and look at it
+
+To check a scene without a human, expose one function and run the render tool:
+
+```ts
+window.__frame = () => { step(1 / 60); drawFrame(); }; // advance exactly one frame, draw, return
+```
+
+```sh
+node packages/spryte/tools/render.mjs dist --frames 300 --size 1920x1080 --out render-out [--mp4 clip.mp4]
+```
+
+`dist` is a built page (or a URL). The tool steps the scene frame by frame, so the result doesn't depend on how fast the machine is. It writes `render-out/contact-sheet.png` (20 frames in one image) and `report.json`, and exits 1 on a page error, a blank scene or a frozen scene. It warns when content covers an edge and may be cut off. Open the contact sheet and look at it: the checks can't see stripes, text covered by sprites or an ugly palette. `--mp4` needs ffmpeg.
+
 ## Rules that save a debugging round
 
 - Call `draw.dispose()` when done. spryte never owns your images: use `invalidate(img)` after changing pixels.
