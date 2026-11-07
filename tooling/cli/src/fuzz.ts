@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import type { Page } from "playwright-core";
+import type { Browser, Page } from "playwright-core";
 import { loadConfig } from "./config.js";
 import { hooksReady } from "./scenario/browser.js";
 import { closePage, DEFAULT_STEP_TIMEOUT, launchBrowser, VIEWPORT, withinTime } from "./scenario/run.js";
@@ -175,17 +175,19 @@ export async function runFuzz(options: FuzzOptions): Promise<FuzzReport> {
   mkdirSync(outDir, { recursive: true });
 
   const server = await createDevServer(options.root, { port: 0, logLevel: "error" });
-  await server.listen();
-  const base = server.resolvedUrls?.local[0];
-  if (!base) throw new Error("Dev server did not report a URL");
-  const config = await loadConfig(options.root);
-  const browser = await launchBrowser(config.renderer);
-  // The project's scenario viewport, so a portrait game is fuzzed at its own shape.
-  const [width, height] = config.viewport ?? VIEWPORT;
   const findings: FuzzFinding[] = [];
   let totalSteps = 0;
-
+  // Everything after the server exists is inside the try, so a failure before the first run (no URL, a bad
+  // config, no browser) still closes the server and any browser it got to.
+  let browser: Browser | undefined;
   try {
+    await server.listen();
+    const base = server.resolvedUrls?.local[0];
+    if (!base) throw new Error("Dev server did not report a URL");
+    const config = await loadConfig(options.root);
+    browser = await launchBrowser(config.renderer);
+    // The project's scenario viewport, so a portrait game is fuzzed at its own shape.
+    const [width, height] = config.viewport ?? VIEWPORT;
     for (let run = 1; run <= runs; run++) {
       const random = rng(seed + run * 7919);
       const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 });
@@ -347,7 +349,7 @@ export async function runFuzz(options: FuzzOptions): Promise<FuzzReport> {
       options.onRun?.(run, runs, findings.length);
     }
   } finally {
-    await browser.close();
+    await browser?.close();
     await server.close();
   }
 

@@ -256,6 +256,36 @@ describe("Game splash", () => {
     vi.unstubAllEnvs();
   });
 
+  it("fires splashEnd once when the splash ends, before the first step", () => {
+    const tick = withRaf();
+    const { game } = makeGame({ splash: { duration: 5 } });
+    const seen: number[] = [];
+    game.hooks.splashEnd(() => seen.push(game.clock.tick));
+    game.start();
+    tick(16);
+    dispatchEvent(new KeyboardEvent("keydown", { code: "Space" }));
+    dispatchEvent(new KeyboardEvent("keydown", { code: "Space" }));
+    tick(16);
+    tick(16);
+    expect(seen).toEqual([0]);
+    game.dispose();
+    expect(seen).toEqual([0]);
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("fires no splashEnd without a splash", () => {
+    withRaf();
+    const { game } = makeGame({ splash: false });
+    const seen: number[] = [];
+    game.hooks.splashEnd(() => seen.push(1));
+    game.start();
+    game.dispose();
+    expect(seen).toEqual([]);
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
   it("can be turned off", () => {
     const tick = withRaf();
     const { game } = makeGame({ splash: false });
@@ -316,6 +346,150 @@ describe("Game loop errors", () => {
     game.start();
     expect(game.isRunning).toBe(true);
     expect(game.lastError).toBeUndefined();
+    game.dispose();
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("scene switches inside a switch", () => {
+  it("finishes the current switch first, so sceneChange arrives in order", () => {
+    const { game } = makeGame();
+    const changes: string[] = [];
+    game.hooks.sceneChange((next, prev) => changes.push(`${prev?.id ?? "-"}>${next.id}`));
+    game
+      .add({ id: "a" })
+      .add({ id: "boot", enter: () => game.go("menu") }) // a scene that redirects at once
+      .add({ id: "menu" });
+    game.go("a");
+    game.go("boot");
+    expect(changes).toEqual(["->a", "a>boot", "boot>menu"]);
+    expect(game.scene?.id).toBe("menu");
+  });
+
+  it("doesn't recurse when exit() switches scene", () => {
+    const { game } = makeGame();
+    let exits = 0;
+    game
+      .add({ id: "a", exit: () => (exits++, game.go("c")) })
+      .add({ id: "b" })
+      .add({ id: "c" });
+    game.go("a");
+    game.go("b");
+    expect(exits).toBe(1);
+    expect(game.scene?.id).toBe("c");
+  });
+});
+
+describe("pauseWhenHidden", () => {
+  it("resumes a game halted for a hidden tab when it is turned off", () => {
+    vi.stubGlobal("requestAnimationFrame", () => 1);
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+    let hidden = false;
+    const spy = vi.spyOn(document, "hidden", "get").mockImplementation(() => hidden);
+    const { game } = makeGame({ splash: false });
+    game.add({ id: "play" }).go("play");
+    game.start();
+    hidden = true;
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(game.isRunning).toBe(false);
+    game.pauseWhenHidden = false; // an agent's hidden browser tab, say
+    expect(game.isRunning).toBe(true);
+    game.dispose();
+    spy.mockRestore();
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("Game loop error phase", () => {
+  it("doesn't report a stale phase left by an earlier step() that threw", () => {
+    const callbacks: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => callbacks.push(cb));
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+    const { game } = makeGame({ splash: false });
+    let broken = true;
+    game
+      .add({
+        id: "play",
+        update: () => {
+          if (broken) throw new Error("update broke");
+        },
+      })
+      .go("play");
+    expect(() => game.step(1)).toThrow("update broke");
+    broken = false;
+    vi.spyOn(game.draw, "begin").mockImplementationOnce(() => {
+      throw new Error("begin broke");
+    });
+    const seen: string[] = [];
+    game.hooks.error((_e, ctx) => seen.push(ctx.phase));
+    game.start();
+    expect(() => callbacks.shift()?.(performance.now() + 1)).toThrow("begin broke"); // a frame with no step
+    expect(seen).toEqual(["idle"]);
+    game.dispose();
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("Game loop restarts", () => {
+  it("keeps one frame loop when stop() and start() run inside a frame", () => {
+    const pending = new Map<number, FrameRequestCallback>();
+    let nextId = 0;
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+      pending.set(++nextId, cb);
+      return nextId;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (id: number) => pending.delete(id));
+    const tick = (now: number) => {
+      const due = [...pending.values()];
+      pending.clear();
+      for (const cb of due) cb(now);
+    };
+    const { game } = makeGame({ splash: false });
+    let restart = true;
+    let updates = 0;
+    game
+      .add({
+        id: "play",
+        update: () => {
+          updates++;
+          if (!restart) return;
+          restart = false;
+          game.stop();
+          game.start();
+        },
+      })
+      .go("play");
+    game.start();
+    const start = performance.now();
+    tick(start + 20);
+    expect(pending.size).toBe(1);
+    tick(start + 40);
+    tick(start + 60);
+    expect(pending.size).toBe(1);
+    expect(game.isRunning).toBe(true);
+    game.stop();
+    tick(start + 80);
+    expect(pending.size).toBe(0);
+    expect(updates).toBeGreaterThan(0);
+    game.dispose();
+    vi.unstubAllGlobals();
+  });
+
+  it("schedules nothing more after stop() inside a frame", () => {
+    const pending = new Map<number, FrameRequestCallback>();
+    let nextId = 0;
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+      pending.set(++nextId, cb);
+      return nextId;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (id: number) => pending.delete(id));
+    const { game } = makeGame({ splash: false });
+    game.add({ id: "play", update: () => game.stop() }).go("play");
+    game.start();
+    const [cb] = [...pending.values()];
+    pending.clear();
+    cb?.(performance.now() + 20);
+    expect(pending.size).toBe(0);
     game.dispose();
     vi.unstubAllGlobals();
   });

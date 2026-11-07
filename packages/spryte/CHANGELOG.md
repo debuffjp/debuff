@@ -1,5 +1,13 @@
 # spryte
 
+## 0.12.4
+
+### Patch Changes
+
+- ce39b44: On WebGL2, a frame that threw before `end()` no longer leaks its unfinished batch into the next frame. Before, the next `begin()` cleared the screen and then drew the stale sprites and shapes on top.
+- b87e7f9: On WebGL2, an image drawn before it finished loading no longer keeps drawing as a white box once it loads. The renderer's one-entry texture cache remembered the white placeholder for the image, so its pixels were never uploaded until a rect, circle or text draw happened to reset the cache. Canvas 2D was not affected.
+- 91e3c60: A renderer disposed before its Canvas 2D fallback finished loading stays disposed. Before, the fallback replaced the disposed stand-in when it arrived, so the renderer drew again despite "using this Draw afterwards throws".
+
 ## 0.12.3
 
 ### Patch Changes

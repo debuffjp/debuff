@@ -4,8 +4,13 @@ updates:
     directory: /
     schedule: { interval: weekly }
     groups:
+      # Biome on its own: a Biome bump needs `npx biome migrate` and new lint fixes, which failed the grouped
+      # dev-tooling PRs twice (config schema version mismatch, new rules).
+      biome:
+        patterns: ["@biomejs/*"]
       dev-tooling:
         dependency-type: development
+        exclude-patterns: ["@biomejs/*"]
       runtime-tooling:
         dependency-type: production
   - package-ecosystem: github-actions

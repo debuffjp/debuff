@@ -2,8 +2,9 @@ import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { parseTscOutput, typecheck } from "../src/index.js";
+import { createTypeChecker } from "../src/typecheck.js";
 
 // Wherever `typescript` actually resolves: a git worktree inside the repo has no node_modules of its own.
 const repoModules = dirname(dirname(createRequire(import.meta.url).resolve("typescript/package.json")));
@@ -57,5 +58,30 @@ describe("typecheck", () => {
   it("is off, not failing, without a tsconfig", async () => {
     const r = await typecheck(mkdtempSync(join(tmpdir(), "debuff-tsc-")));
     expect(r).toMatchObject({ ok: false, reason: "no tsconfig.json", diagnostics: [] });
+  });
+});
+
+describe("createTypeChecker", () => {
+  const settle = () => new Promise((r) => setTimeout(r, 30));
+
+  it("keeps checking after onResult throws", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const seen: unknown[] = [];
+    const checker = createTypeChecker(
+      mkdtempSync(join(tmpdir(), "debuff-tsc-")), // no tsconfig: each check finishes at once
+      (r) => {
+        seen.push(r);
+        if (seen.length === 1) throw new Error("the dev server's socket was closed");
+      },
+      0,
+    );
+    checker.schedule();
+    await settle();
+    checker.schedule();
+    await settle();
+    expect(seen).toHaveLength(2); // before, the throw left it "running" for good and every later check queued
+    expect(error).toHaveBeenCalled();
+    checker.dispose();
+    error.mockRestore();
   });
 });

@@ -5,10 +5,16 @@
 ## Cutting a release
 
 1. In each PR with user-facing changes, run `npx changeset` and commit the changeset file.
-2. When changesets land on `main`, the workflow opens or updates a **Version packages** PR that bumps versions and changelogs, then dispatches CI on it (PRs opened by the workflow token get no CI of their own).
+2. When changesets land on `main`, the workflow opens or updates a **Version packages** PR that bumps versions and changelogs. With the `CHANGESETS_TOKEN` secret set (see below), the PR gets normal CI. Without it, the workflow dispatches CI on it instead, because PRs opened by the workflow token get no CI of their own. The PR is updated even when that run's publish failed.
 3. Merge that PR. The next Release run runs `npm run release:ci` before anything else, even if new changesets have landed since: it builds, runs `changeset publish` (publishes every package whose version isn't on npm yet and tags it), points the Claude plugin and desktop extension at the new `@debuffjp/mcp` (committing that change), and pushes `main` and the tags. The tags matter: `create-debuff` downloads templates from its own tag, so a missing tag breaks `npm create debuff`.
 
 If a publish stops partway, re-run the Release workflow (Actions → Release → Run workflow). It skips packages that are already on npm.
+
+## CI on the Version packages PR
+
+Set a repository secret `CHANGESETS_TOKEN`: a fine-grained personal access token (or a GitHub App token) for `debuffjp/debuff` with **Contents** and **Pull requests** read and write. The Release workflow then opens and pushes the Version packages PR as that account, so its `pull_request` CI runs like any PR's.
+
+Without the secret, the workflow's own `GITHUB_TOKEN` opens the PR. GitHub holds that PR's `pull_request` run at "action_required" and marks it failed, with no jobs, when the PR merges. Those runs are noise, not test failures: the dispatched CI run on the same commit is the real check, and it reports to the PR as a commit status. From late October to early November that noise was 62 of the 86 non-success runs on the Actions page.
 
 ## The spryte mirror
 
@@ -18,7 +24,7 @@ After publishing, the Release workflow runs `scripts/sync-spryte-mirror.mjs`, wh
 
 CI authenticates to npm with OIDC trusted publishing: there is no `NPM_TOKEN` secret, and every publish carries a provenance attestation. Each package needs a trusted publisher configured once on npmjs.com (package → Settings → Trusted publishing → GitHub Actions): organization `debuffjp`, repository `debuff`, workflow `release.yml`, no environment. Once it works, set the package's publishing access to "Require two-factor authentication and disallow tokens".
 
-A brand-new package can't be configured before it exists, so publish its first version locally (`npm login`, then `npm run release`), then add the trusted publisher.
+A brand-new package can't be configured before it exists, so publish its first version locally (`npm login`, then `npm run release`), then add the trusted publisher. `scripts/check-first-publish.mjs` catches a missed one. CI runs it on pull requests as a warning, and Release runs it before publishing, failing with these steps instead of `changeset publish`'s raw E404. Before it existed, henka's first release failed eight Release runs in a row until it was published by hand.
 
 For a minute or two after that first publish, npm says the package "is being processed" and the registry shows only a `0.0.0-stage` placeholder ("Temporary package placeholder for staged publishing"). That isn't a staged release: `npm stage list` is empty and there's nothing to approve. Wait, then check with `npm view <name> versions --prefer-online` (npm caches the placeholder otherwise, and `npm install` fails with `ETARGET`). Once the real version is up, `npm deprecate <name>@0.0.0-stage "placeholder"` keeps anyone from installing the placeholder by name.
 

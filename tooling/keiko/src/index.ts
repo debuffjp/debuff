@@ -109,9 +109,10 @@ function add(name: string, fn: TestFn, mode: TestCase["mode"], options: TestOpti
   // Hooks are looked up when the test runs, so beforeEach/afterEach declared after a test in the same scope still apply.
   const chain = [r.fileHooks, ...r.suites.map((s) => s.hooks)];
   const run = async () => {
-    for (const hooks of chain) for (const before of hooks.before) await before();
     let failure: unknown;
     try {
+      // Inside the try: a beforeEach that throws skips the test but still runs every afterEach, as in Vitest.
+      for (const hooks of chain) for (const before of hooks.before) await before();
       await fn();
     } catch (err) {
       failure = err;

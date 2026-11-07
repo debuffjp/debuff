@@ -4,6 +4,7 @@ import { Player, type Song } from "../src/index.js";
 /** Just enough of Web Audio to drive the player: every node accepts anything and records what started. */
 function fakeContext() {
   const started: { type: string; when: number }[] = [];
+  const gains: Record<string, unknown>[] = [];
   const param = () => ({
     value: 0,
     setValueAtTime() {},
@@ -20,11 +21,18 @@ function fakeContext() {
       delayTime: param(),
       type: "",
       buffer: null,
-      connect: (to: unknown) => to,
-      disconnect() {},
+      connect: (to: unknown) => {
+        n.to = to;
+        return to;
+      },
+      disconnected: false,
+      disconnect() {
+        n.disconnected = true;
+      },
       start: (when: number) => started.push({ type, when }),
       stop() {},
     };
+    if (type === "gain") gains.push(n);
     return n;
   };
   const ctx = {
@@ -56,7 +64,9 @@ function fakeContext() {
       vi.advanceTimersByTime(40);
     }
   };
-  return { ctx: ctx as unknown as AudioContext, started, run };
+  /** Per-instrument layer gains: the ones feeding the player's output gain (the first gain it creates). */
+  const layers = () => gains.filter((g) => g.to === gains[0]);
+  return { ctx: ctx as unknown as AudioContext, started, run, layers };
 }
 
 const song: Song = {
@@ -83,6 +93,54 @@ describe("Player", () => {
     expect(player.played.length).toBeGreaterThan(6);
     player.stop();
     expect(player.playing).toBe(false);
+  });
+
+  it("fades out on stop(fade) instead of cutting the instruments off at once", () => {
+    vi.useFakeTimers();
+    const fake = fakeContext();
+    const { ctx, run } = fake;
+    const player = new Player({ context: ctx });
+    player.play(song);
+    const layers = fake.layers(); // one per instrument, created as notes are scheduled
+    expect(layers).toHaveLength(2);
+    player.stop(2);
+    expect(layers.every((g) => !g.disconnected)).toBe(true); // still sounding through the fade
+    run(2.5);
+    expect(layers.every((g) => g.disconnected)).toBe(true); // let go once it's over
+  });
+
+  it("keeps a layer volume set before play()", () => {
+    vi.useFakeTimers();
+    const fake = fakeContext();
+    const { ctx, run } = fake;
+    const player = new Player({ context: ctx });
+    player.layer("kick", 0, 0); // start with the drums muted
+    const [kick] = fake.layers();
+    player.play(song);
+    run(0.2);
+    expect(kick?.disconnected).toBe(false);
+    expect(fake.layers()).toHaveLength(2); // kick kept its layer; only lead got a new one
+  });
+
+  it("times sfx({ after }) at 120 bpm once the song has stopped, as documented", () => {
+    vi.useFakeTimers();
+    const { ctx } = fakeContext();
+    const player = new Player({ context: ctx });
+    player.play({ ...song, bpm: 60 });
+    player.stop();
+    // 4 steps at 120 bpm: 0.5 s. Before, the stopped song's 60 bpm still applied (1 s).
+    expect(player.sfx({ wave: "sine" }, { after: 4, freq: 440 })).toBeCloseTo(0.5);
+  });
+
+  it("cuts a fading song when the next one starts", () => {
+    vi.useFakeTimers();
+    const fake = fakeContext();
+    const player = new Player({ context: fake.ctx });
+    player.play(song);
+    const old = fake.layers();
+    player.stop(2);
+    player.play(song);
+    expect(old.every((g) => g.disconnected)).toBe(true);
   });
 
   it("rejects an unreadable song in play(), leaving the current song playing", () => {

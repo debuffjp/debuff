@@ -144,8 +144,10 @@ describe("game.emit", () => {
     });
     game.hooks.gameEvent((name) => seen.push(name));
     expect(() => game.emit("a")).toThrow("boom");
+    // The other listener still heard "a" and the "b" queued behind it (before 0.31.1 both were dropped).
+    expect(seen).toEqual(["a", "b"]);
     game.emit("c");
-    expect(seen).toEqual(["c"]);
+    expect(seen).toEqual(["a", "b", "c"]);
   });
 });
 

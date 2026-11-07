@@ -14,6 +14,8 @@ concurrency: release-${{ github.ref }}
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      HAS_CHANGESETS_TOKEN: ${{ secrets.CHANGESETS_TOKEN != '' }}
     permissions:
       contents: write
       pull-requests: write
@@ -35,6 +37,9 @@ jobs:
         run: |
           v=$(node -p "require('./tooling/cli/package.json').version")
           if npm view "@debuffjp/cli@$v" version > /dev/null 2>&1; then echo "new=false" >> "$GITHUB_OUTPUT"; else echo "new=true" >> "$GITHUB_OUTPUT"; fi
+      # Fails with what to do, instead of changeset publish's raw E404, when a new package was never published.
+      - name: Every package exists on npm
+        run: node scripts/check-first-publish.mjs
       # A no-op when every version is already on npm.
       - name: Publish unpublished versions
         run: |
@@ -55,17 +60,34 @@ jobs:
           node scripts/sync-spryte-mirror.mjs --push
         env:
           SPRYTE_MIRROR_TOKEN: ${{ secrets.SPRYTE_MIRROR_TOKEN }}
+      # The Version packages branch is pushed with git's credentials, which checkout set to GITHUB_TOKEN, and
+      # pushes by that token start no workflows. Push it as the CHANGESETS_TOKEN account instead, so updates to
+      # the PR get CI too. Only this step's pushes change: release:ci above already pushed main as GITHUB_TOKEN,
+      # which keeps a release push from starting another Release run.
+      - name: Push the Version packages branch with CHANGESETS_TOKEN
+        if: ${{ !cancelled() && env.HAS_CHANGESETS_TOKEN == 'true' }}
+        run: |
+          git config --unset-all http.https://github.com/.extraheader || true
+          git remote set-url origin "https://x-access-token:${CHANGESETS_TOKEN}@github.com/${{ github.repository }}.git"
+        env:
+          CHANGESETS_TOKEN: ${{ secrets.CHANGESETS_TOKEN }}
+      # Keeps the Version packages PR current even when publishing failed above: publishing is retried on every
+      # push, and a stuck publish shouldn't also freeze the PR (it did for 3.5 hours while henka was missing).
       - uses: changesets/action@v2
         id: changesets
+        if: ${{ !cancelled() }}
         with:
           pr-title: Version packages
           commit-message: Version packages
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # With a CHANGESETS_TOKEN secret (a fine-grained token with contents and pull-requests write), the PR is
+          # opened as that account and gets normal pull_request CI. Without it, GITHUB_TOKEN opens it, GitHub
+          # holds its CI at "action_required", and the run is marked failed with no jobs once the PR merges.
+          GITHUB_TOKEN: ${{ secrets.CHANGESETS_TOKEN || secrets.GITHUB_TOKEN }}
       # PRs opened with GITHUB_TOKEN don't trigger CI (they wait at "action_required"); a dispatch is the
-      # one event that token may start, and its checks land on the PR's head commit.
+      # one event that token may start, and its checks land on the PR's head commit. Not needed with a token.
       - name: Run CI on the Version packages PR
-        if: steps.changesets.outputs.has-changesets == 'true'
+        if: ${{ !cancelled() && steps.changesets.outputs.has-changesets == 'true' && env.HAS_CHANGESETS_TOKEN != 'true' }}
         run: gh workflow run ci.yml --ref changeset-release/main
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

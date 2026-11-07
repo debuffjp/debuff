@@ -157,6 +157,49 @@ describe("rewind", () => {
   });
 });
 
+describe("restore that fails", () => {
+  it("pauses where the replay stopped and logs why, instead of throwing out of the plugin install", () => {
+    const sim = makeSim();
+    const s = DevSession.acquire(sim.game);
+    s.attachInput(sim.input);
+    const steps = [{ wait: 3 }, { command: "explode" }, { wait: 5 }];
+    const explode = () => {
+      throw new Error("explode is gone");
+    };
+    expect(() =>
+      s.restore(
+        { v: 1, page: location.pathname, timeline: { name: "t", steps, ticks: 8, warnings: [] }, tick: 8, reason: "reload", resume: true },
+        { game: sim.game, input: sim.input, command: explode },
+      ),
+    ).not.toThrow();
+    expect(sim.game.clock.tick).toBe(3);
+    expect(s.paused).toBe(true);
+    expect(s.activity.map((a) => a.action)).toContain("replay failed");
+    expect(s.recording?.toReplay().warnings.join(" ")).toMatch(/explode is gone/);
+    s.release();
+  });
+
+  it("logs a skipped param change after a code reload", () => {
+    const sim = makeSim();
+    const s = DevSession.acquire(sim.game);
+    s.attachInput(sim.input);
+    s.restore(
+      {
+        v: 1,
+        page: location.pathname,
+        timeline: { name: "t", steps: [{ set: { "player.renamed": 1 } }, { wait: 4 }], ticks: 4, warnings: [] },
+        tick: 4,
+        reason: "reload",
+        resume: true,
+      },
+      { game: sim.game, input: sim.input, command: () => undefined },
+    );
+    expect(sim.game.clock.tick).toBe(4);
+    expect(s.recording?.toReplay().warnings.join(" ")).toMatch(/player\.renamed/);
+    s.release();
+  });
+});
+
 describe("state-preserving reload", () => {
   it("saves the session, then the new page replays it to the same tick and keeps running", () => {
     const first = makeSim();
@@ -372,6 +415,45 @@ describe("pointer buttons in replays", () => {
     expect(() => fastForward({ game: makeGame(), input, command: () => undefined }, [{ press: "PointerRight" }], 1)).toThrow(
       /needs @debuffjp\/input 0.16/,
     );
+  });
+});
+
+describe("replays that hit a bad step", () => {
+  it("skips a param the new code renamed or narrowed, warns, and keeps replaying", () => {
+    const game = makeGame();
+    const { input } = makeInput();
+    const warnings: string[] = [];
+    fastForward(
+      { game, input, command: () => undefined, warn: (w) => warnings.push(w) },
+      [{ wait: 2 }, { set: { "player.gone": 3 } }, { set: { "player.speed": 99 } }, { set: { "player.speed": 4 } }, { wait: 3 }],
+      5,
+    );
+    expect(game.clock.tick).toBe(5);
+    expect(game.params.group("player")?.get("speed")).toBe(4);
+    expect(warnings).toHaveLength(2);
+    expect(warnings[0]).toMatch(/player\.gone/);
+    expect(warnings[1]).toMatch(/outside/);
+  });
+
+  it("lets go of held input and hands the pads back when a step throws", () => {
+    vi.stubGlobal("navigator", { getGamepads: () => [] });
+    const game = makeGame();
+    const { input, calls } = makeInput();
+    const pads = new Gamepads();
+    input.pads = pads;
+    const boom = () => {
+      throw new Error("boom");
+    };
+    expect(() =>
+      fastForward(
+        { game, input, command: boom },
+        [{ press: "Space" }, { pointerDown: [1, 1] }, { pad: { buttons: [0], axes: [0, 0] } }, { wait: 1 }, { command: "explode" }],
+        10,
+      ),
+    ).toThrow("boom");
+    expect(calls).toContain("release Space");
+    expect(calls.at(-1)).toBe("up");
+    expect(pads.fed).toBeUndefined();
   });
 });
 

@@ -1,5 +1,15 @@
 # @debuffjp/dev
 
+## 0.31.1
+
+### Patch Changes
+
+- 164b4de: The dev overlay's pause state follows the game loop. When game code calls `game.stop()`, the overlay shows the game as paused by "game" and its play button starts it again; before, it still showed "pause" and play did nothing. When game code calls `game.start()` while the dev tools had paused it, the overlay shows it running and pause works straight away. `game.isStarted` is new: true from `start()` until `stop()`, including while the loop is halted for a hidden tab.
+- 52de7ed: The agent link and `window.__DEBUFF_DEV__` now share one set of dev hooks. Before, each had its own, so a touch held through one surface couldn't be let go through the other (it stayed in `pointer.touches`), and a reduced-motion value forced by the agent showed as not forced in the other.
+- 9f6d6e5: A rewind or state-preserving reload whose replay fails no longer leaves the game stuck. Held keys, the pointer and touches are let go and real gamepads take over again, even when a step throws. The session pauses where the replay stopped and logs why ("replay failed") instead of throwing out of the dev tools' install. A recorded param change that the new code renamed or narrowed is skipped with a warning, and the rest of the replay carries on.
+- Updated dependencies [9cc3493]
+  - @debuffjp/share@0.31.1
+
 ## 0.31.0
 
 ### Minor Changes
