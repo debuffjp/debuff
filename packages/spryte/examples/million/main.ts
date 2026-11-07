@@ -15,11 +15,30 @@ const jitter = () => {
 const params = new URLSearchParams(location.search);
 const N = Math.max(1, Math.min(4_000_000, Number(params.get("n")) || 1_000_000));
 const capture = params.has("capture");
+// ?bg=ink|dusk|forest puts a soft gradient behind the flock instead of flat black (for clips). Off by default.
+const BACKDROPS: Record<string, { clear: string; edge: string; core: string; at: string; reach: string }> = {
+  ink: { clear: "#05060d", edge: "vec3(0.020, 0.024, 0.051)", core: "vec3(0.082, 0.102, 0.227)", at: "vec2(0.5, 0.42)", reach: "0.95" },
+  dusk: { clear: "#0d1030", edge: "vec3(0.051, 0.063, 0.188)", core: "vec3(0.231, 0.090, 0.231)", at: "vec2(0.5, 0.95)", reach: "1.25" },
+  forest: { clear: "#060a05", edge: "vec3(0.024, 0.039, 0.020)", core: "vec3(0.078, 0.129, 0.059)", at: "vec2(0.5, 0.45)", reach: "0.95" },
+};
+const backdrop = BACKDROPS[params.get("bg") ?? ""];
 
 const canvas = document.querySelector("canvas") as HTMLCanvasElement;
 const count = document.querySelector("#count") as HTMLElement;
 const stats = document.querySelector("#stats") as HTMLElement;
 const draw = createRenderer(canvas);
+// One rect with a smooth falloff. A dark gradient bands badly once it's encoded to 8-bit video, so a little
+// noise is added: it breaks the steps up, and the eye reads it as grain.
+const backdropShader = backdrop
+  ? draw.createShader(`
+  vec4 effect(vec4 color, vec2 uv) {
+    vec2 p = frameUv();
+    float d = length((p - ${backdrop.at}) * vec2(1.7778, 1.0));
+    vec3 col = mix(${backdrop.edge}, ${backdrop.core}, pow(1.0 - smoothstep(0.0, ${backdrop.reach}, d), 1.4));
+    float n = fract(sin(dot(p * vec2(1920.0, 1080.0), vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
+    return vec4(col + n * 0.0075, 1.0);
+  }`)
+  : undefined;
 
 // A 2×2 dot: at this density, birds read as a murmuration, not as arrows.
 const dot = new OffscreenCanvas(2, 2);
@@ -99,7 +118,8 @@ async function step(dt: number): Promise<number> {
 
 function render(): number {
   const t0 = performance.now();
-  draw.begin("#0b0d09", width, height, dpr);
+  draw.begin(backdrop?.clear ?? "#0b0d09", width, height, dpr);
+  if (backdropShader) draw.withShader(backdropShader, () => draw.rect(0, 0, width, height, "#fff"));
   draw.sprites(dot, b.pos, N, undefined, { color: b.colors });
   draw.end();
   return performance.now() - t0;
