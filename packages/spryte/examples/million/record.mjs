@@ -17,9 +17,10 @@ const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/cs
 
 // A static server with the isolation headers the page needs for shared memory (what a real host must send too).
 const server = createServer(async (req, res) => {
-  const path = new URL(req.url, "http://x").pathname;
+  const raw = new URL(req.url, "http://x").pathname;
+  const path = raw === "/" ? "/index.html" : raw;
   try {
-    const body = await readFile(join(dist, path === "/" ? "index.html" : path));
+    const body = await readFile(join(dist, path));
     res.writeHead(200, {
       "content-type": TYPES[extname(path)] ?? "application/octet-stream",
       "cross-origin-opener-policy": "same-origin",
