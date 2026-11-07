@@ -3,6 +3,7 @@
 // without anyone remembering which meta tags crawlers want.
 import { copyFileSync, existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { basename, extname, join } from "node:path";
+import { DebuffError } from "./errors.js";
 
 /** `launch` in `debuff.config.ts`. Everything is optional; names fall back to package.json. */
 export interface LaunchConfig {
@@ -30,6 +31,20 @@ export interface LaunchConfig {
   author?: string;
   /** Links for the press kit: store pages, socials, Discord. */
   links?: Record<string, string>;
+  /**
+   * Write an X player card (`twitter:card` `player`) so the game can play inside a post, instead of the
+   * summary card. Needs `url` and a preview image, which X shows where it can't embed the player. The build
+   * fails with `config_invalid` when something X needs is missing. Added in 0.32.
+   */
+  playerCard?: {
+    /** The X account the card is credited to, e.g. `@studio`. X requires it for player cards. */
+    site: string;
+    /** Size of the player's iframe in pixels. */
+    width: number;
+    height: number;
+    /** The https page X loads in the iframe. Default: `url`. */
+    url?: string;
+  };
   /** `false` turns off everything `debuff build` adds here. */
   enabled?: boolean;
 }
@@ -103,6 +118,7 @@ export function writeLaunchFiles(root: string, dist: string, config: LaunchConfi
 
   let image: string | undefined;
   const source = config.image ? join(root, config.image) : baselineImages(root)[0];
+  const player = config.playerCard && checkPlayerCard(config, Boolean(source && existsSync(source)));
   if (source && existsSync(source)) {
     image = `preview${extname(source).toLowerCase() || ".png"}`;
     copyFileSync(source, join(dist, image));
@@ -160,7 +176,13 @@ export function writeLaunchFiles(root: string, dist: string, config: LaunchConfi
     ['property="og:video:type"', video ? "video/mp4" : ""],
     ['property="og:video:width"', video?.size ? String(video.size.width) : ""],
     ['property="og:video:height"', video?.size ? String(video.size.height) : ""],
-    ['name="twitter:card"', image ? "summary_large_image" : "summary"],
+    ['name="twitter:card"', player ? "player" : image ? "summary_large_image" : "summary"],
+    ['name="twitter:site"', config.playerCard?.site ?? ""],
+    ['name="twitter:title"', player ? title : ""],
+    ['name="twitter:image"', player ? (imageUrl ?? "") : ""],
+    ['name="twitter:player"', player ?? ""],
+    ['name="twitter:player:width"', player ? String(config.playerCard?.width) : ""],
+    ['name="twitter:player:height"', player ? String(config.playerCard?.height) : ""],
     ['name="theme-color"', manifest.theme_color],
   ];
   const add: string[] = [];
@@ -172,4 +194,30 @@ export function writeLaunchFiles(root: string, dist: string, config: LaunchConfi
     writeFileSync(indexFile, html);
   }
   return warnings;
+}
+
+/** The player's address, or a `config_invalid` error listing what X needs that `launch` doesn't give. */
+function checkPlayerCard(config: LaunchConfig, hasImage: boolean): string {
+  const card = config.playerCard ?? ({} as NonNullable<LaunchConfig["playerCard"]>);
+  const problems: string[] = [];
+  if (typeof card.site !== "string" || !/^@\w{1,15}$/.test(card.site))
+    problems.push(`site must be an X account such as "@studio", got ${JSON.stringify(card.site)}`);
+  for (const side of ["width", "height"] as const)
+    if (!Number.isInteger(card[side]) || card[side] <= 0)
+      problems.push(`${side} must be a whole number of pixels above 0, got ${JSON.stringify(card[side])}`);
+  if (!config.url) problems.push("launch.url is not set: X needs the game's public address for an absolute twitter:image");
+  const player = card.url ?? config.url;
+  let https = false;
+  try {
+    https = new URL(player ?? "").protocol === "https:";
+  } catch {}
+  if (player && !https) problems.push(`the player address must start with https:// (X loads it in an iframe), got ${player}`);
+  if (!hasImage) problems.push("there is no preview image for twitter:image: set launch.image or add a scenario baseline");
+  if (problems.length || !player)
+    throw new DebuffError(
+      "config_invalid",
+      `launch.playerCard: ${problems.join("; ")}`,
+      "Fix launch in debuff.config.ts, or remove playerCard to keep the summary card",
+    );
+  return player;
 }
