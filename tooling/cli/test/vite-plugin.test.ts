@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Plugin } from "vite";
@@ -39,6 +39,33 @@ describe("debuff Vite plugin", () => {
     const manifest = JSON.parse(String(emitted.find((e) => e.fileName === "assets/manifest.json")?.source));
     expect(Object.keys(manifest.assets).sort()).toEqual(["data", "hero"]);
   });
+
+  it("skips a dangling symlink in assets/, such as an editor's lock file", async () => {
+    const root = project({ "assets/hero.png": "png" });
+    symlinkSync(join(root, "nowhere"), join(root, "assets", ".#hero.png")); // Emacs writes these while editing
+    const plugin = corePlugin(root);
+    plugin.buildStart();
+    const emitted: { fileName: string }[] = [];
+    await plugin.generateBundle.call({ emitFile: (f: { fileName: string }) => emitted.push(f) });
+    expect(emitted.map((e) => e.fileName)).toContain("assets/hero.png");
+  });
+
+  // The failure comes from chmod 000 on a folder, which Windows ignores.
+  it.skipIf(process.platform === "win32")(
+    "compiles again after a failed compile instead of failing every request until a file changes",
+    async () => {
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      const root = project({ "assets/hero.png": "png", "assets/locked/a.png": "png" });
+      chmodSync(join(root, "assets", "locked"), 0o000);
+      const plugin = corePlugin(root);
+      plugin.buildStart(); // fails: logged, not an unhandled rejection
+      const emit = { emitFile: () => {} };
+      await expect(plugin.generateBundle.call(emit)).rejects.toThrow();
+      chmodSync(join(root, "assets", "locked"), 0o755);
+      await expect(plugin.generateBundle.call(emit)).resolves.toBeUndefined();
+      error.mockRestore();
+    },
+  );
 
   it("preloads the manifest and default-group images in the HTML", async () => {
     const root = project({ "assets/hero.png": "png", "assets/level2/boss.png": "png" });

@@ -13,6 +13,8 @@ describe("Cli", () => {
       .command("create [dir]", "Scaffold")
       .option("--template <id>", "Template")
       .option("-y, --yes", "Defaults")
+      .option("--no-git", "No git")
+      .option("--no-credit", "No credit")
       .action((...a: unknown[]) => seen.push(a));
     cli
       .command("fuzz", "Fuzz")
@@ -38,6 +40,13 @@ describe("Cli", () => {
     cli.parse(argv("scenario", "a.json", "b.json", "--root", "x"));
     await cli.runMatchedCommand();
     expect(seen.at(-1)).toEqual([["a.json", "b.json"], { root: "x" }]);
+  });
+
+  it("names --no-x flags noX, which is what debuff create reads (unlike cac's x: false)", async () => {
+    const { cli, seen } = make();
+    cli.parse(argv("create", "my-game", "--no-git", "--no-credit"));
+    await cli.runMatchedCommand();
+    expect(seen.at(-1)).toEqual(["my-game", { noGit: true, noCredit: true }]);
   });
 
   it("refuses options a command doesn't declare, naming them", () => {

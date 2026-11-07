@@ -150,8 +150,12 @@ export class HeadlessSession implements GameSession {
   }
 
   async stop(): Promise<void> {
-    await this.browser.close();
-    await this.server.close();
+    // The dev server is closed even when the browser won't close (it crashed, or its process was killed).
+    try {
+      await this.browser.close();
+    } finally {
+      await this.server.close();
+    }
   }
 }
 

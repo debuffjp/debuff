@@ -300,6 +300,8 @@ npx keiko mutate              # test your tests (keiko 0.8+)
 
 Exits with 1 when a test fails. For tools, the same runner is `runTests()` from `keiko/runner`.
 
+From 0.8.2, test files found in a folder that import another test runner (`node:test`, `vitest`, `bun:test` or `@jest/globals`) are left out, so unit tests that `node --test` already runs don't run a second time inside keiko. A file you name on the command line always runs. Before 0.8.2, keiko loaded every `*.test.*` file under `tests/` and `src/`.
+
 ## Test your tests (`keiko mutate`)
 
 From keiko 0.8. Passing tests can still check very little: a test that only asserts the player "reaches top speed" passes whether top speed is 140 or 600. `keiko mutate` changes the game and reruns your tests, using [henka](../henka) to judge the results:

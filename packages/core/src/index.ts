@@ -20,7 +20,7 @@ export {
 export { Camera, type CameraOptions } from "./camera.js";
 export { FixedClock, type FixedClockOptions } from "./clock.js";
 export { Game, type GameOptions, type ScaleMode } from "./game.js";
-export { type GameErrorContext, type HookArgs, type HookName, Hooks, type Unsubscribe } from "./hooks.js";
+export { type GameErrorContext, type GamePhase, type HookArgs, type HookName, Hooks, type Unsubscribe } from "./hooks.js";
 export { InspectRegistry } from "./inspect.js";
 export * from "./math.js";
 export {

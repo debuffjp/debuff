@@ -62,6 +62,9 @@ export class Player {
   private timer: ReturnType<typeof setInterval> | undefined;
   private tempoScale = 1;
   private readonly layers = new Map<string, GainNode>();
+  /** Layers of a song that `stop(fade)` is fading out, disconnected when the fade is over. */
+  private readonly fading: GainNode[] = [];
+  private fadeTimer: ReturnType<typeof setTimeout> | undefined;
   /** Every note scheduled (music and sound effects), for tests and agents: the most recent 256. */
   readonly played: NoteEvent[] = [];
 
@@ -129,7 +132,10 @@ export class Player {
    */
   play(song: Song, options: PlayOptions = {}): void {
     songSteps(song);
-    this.stop();
+    // Replacing a song cuts it, layers and all, along with any song still fading out. Layers set while nothing
+    // played (`layer("drums", 0)` before `play()`) are kept.
+    if (this.playing) this.stop();
+    this.releaseFading();
     void this.context.resume();
     this.song = song;
     this.tempoScale = 1;
@@ -165,7 +171,10 @@ export class Player {
     }
   }
 
-  /** Stop, fading out over `fade` seconds (default: at once). */
+  /**
+   * Stop, fading out over `fade` seconds (default: at once). Before plonkjs 0.4.1 every instrument was cut at
+   * once whatever `fade` said; only the echo and reverb tails faded.
+   */
   stop(fade = 0): void {
     if (this.timer !== undefined) clearInterval(this.timer);
     this.timer = undefined;
@@ -175,8 +184,21 @@ export class Player {
     g.setValueAtTime(g.value || 0.0001, now);
     if (fade > 0) g.exponentialRampToValueAtTime(0.0001, now + fade);
     else g.setValueAtTime(0.0001, now);
-    for (const layer of this.layers.values()) layer.disconnect();
+    // Every note goes through its instrument's layer, so the layers stay connected until the fade is over;
+    // disconnecting them here cut the music dead and left the fade on `out` with nothing to fade.
+    this.fading.push(...this.layers.values());
     this.layers.clear();
+    clearTimeout(this.fadeTimer);
+    if (fade > 0) this.fadeTimer = setTimeout(() => this.releaseFading(), (fade + 0.2) * 1000);
+    else this.releaseFading();
+  }
+
+  /** Disconnect the layers of a stopped song (once its fade is over, or when the next song starts). */
+  private releaseFading(): void {
+    clearTimeout(this.fadeTimer);
+    this.fadeTimer = undefined;
+    for (const layer of this.fading) layer.disconnect();
+    this.fading.length = 0;
   }
 
   /**
@@ -193,7 +215,11 @@ export class Player {
     this.tempoScale = scale;
   }
 
-  /** Fade one instrument's track in or out (0-1) over `fade` seconds: layers that come and go with the game. */
+  /**
+   * Fade one instrument's track in or out (0-1) over `fade` seconds: layers that come and go with the game. A layer
+   * set while nothing plays applies to the next `play()`, so a song can start with its drums muted; before plonkjs
+   * 0.4.1 `play()` reset it to full. Replacing a playing song resets every layer.
+   */
   layer(instrument: string, volume: number, fade = 0.5): void {
     const g = this.layerGain(instrument).gain,
       now = this.context.currentTime;
@@ -217,7 +243,9 @@ export class Player {
       const at = (now - this.origin) / step;
       when = this.origin + Math.ceil(at / every - 1e-6) * every * step;
     }
-    if (options.after) when += options.after * (stepSeconds(this.song?.bpm ?? 120) / this.tempoScale);
+    // A stopped song keeps `song` (for its key), but its tempo no longer applies.
+    if (options.after)
+      when += options.after * (this.playing && this.song ? stepSeconds(this.song.bpm) / this.tempoScale : stepSeconds(120));
     const shift = 2 ** ((this.song?.transpose ?? 0) / 12);
     const freqs =
       options.freq !== undefined

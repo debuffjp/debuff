@@ -269,8 +269,22 @@ export class DevSession {
   readonly eventCounts: Record<string, number> = {};
   /** The latest game events with their tick and detail (max 200). */
   readonly events: GameEventRecord[] = [];
-  /** Who paused the game, or undefined while running. */
-  pausedBy: string | undefined;
+  /**
+   * Who paused the game, or undefined while it's started. Follows the game loop: `"game"` when game code called
+   * `game.stop()` itself, and undefined again as soon as anything calls `game.start()`.
+   */
+  get pausedBy(): string | undefined {
+    if (this.game.isStarted) {
+      this.loopSeen = true;
+      this.pausedByWho = undefined;
+      return undefined;
+    }
+    return this.pausedByWho ?? (this.loopSeen ? "game" : undefined);
+  }
+  /** Who the dev tools last paused for (or "error"). Cleared once the game is started again. */
+  private pausedByWho: string | undefined;
+  /** The loop has run at some point, so a stopped game is paused rather than not started yet. */
+  private loopSeen = false;
   /** Pause automatically when a frame exceeds this many milliseconds (0 = off). */
   pauseOnSpikeMs = 0;
   /** performance.now() of the last agent action (agent link); -Infinity if never. */
@@ -305,6 +319,7 @@ export class DevSession {
       game.hooks.afterRender(() => this.profiler.addSpan("render", performance.now() - renderStart)),
     ];
     this.recorder.onFrame = () => {
+      if (game.isStarted) this.loopSeen = true;
       const latest = this.recorder.get(0);
       if (this.pauseOnSpikeMs > 0 && latest && latest.intervalMs > this.pauseOnSpikeMs && !this.pausedBy) {
         this.pause("spike", `${latest.intervalMs.toFixed(1)} ms frame at tick ${latest.tick}`);
@@ -384,15 +399,17 @@ export class DevSession {
   }
 
   pause(who = "you", detail?: string): void {
-    if (this.pausedBy) return;
+    if (this.pausedByWho !== undefined && !this.game.isStarted) return;
+    if (this.game.isStarted) this.loopSeen = true;
     this.game.stop();
-    this.pausedBy = who;
+    this.pausedByWho = who;
     this.log(who, "paused", detail);
   }
 
   resume(who = "you"): void {
+    // Also restarts a game its own code stopped (pausedBy "game"), so the play button always plays.
     if (!this.pausedBy) return;
-    this.pausedBy = undefined;
+    this.pausedByWho = undefined;
     this.game.start();
     this.log(who, "resumed");
   }
@@ -457,13 +474,29 @@ export class DevSession {
     if (!recording) return;
     for (const w of request.timeline.warnings) recording.warn(w);
     const t0 = performance.now();
-    // After a code reload the new code is meant to play differently, so only a rewind checks the checkpoints.
-    const drift = fastForward(
-      target,
-      request.timeline.steps,
-      request.tick,
-      request.reason === "reload" ? undefined : () => this.checkpoint(),
-    );
+    const warn = (message: string) => {
+      recording.warn(message);
+      this.log("debuff", "replay skipped a step", message);
+    };
+    let drift: ReturnType<typeof fastForward>;
+    try {
+      // After a code reload the new code is meant to play differently, so only a rewind checks the checkpoints.
+      drift = fastForward(
+        { ...target, warn },
+        request.timeline.steps,
+        request.tick,
+        request.reason === "reload" ? undefined : () => this.checkpoint(),
+      );
+    } catch (error) {
+      // This runs inside the dev tools' plugin install: throwing would leave the hooks installed with no
+      // cleanup registered. Stop where the replay got to and say why instead.
+      const tick = this.game.clock.tick;
+      const message = `Replaying to tick ${request.tick} stopped at tick ${tick}: ${error instanceof Error ? error.message : String(error)}`;
+      recording.warn(message);
+      this.log("debuff", "replay failed", message);
+      this.pause("debuff", `replay stopped at tick ${tick}`);
+      return;
+    }
     if (request.reason === "reload") {
       const ms = Math.round(performance.now() - t0);
       this.log("you", "kept your place", `replayed ${request.tick} ticks with the new code in ${ms} ms`);
@@ -521,7 +554,8 @@ export class DevSession {
     this.lastLoopError = error;
     const explained = this.addError(explainError(error, context));
     // The game already stopped itself; reflect that so "play" retries from here.
-    this.pausedBy = "error";
+    this.loopSeen = true;
+    this.pausedByWho = "error";
     this.log("error", "stopped the game", `in ${context.phase}: ${explained.message}`);
   }
 

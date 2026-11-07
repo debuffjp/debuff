@@ -59,6 +59,15 @@ describe("the CLI's failure contract", () => {
     expect(error(r.stdout)).toBe("browser_not_found");
   }, 60_000);
 
+  it("prints the empty test report on stdout with --json when a project has no tests", () => {
+    const empty = mkdtempSync(join(tmpdir(), "debuff-notests-"));
+    writeFileSync(join(empty, "package.json"), JSON.stringify({ name: "empty", private: true }));
+    const r = run(["test", "--root", empty, "--json"]);
+    rmSync(empty, { recursive: true, force: true });
+    expect(r.status).toBe(0);
+    expect(JSON.parse(r.stdout)).toMatchObject({ ok: true, passed: 0, results: [] }); // one document, on stdout
+  }, 60_000);
+
   it("exits 2 with nothing_to_run when a project has no scenarios", () => {
     const empty = mkdtempSync(join(tmpdir(), "debuff-empty-"));
     writeFileSync(join(empty, "package.json"), JSON.stringify({ name: "empty", private: true }));
