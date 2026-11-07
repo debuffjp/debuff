@@ -455,7 +455,7 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
       else if (!isAbsolute(id)) url = `/@id/${id}`;
       else {
         const rel = relative(root, id).split("\\").join("/");
-        url = rel.startsWith("..") || isAbsolute(rel) ? `/@fs${id}` : `/${rel}`;
+        url = rel.startsWith("..") || isAbsolute(rel) ? `/@fs/${id.replace(/^\//, "")}` : `/${rel}`;
       }
       return (await server.environments[ENVIRONMENT]?.transformRequest(url))?.code;
     },

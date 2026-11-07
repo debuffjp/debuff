@@ -758,7 +758,9 @@ export class ImpactStore {
       // Keep it as sent.
     }
     if (!path.startsWith("/")) return;
-    const candidates = path.startsWith("/@fs/") ? [path.slice(4)] : [join(this.root, path), ...(publicDir ? [join(publicDir, path)] : [])];
+    const candidates = path.startsWith("/@fs/")
+      ? [path.slice(4).replace(/^\/(?=[A-Za-z]:\/)/, "")]
+      : [join(this.root, path), ...(publicDir ? [join(publicDir, path)] : [])];
     const file = candidates.find((c) => existsSync(c) && statSync(c).isFile());
     this.inputs.add(file ? `file:${file}` : `url:${path}`);
   }
