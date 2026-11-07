@@ -1,0 +1,9 @@
+{
+  "version": "0.0.0",
+  "createdAt": "2026-11-07T11:09:13.290Z",
+  "renderer": "ANGLE (AMD, AMD Ryzen 7 8845HS w/ Radeon 780M Graphics (0x00001900) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "size": "640x360",
+  "frames": 120,
+  "sampled": [0, 60, 119],
+  "query": ""
+}

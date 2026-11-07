@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>A million boids: a spryte demo</title>
+    <meta name="description" content="A flock of a million boids, simulated in workers and drawn with one spryte draw.sprites call, live in the browser." />
+    <link rel="icon" href="https://debuff.jp/spryte/icon.svg" />
+    <style>
+      html, body { margin: 0; height: 100%; background: #0b0d09; overflow: hidden; }
+      canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+      #hud { position: fixed; left: 28px; top: 22px; pointer-events: none; font: 600 15px/1.35 system-ui, sans-serif; color: #a3ab96; text-shadow: 0 1px 8px #000; }
+      #count { font-size: 44px; font-weight: 800; color: #e8ecdf; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+      #stats { font-variant-numeric: tabular-nums; min-height: 1.35em; }
+      #brand { position: fixed; right: 28px; bottom: 22px; display: flex; gap: 8px; align-items: center; color: #e8ecdf; font: 700 18px system-ui, sans-serif; text-decoration: none; text-shadow: 0 1px 8px #000; }
+      #brand img { width: 26px; height: 26px; }
+      @media (max-width: 600px) { #count { font-size: 30px; } #hud { left: 14px; top: 12px; font-size: 12px; } #brand { right: 14px; bottom: 12px; } }
+    </style>
+  </head>
+  <body>
+    <canvas></canvas>
+    <div id="hud">
+      <div id="count"></div>
+      <div id="stats">starting…</div>
+    </div>
+    <a id="brand" href="https://debuff.jp/spryte/"><img src="https://debuff.jp/spryte/icon.svg" alt="" />spryte</a>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
