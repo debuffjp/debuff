@@ -94,7 +94,7 @@ window.__frame = () => { step(1 / 60); drawFrame(); }; // advance exactly one fr
 npx komadori dist --frames 300 --size 1920x1080 --out render-out [--mp4 clip.mp4]
 ```
 
-Up to spryte 0.12.4 this was `node packages/spryte/tools/render.mjs`. That older copy still works and is deprecated: it does less (no shader errors, no golden frames, no `--capture canvas`, no MCP server). Until komadori is on npm, run `node path/to/komadori/bin/komadori.mjs` in place of `npx komadori`.
+Up to spryte 0.12.4 this was `node packages/spryte/tools/render.mjs`. That older copy still works and is deprecated: it does less (no shader errors, no golden frames, no `--capture canvas`, no MCP server).
 
 `dist` is a built page (or a URL). In TypeScript, declare it: `declare global { interface Window { __frame?: () => void } }`. Add `--samples 10` for a short run. On a machine without a GPU set `SOFTWARE_GL=1`, and expect seconds per frame at 960x540. The tool samples frames from the start, so a scene that sits still for its first second fails the frozen check: start it already moving. The tool steps the scene frame by frame, so the result doesn't depend on how fast the machine is. It writes `render-out/contact-sheet.png` (20 frames in one image by default, `--samples n` changes it; `--keep-frames dir` also saves each sampled frame full size, which is what you need to judge detail) and `report.json`, and exits 1 on a page error, a shader that fails to compile (it names the line of your shader), a blank scene or a frozen scene. It warns when content covers an edge and may be cut off. Open the contact sheet and look at it: the checks can't see stripes, text covered by sprites or an ugly palette. `--mp4` needs ffmpeg.
 
