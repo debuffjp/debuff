@@ -1,5 +1,11 @@
 # @debuffjp/dev
 
+## 0.32.0
+
+### Patch Changes
+
+- @debuffjp/share@0.32.0
+
 ## 0.31.1
 
 ### Patch Changes

@@ -1,5 +1,25 @@
 # @debuffjp/mcp
 
+## 0.32.0
+
+### Minor Changes
+
+- 9cfde0a: Run only the tests a change touches. Every `debuff test` (and `npx keiko`) run now records which functions of the game each test ran and which files it loaded or replayed; in our measurements that made runs a few percent to about a third slower. `debuff test --changed` then runs only the test files with a test that is new, failed last time, or used code or files that changed since it last passed; the rest are counted as unchanged. An edit inside a function no test calls, or a type-only edit, runs nothing. A due file runs whole, since its tests can pass state to each other, so one test file per mechanic keeps reruns small. Changes to `.env` files, the Vite config and files it imports, tsconfig files, the lockfile and `package.json` run everything; debuff assets, `?raw` and `?inline` imports, `import.meta.glob` matches and linked packages outside the project count as changes. `--queue <name>` keeps a separate record, so a pre-push hook with `--changed --queue push` still covers everything since the last push. The MCP `run_tests` tool takes `changed: true`, and agents in new projects are told to use it after each edit.
+
+### Patch Changes
+
+- f14528c: `debuff test` and `npx keiko` no longer load test files written for another runner. Files under `tests/` or `src/` that import `node:test`, `vitest`, `bun:test` or `@jest/globals` are left out when keiko looks through a folder, so a project whose `npm test` runs `node --test` first doesn't run those unit tests a second time inside keiko (in one game that took `debuff test` from 369 s to 29 s). Naming such a file on the command line still runs it.
+  
+  The guidance agents get in new projects (AGENTS.md, the debuff and keiko skills, the MCP prompts and the `run_tests` description) now keeps one test per mechanic: search `tests/` first, put fixes, tweaks and fuzz replays into the mechanic's existing test, add a test only for a new mechanic, and ask the human before deleting a test. Henka's hint for a missed mutant says the same. Projects created before this keep their AGENTS.md; `npx debuff doctor --fix` refreshes the skills.
+- Updated dependencies [4ad5f4c]
+- Updated dependencies [9cfde0a]
+- Updated dependencies [9b11227]
+- Updated dependencies [612ac1e]
+- Updated dependencies [f14528c]
+- Updated dependencies [89f10bf]
+  - @debuffjp/cli@0.32.0
+  - keiko@0.9.0
+
 ## 0.31.1
 
 ### Patch Changes
