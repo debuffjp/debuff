@@ -4,6 +4,7 @@ import { basename, dirname, join } from "node:path";
 import { projectSkillsVersion, SKILL_DIRS, writeProjectSkills } from "create-debuff";
 import { compileAssets } from "./assets/index.js";
 import { loadConfig, type ResolvedConfig } from "./config.js";
+import { DebuffError } from "./errors.js";
 import { hookStatus, writeHookFiles } from "./hook.js";
 import { hooksReady } from "./scenario/browser.js";
 import { launchBrowser } from "./scenario/run.js";
@@ -404,7 +405,8 @@ async function browser(): Promise<DoctorCheck> {
       group: "browser",
       ok: false,
       message: errorText(err),
-      fix: "Install Chrome or Edge, or set DEBUFF_BROWSER to a Chromium-based browser executable",
+      fix:
+        (err instanceof DebuffError && err.fix) || "Install Chrome or Edge, or set DEBUFF_BROWSER to a Chromium-based browser executable",
     };
   }
 }
