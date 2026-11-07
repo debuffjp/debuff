@@ -8,15 +8,17 @@
  *
  * A test is due when it's new, failed last time, the setup changed (lockfile, configs, keiko or Node), a
  * file it read changed, or a line of code it ran changed. Code changes are found by diffing the module as
- * Vite served it then and now, so type-only edits change nothing. Code outside the project root (linked
- * packages) and in node_modules isn't tracked: the lockfile stands in for it.
+ * Vite served it then and now, so type-only edits change nothing. Linked code outside the project root is
+ * tracked like the game's own; code in node_modules isn't, and the lockfile stands in for it.
  *
  * @module
  */
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { Session } from "node:inspector/promises";
+import { createRequire, syncBuiltinESMExports } from "node:module";
 import { isAbsolute, join, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   ESModulesEvaluator,
   ssrDynamicImportKey,
@@ -52,6 +54,11 @@ export interface TestUse {
   modules: Record<string, ModuleUse>;
   /** Files it read (pages, assets, replays) by `file:<path>` or `url:<path>`, with their hash. */
   inputs: Record<string, string>;
+  /**
+   * The setup hash (lockfile, configs, keiko and Node versions) when it last ran. Kept per test: a run of some
+   * tests (a filter, named files) must not mark a setup change as seen for the tests it left out.
+   */
+  env?: string;
 }
 
 interface QueueFile {
@@ -131,8 +138,9 @@ export class BootEvaluator extends ESModulesEvaluator {
 
   override runInlinedModule(context: Parameters<ESModulesEvaluator["runInlinedModule"]>[0], code: string, module?: { id?: string }) {
     const id = module?.id ?? "";
+    // A virtual module (a plugin's `\0…` id) may be built from files it reads: track it too, in full.
+    if (id && !id.includes("/node_modules/")) this.evaluated.add(id);
     if (!ownModule(id)) return super.runInlinedModule(context, code);
-    this.evaluated.add(id);
     return super.runInlinedModule(context, code + bootTag(++this.boots));
   }
 
@@ -359,6 +367,17 @@ export function mergeSpans(spans: Span[]): Span[] {
  * `[p, p]` where lines were inserted. Line-based (Myers), so it stays cheap on large modules.
  */
 export function changedSpans(before: string, after: string): Span[] {
+  return changedHunks(before, after).map((h) => h.span);
+}
+
+/** A changed part of `before`: the span it covers there and the lines that replace it. */
+export interface Hunk {
+  span: Span;
+  added: string;
+}
+
+/** Like {@link changedSpans}, with the text each change puts in, so a caller can check what an edit adds. */
+export function changedHunks(before: string, after: string): Hunk[] {
   if (before === after) return [];
   const a = before.split("\n");
   const b = after.split("\n");
@@ -378,23 +397,72 @@ export function changedSpans(before: string, after: string): Span[] {
   if (!ops) {
     const first = lineSpan(head);
     const last = lineSpan(a.length - tail - 1);
-    return [[first[0], Math.max(first[0], last[1])]];
+    return [{ span: [first[0], Math.max(first[0], last[1])], added: b.slice(head, b.length - tail).join("\n") }];
   }
-  const out: Span[] = [];
-  const deleted = new Set(ops.filter((op) => op.kind === "delete").map((op) => op.a));
+  const out: Hunk[] = [];
+  // Consecutive deleted lines are one hunk, and lines inserted right after them replace them.
+  let last: { hunk: Hunk; endA: number } | undefined;
   for (const op of ops) {
-    if (op.kind === "delete") out.push(lineSpan(head + op.a));
-    // Lines replacing a deleted line belong to it: the deletion already says where the change is.
-    else if (deleted.has(op.a - 1)) continue;
-    else {
-      const p = starts[head + op.a] ?? before.length;
-      out.push([p, p]);
+    if (op.kind === "delete") {
+      const span = lineSpan(head + op.a);
+      if (last && last.endA === op.a && last.hunk.added === "") last.hunk.span[1] = span[1];
+      // Inserted lines that came first at this spot replace this line.
+      else if (last && last.endA === op.a && last.hunk.span[0] === last.hunk.span[1]) last.hunk.span = span;
+      else {
+        last = { hunk: { span, added: "" }, endA: op.a };
+        out.push(last.hunk);
+      }
+      last.endA = op.a + 1;
+    } else {
+      const line = b[head + op.b] ?? "";
+      if (last && last.endA === op.a) last.hunk.added = last.hunk.added ? `${last.hunk.added}\n${line}` : line;
+      else {
+        const p = starts[head + op.a] ?? before.length;
+        last = { hunk: { span: [p, p], added: line }, endA: op.a };
+        out.push(last.hunk);
+      }
     }
   }
   return out;
 }
 
-type Op = { kind: "delete" | "insert"; a: number };
+/**
+ * True when text keeps its own brackets: it never closes one it didn't open and closes all it opens. An
+ * edit inside a function that never ran is only harmless while it stays inside: `return 5; } v = 2; f() {`
+ * closes the function and adds code that runs at load. Brackets in strings count too, which only makes
+ * more tests due.
+ */
+export function selfContained(text: string): boolean {
+  let depth = 0;
+  for (const ch of text) {
+    if (ch === "{" || ch === "(" || ch === "[") depth++;
+    else if (ch === "}" || ch === ")" || ch === "]") {
+      depth--;
+      if (depth < 0) return false;
+    }
+  }
+  return depth === 0;
+}
+
+/** True when the module's code compiles as the runner will run it: a syntax error fails the test at load. */
+export function compiles(code: string): boolean {
+  try {
+    new AsyncFunction(
+      ssrModuleExportsKey,
+      ssrImportMetaKey,
+      ssrImportKey,
+      ssrDynamicImportKey,
+      ssrExportAllKey,
+      ssrExportNameKey,
+      `"use strict";\n${code}`,
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+type Op = { kind: "delete" | "insert"; a: number; b: number };
 const MAX_EDITS = 1000;
 
 /** Line edits from `a` to `b` (positions in `a`), or undefined past {@link MAX_EDITS}: treat the module as rewritten. */
@@ -438,8 +506,8 @@ function backtrack(trace: Int32Array[], d: number, off: number, n: number, m: nu
       x--;
       y--;
     }
-    if (down) ops.push({ kind: "insert", a: x });
-    else ops.push({ kind: "delete", a: x - 1 });
+    if (down) ops.push({ kind: "insert", a: x, b: y - 1 });
+    else ops.push({ kind: "delete", a: x - 1, b: y });
     x = prevX;
     y = prevY;
   }
@@ -485,6 +553,38 @@ const ENV_FILES = [
 ];
 
 const QUEUE_NAME = /^[\w.-]{1,64}$/;
+
+/** Source files Vite serves as modules: their changes are tracked as code, not as files read. */
+const MODULE_FILE = /\.(?:[cm]?[jt]sx?|vue|svelte|css|scss|sass|less|html)$/;
+
+/**
+ * Report files read through node:fs (`readFileSync`, `readFile`, `fs.promises.readFile`) to `onRead`, so a
+ * test that compares with a file it reads (`tests/expected.json`) runs again when the file changes. Returns
+ * a function that puts the originals back.
+ */
+export function watchReads(onRead: (path: unknown) => void): () => void {
+  // The CommonJS module object is writable (the ESM namespace isn't); syncBuiltinESMExports() then updates
+  // the `import { readFileSync } from "node:fs"` bindings to match.
+  const cjs = createRequire(import.meta.url)("node:fs") as typeof import("node:fs");
+  const fsMod = cjs as unknown as Record<string, (...args: unknown[]) => unknown>;
+  const promises = cjs.promises as unknown as Record<string, (...args: unknown[]) => unknown>;
+  const saved = [
+    [fsMod, "readFileSync", fsMod.readFileSync],
+    [fsMod, "readFile", fsMod.readFile],
+    [promises, "readFile", promises.readFile],
+  ] as const;
+  for (const [target, name, original] of saved) {
+    target[name] = function (this: unknown, ...args: unknown[]) {
+      onRead(args[0]);
+      return (original as (...a: unknown[]) => unknown).apply(this, args);
+    };
+  }
+  syncBuiltinESMExports();
+  return () => {
+    for (const [target, name, original] of saved) target[name] = original as (...args: unknown[]) => unknown;
+    syncBuiltinESMExports();
+  };
+}
 
 /** Where keiko keeps queues: `node_modules/.cache/keiko`, next to Vite's own cache (which makes node_modules if it's missing). */
 export function cacheDir(root: string): string {
@@ -567,20 +667,29 @@ export class ImpactStore {
       }
       return p;
     };
-    const diffs = new Map<string, Span[]>();
+    // Per (old code, new code): where it changed, and whether the change can be judged span by span at all.
+    // It can't when the new code doesn't compile (the test fails at load) or an edit reaches past its own
+    // brackets (it could close a function that never ran and add code that runs at load).
+    const diffs = new Map<string, { spans: Span[]; judgeable: boolean }>();
     const diff = (oldHash: string, old: string, newHash: string, text: string) => {
       const key = `${oldHash}>${newHash}`;
-      let spans = diffs.get(key);
-      if (!spans) {
-        spans = changedSpans(old, text);
-        diffs.set(key, spans);
+      let d = diffs.get(key);
+      if (!d) {
+        const hunks = changedHunks(old, text);
+        const judgeable = compiles(text) && hunks.every((h) => selfContained(old.slice(...h.span)) && selfContained(h.added));
+        d = { spans: hunks.map((h) => h.span), judgeable };
+        diffs.set(key, d);
       }
-      return spans;
+      return d;
+    };
+    const touched = (oldHash: string, old: string, newHash: string, text: string, idle: Span[]) => {
+      const d = diff(oldHash, old, newHash, text);
+      return !d.judgeable || touchesUsed(d.spans, idle, old);
     };
     for (const id of ids) {
       const use = prev?.tests[id];
       if (!prev || !use) out.set(id, "new");
-      else if (prev.env !== this.env) out.set(id, "setup");
+      else if ((use.env ?? prev.env) !== this.env) out.set(id, "setup");
       else if (use.status !== "pass") out.set(id, "failed");
       else {
         let reason: DueReason | undefined;
@@ -602,11 +711,7 @@ export class ImpactStore {
               break;
             }
             const old = this.readCode(before.code);
-            if (
-              now.text === undefined ||
-              old === undefined ||
-              touchesUsed(diff(before.code, old, now.code ?? "", now.text), before.idle, old)
-            ) {
+            if (now.text === undefined || old === undefined || touched(before.code, old, now.code ?? "", now.text, before.idle)) {
               reason = "code";
               break;
             }
@@ -621,6 +726,21 @@ export class ImpactStore {
   /** Call when a test starts: inputs noted from now on are its own. */
   beginTest(): void {
     this.inputs = new Set();
+    this.reading = true;
+  }
+
+  /** While a test runs: files read through node:fs count as its inputs (see {@link watchReads}). */
+  private reading = false;
+
+  /** A file read through node:fs. Kept only while a test runs, and only for data: modules are tracked as code. */
+  noteRead(path: unknown): void {
+    if (!this.reading) return;
+    let file: string;
+    if (typeof path === "string") file = resolve(path);
+    else if (path instanceof URL && path.protocol === "file:") file = fileURLToPath(path);
+    else return;
+    if (file.includes("/node_modules/") || file.includes("/.git/") || MODULE_FILE.test(file)) return;
+    this.inputs.add(`file:${file}`);
   }
 
   /** A file the running test read (a page, a replay). */
@@ -645,9 +765,10 @@ export class ImpactStore {
 
   /** Call when a test ends, with what it ran, to keep (passes) or mark (failures) in the queue. */
   async endTest(id: string, status: "pass" | "fail", used: Map<string, RawUse>, server: ServerAccess): Promise<void> {
+    this.reading = false;
     const inputs = [...this.inputs];
     if (status === "fail") {
-      this.next[id] = { status, modules: {}, inputs: {} };
+      this.next[id] = { status, modules: {}, inputs: {}, env: this.env };
       return;
     }
     const modules: Record<string, ModuleUse> = {};
@@ -670,7 +791,7 @@ export class ImpactStore {
       // A file that's gone still counts: if it comes back, the test is due.
       hashed[key] = h ?? "missing";
     }
-    this.next[id] = { status, modules, inputs: hashed };
+    this.next[id] = { status, modules, inputs: hashed, env: this.env };
   }
 
   /** Drop tests that no longer exist (only after a run that loaded every test file). */

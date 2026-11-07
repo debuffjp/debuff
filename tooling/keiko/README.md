@@ -315,7 +315,7 @@ Every test boots the whole game, so which files a test imports says nothing. kei
 
 Runs record into a named queue, `default` unless you pass `--queue <name>`, and `--changed` compares with the last run in the same queue. Give each loop its own: an agent runs `--changed` after every edit, and a pre-push hook with `npx keiko --changed --queue push` still runs everything changed since the last push, whatever ran in between. Queues live in `node_modules/.cache/keiko`; delete it to start over. In `runTests()` recording is off unless you pass `queue` or `changed`.
 
-Code outside the project root (a linked package) is tracked like the game's own. What it can't see: changes inside `node_modules`, which the lockfile stands in for, and state that tests in different files pass through a helper module they share. A test that reads the clock or the network for real (outside keiko's virtual clock) can change without its code changing. Run the whole suite before you ship.
+Code outside the project root (a linked package) and a plugin's virtual modules are tracked like the game's own, and so are data files a test reads with `node:fs` while it runs. An edit that leaves a module unable to load, or reaches past the brackets of a function no test ran, counts as a change to code that ran. What it can't see: changes inside `node_modules`, which the lockfile stands in for, and state that tests in different files pass through a helper module they share. A test that reads the clock or the network for real (outside keiko's virtual clock) can change without its code changing. Run the whole suite before you ship.
 
 ## Test your tests (`keiko mutate`)
 

@@ -446,11 +446,17 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
   };
   reg.booter = booter;
   reg.onRead = impact ? (path) => impact.store.noteFile(path) : undefined;
+  const unwatchReads = impact ? impact.watchReads((path) => impact.store.noteRead(path)) : undefined;
   const access: ServerAccess = {
     async transform(id) {
       // By URL, as the runner asked for it: before anything loads, a bare path isn't in the module graph yet.
-      const rel = relative(root, id).split("\\").join("/");
-      const url = rel.startsWith("..") || isAbsolute(rel) ? `/@fs${id}` : `/${rel}`;
+      let url: string;
+      if (id.startsWith("\0")) url = `/@id/__x00__${id.slice(1)}`;
+      else if (!isAbsolute(id)) url = `/@id/${id}`;
+      else {
+        const rel = relative(root, id).split("\\").join("/");
+        url = rel.startsWith("..") || isAbsolute(rel) ? `/@fs${id}` : `/${rel}`;
+      }
       return (await server.environments[ENVIRONMENT]?.transformRequest(url))?.code;
     },
     async fetch(path) {
@@ -498,7 +504,14 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
     if (due) {
       // A due file runs whole: its tests can pass state to each other, so running one alone could fail (or
       // pass) where the full run wouldn't.
-      const dueFiles = new Set(all.filter((_, i) => due.has(ids[i] as string)).map((t) => t.file));
+      // Only tests that will run count: a todo, skipped, unfocused or filtered-out test is never recorded, so
+      // it's always "new", and would otherwise pull its file in every time.
+      const runs = (t: TestCase) =>
+        t.mode !== "todo" &&
+        t.mode !== "skip" &&
+        !(focused && t.mode !== "only") &&
+        (!filter || [...t.suites, t.name].join(" › ").toLowerCase().includes(filter));
+      const dueFiles = new Set(all.filter((t, i) => runs(t) && due.has(ids[i] as string)).map((t) => t.file));
       all.forEach((t, i) => {
         const id = ids[i] as string;
         if (dueFiles.has(t.file) && !due.has(id)) due.set(id, "file");
@@ -552,6 +565,7 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
     }
   } finally {
     await impact?.coverage.stop().catch(() => {});
+    unwatchReads?.();
     await closePage();
     // Let imports a game started finish before the server goes away (they'd fail with a closed transport).
     for (let waited = 0; moduleLoads > 0 && waited < 2000; waited += 10) await sleep(10);
@@ -582,12 +596,7 @@ function setupFiles(root: string, server: ViteDevServer): string[] {
     files.push(path);
     let extended: unknown;
     try {
-      // tsconfig allows comments and trailing commas.
-      const text = readFileSync(path, "utf8")
-        .replace(/\/\*[\s\S]*?\*\//g, "")
-        .replace(/(^|[^:"])\/\/.*$/gm, "$1")
-        .replace(/,(\s*[}\]])/g, "$1");
-      extended = (JSON.parse(text) as { extends?: unknown }).extends;
+      extended = (JSON.parse(stripJsonComments(readFileSync(path, "utf8"))) as { extends?: unknown }).extends;
     } catch {
       return;
     }
@@ -601,13 +610,37 @@ function setupFiles(root: string, server: ViteDevServer): string[] {
   return files;
 }
 
+/**
+ * tsconfig's JSON with comments and trailing commas made plain JSON. Strings are skipped as they are, so
+ * `"paths": { "@/*": [...] }` and `"include": ["src/**\/*"]` don't read as a comment.
+ */
+export function stripJsonComments(text: string): string {
+  let out = "";
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '"') {
+      let j = i + 1;
+      while (j < text.length && text[j] !== '"') j += text[j] === "\\" ? 2 : 1;
+      out += text.slice(i, j + 1);
+      i = j;
+    } else if (ch === "/" && text[i + 1] === "/") {
+      while (i < text.length && text[i] !== "\n") i++;
+      out += "\n";
+    } else if (ch === "/" && text[i + 1] === "*") {
+      const end = text.indexOf("*/", i + 2);
+      i = end < 0 ? text.length : end + 1;
+    } else out += ch;
+  }
+  return out.replace(/,(\s*[}\]])/g, "$1");
+}
+
 /** Coverage and the queue store, loaded only for runs that record. */
 async function openImpact(root: string, queue: string) {
-  const { BootEvaluator, CoverageRecorder, ImpactStore, cacheDir, testIds } = await import("./impact.js");
+  const { BootEvaluator, CoverageRecorder, ImpactStore, cacheDir, testIds, watchReads } = await import("./impact.js");
   const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string };
   const coverage: CoverageRecorder = new CoverageRecorder();
   const store: ImpactStore = new ImpactStore(root, queue, cacheDir(root), pkg.version);
-  return { coverage, store, testIds, evaluator: new BootEvaluator() };
+  return { coverage, store, testIds, watchReads, evaluator: new BootEvaluator() };
 }
 
 /** The name of the failure a test file that can't be loaded reports in place of its tests. */

@@ -132,6 +132,47 @@ export default { plugins: [{ name: "assets", configureServer(s) {
     },
     edit: { "../outside-lib/lib.js": "export function speed() {\n  return 2;\n}\n" },
   },
+  {
+    name: "a file a plugin's virtual module reads",
+    files: {
+      "data.json": '{"n":1}',
+      "vite.config.js": `import { readFileSync } from "node:fs";
+export default { plugins: [{ name: "data", resolveId: (id) => (id === "virtual:data" ? "\\0virtual:data" : undefined),
+  load: (id) => (id === "\\0virtual:data" ? \`export default \${readFileSync(new URL("./data.json", import.meta.url), "utf8")};\` : undefined) }] };
+`,
+      "src/main.js": game('import data from "virtual:data";', "data.n"),
+    },
+    edit: { "data.json": '{"n":2}' },
+  },
+  {
+    name: "a file the test reads with node:fs",
+    files: {
+      "src/main.js": game("", "t"),
+      "tests/expected.json": '{"n":1}',
+      "tests/t.test.js": `import { readFileSync } from "node:fs";
+import { expect, test } from "keiko";
+test("t", () => {
+  expect(JSON.parse(readFileSync(new URL("./expected.json", import.meta.url), "utf8")).n).toBeDefined();
+});
+`,
+    },
+    edit: { "tests/expected.json": '{"n":2}' },
+  },
+  {
+    name: "a function that never ran, edited to close itself and add code that runs at load",
+    files: { "src/main.js": game("let v = 1;\nfunction unused() {\n  return 4;\n}", "v") },
+    edit: { "src/main.js": game("let v = 1;\nfunction unused() {\n  return 5; } v = 2; function zz() {\n}", "v") },
+  },
+  {
+    name: "a tsconfig it extends, with paths and globs that look like comments",
+    files: {
+      "src/main.js": game("", "t"),
+      "tsconfig.base.json": '{ "compilerOptions": { "strict": true } }\n',
+      "tsconfig.json":
+        '{\n  "extends": "./tsconfig.base.json",\n  "compilerOptions": { "paths": { "@/*": ["./src/*"] } },\n  "include": ["src/**/*"]\n}\n',
+    },
+    edit: { "tsconfig.base.json": '{ "compilerOptions": { "strict": false } }\n' },
+  },
 ];
 
 describe("runTests with changed: what counts as a change", { timeout: 180_000 }, () => {
@@ -147,6 +188,7 @@ describe("runTests with changed: what counts as a change", { timeout: 180_000 },
       ...files,
     };
     for (const [path, text] of Object.entries(all)) {
+      if (text === "") continue; // "" leaves out a default file
       mkdirSync(dirname(join(root, path)), { recursive: true });
       writeFileSync(join(root, path), text);
     }
@@ -201,6 +243,35 @@ test("second", async () => {
     // An edit to "second" alone still runs "first", whose bump() "second" counts on.
     writeFileSync(join(root, "tests/t.test.js"), readFileSync(join(root, "tests/t.test.js"), "utf8").replace('"KeyA", 2', '"KeyA", 3'));
     expect(await run(root)).toEqual(["first", "second"]);
+  });
+
+  it("runs a test whose module no longer loads, even when the broken code never ran", async () => {
+    const root = fixture({ "src/main.js": game("function unused() {\n  const q = 1;\n  return q;\n}", "t") });
+    expect(await run(root)).toEqual(["t"]);
+    writeFileSync(join(root, "src/main.js"), game("function unused() {\n  let q = 1;\n  let q = 2;\n  return q;\n}", "t"));
+    const report = await runTests({ root, changed: true });
+    expect(report.results.map((r) => `${r.name}:${r.status}`)).toEqual(["t:fail"]);
+  });
+
+  it("keeps a setup change due for tests a filtered run left out", async () => {
+    const root = fixture({
+      "vite.config.js": "export default { define: { __N__: 1 } };\n",
+      "src/main.js": game("", "__N__"),
+      "tests/a.test.js": plays.replace('test("t"', 'test("a"'),
+      "tests/b.test.js": plays.replace('test("t"', 'test("b"'),
+      "tests/t.test.js": "",
+    });
+    expect(await run(root)).toEqual(["a", "b"]);
+    writeFileSync(join(root, "vite.config.js"), "export default { define: { __N__: 2 } };\n");
+    await runTests({ root, changed: true, filter: "a" });
+    expect(await run(root)).toEqual(["b"]);
+  });
+
+  it("doesn't rerun a file for a todo test in it", async () => {
+    const root = fixture({ "tests/t.test.js": `${plays}test.todo("later");\n`, "src/main.js": game("", "t") });
+    await run(root);
+    const report = await runTests({ root, changed: true });
+    expect(report.results.map((r) => `${r.name}:${r.status}`)).toEqual(["later:todo"]);
   });
 
   it("leaves a test alone when a file it requested is still missing", async () => {
