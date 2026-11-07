@@ -11,7 +11,8 @@ Options:
 
 - `--template <id>`: `basic` (default, bundled) or `platformer` (downloaded on demand), or any git source such as `github:user/repo`
 - `--yes`: accept defaults without prompting (CI, agents)
-- `--no-git`: don't start a git repository. By default (from 0.21) a new project is a git repository with one first commit, so every change an agent makes shows as a diff. It's skipped when git isn't installed or the folder is already inside a repository, and it never sets a git identity: without `user.name` and `user.email` it stops after `git init`.
+- `--no-git`: don't start a git repository. By default (from 0.21) a new project is a git repository with one first commit, so every change an agent makes shows as a diff. It's skipped when git isn't installed or the folder is already inside a repository, and it never sets a git identity: without `user.name` and `user.email` it stops after `git init`. From 0.32 the branch is `main` unless you've set `init.defaultBranch`, and the first commit skips git hooks, so a global hook can't stop the scaffold.
+- `--no-credit`: leave debuff out of the first commit. From 0.32 the first commit credits debuff as co-author with a `Co-authored-by: debuff <353358385+debuffbot@users.noreply.github.com>` trailer, and the output says so. Only that commit carries it: nothing is installed that touches later commits.
 
 Runs without prompts when stdin isn't a TTY.
 

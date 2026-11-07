@@ -1,9 +1,9 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { gitEnv, initGit } from "../src/index.js";
+import { DEBUFF_COAUTHOR, gitEnv, initGit } from "../src/index.js";
 
 // The tests can run inside a git hook (pre-push), where GIT_DIR points at the real repository: every git
 // call here goes through gitEnv(), or it would act on that repository.
@@ -25,6 +25,17 @@ const project = () => {
   return game;
 };
 const git = (cwd: string, ...args: string[]) => run(cwd, ...args).stdout.trim();
+const identity = () => {
+  process.env.GIT_AUTHOR_NAME = process.env.GIT_COMMITTER_NAME = "Test";
+  process.env.GIT_AUTHOR_EMAIL = process.env.GIT_COMMITTER_EMAIL = "test@example.com";
+};
+/** A global config of our own, so the tests don't depend on (or touch) the machine's. */
+const globalConfig = (text: string) => {
+  const file = join(dir as string, "gitconfig");
+  writeFileSync(file, text);
+  process.env.GIT_CONFIG_GLOBAL = file;
+  process.env.GIT_CONFIG_NOSYSTEM = "1";
+};
 
 describe.skipIf(!hasGit)("initGit", () => {
   it("starts a repository with one commit holding every file", () => {
@@ -36,10 +47,50 @@ describe.skipIf(!hasGit)("initGit", () => {
     expect(git(game, "status", "--short")).toBe("");
   });
 
+  it("credits debuff as co-author of the first commit", () => {
+    const game = project();
+    identity();
+    expect(initGit(game, "first")).toEqual({ status: "committed" });
+    expect(git(game, "log", "--format=%B")).toBe(`first\n\n${DEBUFF_COAUTHOR}`);
+    expect(git(game, "log", "--format=%(trailers:key=Co-authored-by,valueonly)")).toBe(
+      "debuff <353358385+debuffbot@users.noreply.github.com>",
+    );
+  });
+
+  it("leaves the trailer out with credit: false", () => {
+    const game = project();
+    identity();
+    expect(initGit(game, "first", { credit: false })).toEqual({ status: "committed" });
+    expect(git(game, "log", "--format=%B")).toBe("first");
+  });
+
+  it("names the branch main unless the user chose a default branch", () => {
+    const game = project();
+    identity();
+    globalConfig("");
+    initGit(game, "first");
+    expect(git(game, "branch", "--show-current")).toBe("main");
+    rmSync(join(game, ".git"), { recursive: true, force: true });
+    globalConfig("[init]\n\tdefaultBranch = trunk\n");
+    initGit(game, "first");
+    expect(git(game, "branch", "--show-current")).toBe("trunk");
+  });
+
+  it("commits even when a global pre-commit hook would refuse", () => {
+    const game = project();
+    identity();
+    const hooks = join(dir as string, "hooks");
+    mkdirSync(hooks);
+    writeFileSync(join(hooks, "pre-commit"), "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+    globalConfig(`[core]\n\thooksPath = ${hooks.replaceAll("\\", "/")}\n`);
+    expect(initGit(game, "first")).toEqual({ status: "committed" });
+  });
+
   it("leaves a folder inside another repository alone", () => {
     const game = project();
     run(dir, "init", "-q");
     expect(initGit(game, "x")).toEqual({ status: "skipped", reason: "the folder is already inside a git repository" });
+    expect(existsSync(join(game, ".git"))).toBe(false);
   });
 
   it("ignores GIT_DIR from a hook: the repository it points at is left exactly as it was", () => {
@@ -66,5 +117,6 @@ describe.skipIf(!hasGit)("initGit", () => {
     for (const k of ["GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL", "EMAIL"]) delete process.env[k];
     expect(initGit(game, "x")).toEqual({ status: "initialised", reason: "set git user.name and user.email, then commit" });
     expect(git(game, "rev-parse", "--is-inside-work-tree")).toBe("true");
+    expect(run(game, "log").status).not.toBe(0);
   });
 });

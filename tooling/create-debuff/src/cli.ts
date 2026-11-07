@@ -12,6 +12,7 @@ Options:
   --template <id>  Template to use (prompts when omitted)
   -y, --yes        Accept defaults without prompting
   --no-git         Don't start a git repository with a first commit
+  --no-credit      Leave debuff out of the first commit's co-authors
   --color          Force coloured output
   --no-color       Disable coloured output
   -h, --help       Show this help`);
