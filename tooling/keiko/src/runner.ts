@@ -97,7 +97,26 @@ export interface TestReport {
 const TEST_FILE = /\.test\.(ts|mts|js|mjs)$/;
 const SKIP_DIRS = new Set(["node_modules", "dist", ".debuff", ".git", "coverage"]);
 
-/** Test files under `tests/` and `src/`, sorted, as paths relative to the root. */
+/**
+ * A test file written for another runner (`node --test`, Vitest, Bun, Jest). Loading one here runs its tests a
+ * second time, outside its own runner, and node:test keeps the process alive after keiko is done.
+ */
+const OTHER_RUNNER = /\bfrom\s*["'](?:node:test|vitest|bun:test|@jest\/globals)["']|\brequire\(\s*["'](?:node:test|vitest)["']\s*\)/;
+
+/** True when a test file imports another test runner instead of keiko. */
+export function otherRunner(path: string): boolean {
+  try {
+    return OTHER_RUNNER.test(readFileSync(path, "utf8"));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Test files under `tests/` and `src/`, sorted, as paths relative to the root. Files found in a folder that
+ * import another test runner (`node:test`, `vitest`, `bun:test`, `@jest/globals`) are left out; files named
+ * one by one always run.
+ */
 export function findTests(root: string, files: string[] = []): string[] {
   const out: string[] = [];
   const walk = (dir: string) => {
@@ -106,7 +125,7 @@ export function findTests(root: string, files: string[] = []): string[] {
       if (SKIP_DIRS.has(name)) continue;
       const path = join(dir, name);
       if (statSync(path).isDirectory()) walk(path);
-      else if (TEST_FILE.test(name)) out.push(relative(root, path).split("\\").join("/"));
+      else if (TEST_FILE.test(name) && !otherRunner(path)) out.push(relative(root, path).split("\\").join("/"));
     }
   };
   if (files.length) {
