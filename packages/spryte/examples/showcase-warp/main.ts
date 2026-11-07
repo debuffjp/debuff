@@ -10,10 +10,10 @@ const W = 960;
 const H = 540;
 const N = 14000;
 const canvas = document.getElementById("c") as HTMLCanvasElement;
-canvas.width = W;
-canvas.height = H;
+canvas.width = W * 2;
+canvas.height = H * 2;
 const draw = createRenderer(canvas, { smooth: true });
-draw.resize(W, H);
+draw.resize(W * 2, H * 2);
 
 // A soft round dot: bright core, feathered edge.
 const dot = document.createElement("canvas");
@@ -95,7 +95,7 @@ const smooth = (a: number, b: number, x: number) => {
 };
 
 function drawFrame() {
-  draw.begin("#03050d", W, H, 1);
+  draw.begin("#03050d", W, H, 2);
   const cx = W / 2;
   const cy = H / 2;
   draw.blend("add");

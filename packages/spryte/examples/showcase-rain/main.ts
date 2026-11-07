@@ -9,11 +9,11 @@ declare global {
 const W = 960;
 const H = 540;
 const canvas = document.getElementById("c") as HTMLCanvasElement;
-canvas.width = W;
-canvas.height = H;
+canvas.width = W * 2;
+canvas.height = H * 2;
 const draw = createRenderer(canvas, { smooth: true });
-draw.resize(W, H);
-const target = draw.createTarget(W, H);
+draw.resize(W * 2, H * 2);
+const target = draw.createTarget(W * 2, H * 2);
 
 // Water surface: gentle two-direction wobble plus a soft vignette, in one pass over the target.
 const water = draw.createShader(`
@@ -87,6 +87,7 @@ function ring(x: number, y: number, r: number, w: number, c: string) {
 }
 
 function scene() {
+  draw.scale(2, 2);
   // Water: deep teal at the top to a lighter, warmer teal near the viewer, in thin bands.
   const bands = 72;
   for (let i = 0; i < bands; i++) {
@@ -115,10 +116,10 @@ function scene() {
 }
 
 function drawFrame() {
-  draw.begin("#000", W, H, 1);
+  draw.begin("#000", W, H, 2);
   draw.into(target, scene);
   water.set("time", frame / 60);
-  draw.withShader(water, () => draw.sprite(target, 0, 0, { origin: [0, 0] }));
+  draw.withShader(water, () => draw.sprite(target, 0, 0, { origin: [0, 0], scaleX: 0.5, scaleY: 0.5 }));
   draw.end();
 }
 
