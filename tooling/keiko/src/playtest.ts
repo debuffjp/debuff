@@ -4,6 +4,7 @@ import { yieldTurn } from "./clock.js";
 import { type Driver, MissingHookError, type ParamValue, type PointerKind } from "./driver.js";
 import { type Duration, describeSteps, toSteps } from "./duration.js";
 import type { EngineInfo, EngineTarget } from "./engines.js";
+import { registry } from "./registry.js";
 import { Trace } from "./trace.js";
 import { pick, show } from "./values.js";
 
@@ -558,10 +559,12 @@ export class Playtest<S = any> {
    * ```
    */
   replay(source: ScenarioSource): this {
-    const scenario =
-      typeof source === "string"
-        ? (JSON.parse(readFileSync(resolve(this.root, source), "utf8")) as { steps: Record<string, unknown>[] })
-        : source;
+    let scenario: { steps: readonly Record<string, unknown>[] } | undefined;
+    if (typeof source === "string") {
+      const path = resolve(this.root, source);
+      registry().onRead?.(path);
+      scenario = JSON.parse(readFileSync(path, "utf8")) as { steps: Record<string, unknown>[] };
+    } else scenario = source;
     if (!Array.isArray(scenario?.steps)) throw new TypeError("A scenario needs a `steps` array");
     for (const [i, step] of scenario.steps.entries()) {
       try {
