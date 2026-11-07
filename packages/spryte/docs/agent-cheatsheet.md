@@ -39,7 +39,7 @@ const bits = new Uint32Array(data.buffer);                      // write colours
 draw.sprites(dot, data, n, {}, { stride: 4, scale: 2, color: 3 }); // each.* are offsets into a record
 ```
 
-Without `stride`, `each` takes arrays instead: `scale`, `rotation` (`Float32Array`), `color` (`Uint32Array`), `frame` (index into a `Frame[]`). Use one image per call: frames across images draw one quad each. The page needs cross-origin isolation headers to use `SharedArrayBuffer`.
+Without `stride`, `each` takes arrays instead: `scale`, `rotation` (`Float32Array`), `color` (`Uint32Array` of `0xRRGGBBAA`: red is the top byte, so pack it as `(r << 24 | g << 16 | b << 8 | a) >>> 0`), `frame` (index into a `Frame[]`). Use one image per call: frames across images draw one quad each. The page needs cross-origin isolation headers to use `SharedArrayBuffer`.
 
 ## State
 
@@ -72,13 +72,15 @@ const ground = draw.record((d) => tiles.forEach((k) => d.sprite(frames[k.id], k.
 draw.replay(ground);                                  // each frame; ground.dispose() when done
 ```
 
+`begin()` and `end()` belong to the screen pass only. Calling them inside `into()` gave an all-black target in testing, with no error. Inside `into()` the target starts transparent. On a target, `uv.y` runs bottom to top in a shader.
+
 ## Real HTML in the scene
 
 ```ts
 if (!drawElement(draw, menu, 40, 30, { w: 200, h: 80 })) showHtmlMenu(); // false means no support: the element stays in the page
 ```
 
-Chrome and Edge 157+. The element keeps its text, links and focus. `canDrawElements()` tells you before you draw. The first call moves the element into the canvas and draws nothing.
+Chrome and Edge 157+. The element keeps its text, links and focus. Call it every frame: the first call moves the element into the canvas and draws nothing, and later calls show its layout from the previous frame. `x, y` and `w, h` are logical units, and the default size is the element's CSS size. It also returns false inside `into()` or a mask. `canDrawElements()` tells you before you start. Keep the CSS that places the element for the fallback, because without support it stays in the page where its CSS puts it.
 
 ## Render it and look at it
 
@@ -92,7 +94,7 @@ window.__frame = () => { step(1 / 60); drawFrame(); }; // advance exactly one fr
 node packages/spryte/tools/render.mjs dist --frames 300 --size 1920x1080 --out render-out [--mp4 clip.mp4]
 ```
 
-`dist` is a built page (or a URL). The tool steps the scene frame by frame, so the result doesn't depend on how fast the machine is. It writes `render-out/contact-sheet.png` (20 frames in one image) and `report.json`, and exits 1 on a page error, a blank scene or a frozen scene. It warns when content covers an edge and may be cut off. Open the contact sheet and look at it: the checks can't see stripes, text covered by sprites or an ugly palette. `--mp4` needs ffmpeg.
+`dist` is a built page (or a URL). In TypeScript, declare it: `declare global { interface Window { __frame?: () => void } }`. Add `--samples 10` for a short run. On a machine without a GPU set `SOFTWARE_GL=1`, and expect seconds per frame at 960x540. The tool samples frames from the start, so a scene that sits still for its first second fails the frozen check: start it already moving. The tool steps the scene frame by frame, so the result doesn't depend on how fast the machine is. It writes `render-out/contact-sheet.png` (20 frames in one image) and `report.json`, and exits 1 on a page error, a blank scene or a frozen scene. It warns when content covers an edge and may be cut off. Open the contact sheet and look at it: the checks can't see stripes, text covered by sprites or an ugly palette. `--mp4` needs ffmpeg.
 
 ## Rules that save a debugging round
 
