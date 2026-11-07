@@ -249,7 +249,7 @@ export function createServer(options: ServerOptions): McpServer {
       annotations: { readOnlyHint: false, destructiveHint: false },
       description:
         "Run the logic tests in tests/**/*.test.ts (keiko): the real game in Node, no browser, in milliseconds. Each failure has its message, " +
-        "the source line, and the game's tick, scene and state when it failed. While iterating pass `files` or `filter` to run only what your change touches, and run everything once when the work is done. Write a test for each mechanic you add.",
+        "the source line, and the game's tick, scene and state when it failed. While iterating pass `files` or `filter` to run only what your change touches, and run everything once when the work is done. One test per mechanic: search tests/ first; fixes, tweaks and fuzz replays go into the existing test.",
       inputSchema: {
         ...root,
         files: z.array(z.string()).optional().describe("Test files relative to the root. Default: all."),

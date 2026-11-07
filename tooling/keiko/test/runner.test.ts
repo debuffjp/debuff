@@ -171,6 +171,13 @@ describe("discovery", () => {
       expect(() => findTests(root, ["../x.test.ts"])).toThrow(/outside the project/);
       expect(() => findTests(root, [join(tmpdir(), "elsewhere.test.ts")])).toThrow(/outside the project/);
       if (process.platform === "win32") expect(() => findTests(root, ["Z:\\x.test.ts"])).toThrow(/outside the project/);
+      // Files for another runner are left out of folders (node --test would run them twice), but run when named.
+      mkdirSync(join(root, "tests/unit"), { recursive: true });
+      writeFileSync(join(root, "tests/unit/sim.test.ts"), 'import { test } from "node:test";\n');
+      writeFileSync(join(root, "tests/unit/v.test.ts"), "import { it } from 'vitest';\n");
+      writeFileSync(join(root, "tests/unit/k.test.ts"), '// not node:test\nimport { test } from "keiko";\n');
+      expect(findTests(root, ["tests/unit"])).toEqual(["tests/unit/k.test.ts"]);
+      expect(findTests(root, ["tests/unit/sim.test.ts"])).toEqual(["tests/unit/sim.test.ts"]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

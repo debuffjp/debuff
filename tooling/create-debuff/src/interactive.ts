@@ -22,6 +22,8 @@ export interface CreateOptions {
   yes?: boolean;
   /** Start a git repository with a first commit. Default true; `--no-git` turns it off. */
   git?: boolean;
+  /** Credit debuff as co-author of the first commit. Default true; `--no-credit` turns it off. */
+  credit?: boolean;
 }
 
 /** The template list as select options, under a heading per kind. Headings are disabled rows, so the cursor skips them. */
@@ -86,8 +88,14 @@ export async function runCreate(options: CreateOptions): Promise<number> {
   const dest = await create({ dir, ...(template ? { template } : {}) });
   s.stop(`Created ${lime(relative(process.cwd(), dest) || ".")}`);
   if (options.git !== false) {
-    const git = initGit(dest, `New debuff game from the ${template ?? "basic"} template`);
-    if (git.status === "committed") p.log.step("Started a git repository with a first commit");
+    const credit = options.credit !== false;
+    const git = initGit(dest, `New debuff game from the ${template ?? "basic"} template`, { credit });
+    if (git.status === "committed")
+      p.log.step(
+        credit
+          ? `Started a git repository with a first commit, crediting debuff as co-author ${pc.dim("(--no-credit leaves it out)")}`
+          : "Started a git repository with a first commit",
+      );
     else if (git.status === "initialised") p.log.warn(`Started a git repository, but didn't commit: ${git.reason}`);
     else p.log.info(pc.dim(`No git repository: ${git.reason}`));
   }

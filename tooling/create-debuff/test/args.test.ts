@@ -17,7 +17,8 @@ describe("parseArgs", () => {
   });
 
   it("reads the boolean flags", () => {
-    expect(parseArgs(["-y", "--no-git"])).toMatchObject({ yes: true, git: false });
-    expect(parseArgs([])).toMatchObject({ dir: undefined, yes: false, git: true });
+    expect(parseArgs(["-y", "--no-git"])).toMatchObject({ yes: true, git: false, credit: true });
+    expect(parseArgs(["--no-credit", "my-game"])).toMatchObject({ dir: "my-game", git: true, credit: false });
+    expect(parseArgs([])).toMatchObject({ dir: undefined, yes: false, git: true, credit: true });
   });
 });
