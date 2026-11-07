@@ -84,17 +84,19 @@ Chrome and Edge 157+. The element keeps its text, links and focus. Call it every
 
 ## Render it and look at it
 
-To check a scene without a human, expose one function and run the render tool:
+To check a scene without a human, expose one function and run [komadori](https://github.com/debuffjp/komadori), the render tool:
 
 ```ts
 window.__frame = () => { step(1 / 60); drawFrame(); }; // advance exactly one frame, draw, return
 ```
 
 ```sh
-node packages/spryte/tools/render.mjs dist --frames 300 --size 1920x1080 --out render-out [--mp4 clip.mp4]
+npx komadori dist --frames 300 --size 1920x1080 --out render-out [--mp4 clip.mp4]
 ```
 
-`dist` is a built page (or a URL). In TypeScript, declare it: `declare global { interface Window { __frame?: () => void } }`. Add `--samples 10` for a short run. On a machine without a GPU set `SOFTWARE_GL=1`, and expect seconds per frame at 960x540. The tool samples frames from the start, so a scene that sits still for its first second fails the frozen check: start it already moving. The tool steps the scene frame by frame, so the result doesn't depend on how fast the machine is. It writes `render-out/contact-sheet.png` (20 frames in one image by default, `--samples n` changes it; `--keep-frames dir` also saves each sampled frame full size, which is what you need to judge detail) and `report.json`, and exits 1 on a page error, a blank scene or a frozen scene. It warns when content covers an edge and may be cut off. Open the contact sheet and look at it: the checks can't see stripes, text covered by sprites or an ugly palette. `--mp4` needs ffmpeg.
+Up to spryte 0.12.4 this was `node packages/spryte/tools/render.mjs`. That older copy still works and is deprecated: it does less (no shader errors, no golden frames, no `--capture canvas`, no MCP server). Until komadori is on npm, run `node path/to/komadori/bin/komadori.mjs` in place of `npx komadori`.
+
+`dist` is a built page (or a URL). In TypeScript, declare it: `declare global { interface Window { __frame?: () => void } }`. Add `--samples 10` for a short run. On a machine without a GPU set `SOFTWARE_GL=1`, and expect seconds per frame at 960x540. The tool samples frames from the start, so a scene that sits still for its first second fails the frozen check: start it already moving. The tool steps the scene frame by frame, so the result doesn't depend on how fast the machine is. It writes `render-out/contact-sheet.png` (20 frames in one image by default, `--samples n` changes it; `--keep-frames dir` also saves each sampled frame full size, which is what you need to judge detail) and `report.json`, and exits 1 on a page error, a shader that fails to compile (it names the line of your shader), a blank scene or a frozen scene. It warns when content covers an edge and may be cut off. Open the contact sheet and look at it: the checks can't see stripes, text covered by sprites or an ugly palette. `--mp4` needs ffmpeg.
 
 ## Rules that save a debugging round
 

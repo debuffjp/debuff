@@ -1,3 +1,7 @@
+// DEPRECATED after spryte 0.12.4: use komadori (https://github.com/debuffjp/komadori), which this tool became. It does
+// more (shader errors, golden frames, --capture canvas, an MCP server) and this copy no longer gets fixes. Kept so the
+// old command still runs.
+//
 // Renders a spryte scene frame by frame, checks the frames and writes a contact sheet.
 //   node packages/spryte/tools/render.mjs <dist-dir | url> [options]
 //   --frames 600     frames to step (default 120)
@@ -21,6 +25,7 @@ import { createServer } from "node:http";
 import { dirname, extname, join, resolve } from "node:path";
 import { chromium } from "playwright-core";
 
+console.error("note: spryte's tools/render.mjs is deprecated after 0.12.4. Use komadori: https://github.com/debuffjp/komadori");
 const args = process.argv.slice(2);
 const target = args.find((a, i) => !a.startsWith("--") && !args[i - 1]?.startsWith("--"));
 const opt = (name, fallback) => {
