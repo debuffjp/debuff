@@ -134,21 +134,75 @@ export async function launchBrowser(renderer: Renderer = "gpu"): Promise<Browser
   const { chromium } = await import("playwright-core");
   const args = renderer === "software" ? ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] : [];
   const executablePath = process.env.DEBUFF_BROWSER;
-  if (executablePath) return chromium.launch({ executablePath, args });
-  // Why each channel failed, as "missing" or "launch failed" (never the message, which has paths): an installed
-  // browser that won't start is debuff's problem to fix, so automatic papercuts send this.
-  const channels: Record<string, string> = {};
+  if (executablePath) {
+    try {
+      return await chromium.launch({ executablePath, args });
+    } catch (err) {
+      throw browserLaunchError({ DEBUFF_BROWSER: err }, executablePath);
+    }
+  }
+  const failures: Record<string, unknown> = {};
   for (const channel of ["chrome", "msedge", "chromium"]) {
     try {
       return await chromium.launch({ channel, args });
     } catch (err) {
-      channels[channel] = /executable doesn't exist|is not found|not installed/i.test(String(err)) ? "missing" : "launch failed";
+      failures[channel] = err;
     }
   }
-  throw Object.assign(
-    new Error("No Chromium-based browser found. Install Chrome or Edge, or set DEBUFF_BROWSER to a browser executable."),
+  throw browserLaunchError(failures);
+}
+
+const BROWSER_NAMES: Record<string, string> = { chrome: "Chrome", msedge: "Edge", chromium: "Playwright's Chromium" };
+
+/**
+ * The browser_not_found error for failed launches (by channel, or `DEBUFF_BROWSER` with its path): what was tried,
+ * where Playwright looked and why an installed browser didn't start. `channels` says "missing" or "launch failed"
+ * per channel (never the message, which has paths): an installed browser that won't start is debuff's problem to
+ * fix, so automatic papercuts send it.
+ */
+export function browserLaunchError(
+  failures: Record<string, unknown>,
+  executablePath?: string,
+): DebuffError & { channels: Record<string, string> } {
+  if (executablePath !== undefined)
+    return Object.assign(
+      new DebuffError(
+        "browser_not_found",
+        `DEBUFF_BROWSER is set to ${executablePath}, but that browser didn't start: ${launchFailure(failures.DEBUFF_BROWSER)}`,
+        "Set DEBUFF_BROWSER to the full path of a Chromium-based browser executable, or unset it to use an installed Chrome or Edge",
+      ),
+      { channels: {} },
+    );
+  const channels: Record<string, string> = {};
+  const tried: string[] = [];
+  for (const [channel, err] of Object.entries(failures)) {
+    const text = String(err instanceof Error ? err.message : err);
+    const name = BROWSER_NAMES[channel] ?? channel;
+    if (/executable doesn't exist|is not found|not installed/i.test(text)) {
+      channels[channel] = "missing";
+      const at = /(?:is not found|doesn't exist) at (.+)/i.exec(text)?.[1]?.trim();
+      tried.push(`${name} (not installed${at ? ` at ${at}` : ""})`);
+    } else {
+      channels[channel] = "launch failed";
+      tried.push(`${name} (installed, but it didn't start: ${launchFailure(err)})`);
+    }
+  }
+  const started = Object.values(channels).includes("launch failed") ? "would start" : "found";
+  return Object.assign(
+    new DebuffError(
+      "browser_not_found",
+      `No Chromium-based browser ${started}. Tried ${tried.join(", ")}. DEBUFF_BROWSER is not set.`,
+      "Install Chrome or Edge, or set DEBUFF_BROWSER to the full path of another Chromium-based browser executable, such as Chromium",
+    ),
     { channels },
   );
+}
+
+/** Why a launch failed, in one line: the browser's own error output when it printed some, else Playwright's first line. */
+function launchFailure(err: unknown): string {
+  const text = String(err instanceof Error ? err.message : err);
+  const stderr = /\[err\] (?:\S*[\\/]\S*: )?(.+)/.exec(text)?.[1];
+  return (stderr ?? text.split("\n")[0] ?? "").replace(/^browserType\.launch: /, "").trim();
 }
 
 export async function runScenarios(options: RunOptions): Promise<ScenarioReport[]> {
