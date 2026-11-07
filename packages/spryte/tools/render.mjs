@@ -195,12 +195,28 @@ const analysis = await view.evaluate(
       }
       const mean = sum / n;
       const std = Math.sqrt(Math.max(sq / n - mean * mean, 0));
-      const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
-      const bg = [((top >> 8) & 15) * 16 + 8, ((top >> 4) & 15) * 16 + 8, (top & 15) * 16 + 8];
+      // The usual colour of each row and each column, so a smooth gradient isn't mistaken for content at the edge.
+      const usual = (count, at) => {
+        const out = [];
+        for (let i = 0; i < count; i++) {
+          const tally = new Map();
+          for (let j = 0; j < (at === "row" ? g.w : g.h); j++) {
+            const q = (at === "row" ? i * g.w + j : j * g.w + i) * 4;
+            const k = ((g.d[q] >> 4) << 8) | ((g.d[q + 1] >> 4) << 4) | (g.d[q + 2] >> 4);
+            tally.set(k, (tally.get(k) ?? 0) + 1);
+          }
+          const top = [...tally.entries()].sort((a, b) => b[1] - a[1])[0][0];
+          out.push([((top >> 8) & 15) * 16 + 8, ((top >> 4) & 15) * 16 + 8, (top & 15) * 16 + 8]);
+        }
+        return out;
+      };
+      const rowBg = usual(g.h, "row");
+      const colBg = usual(g.w, "col");
       const band = Math.max(2, Math.round(g.h * 0.02));
       const off = (x, y) => {
         const q = (y * g.w + x) * 4;
-        return Math.abs(g.d[q] - bg[0]) + Math.abs(g.d[q + 1] - bg[1]) + Math.abs(g.d[q + 2] - bg[2]) > 48;
+        const away = (bg) => Math.abs(g.d[q] - bg[0]) + Math.abs(g.d[q + 1] - bg[1]) + Math.abs(g.d[q + 2] - bg[2]) > 48;
+        return away(rowBg[y]) && away(colBg[x]);
       };
       const edge = { top: 0, bottom: 0, left: 0, right: 0 };
       for (let x = 0; x < g.w; x++)
