@@ -172,7 +172,8 @@ function line(o: MutantOutcome): string {
 }
 
 const ADVICE: Partial<Record<Outcome, string>> = {
-  missed: "no test failed, so nothing tests what these change. Add a test of the behaviour they control.",
+  missed:
+    "no test failed, so nothing tests what these change. Assert on the behaviour they control in the test that runs this code, or add a test if none does.",
   brittle: "tests failed under a change they should shrug off. Assert on outcomes, not on exact random draws or frame counts.",
 };
 

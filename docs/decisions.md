@@ -2,6 +2,10 @@
 
 Small choices that the code and the [ADRs](adr/) don't settle, with the options considered. Add an entry when you make one. A decision that changes the architecture gets an ADR instead.
 
+## keiko leaves out test files written for another runner
+
+A debuff game kept 107 `node:test` unit files in `tests/unit/` and ran them with `node --test` before `debuff test`. keiko's discovery took every `*.test.*` under `tests/`, so it loaded those files too, node:test ran all 659 tests a second time inside keiko's process (serially, 369 s against keiko's own 28 s) and one file timed out loading. From keiko 0.8.2, discovery reads each candidate and leaves out files that import `node:test`, `vitest`, `bun:test` or `@jest/globals`; a file named on the command line still runs. Considered: a `.keiko.test.ts` suffix (breaks every existing project), skipping a `tests/unit/` folder by name (a convention, not what the file says) and a config list of ignored paths (another setting, and the default would still double-run). The cost: one small file read per candidate test file.
+
 ## scale: "pixel" scales by a fraction below one device pixel per unit
 
 Papercut #25: with `scale: "pixel"`, `pixelSize: 1` and a 1280 by 720 minimum, a 1024 wide window showed a 1280 wide canvas, because `Game.resize` never went below one device pixel per unit. The JSDoc already said a container too small for the minimum scales down. From 0.29.3, when even one device pixel per unit doesn't fit, it keeps the fractional `fit` scale, still grows the logical size along the spare axis and keeps the minimum. Pixels aren't crisp in that case, which is the same trade `fit` makes. Considered: letterboxing at one device pixel with a CSS downscale (the same blur, plus bars and a logical size that no longer follows the container), keeping the overflow with a dev warning (leaves games cut off for players, against what the docs said) and lowering the logical minimum (changes the game's layout, which is the creator's call). Containers that fit at one device pixel or more scale by whole device pixels as before.

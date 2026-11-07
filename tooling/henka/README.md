@@ -39,7 +39,7 @@ npx henka --since main     # only lines changed since main
 ✖ missed   src/score.ts:2:12 hits < 3 → hits <= 3
 ✖ missed   src/unused.ts:1:40 n * 2 → n / 2
 
-missed: no test failed, so nothing tests what these change. Add a test of the behaviour they control.
+missed: no test failed, so nothing tests what these change. Assert on the behaviour they control in the test that runs this code, or add a test if none does.
   src/score.ts:2:12 hits < 3 → hits <= 3
   src/unused.ts:1:40 n * 2 → n / 2: no test loads this file
 ```
