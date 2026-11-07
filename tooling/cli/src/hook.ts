@@ -173,7 +173,7 @@ export function checkAction(event: HookEvent, action: HookAction, root: string):
         rule: "untested",
         verdict: "refuse",
         message: "src/ changed since the last `debuff test` run",
-        fix: "Run the tests your change touches (`npx debuff test <file>` or `-t <text>`; `npm test` once for visual changes) before finishing, or tell the human why you didn't",
+        fix: "Run `npx debuff test --changed` (only the tests your change touches; `npm test` once for visual changes) before finishing, or tell the human why you didn't",
       });
   }
   return found;

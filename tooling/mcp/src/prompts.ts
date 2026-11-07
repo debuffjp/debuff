@@ -43,8 +43,8 @@ ${RULES}`),
    kind "debuff-usage": debuff rejected a call. The message says what it expected, so fix the call site.
    kind "debuff-bug": don't patch around it. Tell the human and share reportUrl.
    kind "outside": usually a browser extension. Mention it and move on.
-3. Reproduce it in the existing test for that mechanic (search tests/), or in a new logic test only if no test reaches that state: play(), then the inputs and steps that caused it; game.replay(file) if you have a replay or fuzz finding. run_tests to watch it fail.
-4. Fix, run_tests until it passes, and keep the test. Then call typecheck and fix any type errors, run \`npm test\` and \`npm run build\`, and report what you changed and how you verified it.
+3. Reproduce it in the existing test for that mechanic (search tests/), or in a new logic test only if no test reaches that state: play(), then the inputs and steps that caused it; game.replay(file) if you have a replay or fuzz finding. run_tests with changed: true to watch it fail.
+4. Fix, run_tests with changed: true until it passes, and keep the test. Then call typecheck and fix any type errors, run \`npm test\` and \`npm run build\`, and report what you changed and how you verified it.
 
 ${RULES}`),
   );
@@ -62,7 +62,7 @@ ${RULES}`),
 1. Call game_start, then game_params to see every tunable value with its range and units. In live mode, read game_notes too.
 2. Propose two or three variants, each a small set of param changes with a one-line reason. Prefer params over code changes.
 3. With the human's go-ahead, apply one variant with game_set_param, play a few seconds (game_input and game_step) and capture it. The human can undo every change in the dev panel.
-4. Once the human picks a variant, update the defaults in game.params.define(...) in the code, and adjust the existing logic test for that behaviour if it changed (test.sweep checks a range of values; a new test only if none covers it), then run_tests.
+4. Once the human picks a variant, update the defaults in game.params.define(...) in the code, and adjust the existing logic test for that behaviour if it changed (test.sweep checks a range of values; a new test only if none covers it), then run_tests with changed: true.
 
 Feel is a creative call: present the options and let the human choose. ${RULES}`),
   );
@@ -80,7 +80,7 @@ Feel is a creative call: present the options and let the human choose. ${RULES}`
 1. Call inspect_project and read src/main.ts to see how scenes, input and params are set up. Confirm the plan with the human in two or three lines before building, and ask about anything creative (look, sound, numbers).
 2. Implement the smallest version that works. Put tunable numbers in game.params.define(...), use debuff's draw, input and juice APIs, and keep dev-only code inside if (import.meta.env.DEV).
 3. Search tests/ for a test that already reaches this part of the game and extend it; add one logic test in tests/ (keiko) only if this is a new mechanic. The test plays the inputs and checks the outcome on the scene's inspect() state; use until() and trace() for timing and motion. If the change is visual, add a scenario with a capture too.
-4. Verify: run_tests, then run_scenarios, then build (its leaks list must be empty), then game_start and game_capture to show it working. Check game_errors is empty.
+4. Verify: run_tests (changed: true while iterating, then once in full), then run_scenarios, then build (its leaks list must be empty), then game_start and game_capture to show it working. Check game_errors is empty.
 5. Report what you built, the params added, and the evidence.
 
 ${RULES}`),

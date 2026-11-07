@@ -249,14 +249,18 @@ export function createServer(options: ServerOptions): McpServer {
       annotations: { readOnlyHint: false, destructiveHint: false },
       description:
         "Run the logic tests in tests/**/*.test.ts (keiko): the real game in Node, no browser, in milliseconds. Each failure has its message, " +
-        "the source line, and the game's tick, scene and state when it failed. While iterating pass `files` or `filter` to run only what your change touches, and run everything once when the work is done. One test per mechanic: search tests/ first; fixes, tweaks and fuzz replays go into the existing test.",
+        "the source line, and the game's tick, scene and state when it failed. After each edit pass `changed: true`: only the tests whose code or files changed since they last passed run, and `due` says why each one did. Run everything once when the work is done. One test per mechanic: search tests/ first; fixes, tweaks and fuzz replays go into the existing test.",
       inputSchema: {
         ...root,
         files: z.array(z.string()).optional().describe("Test files relative to the root. Default: all."),
         filter: z.string().optional().describe("Only run tests whose name contains this text."),
+        changed: z
+          .boolean()
+          .optional()
+          .describe("Only run tests whose code or files changed since they last passed, plus new and failed ones."),
       },
     },
-    safely(async ({ root: r, files, filter }) => {
+    safely(async ({ root: r, files, filter, changed }) => {
       const dir = rootOf(r);
       if (!existsSync(join(dir, "package.json"))) throw new Error(`No package.json in ${dir}. Pass the game's folder as root.`);
       const { findTests } = await import("keiko/runner");
@@ -266,7 +270,11 @@ export function createServer(options: ServerOptions): McpServer {
         return json({ ok: true, passed: 0, failed: 0, skipped: 0, todo: 0, durationMs: 0, results: [], outside: [] });
       }
       // In a child process: keiko swaps process globals while a test runs, and here they're the server's.
-      const report = await runTestsInChild(dir, { files: files ?? [], ...(filter ? { filter } : {}) });
+      const report = await runTestsInChild(dir, {
+        files: files ?? [],
+        ...(filter ? { filter } : {}),
+        ...(changed ? { changed: true } : {}),
+      });
       // Passing tests don't need their (empty) logs or details; keep the result small for the agent.
       return json({
         ...report,

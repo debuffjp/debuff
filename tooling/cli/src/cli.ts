@@ -334,9 +334,11 @@ cli
   .command("test [...files]", "Run logic tests (tests/**/*.test.ts) against the real game in Node, no browser")
   .option("--root <dir>", "Project root")
   .option("-t, --filter <text>", "Only run tests whose name contains this text")
+  .option("--changed", "Only run tests whose code or files changed since they last passed, plus new and failed ones")
+  .option("--queue <name>", 'Queue to record into and compare with, e.g. "push" in a pre-push hook', { default: "default" })
   .option("--accept-saves", "Accept changes to the game's saves and update saves.json")
   .option("--json", "Machine-readable output")
-  .action(async (files: string[], o: Common & { filter?: string; acceptSaves?: boolean }) => {
+  .action(async (files: string[], o: Common & { filter?: string; acceptSaves?: boolean; changed?: boolean; queue?: string }) => {
     const { runTests, formatResult, formatSummary, findTests } = await import("keiko/runner");
     const root = rootOf(o);
     if (!findTests(root, files).length) {
@@ -360,6 +362,9 @@ cli
       files,
       vite: await viteConfig(root),
       debuff: true,
+      // Every run records what each test used, so --changed can compare with the last run in its queue.
+      queue: String(o.queue ?? "default"),
+      ...(o.changed ? { changed: true } : {}),
       ...(o.filter ? { filter: String(o.filter) } : {}),
       ...(o.json
         ? {}

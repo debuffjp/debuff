@@ -15,6 +15,7 @@ import { realClearTimeout, realNow, realSetTimeout, sleep, VirtualClock } from "
 import { type DebuffDevHooks, debuffDriver, genericDriver, type KeikoHooks } from "./driver.js";
 import { type EngineWatch, watchEngines } from "./engines.js";
 import { type HeadlessPage, openPage } from "./environment.js";
+import type { CoverageRecorder, DueReason, ImpactStore, ServerAccess } from "./impact.js";
 import { type ParamValue, Playtest } from "./playtest.js";
 import { type Booter, type PlayOptions, registry, type TestCase } from "./registry.js";
 import { show } from "./values.js";
@@ -41,6 +42,16 @@ export interface RunTestsOptions {
   mutation?: Mutation;
   /** @internal Called with each booted game, before the mutation and the test's own params are set. */
   onBoot?: (game: Playtest) => void;
+  /**
+   * Record what each test used (the code it ran, the files it read) in this named queue, so a later
+   * `changed` run can leave out what didn't change. Default: no recording, or `"default"` with `changed`.
+   */
+  queue?: string;
+  /**
+   * Only run the tests whose code or files changed since they last passed in `queue`, plus new and failed
+   * ones. The rest are counted in `report.unchanged`.
+   */
+  changed?: boolean;
 }
 
 /** @internal A change applied to every game a run boots. Params change the game's defaults, so a test that sets one keeps its value. */
@@ -92,6 +103,10 @@ export interface TestReport {
   results: TestResult[];
   /** Errors a game raised while no test was running (between tests, or after its test ended). They fail the run. */
   outside: TestFailure[];
+  /** With `changed`: tests left out because nothing they used changed since they last passed. */
+  unchanged?: number;
+  /** With `changed`: why each test that ran was due, by `file › describe › name`. */
+  due?: Record<string, DueReason>;
 }
 
 const TEST_FILE = /\.test\.(ts|mts|js|mjs)$/;
@@ -205,10 +220,33 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
 
   const debuff = options.debuff ?? usesDebuff(root);
   if (debuff && !options.vite) options = { ...options, vite: await debuffViteConfig(root) };
+  const queue = options.queue ?? (options.changed ? "default" : undefined);
+  // keiko mutate changes the game on purpose: nothing it runs belongs in a queue.
+  const impact = queue && !options.mutation ? await openImpact(root, queue) : undefined;
   const { createServer, createRunnableDevEnvironment } = await import("vite");
   const server: ViteDevServer = await createServer({
     root,
     ...options.vite,
+    plugins: [
+      ...(impact
+        ? [
+            {
+              name: "keiko:requests",
+              // Before every other plugin's middleware: debuff's answers /assets/ requests itself and never
+              // passes them on, so a recorder after it would miss every level, atlas and manifest.
+              enforce: "pre" as const,
+              configureServer(s: ViteDevServer) {
+                // What each test's page fetches (assets, levels, JSON), so a changed file makes it due.
+                s.middlewares.use((req, _res, next) => {
+                  impact.store.noteRequest(req.url, s.config.publicDir || undefined);
+                  next();
+                });
+              },
+            },
+          ]
+        : []),
+      ...(options.vite?.plugins ?? []),
+    ],
     logLevel: "error",
     clearScreen: false,
     server: { ...options.vite?.server, port: 0, strictPort: false, hmr: false, watch: null },
@@ -227,7 +265,12 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
           mainFields: ["browser", "module", "jsnext:main", "jsnext"],
         },
         optimizeDeps: { noDiscovery: false, entries: [...new Set(["index.html", ...files])] },
-        dev: { createEnvironment: (name, config) => createRunnableDevEnvironment(name, config, { runnerOptions: { hmr: false } }) },
+        dev: {
+          createEnvironment: (name, config) =>
+            createRunnableDevEnvironment(name, config, {
+              runnerOptions: { hmr: false, ...(impact ? { evaluator: impact.evaluator } : {}) },
+            }),
+        },
       },
     },
   });
@@ -281,6 +324,7 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
       const htmlFile = join(root, pagePath);
       if (!existsSync(htmlFile)) throw new Error(`play(): no page at ${pagePath}. Pass { page: "…html" } relative to the project root.`);
       const html = readFileSync(htmlFile, "utf8");
+      impact?.store.noteFile(htmlFile);
       const scripts = pageScripts(html);
       if (!scripts.length) throw new Error(`play(): ${pagePath} has no <script type="module" src="…">, so there's no game to boot.`);
       // `epoch` isn't public: test.deterministic moves the date for its second run.
@@ -401,6 +445,25 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
     },
   };
   reg.booter = booter;
+  reg.onRead = impact ? (path) => impact.store.noteFile(path) : undefined;
+  const unwatchReads = impact ? impact.watchReads((path) => impact.store.noteRead(path)) : undefined;
+  const access: ServerAccess = {
+    async transform(id) {
+      // By URL, as the runner asked for it: before anything loads, a bare path isn't in the module graph yet.
+      let url: string;
+      if (id.startsWith("\0")) url = `/@id/__x00__${id.slice(1)}`;
+      else if (!isAbsolute(id)) url = `/@id/${id}`;
+      else {
+        const rel = relative(root, id).split("\\").join("/");
+        url = rel.startsWith("..") || isAbsolute(rel) ? `/@fs/${id.replace(/^\//, "")}` : `/${rel}`;
+      }
+      return (await server.environments[ENVIRONMENT]?.transformRequest(url))?.code;
+    },
+    async fetch(path) {
+      const res = await fetch(new URL(path, origin));
+      return res.ok ? new Uint8Array(await res.arrayBuffer()) : undefined;
+    },
+  };
 
   // A game's async work (asset loads, promise chains) can fail at any moment, including between tests.
   // Errors during a test fail that test; anything else is reported once at the end, never a crash.
@@ -416,6 +479,7 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
   try {
     // Collect every test first, so `.only` anywhere narrows the whole run.
     const all: TestCase[] = [];
+    await impact?.coverage.start();
     for (const file of files) {
       reg.file = file;
       reg.tests = [];
@@ -432,8 +496,31 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
     const focused = all.some((t) => t.mode === "only");
     const filter = options.filter?.toLowerCase();
     let matched = 0;
+    const ids = impact ? impact.testIds(all) : [];
+    await impact?.coverage.markCollected();
+    impact?.evaluator.drain();
+    impact?.store.addSetup(setupFiles(root, server));
+    const due = impact && options.changed ? await impact.store.due(ids, access) : undefined;
+    if (due) {
+      // A due file runs whole: its tests can pass state to each other, so running one alone could fail (or
+      // pass) where the full run wouldn't.
+      // Only tests that will run count: a todo, skipped, unfocused or filtered-out test is never recorded, so
+      // it's always "new", and would otherwise pull its file in every time.
+      const runs = (t: TestCase) =>
+        t.mode !== "todo" &&
+        t.mode !== "skip" &&
+        !(focused && t.mode !== "only") &&
+        (!filter || [...t.suites, t.name].join(" › ").toLowerCase().includes(filter));
+      const dueFiles = new Set(all.filter((t, i) => runs(t) && due.has(ids[i] as string)).map((t) => t.file));
+      all.forEach((t, i) => {
+        const id = ids[i] as string;
+        if (dueFiles.has(t.file) && !due.has(id)) due.set(id, "file");
+      });
+      report.unchanged = 0;
+      report.due = {};
+    }
 
-    for (const t of all) {
+    for (const [i, t] of all.entries()) {
       const fullName = [...t.suites, t.name].join(" › ");
       const base = { file: t.file, suites: t.suites, name: t.name, fullName, logs: [] as string[] };
       // A filter leaves other tests out of the report entirely; `.skip` and `.only` keep them, marked skipped.
@@ -444,7 +531,20 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
       let result: TestResult;
       if (t.mode === "todo") result = { ...base, status: "todo", durationMs: 0 };
       else if (t.mode === "skip" || (focused && t.mode !== "only")) result = { ...base, status: "skip", durationMs: 0 };
-      else result = await runOne(t, base, root, closePage);
+      else if (due && !loadFailure && !due.has(ids[i] as string)) {
+        report.unchanged = (report.unchanged ?? 0) + 1;
+        continue;
+      } else if (impact) {
+        const id = ids[i] as string;
+        const reason = due?.get(id);
+        if (reason && report.due) report.due[id] = reason;
+        impact.store.beginTest();
+        result = await runOne(t, base, root, closePage);
+        // Taking coverage also resets it for the next test.
+        const used = await impact.coverage.used(impact.evaluator.drain());
+        if (!loadFailure && (result.status === "pass" || result.status === "fail"))
+          await impact.store.endTest(id, result.status, used, access);
+      } else result = await runOne(t, base, root, closePage);
       report.results.push(result);
       if (result.status === "pass") report.passed++;
       else if (result.status === "fail") report.failed++;
@@ -458,7 +558,14 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
         message: `no test name contains "${options.filter}", so nothing ran. Check the -t/--filter text.`,
       });
     }
+    if (impact) {
+      // Tests whose files are gone leave the queue, but only after a run that loaded every test file.
+      if (!options.files?.length) impact.store.prune(new Set(ids));
+      impact.store.save();
+    }
   } finally {
+    await impact?.coverage.stop().catch(() => {});
+    unwatchReads?.();
     await closePage();
     // Let imports a game started finish before the server goes away (they'd fail with a closed transport).
     for (let waited = 0; moduleLoads > 0 && waited < 2000; waited += 10) await sleep(10);
@@ -472,6 +579,68 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
   report.ok = report.failed === 0 && report.outside.length === 0;
   report.durationMs = Math.round(realNow() - started);
   return report;
+}
+
+/**
+ * Files outside the game's modules that can change every test at once: what the Vite config imports, the
+ * `.env` files Vite reads, and the tsconfig files the project's tsconfig extends.
+ */
+function setupFiles(root: string, server: ViteDevServer): string[] {
+  const files = [...(server.config.configFileDependencies ?? [])];
+  const envDir = server.config.envDir === false ? undefined : (server.config.envDir ?? root);
+  if (envDir && existsSync(envDir)) for (const name of readdirSync(envDir)) if (name.startsWith(".env")) files.push(join(envDir, name));
+  const seen = new Set<string>();
+  const follow = (path: string) => {
+    if (seen.has(path) || !existsSync(path)) return;
+    seen.add(path);
+    files.push(path);
+    let extended: unknown;
+    try {
+      extended = (JSON.parse(stripJsonComments(readFileSync(path, "utf8"))) as { extends?: unknown }).extends;
+    } catch {
+      return;
+    }
+    for (const next of [extended].flat()) {
+      if (typeof next !== "string" || !next.startsWith(".")) continue;
+      const target = resolve(dirname(path), next);
+      follow(target.endsWith(".json") ? target : `${target}.json`);
+    }
+  };
+  follow(join(root, "tsconfig.json"));
+  return files;
+}
+
+/**
+ * tsconfig's JSON with comments and trailing commas made plain JSON. Strings are skipped as they are, so
+ * `"paths": { "@/*": [...] }` and `"include": ["src/**\/*"]` don't read as a comment.
+ */
+export function stripJsonComments(text: string): string {
+  let out = "";
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '"') {
+      let j = i + 1;
+      while (j < text.length && text[j] !== '"') j += text[j] === "\\" ? 2 : 1;
+      out += text.slice(i, j + 1);
+      i = j;
+    } else if (ch === "/" && text[i + 1] === "/") {
+      while (i < text.length && text[i] !== "\n") i++;
+      out += "\n";
+    } else if (ch === "/" && text[i + 1] === "*") {
+      const end = text.indexOf("*/", i + 2);
+      i = end < 0 ? text.length : end + 1;
+    } else out += ch;
+  }
+  return out.replace(/,(\s*[}\]])/g, "$1");
+}
+
+/** Coverage and the queue store, loaded only for runs that record. */
+async function openImpact(root: string, queue: string) {
+  const { BootEvaluator, CoverageRecorder, ImpactStore, cacheDir, testIds, watchReads } = await import("./impact.js");
+  const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string };
+  const coverage: CoverageRecorder = new CoverageRecorder();
+  const store: ImpactStore = new ImpactStore(root, queue, cacheDir(root), pkg.version);
+  return { coverage, store, testIds, watchReads, evaluator: new BootEvaluator() };
 }
 
 /** The name of the failure a test file that can't be loaded reports in place of its tests. */

@@ -296,11 +296,26 @@ npx keiko --json              # a report for tools and agents
 npx keiko --root games/demo   # a project in another folder
 npx keiko --no-debuff         # drive a debuff game through __KEIKO__ instead (--debuff forces the opposite)
 npx keiko mutate              # test your tests (keiko 0.8+)
+npx keiko --changed           # only the tests whose code or files changed (keiko 0.9+)
 ```
 
 Exits with 1 when a test fails. For tools, the same runner is `runTests()` from `keiko/runner`.
 
 From 0.8.2, test files found in a folder that import another test runner (`node:test`, `vitest`, `bun:test` or `@jest/globals`) are left out, so unit tests that `node --test` already runs don't run a second time inside keiko. A file you name on the command line always runs. Before 0.8.2, keiko loaded every `*.test.*` file under `tests/` and `src/`.
+
+## Only what changed (`--changed`)
+
+From 0.9, every `npx keiko` run records what each test used: the functions of your code it ran (V8 coverage) and the files its page loaded or it replayed. Recording made runs a few percent to about a third slower in our measurements. `npx keiko --changed` then runs only the test files with a test that is new, failed last time, or used something that changed since it last passed. The rest are counted as unchanged. In debuff's platformer template, after an edit to a function none of its eight tests calls:
+
+```
+0 passed · 8 unchanged in 375 ms
+```
+
+Every test boots the whole game, so which files a test imports says nothing. keiko compares what each test ran instead: an edit inside a function no test in a file called, or a type-only edit, leaves that file out, while an edit to the update loop every test runs brings them all back. A due file runs whole, because its tests can pass state to each other (a variable one test sets and a later one reads), and running one alone could fail or pass where the full run wouldn't; with one file per mechanic, an edit reruns only the mechanics it reaches. A change to the lockfile, `package.json`, a tsconfig file or what it extends, a `.env` file, the Vite or debuff config or any file the Vite config imports runs everything. `--json` lists why each test ran in `due` (`new`, `failed`, `setup`, `code`, `input`, or `file` for a test in a due file).
+
+Runs record into a named queue, `default` unless you pass `--queue <name>`, and `--changed` compares with the last run in the same queue. Give each loop its own: an agent runs `--changed` after every edit, and a pre-push hook with `npx keiko --changed --queue push` still runs everything changed since the last push, whatever ran in between. Queues live in `node_modules/.cache/keiko`; delete it to start over. In `runTests()` recording is off unless you pass `queue` or `changed`.
+
+Code outside the project root (a linked package) and a plugin's virtual modules are tracked like the game's own, and so are data files a test reads with `node:fs` while it runs. An edit that leaves a module unable to load, or reaches past the brackets of a function no test ran, counts as a change to code that ran. What it can't see: changes inside `node_modules`, which the lockfile stands in for, and state that tests in different files pass through a helper module they share. A test that reads the clock or the network for real (outside keiko's virtual clock) can change without its code changing. Run the whole suite before you ship.
 
 ## Test your tests (`keiko mutate`)
 

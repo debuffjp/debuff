@@ -62,6 +62,8 @@ export interface Registry {
   booter: Booter | undefined;
   /** The game the running test is playing, for failure context. */
   current: Playtest | undefined;
+  /** Told about files a test reads from disk (`game.replay(file)`), so a `--changed` run notices when they change. */
+  onRead?: ((path: string) => void) | undefined;
 }
 
 const KEY = Symbol.for("keiko.registry");
