@@ -1,6 +1,6 @@
 {
   "name": "henka",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Tests for your tests: mutation testing for Vitest projects and any test runner",
   "keywords": [
     "mutation-testing",

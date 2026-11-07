@@ -1,5 +1,35 @@
 # @debuffjp/cli
 
+## 0.32.0
+
+### Minor Changes
+
+- 9cfde0a: Run only the tests a change touches. Every `debuff test` (and `npx keiko`) run now records which functions of the game each test ran and which files it loaded or replayed; in our measurements that made runs a few percent to about a third slower. `debuff test --changed` then runs only the test files with a test that is new, failed last time, or used code or files that changed since it last passed; the rest are counted as unchanged. An edit inside a function no test calls, or a type-only edit, runs nothing. A due file runs whole, since its tests can pass state to each other, so one test file per mechanic keeps reruns small. Changes to `.env` files, the Vite config and files it imports, tsconfig files, the lockfile and `package.json` run everything; debuff assets, `?raw` and `?inline` imports, `import.meta.glob` matches and linked packages outside the project count as changes. `--queue <name>` keeps a separate record, so a pre-push hook with `--changed --queue push` still covers everything since the last push. The MCP `run_tests` tool takes `changed: true`, and agents in new projects are told to use it after each edit.
+- 89f10bf: `launch.playerCard` makes `debuff build` write an X player card, so the game can play inside a post. Set the X account and the iframe size:
+  
+  ```ts
+  launch: {
+    url: "https://you.itch.io/game",
+    playerCard: { site: "@you", width: 480, height: 270 },
+  },
+  ```
+  
+  The build then writes `twitter:card` `player` with `twitter:site`, `twitter:title`, `twitter:image` (the preview image), `twitter:player` (`launch.url`, or `playerCard.url` when the iframe page lives elsewhere), `twitter:player:width` and `twitter:player:height`. It fails with `config_invalid` instead of writing tags X would ignore: an account that isn't `@name`, a size that isn't a whole number of pixels, a player address that isn't https, no `launch.url` or no preview image. Without `playerCard` the card is the same as before: `summary_large_image` with a preview image, `summary` without. Before 0.32, the way to get a player card was to write the tags into `index.html` by hand or rewrite them after the build.
+
+### Patch Changes
+
+- 4ad5f4c: When `debuff scenario`, `debuff fuzz`, `debuff doctor` or the MCP server can't start a browser, the error now says what was tried: Chrome and Edge with the path Playwright looked in, and Playwright's own Chromium with the browser's error when it is installed but won't start (such as a missing shared library). It says whether `DEBUFF_BROWSER` is set. When `DEBUFF_BROWSER` points at a browser that won't start, the message names the variable and its path, and the fix says to correct or unset it instead of telling you to set it.
+- 9b11227: New projects' first commit credits debuff as co-author with a `Co-authored-by: debuff <353358385+debuffbot@users.noreply.github.com>` trailer, and the scaffold prints a line saying so. `--no-credit` (also on `debuff create`) leaves it out. Only the first commit carries it. That commit now skips git hooks, so a global hook can't stop a scaffold, and the branch is `main` unless `init.defaultBranch` is set.
+- 612ac1e: `debuff scenario` says why when the game's dev hooks aren't ready within 15 s (`dev_hooks_missing`), and gives a fix for that cause: nothing in `src/` imports `@debuffjp/dev`, a request failed or the console logged an error while the page loaded (the first one is quoted), the page's URL lost `?debuff-scenario` before the dev tools started, or the game waits for something (a click, a sound unlock, a slow load) before installing them. Before 0.31.1 every case said the page "loaded without errors" and suggested adding `devTools` to `src/main.ts`, even when the game already had it.
+- f14528c: `debuff test` and `npx keiko` no longer load test files written for another runner. Files under `tests/` or `src/` that import `node:test`, `vitest`, `bun:test` or `@jest/globals` are left out when keiko looks through a folder, so a project whose `npm test` runs `node --test` first doesn't run those unit tests a second time inside keiko (in one game that took `debuff test` from 369 s to 29 s). Naming such a file on the command line still runs it.
+  
+  The guidance agents get in new projects (AGENTS.md, the debuff and keiko skills, the MCP prompts and the `run_tests` description) now keeps one test per mechanic: search `tests/` first, put fixes, tweaks and fuzz replays into the mechanic's existing test, add a test only for a new mechanic, and ask the human before deleting a test. Henka's hint for a missed mutant says the same. Projects created before this keep their AGENTS.md; `npx debuff doctor --fix` refreshes the skills.
+- Updated dependencies [9cfde0a]
+- Updated dependencies [9b11227]
+- Updated dependencies [f14528c]
+  - keiko@0.9.0
+  - create-debuff@0.32.0
+
 ## 0.31.1
 
 ### Patch Changes
