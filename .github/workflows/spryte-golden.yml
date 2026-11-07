@@ -1,7 +1,7 @@
 name: spryte golden frames
 
 # Renders spryte's showcase scenes and compares them with the golden frames in packages/spryte/golden, using
-# komadori. Runs on pull requests that touch spryte, and by hand. It renders with SwiftShader (software Vulkan), a
+# komadori (from npm, pinned to a version). Runs on pull requests that touch spryte, and by hand. It renders with SwiftShader (software Vulkan), a
 # different renderer from the one the frames were made on, so komadori compares with its looser cross-renderer
 # limits and says so in the log. See packages/spryte/golden/README.md.
 on:
@@ -29,14 +29,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build -w spryte
-      # komadori isn't on npm yet, so this uses a pinned commit of its repository. Move the pin by hand.
-      - uses: actions/checkout@v7
-        with:
-          repository: debuffjp/komadori
-          ref: ff61f5ece2022b64407f14597a4f462abda09e44
-          path: .komadori
-      - run: npm ci
-        working-directory: .komadori
       - name: Build the scenes
         run: |
           for scene in rain warp; do
@@ -46,19 +38,19 @@ jobs:
         env:
           SOFTWARE_GL: "1"
         run: >
-          node .komadori/bin/komadori.mjs golden-dist/rain --frames 120 --samples 3 --size 640x360
+          npx -y komadori@0.1.0 golden-dist/rain --frames 120 --samples 3 --size 640x360
           --golden packages/spryte/golden/showcase-rain --out golden-out/rain
-      # The warp scene draws the word "WARP" with sans-serif, and a Linux runner has different fonts from the machine
-      # the golden frames were made on. That can differ by more than the cross-renderer limit for a reason that isn't
-      # a real change, and nobody has seen this job run on Linux yet. So this step reports but doesn't block. Once a
-      # run shows it is stable, remove continue-on-error.
-      - name: Compare warp with its golden frames (reports only)
-        continue-on-error: true
+      # The warp scene draws the word "WARP" with sans-serif, and the Linux runner rasterises text differently from the
+      # machine the golden frames were made on. The first Linux run (PR 102) showed it: 0.27 to 0.28% of the pixels
+      # changed, mostly the outlines of the letters plus a faint speckle across the stars, against komadori's 0.25%
+      # cross-renderer limit. So warp gets a limit of 0.5%, about 1.8 times what Linux produced. Rain has no text and
+      # passed at the default.
+      - name: Compare warp with its golden frames
         env:
           SOFTWARE_GL: "1"
         run: >
-          node .komadori/bin/komadori.mjs golden-dist/warp --frames 120 --samples 3 --size 640x360
-          --golden packages/spryte/golden/showcase-warp --out golden-out/warp
+          npx -y komadori@0.1.0 golden-dist/warp --frames 120 --samples 3 --size 640x360
+          --golden packages/spryte/golden/showcase-warp --golden-tolerance 0.5 --out golden-out/warp
       - name: Upload the differences
         if: always()
         uses: actions/upload-artifact@v7
