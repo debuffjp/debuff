@@ -43,7 +43,7 @@ Without `stride`, `each` takes arrays instead: `scale`, `rotation` (`Float32Arra
 
 ## State
 
-`push()` `pop()` `translate(x, y)` `scale(x, y?)` `rotate(rad)` `transform(a, b, c, d, e, f)` form a stack that `begin()` resets. Also: `clip(x, y, w, h, fn)`, `withCamera(cam, fn)` for any `{ view() }`, `blend("normal" | "add" | "multiply" | "screen" | "erase")`, and the properties `alpha`, `smooth` and `font`.
+`push()` `pop()` `translate(x, y)` `scale(x, y?)` `rotate(rad)` `transform(a, b, c, d, e, f)` form a stack. `begin()` resets that stack, the blend mode and any shader each frame. Also: `clip(x, y, w, h, fn)`, `withCamera(cam, fn)` for any `{ view() }`, `blend("normal" | "add" | "multiply" | "screen" | "erase")`, and the properties `alpha`, `smooth` and `font`.
 
 ## Effects
 
@@ -94,7 +94,7 @@ window.__frame = () => { step(1 / 60); drawFrame(); }; // advance exactly one fr
 node packages/spryte/tools/render.mjs dist --frames 300 --size 1920x1080 --out render-out [--mp4 clip.mp4]
 ```
 
-`dist` is a built page (or a URL). In TypeScript, declare it: `declare global { interface Window { __frame?: () => void } }`. Add `--samples 10` for a short run. On a machine without a GPU set `SOFTWARE_GL=1`, and expect seconds per frame at 960x540. The tool samples frames from the start, so a scene that sits still for its first second fails the frozen check: start it already moving. The tool steps the scene frame by frame, so the result doesn't depend on how fast the machine is. It writes `render-out/contact-sheet.png` (20 frames in one image) and `report.json`, and exits 1 on a page error, a blank scene or a frozen scene. It warns when content covers an edge and may be cut off. Open the contact sheet and look at it: the checks can't see stripes, text covered by sprites or an ugly palette. `--mp4` needs ffmpeg.
+`dist` is a built page (or a URL). In TypeScript, declare it: `declare global { interface Window { __frame?: () => void } }`. Add `--samples 10` for a short run. On a machine without a GPU set `SOFTWARE_GL=1`, and expect seconds per frame at 960x540. The tool samples frames from the start, so a scene that sits still for its first second fails the frozen check: start it already moving. The tool steps the scene frame by frame, so the result doesn't depend on how fast the machine is. It writes `render-out/contact-sheet.png` (20 frames in one image by default, `--samples n` changes it) and `report.json`, and exits 1 on a page error, a blank scene or a frozen scene. It warns when content covers an edge and may be cut off. Open the contact sheet and look at it: the checks can't see stripes, text covered by sprites or an ugly palette. `--mp4` needs ffmpeg.
 
 ## Rules that save a debugging round
 
