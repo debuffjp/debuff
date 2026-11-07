@@ -34,6 +34,28 @@ export interface SpritesEach {
    * With `stride`, an offset into each record.
    */
   frame?: ArrayLike<number> | number;
+  /**
+   * One float per copy for a custom shader to read as `user()` (a copy's place in a row, a particle's age, a tile
+   * variant). Since spryte 0.13. With `stride`, an offset into each record.
+   *
+   * ```ts
+   * const fade = draw.createShader(`
+   *   uniform float time;
+   *   vec4 effect(vec4 color, vec2 uv) {
+   *     float t = clamp((time - user() * 0.05) * 4.0, 0.0, 1.0); // each copy starts 50 ms after the last
+   *     return source(uv) * color * t;
+   *   }
+   * `);
+   * fade.set("time", seconds);
+   * draw.withShader(fade, () => draw.sprites(tile, positions, n, {}, { user: place })); // place[i] = i
+   * ```
+   *
+   * Limits: `user()` is 0 for everything that isn't a `draw.sprites` copy (`sprite()`, `text()`, shapes). The default
+   * program ignores the value, and so does the Canvas 2D fallback, which ignores shaders altogether. The count
+   * is clamped to the shortest array, as for the other fields. A float holds whole numbers exactly up to
+   * 16,777,216.
+   */
+  user?: ArrayLike<number> | number;
 }
 
 /**

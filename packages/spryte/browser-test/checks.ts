@@ -511,6 +511,26 @@ vec4 effect(vec4 color, vec2 uv) {
     pixelAt(shapes, 20, 20).join() === "255,0,0,255" && pixelAt(shapes, 50, 20).join() === "255,0,0,255",
     `${pixelAt(shapes, 20, 20)} / ${pixelAt(shapes, 50, 20)}`,
   );
+
+  // each.user reaches user() per copy; anything drawn outside draw.sprites sees 0.
+  const userShader = `vec4 effect(vec4 color, vec2 uv) { return vec4(user() / 2.0, 0.0, 0.0, 1.0); }`;
+  const userFrame: Frame = { image: img, x: 0, y: 0, w: 8, h: 6 };
+  const userScene = await render(
+    (draw) => {
+      draw.withShader(draw.createShader(userShader), () => {
+        draw.sprites([userFrame], new Float32Array([10, 10, 0, 30, 10, 1, 50, 10, 2]), 3, { origin: [0, 0] }, { stride: 3, user: 2 });
+        draw.sprite(userFrame, 70, 10, { origin: [0, 0] });
+      });
+    },
+    "webgl2",
+    1,
+  );
+  const reds = [14, 34, 54, 74].map((x) => pixelAt(userScene, x, 13)[0] as number);
+  check(
+    "each.user gives user() per copy, and 0 outside draw.sprites",
+    reds[0] === 0 && Math.abs((reds[1] as number) - 128) <= 1 && reds[2] === 255 && reds[3] === 0,
+    reds.join(" / "),
+  );
 }
 
 // ---- Adversarial QA (expected to FAIL on the current source) ----
