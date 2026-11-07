@@ -1,0 +1,68 @@
+name: spryte golden frames
+
+# Renders spryte's showcase scenes and compares them with the golden frames in packages/spryte/golden, using
+# komadori. Runs on pull requests that touch spryte, and by hand. It renders with SwiftShader (software Vulkan), a
+# different renderer from the one the frames were made on, so komadori compares with its looser cross-renderer
+# limits and says so in the log. See packages/spryte/golden/README.md.
+on:
+  pull_request:
+    paths:
+      - "packages/spryte/**"
+      - ".github/workflows/spryte-golden.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: spryte-golden-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  golden:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w spryte
+      # komadori isn't on npm yet, so this uses a pinned commit of its repository. Move the pin by hand.
+      - uses: actions/checkout@v7
+        with:
+          repository: debuffjp/komadori
+          ref: ff61f5ece2022b64407f14597a4f462abda09e44
+          path: .komadori
+      - run: npm ci
+        working-directory: .komadori
+      - name: Build the scenes
+        run: |
+          for scene in rain warp; do
+            npx vite build "packages/spryte/examples/showcase-$scene" --outDir "$PWD/golden-dist/$scene"
+          done
+      - name: Compare rain with its golden frames
+        env:
+          SOFTWARE_GL: "1"
+        run: >
+          node .komadori/bin/komadori.mjs golden-dist/rain --frames 120 --samples 3 --size 640x360
+          --golden packages/spryte/golden/showcase-rain --out golden-out/rain
+      # The warp scene draws the word "WARP" with sans-serif, and a Linux runner has different fonts from the machine
+      # the golden frames were made on. That can differ by more than the cross-renderer limit for a reason that isn't
+      # a real change, and nobody has seen this job run on Linux yet. So this step reports but doesn't block. Once a
+      # run shows it is stable, remove continue-on-error.
+      - name: Compare warp with its golden frames (reports only)
+        continue-on-error: true
+        env:
+          SOFTWARE_GL: "1"
+        run: >
+          node .komadori/bin/komadori.mjs golden-dist/warp --frames 120 --samples 3 --size 640x360
+          --golden packages/spryte/golden/showcase-warp --out golden-out/warp
+      - name: Upload the differences
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: golden-diffs
+          path: golden-out/
+          if-no-files-found: ignore
