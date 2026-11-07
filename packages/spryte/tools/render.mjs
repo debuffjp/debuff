@@ -8,6 +8,8 @@
 //   --keep-frames d  also write each sampled frame to folder d as a full-size PNG (frame-0007.png)
 //   --mp4 clip.mp4   also encode every frame; needs ffmpeg with libx264 on PATH
 //   --query "n=5000" appended to the page URL
+// Environment: HIGH_GPU=1 asks for the discrete GPU on a machine with two (the first line printed names the one used).
+//   CHROME=/path/to/chrome picks the browser; SOFTWARE_GL=1 forces a software renderer.
 // The page must expose window.__frame(): step the scene exactly one frame and draw it, then return.
 // Without it the tool stops and says so. The million-boid demo's ?capture=1 mode is a working example.
 // Exit code: 0 when no check failed (warnings don't count), 1 when one did, 2 when the render couldn't run.
@@ -16,7 +18,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
-import { extname, join, resolve } from "node:path";
+import { dirname, extname, join, resolve } from "node:path";
 import { chromium } from "playwright-core";
 
 const args = process.argv.slice(2);
@@ -85,6 +87,7 @@ const browser = await chromium.launch({
     "--ignore-gpu-blocklist",
     "--enable-gpu-rasterization",
     "--use-gl=angle",
+    ...(process.env.HIGH_GPU ? ["--force_high_performance_gpu"] : []),
     ...(process.env.SOFTWARE_GL ? ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] : []),
   ],
 });
@@ -123,6 +126,8 @@ try {
 let ff;
 let ffClosed;
 if (mp4) {
+  // ffmpeg starts now and won't make the folder: an --mp4 path inside a new --out folder would fail.
+  await mkdir(dirname(resolve(mp4)), { recursive: true });
   ff = spawn(
     "ffmpeg",
     [
