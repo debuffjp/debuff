@@ -531,6 +531,174 @@ vec4 effect(vec4 color, vec2 uv) {
     reds[0] === 0 && Math.abs((reds[1] as number) - 128) <= 1 && reds[2] === 255 && reds[3] === 0,
     reds.join(" / "),
   );
+
+  // Shader.set with arrays and textures (since 0.13).
+  const solid = (...colors: string[]) => {
+    // One column per colour, 1 px tall.
+    const c = document.createElement("canvas");
+    c.width = colors.length;
+    c.height = 1;
+    const g = c.getContext("2d") as CanvasRenderingContext2D;
+    colors.forEach((col, i) => {
+      g.fillStyle = col;
+      g.fillRect(i, 0, 1, 1);
+    });
+    return c;
+  };
+  const rgb = (px: Uint8Array, x: number, y: number) => pixelAt(px, x, y).slice(0, 3).join();
+
+  // A vec4 array, indexed across a rect; a float[4] set from 4 numbers (an array, not a vec4); a short array.
+  const arrays = await render(
+    (draw) => {
+      const pool = draw.createShader(`uniform vec4 pool[3];
+vec4 effect(vec4 color, vec2 uv) { return pool[int(min(frameUv().x * 3.0, 2.0))]; }`);
+      pool.set("pool", new Float32Array([1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1]));
+      draw.withShader(pool, () => draw.rect(0, 0, 60, 20, "#fff"));
+      const weights = draw.createShader(`uniform float w[4]; vec4 effect(vec4 color, vec2 uv) { return vec4(w[3], w[0], 0.0, 1.0); }`);
+      weights.set("w", [0, 0, 0, 1]);
+      draw.withShader(weights, () => draw.rect(0, 30, 20, 20, "#fff"));
+      const short = draw.createShader(`uniform vec4 two[2]; vec4 effect(vec4 color, vec2 uv) { return two[0] + two[1]; }`);
+      // Only two[0] is set; two[1] keeps its initial zeros.
+      short.set("two", new Float32Array([0, 0, 1, 1]));
+      draw.withShader(short, () => draw.rect(30, 30, 20, 20, "#fff"));
+      // One element by name, as before 0.13: two[1] adds red.
+      short.set("two[1]", [1, 0, 0, 0]);
+      draw.withShader(short, () => draw.rect(60, 30, 20, 20, "#fff"));
+    },
+    "webgl2",
+    1,
+  );
+  check(
+    "Shader.set takes a vec4 array, a float array from 4 numbers, a short array and one element by name",
+    rgb(arrays, 10, 10) === "255,0,0" &&
+      rgb(arrays, 30, 10) === "0,255,0" &&
+      rgb(arrays, 50, 10) === "0,0,255" &&
+      rgb(arrays, 10, 40) === "255,0,0" &&
+      rgb(arrays, 40, 40) === "0,0,255" &&
+      rgb(arrays, 70, 40) === "255,0,255",
+    [rgb(arrays, 10, 10), rgb(arrays, 30, 10), rgb(arrays, 50, 10), rgb(arrays, 10, 40), rgb(arrays, 40, 40), rgb(arrays, 70, 40)].join(
+      " / ",
+    ),
+  );
+
+  let lengthError = "";
+  await render(
+    (draw) => {
+      const s = draw.createShader(`uniform vec4 pool[3]; vec4 effect(vec4 color, vec2 uv) { return pool[1]; }`);
+      s.set("pool", new Float32Array(10));
+      // Checked when the shader is first used.
+      try {
+        draw.withShader(s, () => draw.rect(0, 0, 10, 10, "#fff"));
+      } catch (e) {
+        lengthError = String(e);
+      }
+    },
+    "webgl2",
+    1,
+  );
+  check(
+    "Shader.set throws on an array length that doesn't fit, naming the uniform",
+    /uniform `pool` is vec4\[3\]/.test(lengthError),
+    lengthError,
+  );
+
+  // A sampler2D, read with frameUv(); it stays bound across flushes and while 8 other images fill the sprite units.
+  const tex = solid("#f00", "#00f");
+  const magenta = solid("#f0f");
+  const others = Array.from({ length: 8 }, () => art());
+  const textured = await render(
+    (draw) => {
+      const s = draw.createShader(`uniform sampler2D tex; vec4 effect(vec4 color, vec2 uv) { return texture(tex, frameUv()); }`);
+      s.set("tex", tex);
+      draw.withShader(s, () => {
+        draw.rect(0, 0, 40, 20, "#fff");
+        // Shapes end the custom batch: the next rect is a new flush.
+        roundRect(draw, 100, 100, 4, 4, 1, "#fff");
+        draw.rect(0, 30, 40, 20, "#fff");
+      });
+      const m = draw.createShader(
+        `uniform sampler2D m; vec4 effect(vec4 color, vec2 uv) { return texture(m, vec2(0.5)) + source(uv) * 0.0; }`,
+      );
+      m.set("m", magenta);
+      draw.withShader(m, () => {
+        for (const [i, o] of others.entries()) draw.sprite(o, 60 + i * 10, 10, { origin: [0, 0] });
+      });
+    },
+    "webgl2",
+    1,
+  );
+  const magentas = others.map((_, i) => rgb(textured, 63 + i * 10, 12));
+  check(
+    "Shader.set takes a texture, kept bound across flushes and apart from the 8 sprite units",
+    rgb(textured, 5, 10) === "255,0,0" &&
+      rgb(textured, 35, 10) === "0,0,255" &&
+      rgb(textured, 5, 40) === "255,0,0" &&
+      rgb(textured, 35, 40) === "0,0,255" &&
+      magentas.every((p) => p === "255,0,255"),
+    [rgb(textured, 5, 10), rgb(textured, 35, 10), rgb(textured, 5, 40), rgb(textured, 35, 40), ...magentas].join(" / "),
+  );
+
+  // A render target as a texture: its uv.y runs bottom to top. The per-copy program (draw.sprites) gets it too.
+  const fromTarget = await render(
+    (draw) => {
+      const t = draw.createTarget(10, 10);
+      draw.into(t, () => {
+        draw.rect(0, 0, 10, 5, "#f00");
+        draw.rect(0, 5, 10, 5, "#00f");
+      });
+      const s = draw.createShader(`uniform sampler2D t; vec4 effect(vec4 color, vec2 uv) { return texture(t, frameUv()); }`);
+      s.set("t", t);
+      draw.withShader(s, () => {
+        draw.rect(0, 0, 20, 20, "#fff");
+        draw.sprites([{ image: img, x: 0, y: 0, w: 8, h: 6 }], new Float32Array([40, 0, 60, 0]), 2, {
+          origin: [0, 0],
+          scaleX: 3,
+          scaleY: 3,
+        });
+      });
+    },
+    "webgl2",
+    1,
+  );
+  check(
+    "Shader.set takes a render target (uv.y from its bottom row), in rects and draw.sprites copies",
+    rgb(fromTarget, 10, 2) === "0,0,255" &&
+      rgb(fromTarget, 10, 17) === "255,0,0" &&
+      rgb(fromTarget, 50, 2) === "0,0,255" &&
+      rgb(fromTarget, 70, 15) === "255,0,0",
+    [rgb(fromTarget, 10, 2), rgb(fromTarget, 10, 17), rgb(fromTarget, 50, 2), rgb(fromTarget, 70, 15)].join(" / "),
+  );
+
+  // Uniforms the compiler removed: arrays and textures on them do nothing.
+  let unusedError = "";
+  const unused = await render(
+    (draw) => {
+      const s = draw.createShader(`uniform vec4 gone[4]; uniform sampler2D alsoGone;
+vec4 effect(vec4 color, vec2 uv) { return vec4(0.0, 1.0, 0.0, 1.0); }`);
+      s.set("gone", new Float32Array(7)).set("alsoGone", tex).set("neverDeclared", [1, 2, 3]);
+      try {
+        draw.withShader(s, () => draw.rect(0, 0, 20, 20, "#fff"));
+      } catch (e) {
+        unusedError = String(e);
+      }
+    },
+    "webgl2",
+    1,
+  );
+  check(
+    "Shader.set on uniforms the compiler removed does nothing",
+    unusedError === "" && rgb(unused, 10, 10) === "0,255,0",
+    `${JSON.stringify(unusedError)} / ${rgb(unused, 10, 10)}`,
+  );
+
+  // Canvas 2D: a shader with arrays and textures still draws without the effect.
+  const plain2d = await render((draw) => draw.sprite(img, 10, 10), "2d");
+  const shaded2d = await render((draw) => {
+    const s = draw.createShader(`uniform vec4 pool[2]; uniform sampler2D tex; vec4 effect(vec4 color, vec2 uv) { return pool[0]; }`);
+    s.set("pool", new Float32Array(3)).set("tex", tex);
+    draw.withShader(s, () => draw.sprite(img, 10, 10));
+  }, "2d");
+  record("Canvas 2D draws a shader with arrays and textures without the effect", plain2d, shaded2d);
 }
 
 // ---- Adversarial QA (expected to FAIL on the current source) ----

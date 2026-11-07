@@ -12,7 +12,7 @@ import { WebGL2Backend } from "../src/webgl2.js";
  * A recording stand-in for WebGL2: every method is logged, `create*` returns a fresh tagged object and
  * `delete*` marks it deleted, so tests can check uploads, batching and that nothing leaks.
  */
-function fakeGL() {
+function fakeGL(active: { name: string; type: string; size?: number }[] = []) {
   const calls: { name: string; args: unknown[] }[] = [];
   const created: { kind: string; deleted: boolean }[] = [];
   const listeners = new Map<string, (e: Event) => void>();
@@ -26,10 +26,17 @@ function fakeGL() {
     drawingBufferWidth: 100,
     drawingBufferHeight: 50,
     getShaderParameter: () => true,
-    getProgramParameter: () => true,
+    // `active`: the uniforms every program reports, as a custom shader's would after the compiler dropped unused ones.
+    getProgramParameter: (_p: unknown, key: string) => (key === "ACTIVE_UNIFORMS" ? active.length : true),
+    getActiveUniform: (_p: unknown, i: number) => {
+      const u = active[i];
+      return u && { name: (u.size ?? 1) > 1 ? `${u.name}[0]` : u.name, type: u.type, size: u.size ?? 1 };
+    },
     checkFramebufferStatus: () => "FRAMEBUFFER_COMPLETE",
-    getParameter: (p: unknown) => (p === "MAX_TEXTURE_SIZE" ? 16384 : undefined),
-    getUniformLocation: () => ({}),
+    getParameter: (p: unknown) => (p === "MAX_TEXTURE_SIZE" ? 16384 : p === "MAX_TEXTURE_IMAGE_UNITS" ? 16 : undefined),
+    // spryte's own uniforms and the active ones (or an element of one) have a location; removed ones don't.
+    getUniformLocation: (_p: unknown, name: string) =>
+      name.startsWith("u_") || active.some((u) => name === u.name || name.startsWith(`${u.name}[`)) ? { name } : null,
     shaderSource: (_s: unknown, src: string) => shaderSources.push(src),
   };
   const gl = new Proxy(target, {
@@ -441,6 +448,195 @@ describe("WebGL2Backend", () => {
       draw.sprite(image(), 10.4, 10.6, { rotation: 1, scaleX: 2, origin: [0, 1] });
       draw.end();
       expect(sprite(calls).map((v) => Math.round(v * 1000) / 1000)).toEqual([10.4, 10.6, 1, 2, 1, 0, 1, 0, 0, 0, 16, 16, 16]);
+    });
+  });
+
+  describe("custom shader uniforms", () => {
+    const POOL = "uniform vec4 pool[4]; uniform sampler2D noise; vec4 effect(vec4 color, vec2 uv) { return pool[0] * texture(noise, uv); }";
+    const uploads = (calls: { name: string; args: unknown[] }[], fn: string) =>
+      calls.filter((c) => c.name === fn).map((c) => [(c.args[0] as { name: string }).name, ...c.args.slice(1)]);
+
+    it("set a vec4 array with uniform4fv and a float array with uniform1fv, from the active uniform's type", () => {
+      const { gl, calls } = fakeGL([
+        { name: "pool", type: "FLOAT_VEC4", size: 4 },
+        { name: "weights", type: "FLOAT", size: 4 },
+        { name: "offset", type: "FLOAT_VEC2" },
+      ]);
+      const draw = new Draw(new WebGL2Backend(gl), false);
+      const fx = new Shader(POOL);
+      const pool = new Float32Array(16).fill(0.5);
+      // 4 numbers on a float[4] is an array, not a vec4.
+      fx.set("pool", pool).set("weights", [1, 2, 3, 4]).set("offset", [3, 4]);
+      draw.begin("#000", 100, 50, 1);
+      draw.withShader(fx, () => draw.rect(0, 0, 10, 10, "#fff"));
+      draw.end();
+      expect(uploads(calls, "uniform4fv")).toEqual([["pool", pool]]);
+      expect(uploads(calls, "uniform1fv")).toEqual([["weights", [1, 2, 3, 4]]]);
+      // Tuples on plain vectors keep their old call.
+      expect(uploads(calls, "uniform2f")).toContainEqual(["offset", 3, 4]);
+    });
+
+    it("throw an error naming the uniform when an array's length doesn't fit its type", () => {
+      for (const n of [10, 20, 0]) {
+        const { gl } = fakeGL([{ name: "pool", type: "FLOAT_VEC4", size: 4 }]);
+        const draw = new Draw(new WebGL2Backend(gl), false);
+        const fx = new Shader(POOL).set("pool", new Float32Array(n));
+        draw.begin("#000", 100, 50, 1);
+        // Checked when the shader is first used, before anything changes.
+        expect(() => draw.withShader(fx, () => draw.rect(0, 0, 10, 10, "#fff"))).toThrow(
+          new RegExp(`uniform \`pool\` is vec4\\[4\\]: set\\(\\) got ${n} numbers`),
+        );
+        expect(draw.shader).toBe(null);
+        expect(() => draw.end()).not.toThrow();
+      }
+    });
+
+    it("check a value set while the shader draws at the set() call, keeping the old value and the queued draws", () => {
+      const { gl, calls } = fakeGL([{ name: "pool", type: "FLOAT_VEC4", size: 4 }]);
+      const draw = new Draw(new WebGL2Backend(gl), false);
+      const good = new Float32Array(16);
+      const fx = new Shader(POOL).set("pool", good);
+      draw.begin("#000", 100, 50, 1);
+      let error = "";
+      draw.withShader(fx, () => {
+        draw.rect(0, 0, 10, 10, "#fff");
+        try {
+          fx.set("pool", [1, 2, 3]);
+        } catch (e) {
+          error = String(e);
+        }
+        draw.rect(20, 0, 10, 10, "#fff");
+      });
+      draw.end();
+      expect(error).toMatch(/uniform `pool` is vec4\[4\]: set\(\) got 3 numbers/);
+      expect(fx.uniforms.get("pool")).toBe(good);
+      // Both rects in one batch, drawn with the good value.
+      expect(calls.filter((c) => c.name === "drawArraysInstanced")).toHaveLength(1);
+      expect(uploads(calls, "uniform4fv")).toEqual([["pool", good]]);
+    });
+
+    it("still set one element of an array by its name, as before 0.13", () => {
+      const { gl, calls } = fakeGL([{ name: "pool", type: "FLOAT_VEC4", size: 4 }]);
+      const draw = new Draw(new WebGL2Backend(gl), false);
+      const fx = new Shader(POOL).set("pool[2]", [1, 0, 0, 1]);
+      draw.begin("#000", 100, 50, 1);
+      draw.withShader(fx, () => draw.rect(0, 0, 10, 10, "#fff"));
+      draw.end();
+      expect(uploads(calls, "uniform4fv")).toEqual([["pool[2]", [1, 0, 0, 1]]]);
+      // Past the end of the array, from that element: two vec4s fit after pool[2], three don't.
+      expect(() => fx.set("pool[2]", new Float32Array(12))).not.toThrow();
+      expect(() => draw.withShader(fx, () => {})).toThrow(/uniform `pool\[2\]` is vec4\[2\]: set\(\) got 12 numbers/);
+    });
+
+    it("ignore arrays and textures set on uniforms the compiler removed", () => {
+      const { gl, calls } = fakeGL([]);
+      const draw = new Draw(new WebGL2Backend(gl), false);
+      const fx = new Shader(POOL).set("pool", new Float32Array(3)).set("noise", image()).set("gone", 1);
+      draw.begin("#000", 100, 50, 1);
+      expect(() => {
+        draw.withShader(fx, () => draw.rect(0, 0, 10, 10, "#fff"));
+        draw.end();
+      }).not.toThrow();
+      expect(calls.some((c) => c.name.startsWith("uniform") && (c.args[0] as { name?: string })?.name === "pool")).toBe(false);
+      expect(calls.some((c) => c.name === "bindSampler" && c.args[0] === 8)).toBe(false);
+    });
+
+    it("bind a sampler2D texture past the sprite units, on every flush, before the batch's own units", () => {
+      const { gl, calls, created } = fakeGL([{ name: "noise", type: "SAMPLER_2D" }]);
+      const draw = new Draw(new WebGL2Backend(gl), false);
+      const [nearest, linear] = created.filter((o) => o.kind === "Sampler");
+      const noise = image(4, 4);
+      const fx = new Shader(POOL).set("noise", noise);
+      const hero = image();
+      draw.begin("#000", 100, 50, 1);
+      draw.withShader(fx, () => {
+        draw.sprite(hero, 10, 10);
+        // Shapes can't join a custom shader's batch: this ends the first one.
+        roundRect(draw, 0, 0, 4, 4, 1, "#fff");
+        draw.sprite(hero, 20, 10);
+      });
+      draw.end();
+      // The sampler points at unit 8: units 0 to 7 hold the batch's sprites.
+      expect(uploads(calls, "uniform1i")).toContainEqual(["noise", 8]);
+      const binds = calls.filter((c) => c.name === "bindSampler" && c.args[0] === 8);
+      expect(binds.map((c) => c.args[1])).toEqual([nearest, nearest]);
+      // Uploading the shader's texture goes through unit 0, so the sprite's unit 0 is bound after it.
+      const order = calls.map((c) => (c.name === "activeTexture" ? `${c.name}:${c.args[0]}` : c.name));
+      const upload = calls.findIndex((c) => c.name === "texImage2D" && c.args.includes(noise));
+      // (The fake's constants are strings: unit i of a batch is "TEXTURE0" + i.)
+      expect(upload).toBeGreaterThan(0);
+      expect(order.indexOf("activeTexture:TEXTURE00", upload)).toBeLessThan(order.indexOf("drawArraysInstanced", upload));
+      expect(order.lastIndexOf("activeTexture:TEXTURE08")).toBeLessThan(order.lastIndexOf("activeTexture:TEXTURE00"));
+
+      // smooth: linear filtering.
+      const smooth = fakeGL([{ name: "noise", type: "SAMPLER_2D" }]);
+      const d2 = new Draw(new WebGL2Backend(smooth.gl), false);
+      const lin = smooth.created.filter((o) => o.kind === "Sampler")[1];
+      d2.begin("#000", 100, 50, 1);
+      d2.withShader(new Shader(POOL).set("noise", image(4, 4), { smooth: true }), () => d2.rect(0, 0, 1, 1, "#fff"));
+      d2.end();
+      expect(smooth.calls.filter((c) => c.name === "bindSampler" && c.args[0] === 8).map((c) => c.args[1])).toEqual([lin]);
+      expect(linear).toBeDefined();
+    });
+
+    it("reach the per-copy program draw.sprites uses, which has its own uniform table", () => {
+      const { gl, calls } = fakeGL([
+        { name: "pool", type: "FLOAT_VEC4", size: 4 },
+        { name: "noise", type: "SAMPLER_2D" },
+      ]);
+      const draw = new Draw(new WebGL2Backend(gl), false);
+      const pool = new Float32Array(8);
+      const fx = new Shader(POOL).set("pool", pool).set("noise", image(4, 4));
+      draw.begin("#000", 100, 50, 1);
+      draw.withShader(fx, () => draw.sprites(image(), new Float32Array([1, 2, 3, 4]), 2));
+      draw.end();
+      expect(uploads(calls, "uniform4fv")).toEqual([["pool", pool]]);
+      expect(calls.filter((c) => c.name === "bindSampler" && c.args[0] === 8)).toHaveLength(1);
+      expect(calls.filter((c) => c.name === "drawArraysInstanced")).toHaveLength(1);
+    });
+
+    it("take a render target as a texture, but not the one being drawn into", () => {
+      const { gl } = fakeGL([{ name: "noise", type: "SAMPLER_2D" }]);
+      const draw = new Draw(new WebGL2Backend(gl), false);
+      const rt = new RenderTarget(8, 8);
+      const fx = new Shader(POOL).set("noise", rt);
+      draw.begin("#000", 100, 50, 1);
+      // Drawing to the screen with the target as a texture is fine.
+      draw.withShader(fx, () => draw.rect(0, 0, 10, 10, "#fff"));
+      expect(() => draw.into(rt, () => draw.rect(0, 0, 4, 4, "#fff"))).not.toThrow();
+      const feedback = /shader texture `noise` is the render target being drawn into/;
+      // Each way in throws before it changes anything: the shader inside the target, the target inside the shader,
+      // and set() while drawing into it.
+      expect(() => draw.into(rt, () => draw.withShader(fx, () => draw.rect(0, 0, 4, 4, "#fff")))).toThrow(feedback);
+      expect(() => draw.withShader(fx, () => draw.into(rt, () => draw.rect(0, 0, 4, 4, "#fff")))).toThrow(feedback);
+      const other = new Shader(POOL);
+      expect(() => draw.into(rt, () => draw.withShader(other, () => other.set("noise", rt)))).toThrow(feedback);
+      expect(other.textures.size).toBe(0);
+      expect(draw.shader).toBe(null);
+      expect(() => draw.end()).not.toThrow();
+    });
+
+    it("refuse more textures than the GPU has units past spryte's own, when the shader is first used", () => {
+      const many = Array.from({ length: 9 }, (_, i) => ({ name: `t${i}`, type: "SAMPLER_2D" }));
+      const { gl } = fakeGL(many);
+      const draw = new Draw(new WebGL2Backend(gl), false);
+      draw.begin("#000", 100, 50, 1);
+      expect(() => draw.withShader(new Shader(POOL), () => {})).toThrow(/texture `t8` needs unit 16, past this GPU's 16/);
+      expect(() => draw.end()).not.toThrow();
+    });
+
+    it("throw when an array goes on a sampler or a texture on a float", () => {
+      const { gl } = fakeGL([
+        { name: "noise", type: "SAMPLER_2D" },
+        { name: "pool", type: "FLOAT_VEC4", size: 4 },
+      ]);
+      const draw = new Draw(new WebGL2Backend(gl), false);
+      draw.begin("#000", 100, 50, 1);
+      const wrong = new Shader(POOL).set("pool", image());
+      expect(() => draw.withShader(wrong, () => draw.rect(0, 0, 1, 1, "#fff"))).toThrow(/uniform `pool` isn't a sampler2D/);
+      const arrayOnSampler = new Shader(POOL).set("noise", new Float32Array(4));
+      expect(() => draw.withShader(arrayOnSampler, () => {})).toThrow(/uniform `noise` isn't a float, vec2, vec3 or vec4/);
+      expect(() => draw.end()).not.toThrow();
     });
   });
 

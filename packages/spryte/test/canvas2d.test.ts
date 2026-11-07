@@ -46,6 +46,24 @@ describe("Canvas2DBackend", () => {
     expect(calls[1]).toMatchObject({ name: "fillRect", args: [0, 0, 320, 180], state: { fill: "rgba(17,20,13,1)" } });
   });
 
+  it("draws without a custom shader's effect, whatever its uniforms hold, arrays and textures included", () => {
+    const { ctx, calls } = recordingContext();
+    const draw = new Draw(new Canvas2DBackend(ctx), false);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const image = { width: 16, height: 16 } as unknown as HTMLImageElement;
+    const fx = draw
+      .createShader("uniform vec4 pool[2]; uniform sampler2D noise; vec4 effect(vec4 color, vec2 uv) { return pool[0]; }")
+      .set("pool", new Float32Array(3))
+      .set("noise", image);
+    draw.begin("#000", 100, 100, 1);
+    calls.length = 0;
+    draw.withShader(fx, () => draw.sprite(image, 10, 10));
+    draw.end();
+    expect(calls.filter((c) => c.name === "drawImage")).toHaveLength(1);
+    expect(warn).toHaveBeenCalledOnce();
+    warn.mockRestore();
+  });
+
   it("draws each mesh triangle clipped, through the affine map from its uvs to its vertices", () => {
     const { ctx, calls } = recordingContext();
     const draw = new Draw(new Canvas2DBackend(ctx), true);

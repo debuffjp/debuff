@@ -1,9 +1,23 @@
+import type { TextureSource } from "./backend.js";
+
 /** A uniform value: a float, or a vec2/vec3/vec4 as an array. */
 export type UniformValue =
   | number
   | readonly [number, number]
   | readonly [number, number, number]
   | readonly [number, number, number, number];
+
+/**
+ * Values for a uniform array such as `uniform vec4 pool[64];`, packed flat: 4 numbers per `vec4`, so `pool[1]`
+ * starts at index 4. Since spryte 0.13.
+ */
+export type UniformArray = Float32Array | readonly number[];
+
+/** Options for a texture set with `Shader.set(name, texture)`. Since spryte 0.13. */
+export interface ShaderTextureOptions {
+  /** Linear filtering (trilinear on mipmapped images). Default false: nearest, so each texel reads exactly. */
+  smooth?: boolean;
+}
 
 /**
  * A custom fragment effect, applied to everything drawn inside `draw.withShader(shader, fn)`.
@@ -31,22 +45,77 @@ export type UniformValue =
  * draw.withShader(wave, () => draw.sprite(hero, x, y));
  * ```
  *
+ * Since spryte 0.13, `set()` also takes uniform arrays and textures:
+ *
+ * ```ts
+ * const fx = draw.createShader(`
+ *   uniform vec4 pool[64];
+ *   uniform sampler2D noise;
+ *   vec4 effect(vec4 color, vec2 uv) {
+ *     float n = texture(noise, frameUv()).r;
+ *     return source(uv) * color * pool[0].a * n;
+ *   }
+ * `);
+ * fx.set("pool", poolValues); // Float32Array of 64 * 4 numbers
+ * fx.set("noise", noiseCanvas, { smooth: true });
+ * ```
+ *
  * WebGL2 only. On the Canvas 2D fallback, drawing inside `withShader` happens without the effect (warned once).
  */
 export class Shader {
-  /** @internal Uniform values by name. */
-  readonly uniforms = new Map<string, UniformValue>();
-  /** @internal Called when a uniform changes, so pending draws flush with the old value first. */
-  onChange: (() => void) | undefined;
+  /** @internal Uniform values by name: floats, vectors and arrays. */
+  readonly uniforms = new Map<string, UniformValue | UniformArray>();
+  /** @internal Textures for `sampler2D` uniforms by name. */
+  readonly textures = new Map<string, { source: TextureSource; smooth: boolean }>();
+  /**
+   * @internal Called before a uniform changes, so pending draws flush with the old value first. The renderer
+   * drawing with this shader also checks the new value here and throws if it can't take it.
+   */
+  onChange: ((name: string, value: UniformValue | UniformArray | TextureSource) => void) | undefined;
 
   constructor(readonly source: string) {
     if (!/\bvec4\s+effect\s*\(/.test(source)) throw new Error("spryte: a shader must define `vec4 effect(vec4 color, vec2 uv)`");
   }
 
-  /** Set a uniform declared in the source. Applies to draws made after this call. */
-  set(name: string, value: UniformValue): this {
-    this.onChange?.();
-    this.uniforms.set(name, value);
+  /**
+   * Set a uniform declared in the source. Applies to draws made after this call. A name the GLSL compiler
+   * removed because the effect never reads it is ignored, whatever the value.
+   *
+   * - A number sets a `float`. A 2, 3 or 4 number tuple sets a `vec2`, `vec3` or `vec4`.
+   * - A `Float32Array` or number array sets a `float`, `vec2`, `vec3` or `vec4` array (since 0.13), packed flat.
+   *   Its length must be a whole number of elements and at most the declared size: 10 numbers for a `vec4`
+   *   array throws an error naming the uniform. A shorter array sets the first elements and leaves the rest.
+   *   The array is read when the batch draws, so call `set()` again after changing its contents.
+   * - A texture (an image, canvas, `ImageBitmap` or `RenderTarget`) sets a `sampler2D` (since 0.13). Read it with
+   *   `texture(name, uv)`, where `uv` runs 0 to 1 across the whole texture: from the top row of an image, but
+   *   from the bottom row of a render target. Colours are premultiplied. A shader can't sample the render target
+   *   it is drawing into: `set()`, `withShader` or `into()` throws when that would happen. Each `sampler2D` gets
+   *   its own texture unit from 8 up, fixed per program, because units 0 to 7 hold the sprites of a batch.
+   *   WebGL2 guarantees 16 units, so a shader can count on 8 textures; one that reads more than the GPU has
+   *   units for throws when first used. Filtering is nearest unless `options.smooth` is true.
+   *
+   * A wrong kind of value (a texture on a `float`, an array on a `sampler2D`) throws too. All of these throw at
+   * `set()` while the shader is in use, or when `withShader` or `into()` would start using values set earlier,
+   * and always before anything changes. On the Canvas 2D fallback shaders don't run, so nothing is checked and
+   * the draws happen without the effect.
+   *
+   * ```ts
+   * fx.set("time", 1.5);                          // float
+   * fx.set("pool", new Float32Array(64 * 4));     // uniform vec4 pool[64], packed flat
+   * fx.set("noise", noiseCanvas, { smooth: true }); // uniform sampler2D noise
+   * ```
+   */
+  set(name: string, value: UniformValue | UniformArray): this;
+  set(name: string, texture: TextureSource, options?: ShaderTextureOptions): this;
+  set(name: string, value: UniformValue | UniformArray | TextureSource, options?: ShaderTextureOptions): this {
+    this.onChange?.(name, value);
+    if (typeof value === "number" || Array.isArray(value) || value instanceof Float32Array) {
+      this.textures.delete(name);
+      this.uniforms.set(name, value as UniformValue | UniformArray);
+    } else {
+      this.uniforms.delete(name);
+      this.textures.set(name, { source: value as TextureSource, smooth: options?.smooth === true });
+    }
     return this;
   }
 }

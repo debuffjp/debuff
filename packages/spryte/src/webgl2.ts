@@ -2,7 +2,7 @@ import { type Backend, type BlendMode, type ClipRect, type Matrix, pixel, type R
 import { type CopySpec, copyAt, frameAt, placeAt } from "./copies.js";
 import type { Frame, SpriteDrawOptions } from "./draw.js";
 import type { Layer } from "./layer.js";
-import type { Shader } from "./shader.js";
+import type { Shader, UniformArray, UniformValue } from "./shader.js";
 import type { ShapeBuffer } from "./shapes.js";
 import { RenderTarget } from "./target.js";
 
@@ -229,7 +229,107 @@ interface EachPipeline extends EachProgram {
 }
 
 interface EachCustom extends EachProgram {
-  locations: Map<string, WebGLUniformLocation | null>;
+  slots: Map<string, Slot>;
+}
+
+/** An active uniform of a custom shader: where it is, its GLSL type and array size, and its texture unit. */
+interface Slot {
+  loc: WebGLUniformLocation | null;
+  type: number;
+  size: number;
+  /** The texture unit of a `sampler2D`, -1 for anything else. */
+  unit: number;
+}
+
+/**
+ * The active uniforms of a just-linked custom program, which must be bound, by name (`pool`, not `pool[0]`).
+ * Uniforms the compiler removed are missing, so `set()` on them does nothing. Each `sampler2D` other than
+ * spryte's `u_tex` gets its own unit from `UNITS` up: units below that belong to sprite batches.
+ */
+function customSlots(gl: WebGL2RenderingContext, program: WebGLProgram): Map<string, Slot> {
+  const slots = new Map<string, Slot>();
+  const n = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS) as number;
+  let unit = UNITS;
+  for (let i = 0; i < n; i++) {
+    const info = gl.getActiveUniform(program, i);
+    if (!info) continue;
+    const name = info.name.endsWith("[0]") ? info.name.slice(0, -3) : info.name;
+    if (name === "u_tex") continue;
+    const slot: Slot = { loc: gl.getUniformLocation(program, name), type: info.type, size: info.size, unit: -1 };
+    if (info.type === gl.SAMPLER_2D) {
+      const max = gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS) as number;
+      if (unit >= max)
+        throw new Error(
+          `spryte: custom shader texture \`${name}\` needs unit ${unit}, past this GPU's ${max} (spryte keeps ${UNITS} for sprites)`,
+        );
+      slot.unit = unit++;
+      gl.uniform1i(slot.loc, slot.unit);
+    }
+    slots.set(name, slot);
+  }
+  return slots;
+}
+
+/**
+ * The slot for `name`. A name that isn't an active uniform's, such as one element `pool[2]` (which `set()` has
+ * always taken), is looked up by location once and takes its type from the array it is in.
+ */
+function slotFor(gl: WebGL2RenderingContext, p: { program: WebGLProgram; slots: Map<string, Slot> }, name: string): Slot {
+  let slot = p.slots.get(name);
+  if (slot) return slot;
+  const loc = gl.getUniformLocation(p.program, name);
+  const element = /^(.+)\[(\d+)\]$/.exec(name);
+  const of = element ? p.slots.get(element[1] as string) : undefined;
+  slot =
+    of && of.unit < 0
+      ? { loc, type: of.type, size: Math.max(1, of.size - Number(element?.[2])), unit: -1 }
+      : { loc, type: 0, size: 1, unit: -1 };
+  p.slots.set(name, slot);
+  return slot;
+}
+
+/** Floats per element of a uniform array type, 0 for types `set()` doesn't take arrays for. */
+function floatsPer(gl: WebGL2RenderingContext, type: number): number {
+  if (type === gl.FLOAT) return 1;
+  if (type === gl.FLOAT_VEC2) return 2;
+  if (type === gl.FLOAT_VEC3) return 3;
+  if (type === gl.FLOAT_VEC4) return 4;
+  return 0;
+}
+
+const TYPE_NAMES: Record<number, string> = { 1: "float", 2: "vec2", 3: "vec3", 4: "vec4" };
+
+/** True for the values `Shader.set` sends with `uniform{1,2,3,4}fv`: typed arrays, and any array on a uniform array. */
+const isArrayValue = (slot: Slot, value: UniformValue | UniformArray): boolean =>
+  value instanceof Float32Array || (typeof value !== "number" && slot.size > 1);
+
+/**
+ * Throw if `value` can't go in the uniform `name`, naming it. A name the compiler removed takes anything. Numbers
+ * and tuples on plain uniforms aren't checked, as before 0.13.
+ */
+function checkUniform(
+  gl: WebGL2RenderingContext,
+  p: { program: WebGLProgram; slots: Map<string, Slot> },
+  target: RenderTarget | null,
+  name: string,
+  value: UniformValue | UniformArray | TextureSource,
+): void {
+  const slot = slotFor(gl, p, name);
+  if (slot.loc === null) return;
+  const of = `spryte: uniform \`${name}\``;
+  if (typeof value !== "number" && !Array.isArray(value) && !(value instanceof Float32Array)) {
+    if (slot.unit < 0) throw new Error(`${of} isn't a sampler2D, so set() can't take a texture for it`);
+    if (value === target) throw new Error(`spryte: shader texture \`${name}\` is the render target being drawn into`);
+    return;
+  }
+  if (!isArrayValue(slot, value as UniformValue | UniformArray)) return;
+  const per = floatsPer(gl, slot.type);
+  if (per === 0) throw new Error(`${of} isn't a float, vec2, vec3 or vec4 (array), so set() can't take an array for it`);
+  const n = (value as UniformArray).length;
+  if (n === 0 || n % per !== 0 || n > per * slot.size)
+    throw new Error(
+      `${of} is ${TYPE_NAMES[per]}${slot.size > 1 ? `[${slot.size}]` : ""}: set() got ${n} numbers, which must be a multiple of ${per} up to ${per * slot.size}`,
+    );
 }
 
 interface CopyPipeline extends ProgramInfo {
@@ -315,7 +415,7 @@ interface BuiltLayer {
 }
 
 interface CustomProgram extends BatchProgram {
-  locations: Map<string, WebGLUniformLocation | null>;
+  slots: Map<string, Slot>;
 }
 
 /** Floats per instance before the 4-byte colour. */
@@ -1210,13 +1310,31 @@ export class WebGL2Backend implements Backend {
     this.flush();
     // Compile before changing any state: a shader that fails to compile throws and leaves the renderer as it was.
     const next = this.lost ? null : shader ? this.custom(shader) : this.main;
+    // Values set before the shader was compiled are checked now, also before any state changes.
+    if (shader && next)
+      try {
+        this.checkAll(shader, next as CustomProgram, this.target);
+      } catch (e) {
+        this.gl.useProgram(this.active.program);
+        throw e;
+      }
     if (this.shader) this.shader.onChange = undefined;
     this.shader = shader;
     if (!next) return;
     this.active = next;
     this.gl.useProgram(next.program);
-    // Uniform changes flush the batch drawn with the old values first.
-    if (shader) shader.onChange = () => this.flush();
+    // Uniform changes are checked, then flush the batch drawn with the old values first.
+    if (shader)
+      shader.onChange = (name, value) => {
+        checkUniform(this.gl, next as CustomProgram, this.target, name, value);
+        this.flush();
+      };
+  }
+
+  /** Throw if any of `shader`'s values can't go in `p`'s uniforms while drawing into `target`. */
+  private checkAll(shader: Shader, p: CustomProgram, target: RenderTarget | null): void {
+    for (const [name, value] of shader.uniforms) checkUniform(this.gl, p, target, name, value);
+    for (const [name, { source }] of shader.textures) checkUniform(this.gl, p, target, name, source);
   }
 
   setTarget(target: RenderTarget | null, clear: number | null, width: number, height: number): void {
@@ -1224,6 +1342,8 @@ export class WebGL2Backend implements Backend {
       this.target = target;
       return;
     }
+    // A custom shader can't sample the target it draws into.
+    if (this.shader) this.checkAll(this.shader, this.active as CustomProgram, target);
     this.flush();
     const gl = this.gl;
     if (target) {
@@ -1344,7 +1464,7 @@ export class WebGL2Backend implements Backend {
     const program = link(gl, EACH_VERT, `${EACH_FRAG_HEADER}#line 1\n${shader.source}\n${EACH_FRAG_MAIN}`, "custom shader");
     gl.useProgram(program);
     gl.uniform1i(gl.getUniformLocation(program, "u_tex"), 0);
-    p = { ...eachProgram(gl, program), locations: new Map() };
+    p = { ...eachProgram(gl, program), slots: this.slotsOf(program) };
     this.eachCustoms.set(shader, p);
     return p;
   }
@@ -1497,12 +1617,14 @@ export class WebGL2Backend implements Backend {
       return;
     }
     const gl = this.gl;
+    const p = this.active;
+    // Before the batch's units: the first use of a shader texture uploads it through unit 0.
+    if (this.shader) this.syncUniforms(this.shader, p as CustomProgram);
     for (let i = 0; i < this.unitCount; i++) {
       gl.activeTexture(gl.TEXTURE0 + i);
       gl.bindTexture(gl.TEXTURE_2D, this.units[i] ?? null);
       gl.bindSampler(i, this.samplerFor(this.units[i], this.unitSmooth[i] === true));
     }
-    const p = this.active;
     this.syncView(p);
     if (this.sprites) {
       const bm = this.bm;
@@ -1518,7 +1640,6 @@ export class WebGL2Backend implements Backend {
       gl.uniform3fv(p.texinfo, info);
       this.sprites = false;
     }
-    if (this.shader) this.syncUniforms(this.shader, p as CustomProgram);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.instanceBuffer);
     gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.f32, 0, this.count * (STRIDE / 4));
     gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, this.count);
@@ -1536,19 +1657,36 @@ export class WebGL2Backend implements Backend {
     p.h = this.viewH;
   }
 
-  private syncUniforms(shader: Shader, p: { program: WebGLProgram; locations: Map<string, WebGLUniformLocation | null> }): void {
+  /**
+   * Upload a custom shader's uniforms and bind its textures. The program must be bound. Call it before binding the
+   * batch's own units: uploading a texture on first use goes through unit 0. Values were checked (`checkUniform`)
+   * when set or when the shader or target changed, so this never throws mid-flush; anything else is skipped.
+   */
+  private syncUniforms(shader: Shader, p: { program: WebGLProgram; slots: Map<string, Slot> }): void {
     const gl = this.gl;
     for (const [name, value] of shader.uniforms) {
-      let loc = p.locations.get(name);
-      if (loc === undefined) {
-        loc = gl.getUniformLocation(p.program, name);
-        p.locations.set(name, loc);
-      }
-      if (loc === null) continue; // unused uniforms are optimised away by the compiler
+      const slot = slotFor(gl, p, name);
+      // Unused uniforms are optimised away by the compiler: nothing to set.
+      if (slot.loc === null) continue;
+      const loc = slot.loc;
       if (typeof value === "number") gl.uniform1f(loc, value);
-      else if (value.length === 2) gl.uniform2f(loc, value[0], value[1]);
-      else if (value.length === 3) gl.uniform3f(loc, value[0], value[1], value[2]);
-      else gl.uniform4f(loc, value[0], value[1], value[2], value[3]);
+      else if (isArrayValue(slot, value)) {
+        const per = floatsPer(gl, slot.type);
+        if (per === 1) gl.uniform1fv(loc, value);
+        else if (per === 2) gl.uniform2fv(loc, value);
+        else if (per === 3) gl.uniform3fv(loc, value);
+        else if (per === 4) gl.uniform4fv(loc, value);
+      } else if (value.length === 2) gl.uniform2f(loc, value[0] as number, value[1] as number);
+      else if (value.length === 3) gl.uniform3f(loc, value[0] as number, value[1] as number, value[2] as number);
+      else gl.uniform4f(loc, value[0] as number, value[1] as number, value[2] as number, value[3] as number);
+    }
+    for (const [name, { source, smooth }] of shader.textures) {
+      const slot = slotFor(gl, p, name);
+      if (slot.loc === null || slot.unit < 0 || source === this.target) continue;
+      const t = this.texture(source);
+      gl.activeTexture(gl.TEXTURE0 + slot.unit);
+      gl.bindTexture(gl.TEXTURE_2D, t.tex);
+      gl.bindSampler(slot.unit, this.samplerFor(t.tex, smooth));
     }
   }
 
@@ -1563,9 +1701,20 @@ export class WebGL2Backend implements Backend {
       gl.getUniformLocation(program, "u_tex"),
       Array.from({ length: UNITS }, (_, i) => i),
     );
-    p = { ...batchProgram(gl, program), locations: new Map() };
+    p = { ...batchProgram(gl, program), slots: this.slotsOf(program) };
     this.customs.set(shader, p);
     return p;
+  }
+
+  /** `customSlots` for a custom program just bound. If it throws, the program goes and the active one is bound again. */
+  private slotsOf(program: WebGLProgram): Map<string, Slot> {
+    try {
+      return customSlots(this.gl, program);
+    } catch (e) {
+      this.gl.useProgram(this.active.program);
+      this.gl.deleteProgram(program);
+      throw e;
+    }
   }
 
   private texture(src: TextureSource): CachedTexture {

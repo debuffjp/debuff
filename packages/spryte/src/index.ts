@@ -30,7 +30,7 @@ export { mask } from "./mask.js";
 export { mesh } from "./mesh.js";
 export { nineSlice, type PanelDrawOptions, type TiledDrawOptions, tiled } from "./panels.js";
 export { createRenderer, type RendererOptions } from "./renderer.js";
-export { Shader, type UniformValue } from "./shader.js";
+export { Shader, type ShaderTextureOptions, type UniformArray, type UniformValue } from "./shader.js";
 export { polygon, polyline, ring, roundRect } from "./shapes.js";
 export { createSharedRenderer, type SharedRenderer, type SharedRendererOptions } from "./shared.js";
 export { RenderTarget } from "./target.js";

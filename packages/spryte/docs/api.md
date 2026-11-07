@@ -149,7 +149,7 @@ const wave = draw.createShader(`
     return source(uv) * color;            // source(uv) samples the image being drawn
   }
 `);
-wave.set("time", t);                      // float, or [x, y], [x, y, z], [x, y, z, w]
+wave.set("time", t);                      // float, or [x, y], [x, y, z], [x, y, z, w]; arrays and textures below
 draw.withShader(wave, () => draw.sprite(hero, x, y));
 ```
 
@@ -158,8 +158,33 @@ draw.withShader(wave, () => draw.sprite(hero, x, y));
 - `rect()`, `line()` and `circle()` run the effect too, and `frameUv()` covers each of them from (0, 0) to (1, 1). The vector shapes (`polygon`, `polyline`, `roundRect`, `ring`) and `mesh` draw without the effect. (Up to 0.12.3 this page said "shapes get (0, 0)", which was wrong for both.)
 - Shaders compile on first use. Errors throw with the driver's message, and line numbers refer to your source. A shader that fails to compile leaves the renderer as it was, and using it again throws again.
 - `set()` affects only draws made after it, even inside the same scope.
+- `set()` on a uniform the GLSL compiler removed (declared but never read) does nothing, whatever the value.
 - Shaders compose with render targets: draw into a target, then draw the target through a shader for full-screen post-processing.
-- `sprites()` inside `withShader` stays one instanced draw: spryte compiles your effect a second time against its per-copy program. Inside `effect`, only `source(uv)`, `color`, `uv` and `frameUv()` are guaranteed there. Frames across images still draw one quad per copy. Before 0.8, `sprites()` inside `withShader` always fell back to one quad per copy, which was correct but without the bulk speed-up.
+- `sprites()` inside `withShader` stays one instanced draw: spryte compiles your effect a second time against its per-copy program. Inside `effect`, only `source(uv)`, `color`, `uv` and `frameUv()` are guaranteed there, plus your uniforms (arrays and textures too, since 0.13). Frames across images still draw one quad per copy. Before 0.8, `sprites()` inside `withShader` always fell back to one quad per copy, which was correct but without the bulk speed-up.
+
+### Uniform arrays and textures
+
+Since 0.13, `set()` also takes a uniform array or a texture.
+
+```ts
+const fx = draw.createShader(`
+  uniform vec4 pool[64];
+  uniform sampler2D noise;
+  vec4 effect(vec4 color, vec2 uv) {
+    vec4 p = pool[int(frameUv().x * 63.0)];
+    return source(uv) * color * p.a * texture(noise, frameUv()).r;
+  }
+`);
+fx.set("pool", poolValues);                      // Float32Array or number[], 4 numbers per vec4, packed flat
+fx.set("noise", noiseCanvas, { smooth: true });  // image, canvas, ImageBitmap or render target
+```
+
+- Arrays: `float`, `vec2`, `vec3` and `vec4` arrays, packed flat, so `pool[1]` starts at index 4. spryte reads the declared type from the compiled shader. The length must be a whole number of elements and at most the declared size, or `set()` throws an error naming the uniform. A shorter array sets the first elements only. spryte reads the array when the batch draws, so after changing its contents call `set()` again: that also draws the queued sprites with the old values first.
+- Four numbers on a `float[4]` set the array. On a plain `vec4` they set the vector, as before. One element by name, `set("pool[2]", [x, y, z, w])`, works as before too, and an array there fills from that element on.
+- Textures: a `sampler2D` takes anything `draw.sprite` takes as an image. Read it with `texture(name, uv)`, where `uv` runs 0 to 1 across the whole texture, from the top row of an image but from the bottom row of a render target. Colours are premultiplied. Filtering is nearest unless you pass `{ smooth: true }`.
+- A shader can't sample the render target it draws into: `set()`, `withShader` or `into()` throws when that would happen.
+- Each `sampler2D` gets its own texture unit from 8 up, because units 0 to 7 hold the sprites in a batch. WebGL2 guarantees 16 units, so a shader can count on 8 textures. A shader that reads more textures than the GPU has units for throws when first used.
+- Wrong values are checked when the shader is first used inside `withShader`, and at `set()` while it is in use. A wrong kind throws too: a texture on a `float`, or an array on a `sampler2D`.
 
 An overlay that only darkens or tints the screen, such as a vignette, needs no target: draw a `rect()` over the view inside `withShader` and shape it with `frameUv()`.
 
