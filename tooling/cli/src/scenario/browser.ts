@@ -51,6 +51,15 @@ export function hooksReady(): boolean {
   return (window as unknown as { __DEBUFF_DEV__?: { controlled?: boolean } }).__DEBUFF_DEV__?.controlled === true;
 }
 
+/** What the page has when `hooksReady` never came true, so the error can say why. */
+export function hooksProbe(): { hooks: boolean; scenarioQuery: boolean; url: string } {
+  return {
+    hooks: (window as unknown as { __DEBUFF_DEV__?: unknown }).__DEBUFF_DEV__ !== undefined,
+    scenarioQuery: new URLSearchParams(location.search).has("debuff-scenario"),
+    url: location.pathname + location.search,
+  };
+}
+
 /**
  * Fraction of pixels whose RGB differs by more than `threshold` (sum of channel deltas), 1 if sizes differ,
  * plus a PNG data URL highlighting the differing pixels in red over a faded copy of `a`.

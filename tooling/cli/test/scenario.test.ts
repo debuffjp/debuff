@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { callHooks, stepUntil } from "../src/scenario/browser.js";
 import { captureDiffMessage, compare, pick, runScenarios, unusedBaselines } from "../src/scenario/index.js";
-import { CheckpointCheck, comparisonError, nextBatch, runStep } from "../src/scenario/run.js";
+import { CheckpointCheck, comparisonError, devHooksMissing, importsDevTools, nextBatch, runStep } from "../src/scenario/run.js";
 import type { ScenarioReport, Step } from "../src/scenario/types.js";
 
 describe("compare", () => {
@@ -196,6 +196,60 @@ describe("nextBatch", () => {
   });
 });
 
+describe("devHooksMissing", () => {
+  const absent = { hooks: false, scenarioQuery: true, url: "/?debuff-scenario=1" };
+
+  it("blames a failed request or console error first", () => {
+    const err = devHooksMissing("/", absent, ["request failed: http://localhost:5173/src/main.ts (HTTP 404)"], true);
+    expect(err.code).toBe("dev_hooks_missing");
+    expect(err.message).toMatch(
+      /^__DEBUFF_DEV__ is missing: \/ never set it within 15 s\. While loading: request failed: .*main\.ts \(HTTP 404\)$/,
+    );
+    expect(err.fix).toMatch(/failed request or console error/);
+  });
+
+  it("says when nothing in src/ imports @debuffjp/dev", () => {
+    const err = devHooksMissing("/", absent, [], false);
+    expect(err.message).toMatch(/nothing in src\/ imports @debuffjp\/dev/);
+    expect(err.fix).toMatch(/game\.use\(devTools\(\{ input \}\)\)/);
+    expect(devHooksMissing("/", absent, ["console error: boom"], false).message).toMatch(/nothing in src\/ imports/);
+  });
+
+  it("says the game didn't reach its dev tools when src/ imports them", () => {
+    const err = devHooksMissing("/", absent, [], true);
+    expect(err.message).toMatch(/src\/ imports @debuffjp\/dev, but the game didn't install its dev tools within 15 s/);
+    expect(err.fix).toMatch(/before anything it waits for/);
+  });
+
+  it("names both causes when there is no src/ folder", () => {
+    expect(devHooksMissing("/", absent, [], undefined).message).toMatch(/doesn't install the dev tools .* or waits for/);
+  });
+
+  it("says when the hooks are there but the page lost ?debuff-scenario", () => {
+    const err = devHooksMissing("/", { hooks: true, scenarioQuery: false, url: "/play" }, [], true);
+    expect(err.message).toMatch(/not in scenario mode: the page's URL lost its \?debuff-scenario query .*now \/play/);
+    expect(err.fix).toMatch(/history\.replaceState/);
+  });
+
+  it("suggests updating @debuffjp/dev when the hooks are there but not controlled", () => {
+    expect(devHooksMissing("/", { hooks: true, scenarioQuery: true, url: "/?debuff-scenario=1" }, [], true).fix).toMatch(
+      /npm i -D @debuffjp\/dev/,
+    );
+  });
+});
+
+describe("importsDevTools", () => {
+  it("finds @debuffjp/dev in src/ and is undefined without src/", () => {
+    const root = mkdtempSync(join(tmpdir(), "debuff-imports-"));
+    expect(importsDevTools(root)).toBeUndefined();
+    mkdirSync(join(root, "src", "game"), { recursive: true });
+    writeFileSync(join(root, "src", "main.ts"), 'import { Game } from "@debuffjp/core";\n');
+    expect(importsDevTools(root)).toBe(false);
+    writeFileSync(join(root, "src", "game", "dev.ts"), 'export { devTools } from "@debuffjp/dev";\n');
+    expect(importsDevTools(root)).toBe(true);
+  });
+});
+
 describe("callHooks", () => {
   const withHooks = async <R>(hooks: Record<string, unknown>, fn: () => Promise<R>) => {
     (globalThis as { window?: unknown }).window = { __DEBUFF_DEV__: hooks };
@@ -337,4 +391,32 @@ describe("scenario browser failures", () => {
     expect(report.warnings.some((w) => /definitely-missing\.json \(got the HTML page/.test(w))).toBe(true);
     expect(report.warnings.some((w) => w.includes("Failed to load resource"))).toBe(false);
   }, 60_000);
+  // A page beside the template's own, so its src/ (which imports @debuffjp/dev) stays the same. The base keeps
+  // the asset manifest preload the dev server adds pointing at /assets/.
+  const page = (name: string, body: string) => {
+    const dir = join(template, ".debuff", "test-scenarios");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, `${name}.html`), `<!doctype html><head><base href="/"></head><body>${body}</body>`);
+    return `/.debuff/test-scenarios/${name}.html`;
+  };
+
+  it("says why the dev hooks never appeared", async () => {
+    const [blank, rewritten] = await Promise.allSettled([
+      run("no-hooks", () => undefined, { page: page("no-hooks", "<p>no game here</p>") }),
+      run("lost-query", () => undefined, {
+        page: page(
+          "lost-query",
+          '<script>history.replaceState(null, "", "/play"); window.__DEBUFF_DEV__ = { controlled: false };</script>',
+        ),
+      }),
+    ]);
+    expect(blank.status === "rejected" && blank.reason).toMatchObject({
+      code: "dev_hooks_missing",
+      message: expect.stringMatching(/src\/ imports @debuffjp\/dev, but the game didn't install its dev tools within 15 s/),
+    });
+    expect(rewritten.status === "rejected" && rewritten.reason).toMatchObject({
+      code: "dev_hooks_missing",
+      message: expect.stringMatching(/not in scenario mode: the page's URL lost its \?debuff-scenario query .*now \/play/),
+    });
+  }, 90_000);
 });
