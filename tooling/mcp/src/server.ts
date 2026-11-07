@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import {
   autoPapercut,
@@ -25,6 +25,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { registerPrompts } from "./prompts.js";
 import { type GameSession, startSession } from "./session.js";
+import { runTestsInChild } from "./tests.js";
 
 type Content = { type: "text"; text: string } | { type: "image"; data: string; mimeType: string };
 
@@ -78,14 +79,32 @@ export function createServer(options: ServerOptions): McpServer {
   let idleTimer: NodeJS.Timeout | undefined;
   let idleClosed = false;
   const idleMs = options.idleMs ?? 15 * 60_000;
+  /**
+   * Starting and stopping a session take time (a browser, a dev server) and MCP clients may call tools in
+   * parallel. Every change to `session` runs through this chain, one at a time: two overlapping game_start
+   * calls would otherwise both stop the old session and both start one, orphaning the first (a browser and a
+   * dev server left running), and a game_stop during a start would be undone when the start finished.
+   */
+  let lifecycle: Promise<unknown> = Promise.resolve();
+  const exclusive = <T>(fn: () => Promise<T>): Promise<T> => {
+    const run = lifecycle.then(fn, fn);
+    lifecycle = run.catch(() => undefined);
+    return run;
+  };
+  const stopSession = async () => {
+    const s = session;
+    session = undefined;
+    await s?.stop();
+  };
   /** Headless games hold a browser and a dev server, and agents forget game_stop. */
   const watchIdle = () => {
     clearTimeout(idleTimer);
     if (session?.mode !== "headless") return;
     idleTimer = setTimeout(() => {
-      void session?.stop().catch(() => undefined);
-      session = undefined;
-      idleClosed = true;
+      void exclusive(async () => {
+        await stopSession().catch(() => undefined);
+        idleClosed = true;
+      });
     }, idleMs);
     idleTimer.unref();
   };
@@ -239,9 +258,15 @@ export function createServer(options: ServerOptions): McpServer {
     },
     safely(async ({ root: r, files, filter }) => {
       const dir = rootOf(r);
-      const { runTests } = await import("keiko/runner");
-      const report = await runTests({ root: dir, files: files ?? [], vite: await viteConfig(dir), ...(filter ? { filter } : {}) });
-      markTested(dir);
+      if (!existsSync(join(dir, "package.json"))) throw new Error(`No package.json in ${dir}. Pass the game's folder as root.`);
+      const { findTests } = await import("keiko/runner");
+      // No test files: answer here (finding them patches nothing), as `debuff test` does.
+      if (!findTests(dir, files ?? []).length) {
+        markTested(dir);
+        return json({ ok: true, passed: 0, failed: 0, skipped: 0, todo: 0, durationMs: 0, results: [], outside: [] });
+      }
+      // In a child process: keiko swaps process globals while a test runs, and here they're the server's.
+      const report = await runTestsInChild(dir, { files: files ?? [], ...(filter ? { filter } : {}) });
       // Passing tests don't need their (empty) logs or details; keep the result small for the agent.
       return json({
         ...report,
@@ -341,30 +366,36 @@ export function createServer(options: ServerOptions): McpServer {
       },
     },
     safely(async ({ root: r, page, mode, viewport, reducedMotion }) => {
-      clearTimeout(idleTimer);
-      idleClosed = false;
-      await session?.stop();
-      session = undefined;
-      sessionRoot = rootOf(r);
-      session = await startSession(sessionRoot, {
-        ...(page ? { page } : {}),
-        ...(mode ? { mode } : {}),
-        ...(viewport ? { width: viewport[0], height: viewport[1] } : {}),
+      const started = await exclusive(async () => {
+        clearTimeout(idleTimer);
+        idleClosed = false;
+        await stopSession();
+        const dir = rootOf(r);
+        const next = await startSession(dir, {
+          ...(page ? { page } : {}),
+          ...(mode ? { mode } : {}),
+          ...(viewport ? { width: viewport[0], height: viewport[1] } : {}),
+        });
+        // Only a session that started moves the root captures and replays are written under.
+        session = next;
+        sessionRoot = dir;
+        watchIdle();
+        return next;
       });
-      watchIdle();
+      // From here on, use the session this call started (`started`): a later game_start or game_stop may replace it.
       const warnings: string[] = [];
-      if (viewport && session.mode === "live") warnings.push("viewport only applies to headless mode; the human's tab keeps its size");
+      if (viewport && started.mode === "live") warnings.push("viewport only applies to headless mode; the human's tab keeps its size");
       if (reducedMotion !== undefined) {
         // An older @debuffjp/dev has no reducedMotion hook: keep the session and say so, rather than failing the start.
-        await session.call("reducedMotion", reducedMotion).catch((err: unknown) => {
+        await started.call("reducedMotion", reducedMotion).catch((err: unknown) => {
           warnings.push(`reducedMotion not applied: ${err instanceof Error ? err.message : String(err)}`);
         });
       }
       return json({
-        mode: session.mode,
-        url: session.url,
+        mode: started.mode,
+        url: started.url,
         ...(warnings.length ? { warnings } : {}),
-        state: await session.call("state"),
+        state: await started.call("state"),
       });
     }),
   );
@@ -665,12 +696,13 @@ export function createServer(options: ServerOptions): McpServer {
         "replay",
         ...(toTick === undefined ? [] : [toTick]),
       );
-      const dir = join(options.root, ".debuff", "replays");
+      // Under the running game's project, like captures, so the returned path works with run_scenarios there.
+      const dir = join(sessionRoot, ".debuff", "replays");
       mkdirSync(dir, { recursive: true });
       const file = join(dir, `replay-tick-${replay.ticks}.json`);
       writeFileSync(file, `${JSON.stringify({ name: replay.name, steps: replay.steps }, null, 2)}\n`);
       return json({
-        file: relative(options.root, file).split("\\").join("/"),
+        file: relative(sessionRoot, file).split("\\").join("/"),
         ticks: replay.ticks,
         steps: replay.steps.length,
         warnings: replay.warnings,
@@ -718,10 +750,11 @@ export function createServer(options: ServerOptions): McpServer {
       inputSchema: {},
     },
     safely(async () => {
-      clearTimeout(idleTimer);
-      idleClosed = false;
-      await session?.stop();
-      session = undefined;
+      await exclusive(async () => {
+        clearTimeout(idleTimer);
+        idleClosed = false;
+        await stopSession();
+      });
       return json({ ok: true });
     }),
   );
@@ -757,8 +790,7 @@ export function createServer(options: ServerOptions): McpServer {
   const close = server.close.bind(server);
   server.close = async () => {
     clearTimeout(idleTimer);
-    await session?.stop();
-    session = undefined;
+    await exclusive(stopSession);
     await close();
   };
   return server;

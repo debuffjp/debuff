@@ -17,6 +17,14 @@ describe("createRenderer", () => {
     expect(draw.raw).toEqual({ kind: "2d", ctx });
   });
 
+  it("stays disposed when disposed before the Canvas 2D fallback finishes loading", async () => {
+    const ctx = { setTransform() {}, fillRect() {}, clearRect() {}, save() {}, restore() {} };
+    const draw = createRenderer(canvasWith({ "2d": ctx }));
+    draw.dispose();
+    await draw.ready;
+    expect(() => draw.begin("#000", 10, 10, 1)).toThrow(/disposed/);
+  });
+
   it("throws a clear error when WebGL2 is required but missing", () => {
     expect(() => createRenderer(canvasWith({ "2d": {} }), { backend: "webgl2" })).toThrow(/WebGL2 is unavailable/);
   });

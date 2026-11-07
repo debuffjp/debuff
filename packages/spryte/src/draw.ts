@@ -775,7 +775,10 @@ export class Draw {
   dispose(): void {
     this.backend.dispose();
     this.backend = disposed(this.backend);
+    this.isDisposed = true;
   }
+
+  private isDisposed = false;
 
   /** Tell spryte the canvas's backing size changed: call it with `canvas.width, canvas.height` after setting them. */
   resize(w: number, h: number): void {
@@ -786,6 +789,11 @@ export class Draw {
 
   /** @internal Switch to a backend that finished loading (the Canvas 2D fallback), at the current size. */
   setBackend(backend: Backend): void {
+    // Disposed while the fallback was still loading: it stays disposed, and the late backend is let go too.
+    if (this.isDisposed) {
+      backend.dispose();
+      return;
+    }
     this.backend.dispose();
     this.backend = backend;
     if (this.backingW) backend.resize(this.backingW, this.backingH);

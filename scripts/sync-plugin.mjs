@@ -11,11 +11,28 @@ const { version } = read("tooling/mcp/package.json");
 const plugin = "plugins/debuff";
 const openaiPlugin = "plugins/openai/debuff";
 
+const synced = ["plugins", "tooling/mcp/mcpb/manifest.json"];
+/** Format, stage and commit the synced files. */
+const commit = () => {
+  // Match the repo's formatting (Biome collapses short arrays that JSON.stringify spreads over lines).
+  execSync(`npx biome format --write plugins tooling/mcp/mcpb/manifest.json`, { stdio: "inherit" });
+  execSync(`git add ${synced.join(" ")}`, { stdio: "inherit" });
+  execSync(`git commit -m "chore(plugin): use @debuffjp/mcp@${version}"`, { stdio: "inherit" });
+  console.log(`plugin now uses @debuffjp/mcp@${version}`);
+};
+
 const pkg = read(`${plugin}/package.json`);
 const lock = read(`${plugin}/package-lock.json`);
-// Done only when the lockfile resolves the new version too: a run that failed halfway can be rerun.
+// Done only when the lockfile resolves the new version and the result is committed: a run that failed halfway
+// (npm, biome, or the commit itself, say on the commit-msg hook) can be rerun.
 if (pkg.dependencies["@debuffjp/mcp"] === version && lock.packages?.["node_modules/@debuffjp/mcp"]?.version === version) {
-  console.log(`plugin already uses @debuffjp/mcp@${version}`);
+  const dirty = execSync(`git status --porcelain -- ${synced.join(" ")}`, { encoding: "utf8" }).trim();
+  if (!dirty) {
+    console.log(`plugin already uses @debuffjp/mcp@${version}`);
+    process.exit(0);
+  }
+  console.log(`plugin files already point at @debuffjp/mcp@${version} but aren't committed: committing them`);
+  commit();
   process.exit(0);
 }
 
@@ -77,8 +94,4 @@ for (let tries = 1; ; tries++) {
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10_000);
   }
 }
-// Match the repo's formatting (Biome collapses short arrays that JSON.stringify spreads over lines).
-execSync("npx biome format --write plugins tooling/mcp/mcpb/manifest.json", { stdio: "inherit" });
-execSync(`git add plugins tooling/mcp/mcpb/manifest.json`, { stdio: "inherit" });
-execSync(`git commit -m "chore(plugin): use @debuffjp/mcp@${version}"`, { stdio: "inherit" });
-console.log(`plugin now uses @debuffjp/mcp@${version}`);
+commit();

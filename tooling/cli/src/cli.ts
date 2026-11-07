@@ -344,14 +344,9 @@ cli
         throw new DebuffError("not_a_project", `No package.json in ${root}`, "Run from the game's folder, or pass --root <dir>");
       markTested(root);
       const saves = await testSaves(root, o.acceptSaves ?? false);
+      // emit(), not console.log: in JSON mode stdout is redirected to stderr, so only emit reaches stdout.
       if (o.json)
-        console.log(
-          JSON.stringify(
-            { ok: true, passed: 0, failed: 0, skipped: 0, todo: 0, durationMs: 0, results: [], outside: [], ...(saves ? { saves } : {}) },
-            null,
-            2,
-          ),
-        );
+        emit({ ok: true, passed: 0, failed: 0, skipped: 0, todo: 0, durationMs: 0, results: [], outside: [], ...(saves ? { saves } : {}) });
       else {
         p.log.info(`No tests yet. Add one in tests/, e.g. tests/movement.test.ts. Guide: ${sky("https://debuff.jp/docs/testing")}`);
         if (saves) printSaves(saves);
@@ -518,7 +513,15 @@ cli
     for (const line of result.doctor?.fixed ?? []) p.log.step(line);
     finish(
       ok,
-      !result.changes ? `already on ${result.to}` : o.dryRun ? `would move to ${result.to}` : `on ${result.to}`,
+      result.stale?.length
+        ? o.dryRun
+          ? `package.json is on ${result.to}, but the install never finished: run again without --dry-run`
+          : `on ${result.to} (finished an upgrade whose install hadn't completed)`
+        : !result.changes
+          ? `already on ${result.to}`
+          : o.dryRun
+            ? `would move to ${result.to}`
+            : `on ${result.to}`,
       result.changes ? pc.dim(`what changed: ${result.changelog}`) : "",
     );
     if (result.doctor && !result.doctor.ok) p.log.warn("Some setup checks still fail: run `npx debuff doctor` for the fixes");

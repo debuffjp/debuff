@@ -418,6 +418,16 @@ export class WebGL2Backend implements Backend {
   private lastSrc: TextureSource | null = null;
   private last: CachedTexture | undefined;
   private count = 0;
+
+  /**
+   * Remember `t` as the texture for `src`, the one-entry cache behind the fast path. An image still loading gets
+   * the white placeholder from `texture()`; that pairing is never remembered, or the image would keep drawing
+   * as a white box after it loads (until something else reset the cache).
+   */
+  private remember(src: TextureSource | null, t: CachedTexture): void {
+    this.lastSrc = t === this.white && src !== null ? null : src;
+    this.last = t;
+  }
   /** True when the pending batch holds sprites, which read the batch's transform `bm` and `unitInfo`. */
   private sprites = false;
   private readonly bm: Matrix = [1, 0, 0, 1, 0, 0];
@@ -518,6 +528,16 @@ export class WebGL2Backend implements Backend {
 
   begin(clear: number | null, width: number, height: number): void {
     if (this.lost) return;
+    // A frame that threw before end() left its batch pending. Drop it before anything below can flush it,
+    // or it would be drawn on top of this frame (with texture units that may no longer be bound).
+    this.count = 0;
+    this.unitCount = 0;
+    this.sprites = false;
+    this.armed = false;
+    if (this.shapes) {
+      this.shapes.count = 0;
+      this.shapes.icount = 0;
+    }
     const gl = this.gl;
     this.target = null;
     this.bindOutput();
@@ -564,8 +584,7 @@ export class WebGL2Backend implements Backend {
     if (src !== null && src === this.target) throw new Error("spryte: can't draw a render target into itself");
     const t = src === null ? this.white : src === this.lastSrc && this.last ? this.last : this.texture(src);
     const sameAsLast = t === this.last;
-    this.lastSrc = src;
-    this.last = t;
+    this.remember(src, t);
     if (this.count === this.capacity) this.flush();
     const unit = this.unitFor(t, smooth, sameAsLast, src);
     const shapes = this.shapes;
@@ -809,8 +828,7 @@ export class WebGL2Backend implements Backend {
     if (src === this.target) throw new Error("spryte: can't draw a render target into itself");
     const t = src === this.lastSrc && this.last ? this.last : this.texture(src);
     const sameAsLast = t === this.last;
-    this.lastSrc = src;
-    this.last = t;
+    this.remember(src, t);
     if (this.count === this.capacity) this.flush();
     const unit = this.unitFor(t, smooth, sameAsLast, src);
     if (!this.sprites) {
@@ -913,8 +931,7 @@ export class WebGL2Backend implements Backend {
     this.flush();
     const gl = this.gl;
     const tex = src === this.lastSrc && this.last ? this.last : this.texture(src);
-    this.lastSrc = src;
-    this.last = tex;
+    this.remember(src, tex);
     const c = this.copyPipe;
     gl.useProgram(c.program);
     gl.bindVertexArray(c.vao);
@@ -963,8 +980,7 @@ export class WebGL2Backend implements Backend {
     this.flush();
     const gl = this.gl;
     const tex = src === this.lastSrc && this.last ? this.last : this.texture(src);
-    this.lastSrc = src;
-    this.last = tex;
+    this.remember(src, tex);
     const p = this.each;
     const shader = this.shader;
     const prog: EachProgram = shader ? this.eachCustom(shader) : p;
@@ -1395,8 +1411,7 @@ export class WebGL2Backend implements Backend {
     if (this.count > 0) this.flush();
     const t = src === this.lastSrc && this.last ? this.last : this.texture(src);
     const sameAsLast = t === this.last;
-    this.lastSrc = src;
-    this.last = t;
+    this.remember(src, t);
     // May flush a batch with all units taken; nothing of this mesh is written yet.
     const unit = this.unitFor(t, smooth, sameAsLast, src);
     this.shapes ??= new triangles();

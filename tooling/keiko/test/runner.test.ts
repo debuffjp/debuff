@@ -65,6 +65,17 @@ describe("runTests", { timeout: 60_000 }, () => {
     expect(formatSummary(report)).toMatch(/2 passed · .*6 failed.* · 1 skipped · 1 todo in \d+ ms/);
   });
 
+  it("runs afterEach even when beforeEach throws, and reports the beforeEach error", async () => {
+    const r = (await runTests({ root: fixture, files: ["hooks/before-throws.test.ts"] })).results[0];
+    expect(r).toMatchObject({ status: "fail", error: { message: "setup broke" } });
+    expect(r?.logs.join("\n")).toMatch(/cleaned up/);
+  });
+
+  it("says so when a test drives a game that a later play() replaced", async () => {
+    const r = (await runTests({ root: fixture, files: ["hooks/replaced-game.test.ts"] })).results[0];
+    expect(r).toMatchObject({ status: "pass" });
+  });
+
   it("filters by name and reports files that fail to load", async () => {
     const filtered = await runTests({ root: fixture, files: ["tests/dot.test.ts", "broken/syntax.test.ts"], filter: "WALKS" });
     expect(filtered.results.map((r) => [r.name, r.status])).toEqual([
@@ -304,6 +315,29 @@ describe("headless page", () => {
       viaDom.src = "http://localhost:1/missing.png";
       await failed;
       expect(new Image(4, 5).width).toBe(4);
+    } finally {
+      await page.dispose();
+    }
+  });
+
+  it("ignores the load of an image src that was replaced before it finished", async () => {
+    const png = new Uint8Array(24);
+    const v = new DataView(png.buffer);
+    v.setUint32(0, 0x89504e47);
+    v.setUint32(16, 8);
+    v.setUint32(20, 8);
+    const realTimeout = setTimeout; // the page installs keiko's virtual clock as the global one
+    const page = openPage({ origin: "http://localhost:1/", path: "/", clock: new VirtualClock() });
+    try {
+      const img = new Image();
+      const events: string[] = [];
+      img.addEventListener("load", () => events.push("load"));
+      img.addEventListener("error", () => events.push("error"));
+      img.src = "http://localhost:1/never.png"; // nothing listens there: it fails, later
+      img.src = `data:image/png;base64,${Buffer.from(png).toString("base64")}`;
+      await new Promise((r) => realTimeout(r, 300));
+      expect(events).toEqual(["load"]); // before, the first src's failure fired an error too
+      expect([img.complete, img.naturalWidth]).toEqual([true, 8]);
     } finally {
       await page.dispose();
     }

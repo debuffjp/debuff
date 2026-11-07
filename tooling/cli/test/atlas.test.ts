@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { encode } from "fast-png";
@@ -77,6 +77,19 @@ describe("compileAssets atlas stage", () => {
     "assets/bg.png": png(1500, 10, [0, 0, 0]),
     "assets/level2/boss.png": png(32, 32, [0, 255, 0]),
     "assets/photo.jpg": "not really a jpeg",
+  });
+
+  it("rebuilds an atlas whose cache entry is cut short or missing a file, instead of failing the compile", async () => {
+    const root = project(files());
+    const first = await compileAssets(root);
+    const cacheDir = join(root, ".debuff", "cache", "atlas");
+    const meta = readdirSync(cacheDir).filter((f) => f.endsWith(".json"));
+    for (const f of meta) writeFileSync(join(cacheDir, f), "[{"); // a killed process left it half-written
+    const truncated = await compileAssets(root);
+    expect([...truncated.outputs.keys()]).toEqual([...first.outputs.keys()]);
+    for (const f of readdirSync(cacheDir).filter((f) => f.endsWith(".png"))) rmSync(join(cacheDir, f));
+    const missing = await compileAssets(root);
+    expect(missing.manifest.assets.coin?.src).toBe("assets/_atlas/default-0.png");
   });
 
   it("packs PNGs per group, keeps big and lone images standalone, and records rects", async () => {

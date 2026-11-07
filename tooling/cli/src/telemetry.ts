@@ -3,7 +3,7 @@
 // project's package.json name and the CLI version, and nothing else: no code, paths, URLs or player data.
 // Off with `debuff telemetry off` or DEBUFF_TELEMETRY=0; skipped in CI. Details: https://debuff.jp/docs/telemetry
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -40,8 +40,20 @@ function readConfig(file: string): UserConfig {
 function writeConfig(file: string, config: UserConfig): void {
   try {
     mkdirSync(dirname(file), { recursive: true });
-    writeFileSync(file, `${JSON.stringify(config, null, 2)}\n`);
+    // Write then rename, so another debuff process never reads a half-written file. A failed read counts as
+    // `{}`, which would mean telemetry on, and it may then write that back.
+    const tmp = `${file}.${process.pid}.tmp`;
+    writeFileSync(tmp, `${JSON.stringify(config, null, 2)}\n`);
+    renameSync(tmp, file);
   } catch {}
+}
+
+/**
+ * Merge `patch` into the user config as it is on disk now. Callers that waited (a registry call) must use this
+ * rather than write back what they read before: `debuff telemetry off` run meanwhile would be undone.
+ */
+export function updateUserConfig(file: string, patch: Record<string, unknown>): void {
+  writeConfig(file, { ...readConfig(file), ...patch });
 }
 
 /** Why telemetry is off, or undefined when it's on. */
@@ -56,7 +68,7 @@ export function telemetryOff(ctx: TelemetryContext = {}): string | undefined {
 
 export function setTelemetry(on: boolean, ctx: TelemetryContext = {}): void {
   const file = ctx.configFile ?? userConfigFile(ctx.env ?? process.env);
-  writeConfig(file, { ...readConfig(file), telemetry: on, telemetryNotice: true });
+  updateUserConfig(file, { telemetry: on, telemetryNotice: true });
 }
 
 /** The project's random id, made once and kept in `.debuff/project.json` (which projects don't commit). */
@@ -113,7 +125,7 @@ export async function reportBuild(
     notice(
       `debuff registers builds anonymously (a random project id, its package name and the debuff version) so we can find games made with it. Nothing else is sent. Turn it off with \`debuff telemetry off\` or DEBUFF_TELEMETRY=0. More: ${TELEMETRY_DOCS}`,
     );
-    writeConfig(file, { ...config, telemetryNotice: true });
+    updateUserConfig(file, { telemetryNotice: true });
   }
   try {
     await (ctx.fetch ?? fetch)(env.DEBUFF_TELEMETRY_URL ?? TELEMETRY_URL, {
