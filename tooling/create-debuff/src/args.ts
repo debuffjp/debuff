@@ -3,6 +3,7 @@ export interface CreateArgs {
   template: string | undefined;
   yes: boolean;
   git: boolean;
+  credit: boolean;
 }
 
 /** Flags that take the next argument as their value. Every other flag is a switch. */
@@ -22,5 +23,11 @@ export function parseArgs(args: readonly string[]): CreateArgs {
       i++;
     } else if (!a.startsWith("-") && dir === undefined) dir = a;
   }
-  return { dir, template, yes: args.includes("--yes") || args.includes("-y"), git: !args.includes("--no-git") };
+  return {
+    dir,
+    template,
+    yes: args.includes("--yes") || args.includes("-y"),
+    git: !args.includes("--no-git"),
+    credit: !args.includes("--no-credit"),
+  };
 }

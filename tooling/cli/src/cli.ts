@@ -52,9 +52,10 @@ cli
   .option("--template <id>", "Template to use")
   .option("-y, --yes", "Accept defaults without prompting")
   .option("--no-git", "Don't start a git repository with a first commit")
-  .action(async (dir: string | undefined, o: { template?: string; yes?: boolean; noGit?: boolean }) => {
+  .option("--no-credit", "Leave debuff out of the first commit's co-authors")
+  .action(async (dir: string | undefined, o: { template?: string; yes?: boolean; noGit?: boolean; noCredit?: boolean }) => {
     const { runCreate } = await import("create-debuff");
-    return runCreate({ dir, template: o.template, yes: o.yes ?? false, git: o.noGit !== true });
+    return runCreate({ dir, template: o.template, yes: o.yes ?? false, git: o.noGit !== true, credit: o.noCredit !== true });
   });
 
 cli

@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { inflateRawSync } from "node:zlib";
 import { afterEach, describe, expect, it } from "vitest";
-import { ship, shipFailed, writeLaunchFiles, zip } from "../src/index.js";
+import { DebuffError, type LaunchConfig, ship, shipFailed, writeLaunchFiles, zip } from "../src/index.js";
 
 let root: string;
 const PNG = Buffer.from("89504e470d0a1a0a", "hex");
@@ -73,6 +73,62 @@ describe("writeLaunchFiles", () => {
     expect(html).toContain('<meta property="og:video:height" content="720" />');
     expect(existsSync(join(root, "dist", "preview.mp4"))).toBe(true);
     expect(writeLaunchFiles(root, join(root, "dist"), { video: "nope.mp4" })).toContain("launch.video nope.mp4 not found");
+  });
+
+  it("writes an X player card when launch.playerCard is set", () => {
+    project();
+    const url = "https://me.itch.io/jelly";
+    expect(writeLaunchFiles(root, join(root, "dist"), { url, playerCard: { site: "@me", width: 480, height: 270 } })).toEqual([]);
+    const html = readFileSync(join(root, "dist", "index.html"), "utf8");
+    expect(html).toContain('<meta name="twitter:card" content="player" />');
+    expect(html).toContain('<meta name="twitter:site" content="@me" />');
+    expect(html).toContain('<meta name="twitter:title" content="t" />');
+    expect(html).toContain('<meta name="twitter:image" content="https://me.itch.io/jelly/preview.png" />');
+    expect(html).toContain('<meta name="twitter:player" content="https://me.itch.io/jelly" />');
+    expect(html).toContain('<meta name="twitter:player:width" content="480" />');
+    expect(html).toContain('<meta name="twitter:player:height" content="270" />');
+    expect(html.match(/twitter:card/g)).toHaveLength(1);
+  });
+
+  it("keeps the summary card by default and the player at its own url", () => {
+    project();
+    writeLaunchFiles(root, join(root, "dist"), { url: "https://me.itch.io/jelly" });
+    let html = readFileSync(join(root, "dist", "index.html"), "utf8");
+    expect(html).toContain('<meta name="twitter:card" content="summary_large_image" />');
+    expect(html).not.toContain("twitter:player");
+    expect(html).not.toContain("twitter:site");
+    project();
+    const playerCard = { site: "@me", width: 480, height: 270, url: "https://html.example.com/jelly/index.html" };
+    writeLaunchFiles(root, join(root, "dist"), { url: "https://me.itch.io/jelly", playerCard });
+    html = readFileSync(join(root, "dist", "index.html"), "utf8");
+    expect(html).toContain('<meta name="twitter:player" content="https://html.example.com/jelly/index.html" />');
+  });
+
+  it("fails the build on a player card X would not show, before writing anything", () => {
+    const cases: [LaunchConfig, string][] = [
+      [{ url: "https://me.itch.io/jelly", playerCard: { site: "me", width: 480, height: 270 } }, "site must be an X account"],
+      [{ url: "https://me.itch.io/jelly", playerCard: { site: "@me", width: 0, height: 270 } }, "width must be"],
+      [{ url: "https://me.itch.io/jelly", playerCard: { site: "@me", width: 480, height: 27.5 } }, "height must be"],
+      [{ url: "http://me.itch.io/jelly", playerCard: { site: "@me", width: 480, height: 270 } }, "https://"],
+      [{ playerCard: { site: "@me", width: 480, height: 270, url: "https://me.itch.io/jelly" } }, "launch.url"],
+      [{ url: "https://me.itch.io/jelly", image: "nope.png", playerCard: { site: "@me", width: 480, height: 270 } }, "twitter:image"],
+    ];
+    for (const [config, message] of cases) {
+      project();
+      let error: unknown;
+      try {
+        writeLaunchFiles(root, join(root, "dist"), config);
+      } catch (err) {
+        error = err;
+      }
+      expect(error).toBeInstanceOf(DebuffError);
+      expect((error as DebuffError).code).toBe("config_invalid");
+      expect((error as DebuffError).message).toContain(message);
+      expect(readFileSync(join(root, "dist", "index.html"), "utf8")).not.toContain("<meta");
+      expect(existsSync(join(root, "dist", "manifest.webmanifest"))).toBe(false);
+      rmSync(root, { recursive: true, force: true });
+    }
+    project();
   });
 });
 

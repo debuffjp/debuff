@@ -7,7 +7,7 @@ import { DebuffError } from "../errors.js";
 import type { StepDef } from "../plugin.js";
 import { createDevServer } from "../vite.js";
 import { analyzeFlashes, contrastGrid, contrastRatio, FLASH_GRID } from "./a11y.js";
-import { callHook, callHooks, diffImages, hooksReady, sampleFrames, stepUntil } from "./browser.js";
+import { callHook, callHooks, diffImages, hooksProbe, hooksReady, sampleFrames, stepUntil } from "./browser.js";
 import type { CaptureResult, Comparison, RunOptions, Scenario, ScenarioReport, Step, StepResult } from "./types.js";
 
 /** Pixels whose summed RGB delta exceeds this count as different (absorbs anti-aliasing noise). */
@@ -134,21 +134,75 @@ export async function launchBrowser(renderer: Renderer = "gpu"): Promise<Browser
   const { chromium } = await import("playwright-core");
   const args = renderer === "software" ? ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] : [];
   const executablePath = process.env.DEBUFF_BROWSER;
-  if (executablePath) return chromium.launch({ executablePath, args });
-  // Why each channel failed, as "missing" or "launch failed" (never the message, which has paths): an installed
-  // browser that won't start is debuff's problem to fix, so automatic papercuts send this.
-  const channels: Record<string, string> = {};
+  if (executablePath) {
+    try {
+      return await chromium.launch({ executablePath, args });
+    } catch (err) {
+      throw browserLaunchError({ DEBUFF_BROWSER: err }, executablePath);
+    }
+  }
+  const failures: Record<string, unknown> = {};
   for (const channel of ["chrome", "msedge", "chromium"]) {
     try {
       return await chromium.launch({ channel, args });
     } catch (err) {
-      channels[channel] = /executable doesn't exist|is not found|not installed/i.test(String(err)) ? "missing" : "launch failed";
+      failures[channel] = err;
     }
   }
-  throw Object.assign(
-    new Error("No Chromium-based browser found. Install Chrome or Edge, or set DEBUFF_BROWSER to a browser executable."),
+  throw browserLaunchError(failures);
+}
+
+const BROWSER_NAMES: Record<string, string> = { chrome: "Chrome", msedge: "Edge", chromium: "Playwright's Chromium" };
+
+/**
+ * The browser_not_found error for failed launches (by channel, or `DEBUFF_BROWSER` with its path): what was tried,
+ * where Playwright looked and why an installed browser didn't start. `channels` says "missing" or "launch failed"
+ * per channel (never the message, which has paths): an installed browser that won't start is debuff's problem to
+ * fix, so automatic papercuts send it.
+ */
+export function browserLaunchError(
+  failures: Record<string, unknown>,
+  executablePath?: string,
+): DebuffError & { channels: Record<string, string> } {
+  if (executablePath !== undefined)
+    return Object.assign(
+      new DebuffError(
+        "browser_not_found",
+        `DEBUFF_BROWSER is set to ${executablePath}, but that browser didn't start: ${launchFailure(failures.DEBUFF_BROWSER)}`,
+        "Set DEBUFF_BROWSER to the full path of a Chromium-based browser executable, or unset it to use an installed Chrome or Edge",
+      ),
+      { channels: {} },
+    );
+  const channels: Record<string, string> = {};
+  const tried: string[] = [];
+  for (const [channel, err] of Object.entries(failures)) {
+    const text = String(err instanceof Error ? err.message : err);
+    const name = BROWSER_NAMES[channel] ?? channel;
+    if (/executable doesn't exist|is not found|not installed/i.test(text)) {
+      channels[channel] = "missing";
+      const at = /(?:is not found|doesn't exist) at (.+)/i.exec(text)?.[1]?.trim();
+      tried.push(`${name} (not installed${at ? ` at ${at}` : ""})`);
+    } else {
+      channels[channel] = "launch failed";
+      tried.push(`${name} (installed, but it didn't start: ${launchFailure(err)})`);
+    }
+  }
+  const started = Object.values(channels).includes("launch failed") ? "would start" : "found";
+  return Object.assign(
+    new DebuffError(
+      "browser_not_found",
+      `No Chromium-based browser ${started}. Tried ${tried.join(", ")}. DEBUFF_BROWSER is not set.`,
+      "Install Chrome or Edge, or set DEBUFF_BROWSER to the full path of another Chromium-based browser executable, such as Chromium",
+    ),
     { channels },
   );
+}
+
+/** Why a launch failed, in one line: the browser's own error output when it printed some, else Playwright's first line. */
+function launchFailure(err: unknown): string {
+  const text = String(err instanceof Error ? err.message : err);
+  const stderr = /\[err\] (?:\S*[\\/]\S*: )?(.+)/.exec(text)?.[1];
+  return (stderr ?? text.split("\n")[0] ?? "").replace(/^browserType\.launch: /, "").trim();
 }
 
 export async function runScenarios(options: RunOptions): Promise<ScenarioReport[]> {
@@ -199,6 +253,65 @@ export async function runScenarios(options: RunOptions): Promise<ScenarioReport[
   return reports;
 }
 
+const DEV_TOOLS_LINE = "`if (import.meta.env.DEV) game.use(devTools({ input }))` (from @debuffjp/dev)";
+
+/**
+ * The `dev_hooks_missing` error for a page whose dev hooks weren't ready in time, naming the likely cause:
+ * the URL losing `?debuff-scenario`, no import of @debuffjp/dev in src/, a failed request or console error
+ * while loading, or a game that waits for something before installing its dev tools.
+ */
+export function devHooksMissing(
+  path: string,
+  probe: { hooks: boolean; scenarioQuery: boolean; url: string },
+  warnings: string[],
+  importsDev: boolean | undefined,
+): DebuffError {
+  if (probe.hooks)
+    return probe.scenarioQuery
+      ? new DebuffError(
+          "dev_hooks_missing",
+          `__DEBUFF_DEV__ is not in scenario mode: ${path} set it, but its \`controlled\` flag isn't true.`,
+          "Update the dev tools to match the CLI: npm i -D @debuffjp/dev@latest",
+        )
+      : new DebuffError(
+          "dev_hooks_missing",
+          `__DEBUFF_DEV__ is not in scenario mode: the page's URL lost its ?debuff-scenario query before the dev tools started (now ${probe.url}).`,
+          "Keep `location.search` when the game changes its URL (history.replaceState or a redirect), or install the dev tools before it does",
+        );
+  if (importsDev === false)
+    return new DebuffError(
+      "dev_hooks_missing",
+      `__DEBUFF_DEV__ is missing on ${path}: nothing in src/ imports @debuffjp/dev, so the game never installs its dev hooks.`,
+      `Add ${DEV_TOOLS_LINE} to src/main.ts`,
+    );
+  if (warnings.length)
+    return new DebuffError(
+      "dev_hooks_missing",
+      `__DEBUFF_DEV__ is missing: ${path} never set it within 15 s. While loading: ${warnings[0]}`,
+      "Fix that failed request or console error (open the page under `npx debuff dev` to see it), then run the scenario again",
+    );
+  return new DebuffError(
+    "dev_hooks_missing",
+    importsDev
+      ? `__DEBUFF_DEV__ is missing: ${path} loaded without errors and src/ imports @debuffjp/dev, but the game didn't install its dev tools within 15 s. It may wait for a click, a sound unlock or a slow load first.`
+      : `__DEBUFF_DEV__ is missing: ${path} loaded without errors, but within 15 s the game either doesn't install the dev tools from @debuffjp/dev or waits for a click, a sound unlock or a slow load first.`,
+    `Install the dev tools right after \`new Game(...)\`, before anything it waits for: ${DEV_TOOLS_LINE}`,
+  );
+}
+
+/** Whether a source file in `root/src` mentions @debuffjp/dev; undefined when there is no src folder. */
+export function importsDevTools(root: string): boolean | undefined {
+  const src = join(root, "src");
+  if (!existsSync(src)) return undefined;
+  return readdirSync(src, { recursive: true, withFileTypes: true }).some(
+    (file) =>
+      file.isFile() &&
+      /\.(?:[cm]?[jt]sx?|vue|svelte)$/.test(file.name) &&
+      !relative(src, file.parentPath).split(/[\\/]/).includes("node_modules") &&
+      readFileSync(join(file.parentPath, file.name), "utf8").includes("@debuffjp/dev"),
+  );
+}
+
 async function runOne(page: Page, base: string, name: string, scenario: Scenario, options: RunOptions): Promise<ScenarioReport> {
   const started = Date.now();
   const url = new URL(scenario.page ?? "/", base);
@@ -231,10 +344,8 @@ async function runOne(page: Page, base: string, name: string, scenario: Scenario
     // A game that throws while loading never gets to its dev hooks: that's this scenario failing, not debuff.
     if (loadErrors.length)
       return { name, ok: false, steps: [], errors: loadErrors, warnings, captures: [], finalState: null, durationMs: Date.now() - started };
-    throw new DebuffError(
-      "dev_hooks_missing",
-      `__DEBUFF_DEV__ is missing: ${url.pathname} loaded without errors, but the game didn't expose its dev hooks within 15 s.`,
-    );
+    const probe = await page.evaluate(hooksProbe).catch(() => ({ hooks: false, scenarioQuery: true, url: url.pathname }));
+    throw devHooksMissing(url.pathname, probe, warnings, importsDevTools(options.root));
   } finally {
     page.off("pageerror", onError);
   }

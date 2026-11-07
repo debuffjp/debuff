@@ -10,9 +10,14 @@ export type UniformValue =
  *
  * The source defines `vec4 effect(vec4 color, vec2 uv)`, which returns the pixel's colour. `color` is the
  * draw's tint and alpha, premultiplied. `source(uv)` samples the image being drawn. `uv` is in texture (atlas)
- * space, so it isn't 0 to 1 across a sprite packed into an atlas: `frameUv()` gives the position inside the
- * drawn frame instead, from (0, 0) at its top left to (1, 1) at its bottom right (since spryte 0.10; shapes get
- * (0, 0)). Declare your own uniforms and set them with `set()`. Return premultiplied colour (rgb already multiplied by alpha).
+ * space, so it isn't 0 to 1 across a sprite packed into an atlas, and on a render target `uv.y` runs bottom to top:
+ * `frameUv()` gives the position inside the drawn frame instead, from (0, 0) at its top left to (1, 1) at its
+ * bottom right (since spryte 0.10). Declare your own uniforms and set them with `set()`. Return premultiplied
+ * colour (rgb already multiplied by alpha).
+ *
+ * `rect()`, `line()` and `circle()` run the effect with `frameUv()` across them, so a full-screen vignette can be
+ * a `rect()` over the view with no render target. The vector shapes (`polygon`, `polyline`, `roundRect`, `ring`)
+ * and `mesh` draw without the effect. Up to 0.12.3 this comment said shapes get (0, 0), which was wrong for both.
  *
  * ```ts
  * const wave = draw.createShader(`
