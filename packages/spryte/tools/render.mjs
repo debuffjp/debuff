@@ -5,6 +5,7 @@
 //   --size 1920x1080 viewport (default 1280x720)
 //   --samples 20     frames kept for the checks and the contact sheet (default 20)
 //   --out render-out folder for contact-sheet.png and report.json (default ./render-out)
+//   --keep-frames d  also write each sampled frame to folder d as a full-size PNG (frame-0007.png)
 //   --mp4 clip.mp4   also encode every frame; needs ffmpeg with libx264 on PATH
 //   --query "n=5000" appended to the page URL
 // The page must expose window.__frame(): step the scene exactly one frame and draw it, then return.
@@ -34,6 +35,7 @@ const [width, height] = opt("size", "1280x720").split("x").map(Number);
 const fps = Number(opt("fps", 60));
 const out = resolve(opt("out", "render-out"));
 const mp4 = opt("mp4", "");
+const keepFrames = opt("keep-frames", "");
 const query = opt("query", "");
 if (![frames, samples, width, height, fps].every((n) => Number.isInteger(n) && n > 0)) {
   console.error("--frames, --samples, --size and --fps must be whole numbers above zero");
@@ -275,6 +277,11 @@ for (const side of ["top", "bottom", "left", "right"]) {
 }
 
 await mkdir(out, { recursive: true });
+if (keepFrames) {
+  await mkdir(resolve(keepFrames), { recursive: true });
+  for (const s of shots)
+    await writeFile(join(resolve(keepFrames), `frame-${String(s.i).padStart(4, "0")}.png`), Buffer.from(s.png, "base64"));
+}
 await writeFile(join(out, "contact-sheet.png"), Buffer.from(analysis.sheet, "base64"));
 const report = {
   url,
