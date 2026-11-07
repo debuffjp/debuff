@@ -214,21 +214,24 @@ export async function runScenarios(options: RunOptions): Promise<ScenarioReport[
       "Add a scenario such as scenarios/smoke.json; the format is in https://debuff.jp/docs/scenarios",
     );
   const server = await createDevServer(options.root, { port: 0, logLevel: "error" });
-  await server.listen();
-  const address = server.httpServer?.address();
-  const base =
-    server.resolvedUrls?.local[0] ??
-    server.resolvedUrls?.network[0] ??
-    (address && typeof address === "object" ? `http://localhost:${address.port}/` : undefined);
-  if (!base)
-    throw new DebuffError(
-      "config_invalid",
-      "The dev server started without a URL to open.",
-      "Check `server` in vite.config / debuff.config.ts (host, port, middlewareMode), then run `npx debuff dev` to see what it prints",
-    );
-  const browser = await launchBrowser(options.renderer);
+  // Everything after the server exists is inside the try: a missing URL or browser must still close it.
+  // The MCP server calls this in one long-lived process, where a leaked server keeps its port and watcher.
+  let browser: Browser | undefined;
   const reports: ScenarioReport[] = [];
   try {
+    await server.listen();
+    const address = server.httpServer?.address();
+    const base =
+      server.resolvedUrls?.local[0] ??
+      server.resolvedUrls?.network[0] ??
+      (address && typeof address === "object" ? `http://localhost:${address.port}/` : undefined);
+    if (!base)
+      throw new DebuffError(
+        "config_invalid",
+        "The dev server started without a URL to open.",
+        "Check `server` in vite.config / debuff.config.ts (host, port, middlewareMode), then run `npx debuff dev` to see what it prints",
+      );
+    browser = await launchBrowser(options.renderer);
     for (const file of files) {
       const scenario = JSON.parse(readFileSync(file, "utf8")) as Scenario;
       if (scenario.viewport !== undefined) checkViewport(scenario.viewport, `${relative(options.root, file)}: viewport`);
@@ -241,7 +244,7 @@ export async function runScenarios(options: RunOptions): Promise<ScenarioReport[
       }
     }
   } finally {
-    await browser.close();
+    await browser?.close();
     await server.close();
   }
   const outDir = join(options.root, ".debuff", "reports");

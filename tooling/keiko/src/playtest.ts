@@ -104,6 +104,24 @@ export class Playtest<S = any> {
     this.engineInfo = init.engine ?? (() => undefined);
   }
 
+  /**
+   * @internal Called when this game's page closes: a later `play()` replaced it, or its test ended. Its clock and
+   * globals now belong to another page (or none), so driving it would step an empty clock or another game's
+   * hooks; every driver call throws a clear error instead.
+   */
+  retire(): void {
+    const replaced = new Error(
+      "This game was replaced by a later play() (or its test ended): its page is closed. Use the game the latest play() returned.",
+    );
+    Object.defineProperty(this, "driver", {
+      value: new Proxy({} as Driver, {
+        get() {
+          throw replaced;
+        },
+      }),
+    });
+  }
+
   // ---- reading ---------------------------------------------------------------------------------
 
   /** The game's state snapshot (debuff: the scene's `inspect()`; others: `__KEIKO__.state()`), read fresh on every access. */

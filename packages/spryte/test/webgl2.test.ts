@@ -191,7 +191,35 @@ describe("WebGL2Backend", () => {
     draw.begin("#000", 100, 50, 1);
     draw.sprite(img, 0, 0);
     draw.end();
-    expect(count("texImage2D")).toBe(1);
+    // The white placeholder plus the loaded image: no empty upload. Before spryte 0.12.4 this was 1, because the
+    // one-entry texture cache kept the placeholder for the image and the real pixels were never uploaded.
+    expect(count("texImage2D")).toBe(2);
+  });
+
+  it("drops what a frame that never reached end() left in its batch", () => {
+    const { gl, count } = fakeGL();
+    const be = new WebGL2Backend(gl);
+    be.begin(0x000000ff, 100, 50, 1);
+    be.quad(M, image(), 0, 0, 16, 16, 0xffffffff, 0, false); // then the game threw before end()
+    be.begin(0x000000ff, 100, 50, 1);
+    be.end();
+    expect(count("drawArraysInstanced")).toBe(0); // the stale quad isn't drawn over the new frame
+  });
+
+  it("doesn't keep drawing an image as the white placeholder after it loads", () => {
+    const { gl, count } = fakeGL();
+    const be = new WebGL2Backend(gl);
+    const img = { naturalWidth: 0, naturalHeight: 0 } as unknown as HTMLImageElement;
+    be.begin(0x000000ff, 100, 50, 1);
+    be.quad(M, img, 0, 0, 16, 16, 0xffffffff, 0, false); // still loading: drawn with the 1×1 white
+    be.end();
+    const before = count("texImage2D");
+    img.naturalWidth = 16;
+    img.naturalHeight = 16;
+    be.begin(0x000000ff, 100, 50, 1);
+    be.quad(M, img, 0, 0, 16, 16, 0xffffffff, 0, false);
+    be.end();
+    expect(count("texImage2D")).toBe(before + 1); // the loaded image is uploaded and used
   });
 
   it("invalidate() re-uploads changed pixels", () => {

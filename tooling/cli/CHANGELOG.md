@@ -1,5 +1,24 @@
 # @debuffjp/cli
 
+## 0.31.1
+
+### Patch Changes
+
+- 15a6dc8: An asset or atlas cache entry left half-written (the process was killed mid-write) is treated as a cache miss and rebuilt. Before, a broken import entry made that asset warn and drop out on every run, and a broken atlas entry, or a missing atlas image, failed the whole compile, until someone deleted `.debuff/cache`.
+- a360071: `debuff dev` recovers from a failed asset compile. Before, a failure stayed cached, and every `/assets/` request kept failing until another file in `assets/` changed; now the next request compiles again. A compile failure at startup is logged instead of becoming an unhandled rejection. A dangling symlink in `assets/`, such as the `.#name` lock link Emacs writes while you edit, is skipped instead of failing the compile.
+- 4a72887: `debuff scenario` and `debuff fuzz` close their dev server, and any browser they started, when a run fails before it begins: no URL from the server, no Chrome to launch, or a config that won't load. Before, the server and its file watcher kept running. The CLI exits anyway, but the MCP server runs these in one long-lived process, so each failed `run_scenarios` or `fuzz` call there kept a port and a watcher open.
+- f5a2f76: `debuff telemetry off` can no longer be undone by another debuff command running at the same time. The daily update check read the user config, waited on the npm registry, then wrote back what it had read, so turning telemetry off during that wait was lost. Config writes now merge into the file as it is when they write, and replace it in one step, so a half-written file is never read as an empty config (which means telemetry on).
+- 321b4b8: `debuff test --json` in a project with no tests prints its (empty) report on stdout again. Before, it went to stderr like a log line, so stdout was empty and tools reading one JSON document got nothing.
+- 230749c: `debuff dev`'s background type check keeps running after a result listener throws. Before, the throw left it marked as running, so every later check only queued and type errors stopped appearing until a restart. Closing the dev server now also stops a check that's in progress from reporting.
+- 0cdbada: `debuff upgrade` finishes an upgrade whose install failed or was interrupted. Before, package.json was already on the new version, so a rerun said "already on" and exited 0, leaving the old packages and agent skills installed. It now compares what's in `node_modules` with package.json, then installs and runs the new version's `doctor --fix` when they differ. `--json` lists those packages as `stale`.
+- Updated dependencies [7bf16bf]
+- Updated dependencies [4acdcf7]
+- Updated dependencies [fe45024]
+- Updated dependencies [3ef4def]
+- Updated dependencies [a4d2449]
+  - create-debuff@0.31.1
+  - keiko@0.8.1
+
 ## 0.31.0
 
 ### Minor Changes

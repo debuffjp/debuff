@@ -1,5 +1,21 @@
 # @debuffjp/core
 
+## 0.31.1
+
+### Patch Changes
+
+- 164b4de: The dev overlay's pause state follows the game loop. When game code calls `game.stop()`, the overlay shows the game as paused by "game" and its play button starts it again; before, it still showed "pause" and play did nothing. When game code calls `game.start()` while the dev tools had paused it, the overlay shows it running and pause works straight away. `game.isStarted` is new: true from `start()` until `stop()`, including while the loop is halted for a hidden tab.
+- 9f793e0: A `gameEvent` listener that throws no longer hides the event from the listeners after it or drops the events queued behind it. Every listener hears every event, then `game.emit` rethrows the first error.
+- 79ce95a: A loop error's `phase` no longer carries over from an earlier step that threw, or from the last update hook: an error outside the labelled parts of a frame (such as `draw.begin`) now reports `"idle"`. `GameErrorContext.phase` is typed as the new `GamePhase` union instead of `string`, so code comparing it with a name that never occurs now fails to type-check.
+- 30555fb: `game.stop()` then `game.start()` from inside a frame (a restart in `update`, a hook or a `sceneChange` listener) no longer starts a second frame loop. Before, both loops rendered every vsync until the next `stop()`, so render cost doubled and the fps readout showed about twice the real rate.
+- 0936699: Setting `game.pauseWhenHidden = false` while the tab is hidden now resumes a started game. Before, a game already halted for the hidden tab stayed halted until the tab was shown again.
+- 268ebfb: `game.go()` called from a scene's `enter` or `exit`, or from a `sceneChange` listener, now runs after the current switch finishes. A scene that redirects in `enter` (a boot scene going straight to the menu) gives `sceneChange` in order (`a > boot`, then `boot > menu`) instead of reversed, and a `go()` in `exit` no longer recurses until the stack overflows.
+- c7f8be7: The key or tap that skips the start-up splash no longer also counts as a press in the first game step, so it can't skip a title screen too. `game.hooks.splashEnd(fn)` is new: it fires once when the splash ends, and `Input` clears its press and release edges there while keeping held keys held.
+- Updated dependencies [ce39b44]
+- Updated dependencies [b87e7f9]
+- Updated dependencies [91e3c60]
+  - spryte@0.12.4
+
 ## 0.31.0
 
 ### Patch Changes

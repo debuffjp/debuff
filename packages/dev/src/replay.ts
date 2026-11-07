@@ -369,6 +369,8 @@ export interface ReplayTarget {
   game: Game;
   input: DrivableInput;
   command: (name: string, ...args: unknown[]) => unknown;
+  /** Told about steps the replay skipped, such as a param the new code renamed or narrowed. */
+  warn?: (message: string) => void;
 }
 
 /**
@@ -377,7 +379,7 @@ export interface ReplayTarget {
  * each checkpoint in `steps` is compared with the game's, and the first one that differs is returned.
  */
 export function fastForward(
-  { game, input, command }: ReplayTarget,
+  { game, input, command, warn }: ReplayTarget,
   steps: ReplayStep[],
   toTick: number,
   verify?: () => Checkpoint,
@@ -389,59 +391,73 @@ export function fastForward(
   const touches = new Set<number>();
   // Recordings start with no pad (only changes are recorded): don't let a real one leak in.
   if (input.pads) input.pads.fed = null;
-  for (const step of steps) {
-    if (game.clock.tick >= toTick) break;
-    if ("wait" in step) game.step(Math.min(step.wait, toTick - game.clock.tick), false);
-    else if ("press" in step) {
-      held.add(step.press);
-      pressSource(input, step.press);
-    } else if ("release" in step) {
-      held.delete(step.release);
-      releaseSource(input, step.release);
-    } else if ("pointerDown" in step) {
-      pointerHeld = true;
-      input.pointer.press(...step.pointerDown);
-    } else if ("pointerMove" in step) input.pointer.move(...step.pointerMove);
-    else if ("pointerUp" in step) {
-      pointerHeld = false;
-      input.pointer.release();
-    } else if ("wheel" in step) {
-      const [dy, dx] = typeof step.wheel === "number" ? [step.wheel, 0] : step.wheel;
-      pointerOp(input, "scroll")(dy, dx);
-    } else if ("touchDown" in step) {
-      const [id, x, y, kind] = step.touchDown;
-      touches.add(id);
-      pointerOp(input, "touchStart")(id, x, y, kind ?? "touch");
-    } else if ("touchMove" in step) pointerOp(input, "touchMove")(...step.touchMove);
-    else if ("touchUp" in step) {
-      touches.delete(step.touchUp);
-      pointerOp(input, "touchEnd")(step.touchUp);
-    } else if ("pad" in step) {
-      if (input.pads) input.pads.fed = toPadState(step.pad);
-    } else if ("set" in step)
-      for (const [path, value] of Object.entries(step.set)) {
-        const [group = "", key = ""] = path.split(".");
-        game.params.group(group)?.set(key, value);
+  try {
+    replaySteps();
+    if (game.clock.tick < toTick) game.step(toTick - game.clock.tick, false);
+  } finally {
+    // Nobody is physically holding these any more: let go, or they'd stay stuck down. This runs even when
+    // a step throws, so a failed replay never leaves keys held or the real pads ignored.
+    for (const code of held) releaseSource(input, code);
+    for (const id of touches) input.pointer.touchEnd?.(id);
+    if (pointerHeld) input.pointer.release();
+    // Hand the pads back to the real Gamepad API.
+    if (input.pads) input.pads.fed = undefined;
+    // The replay took real time: restart the loop's clock so the next frame doesn't try to catch up on it.
+    if (game.isRunning) {
+      game.stop();
+      game.start();
+    }
+    game.redraw();
+  }
+  return drift;
+
+  function replaySteps(): void {
+    for (const step of steps) {
+      if (game.clock.tick >= toTick) break;
+      if ("wait" in step) game.step(Math.min(step.wait, toTick - game.clock.tick), false);
+      else if ("press" in step) {
+        held.add(step.press);
+        pressSource(input, step.press);
+      } else if ("release" in step) {
+        held.delete(step.release);
+        releaseSource(input, step.release);
+      } else if ("pointerDown" in step) {
+        pointerHeld = true;
+        input.pointer.press(...step.pointerDown);
+      } else if ("pointerMove" in step) input.pointer.move(...step.pointerMove);
+      else if ("pointerUp" in step) {
+        pointerHeld = false;
+        input.pointer.release();
+      } else if ("wheel" in step) {
+        const [dy, dx] = typeof step.wheel === "number" ? [step.wheel, 0] : step.wheel;
+        pointerOp(input, "scroll")(dy, dx);
+      } else if ("touchDown" in step) {
+        const [id, x, y, kind] = step.touchDown;
+        touches.add(id);
+        pointerOp(input, "touchStart")(id, x, y, kind ?? "touch");
+      } else if ("touchMove" in step) pointerOp(input, "touchMove")(...step.touchMove);
+      else if ("touchUp" in step) {
+        touches.delete(step.touchUp);
+        pointerOp(input, "touchEnd")(step.touchUp);
+      } else if ("pad" in step) {
+        if (input.pads) input.pads.fed = toPadState(step.pad);
+      } else if ("set" in step)
+        for (const [path, value] of Object.entries(step.set)) {
+          const [group = "", key = ""] = path.split(".");
+          // After a code reload a recorded param may be renamed or have a narrower range. Skip just that
+          // change instead of abandoning the whole replay.
+          try {
+            game.params.group(group)?.set(key, value);
+          } catch (error) {
+            warn?.(`Skipped setting ${path} at tick ${game.clock.tick}: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        }
+      else if ("command" in step) command(step.command, ...(step.args ?? []));
+      else if ("checkpoint" in step && verify && !drift) {
+        const parts = checkpointDrift(step.checkpoint, verify());
+        if (parts.length) drift = { tick: game.clock.tick, matched, parts };
+        else matched = game.clock.tick;
       }
-    else if ("command" in step) command(step.command, ...(step.args ?? []));
-    else if ("checkpoint" in step && verify && !drift) {
-      const parts = checkpointDrift(step.checkpoint, verify());
-      if (parts.length) drift = { tick: game.clock.tick, matched, parts };
-      else matched = game.clock.tick;
     }
   }
-  if (game.clock.tick < toTick) game.step(toTick - game.clock.tick, false);
-  // Nobody is physically holding these any more: let go, or they'd stay stuck down.
-  for (const code of held) releaseSource(input, code);
-  for (const id of touches) input.pointer.touchEnd?.(id);
-  if (pointerHeld) input.pointer.release();
-  // Hand the pads back to the real Gamepad API.
-  if (input.pads) input.pads.fed = undefined;
-  // The replay took real time: restart the loop's clock so the next frame doesn't try to catch up on it.
-  if (game.isRunning) {
-    game.stop();
-    game.start();
-  }
-  game.redraw();
-  return drift;
 }

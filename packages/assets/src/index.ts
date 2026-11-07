@@ -230,8 +230,9 @@ export class Assets {
     const gen = this.generation.get(id) ?? 0;
     const p: Promise<Loaded> = shared
       .then((value) => {
-        // A reload() finished first: keep its value, this one is stale.
-        if ((this.generation.get(id) ?? 0) === gen) this.cache.set(id, value);
+        // A reload() finished first: keep its value, this one is stale. With nothing cached (the reload failed
+        // or is still on its way) this value is the best there is; a reload that succeeds later replaces it.
+        if ((this.generation.get(id) ?? 0) === gen || !this.cache.has(id)) this.cache.set(id, value);
         if (this.pending.get(id) === p) this.pending.delete(id);
         return value;
       })

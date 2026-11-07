@@ -1,6 +1,6 @@
 {
   "name": "create-debuff",
-  "version": "0.31.0",
+  "version": "0.31.1",
   "description": "Scaffold a new debuff game: npm create debuff",
   "keywords": [
     "game",
@@ -53,7 +53,7 @@
     "giget": "^3.3.1"
   },
   "devDependencies": {
-    "@types/node": "^26.6.5"
+    "@types/node": "^26.6.6"
   },
   "engines": {
     "node": ">=22"

@@ -86,18 +86,29 @@ export function createTypeChecker(root: string, onResult: (r: TypeCheckResult) =
   let again = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let latest: TypeCheckResult | undefined;
+  let disposed = false;
   const run = async () => {
     if (running) {
       again = true;
       return;
     }
     running = true;
-    do {
-      again = false;
-      latest = await typecheck(root);
-      onResult(latest);
-    } while (again);
-    running = false;
+    try {
+      do {
+        again = false;
+        latest = await typecheck(root);
+        // Disposed during the run (the dev server closed): nobody is listening, and no more runs.
+        if (disposed) return;
+        try {
+          onResult(latest);
+        } catch (err) {
+          // A listener that throws must not leave the checker "running" for good, which silently stops checks.
+          console.error(`[debuff] type check listener failed: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      } while (again);
+    } finally {
+      running = false;
+    }
   };
   return {
     /** Ask for a check soon (debounced). */
@@ -110,6 +121,7 @@ export function createTypeChecker(root: string, onResult: (r: TypeCheckResult) =
       return latest;
     },
     dispose() {
+      disposed = true;
       clearTimeout(timer);
     },
   };

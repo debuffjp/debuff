@@ -30,6 +30,11 @@ jobs:
       - run: npm run test:coverage
       - run: npm run build
       - run: npm run lint:packages
+      # A new public package must be published once by hand before CI can publish it (trusted publishing
+      # can't create packages). Warn on the PR, so the Release after merging doesn't fail with E404.
+      - name: New packages need a first publish
+        if: github.event_name == 'pull_request'
+        run: node scripts/check-first-publish.mjs --warn
       - run: npm run test:scenarios
       - name: Upload scenario captures
         if: failure()

@@ -1,7 +1,7 @@
 import { createRenderer, type Draw } from "spryte";
 import { Camera } from "./camera.js";
 import { FixedClock, type FixedClockOptions } from "./clock.js";
-import { type GameErrorContext, Hooks } from "./hooks.js";
+import { type GameErrorContext, type GamePhase, Hooks } from "./hooks.js";
 import { InspectRegistry } from "./inspect.js";
 import { ParamRegistry } from "./params.js";
 import { type Plugin, PluginRegistry } from "./plugin.js";
@@ -112,8 +112,17 @@ export class Game {
     this.camera.motionScale = value ? REDUCED_SHAKE : 1;
   }
 
-  /** Pause automatically while the tab is hidden. */
-  pauseWhenHidden = true;
+  /** Pause automatically while the tab is hidden. Turning it off while hidden resumes a started game. */
+  get pauseWhenHidden(): boolean {
+    return this.hiddenPauses;
+  }
+
+  set pauseWhenHidden(value: boolean) {
+    this.hiddenPauses = value;
+    if (!value && this.wanted) this.run();
+  }
+
+  private hiddenPauses = true;
   /** Current backing-store pixels per logical unit (CSS scale × devicePixelRatio). */
   renderScale = 1;
 
@@ -134,13 +143,17 @@ export class Game {
   private active: Scene | undefined;
   private frameHandle = 0;
   /** What the frame is doing right now, so a loop error can say where it came from. */
-  private phase = "idle";
+  private phase: GamePhase = "idle";
   private splashTotal = 0;
   private splash: typeof drawSplash | undefined;
   private splashLeft = 0;
   private readonly onSplashSkip = () => this.skipSplash();
   private lastTime = 0;
   private running = false;
+  private loopGeneration = 0;
+  /** Inside go(): a nested go() is queued in `queuedScene` and runs after. */
+  private switching = false;
+  private queuedScene: string | undefined;
   /** Whether the caller wants the loop running; visibility pausing respects this. */
   private wanted = false;
   private observer: ResizeObserver | undefined;
@@ -203,11 +216,11 @@ export class Game {
 
   /** End the start-up splash now (if it is showing or pending). */
   skipSplash(): void {
-    if (this.splashTotal > 0) {
-    }
+    const showing = this.splashTotal > 0;
     this.splashTotal = this.splashLeft = 0;
     removeEventListener("keydown", this.onSplashSkip);
     removeEventListener("pointerdown", this.onSplashSkip);
+    if (showing) this.hooks.emit("splashEnd");
   }
 
   /** Install a plugin. Throws if the name is invalid or already installed. */
@@ -243,6 +256,14 @@ export class Game {
     return this.running;
   }
 
+  /**
+   * `start()` was called and `stop()` hasn't been since. Unlike `isRunning`, this stays true while the loop is
+   * halted for a hidden tab (`pauseWhenHidden`), and goes false when a loop error stops the game.
+   */
+  get isStarted(): boolean {
+    return this.wanted;
+  }
+
   add(scene: Scene): this {
     if (this.scenes.has(scene.id)) throw new Error(`Scene "${scene.id}" already added`);
     this.scenes.set(scene.id, scene);
@@ -270,11 +291,28 @@ export class Game {
   go(id: string): void {
     const next = this.scenes.get(id);
     if (!next) throw new Error(`Unknown scene "${id}". Added: ${this.sceneList()}`);
-    const previous = this.active;
-    previous?.exit?.(this);
-    this.active = next;
-    next.enter?.(this);
-    this.hooks.emit("sceneChange", next, previous);
+    // A switch asked for during a switch (from exit, enter or a sceneChange listener) runs once this one is
+    // done, so listeners see every change in order and an exit() that switches scene can't recurse.
+    if (this.switching) {
+      this.queuedScene = id;
+      return;
+    }
+    this.switching = true;
+    try {
+      const previous = this.active;
+      previous?.exit?.(this);
+      this.active = next;
+      next.enter?.(this);
+      this.hooks.emit("sceneChange", next, previous);
+    } catch (error) {
+      this.queuedScene = undefined;
+      throw error;
+    } finally {
+      this.switching = false;
+    }
+    const queued = this.queuedScene;
+    this.queuedScene = undefined;
+    if (queued !== undefined) this.go(queued);
   }
 
   start(): void {
@@ -299,6 +337,9 @@ export class Game {
    *  can drive the game without requestAnimationFrame. */
   frame(elapsed: number, draw = true): void {
     const t0 = performance.now();
+    // Start from "idle" so an error outside the labelled parts never reports a phase left over from an
+    // earlier step that threw.
+    this.phase = "idle";
     const alpha = this.clock.advance(elapsed, (dt) => {
       if (this.freezeTime > 0) {
         // Epsilon absorbs float drift so freeze(n * step) pauses exactly n steps.
@@ -314,6 +355,7 @@ export class Game {
       this.phase = "afterUpdate";
       this.hooks.emit("afterUpdate", scaled);
     });
+    this.phase = "idle";
     this.lastAlpha = alpha;
     if (!draw) return;
     this.render(alpha);
@@ -339,11 +381,24 @@ export class Game {
     }
     const pending: [string, unknown][] = [[name, detail]];
     this.pendingEvents = pending;
+    // A listener that throws mustn't hide this event from the others or drop the events queued behind it:
+    // every listener hears every event, then the first error is rethrown.
+    let failed: { error: unknown } | undefined;
     try {
-      for (let i = 0; i < pending.length; i++) this.hooks.emit("gameEvent", ...(pending[i] as [string, unknown]));
+      for (let i = 0; i < pending.length; i++) {
+        const [eventName, eventDetail] = pending[i] as [string, unknown];
+        for (const fn of this.hooks.list("gameEvent")) {
+          try {
+            fn(eventName, eventDetail);
+          } catch (error) {
+            failed ??= { error };
+          }
+        }
+      }
     } finally {
       this.pendingEvents = undefined;
     }
+    if (failed) throw failed.error;
   }
 
   /** Hit-stop: pause simulation for `seconds` (rendering continues). */
@@ -428,8 +483,12 @@ export class Game {
     if (this.running) return;
     this.running = true;
     this.lastTime = performance.now();
+    // Each run() owns one loop. stop() then start() inside a frame starts a new run, and the old
+    // closure must not reschedule itself on the way out, or two loops render every vsync.
+    const generation = ++this.loopGeneration;
+    const current = () => this.running && generation === this.loopGeneration;
     const loop = (now: number) => {
-      if (!this.running) return;
+      if (!current()) return;
       const elapsed = (now - this.lastTime) / 1000;
       if (this.splashLeft > 0) {
         // The splash holds the game's first frame; time starts when it ends.
@@ -457,6 +516,7 @@ export class Game {
           throw error;
         }
       }
+      if (!current()) return;
       this.lastTime = now;
       this.frameHandle = requestAnimationFrame(loop);
     };

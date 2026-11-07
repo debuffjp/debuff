@@ -38,9 +38,9 @@ game.start();
 | --- | --- |
 | `Game` | Loop, scenes, scaling, `camera`, `random`, `params`, `stats`, `freeze()`, `timeScale`, `step(n)`, `emit(name, detail?)` (mark a game event, such as a coin or a death, for tests and agents) |
 | `game.use(plugin)`, `Plugin` | Install runtime plugins. See [docs/plugins.md](https://github.com/debuffjp/debuff/blob/main/docs/plugins.md) |
-| `game.hooks` | `beforeUpdate`, `afterUpdate`, `beforeRender`, `afterRender`, `sceneChange`. Each returns an unsubscribe function |
+| `game.hooks` | `beforeUpdate`, `afterUpdate`, `beforeRender`, `afterRender`, `sceneChange`, `splashEnd` (0.31.1). Each returns an unsubscribe function |
 | `game.inspect` | `register(name, () => json)` for dev tools and scenarios |
-| `Scene` | `{ id, enter?, update?, render?, exit?, inspect? }` |
+| `Scene` | `{ id, enter?, update?, render?, exit?, inspect? }`. `game.go(id)` runs the old scene's `exit`, then the new one's `enter`, then `sceneChange`. A `go()` called from inside those runs once the current switch is done (from 0.31.1; before, it ran at once, so `sceneChange` came out of order and a `go()` in `exit` could recurse) |
 | `Camera` | Smoothed follow, deadzone, bounds, trauma shake, culling, `toWorld()` |
 | `smoothMotion(game, objects)` | Draw moving objects between fixed steps without keeping `prevX`/`prevY` yourself; see [Smooth motion](#smooth-motion-between-steps). Added in 0.26 |
 | `Sprite`, `sliceGrid` | Frames, named animations, origin, flip, impact flash |
@@ -131,3 +131,5 @@ new Game({ canvas, width, height, splash: false });
 ```
 
 You can also set its length with `splash: { duration: 1 }`, or end it from code with `game.skipSplash()`.
+
+The key or tap that skips the splash doesn't also count as a press in the game: `@debuffjp/input` drops presses made during the splash when `game.hooks.splashEnd` fires, so the same tap can't skip a title screen too. Keys still held stay held. Before 0.31.1, that tap was seen as pressed in the first step.

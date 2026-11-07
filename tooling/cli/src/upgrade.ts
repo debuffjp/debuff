@@ -22,6 +22,22 @@ export interface UpgradeResult extends UpgradePlan {
   /** The new version's `debuff doctor --fix` afterwards: whether its required checks pass, and what it fixed. */
   doctor?: { ok: boolean; fixed: string[] };
   changelog: string;
+  /**
+   * When package.json already declares the target: debuff packages whose installed version (in node_modules) is
+   * missing or different, as after an upgrade whose install failed or was interrupted. A run that finds any
+   * installs and runs doctor again, so a rerun finishes the upgrade.
+   */
+  stale?: string[];
+}
+
+/** The version in `node_modules/<name>/package.json`, or undefined when it isn't installed there. */
+function installedVersion(root: string, name: string): string | undefined {
+  try {
+    const file = join(root, "node_modules", ...name.split("/"), "package.json");
+    return (JSON.parse(readFileSync(file, "utf8")) as { version?: string }).version;
+  } catch {
+    return undefined;
+  }
 }
 
 type PackageJson = Record<string, unknown> & { dependencies?: Record<string, string>; devDependencies?: Record<string, string> };
@@ -72,12 +88,26 @@ export async function runUpgrade(
   const log = options.log ?? (() => {});
   const plan = await planUpgrade(root, options);
   const result: UpgradeResult = { ...plan, changelog: CHANGELOG };
-  if (!plan.changes || options.dryRun) return result;
-
-  const pkg = readPackage(root);
-  for (const p of plan.packages) (pkg[p.field] as Record<string, string>)[p.name] = p.to;
-  writeFileSync(join(root, "package.json"), `${JSON.stringify(pkg, null, 2)}\n`);
-  log(`package.json: ${plan.packages.length} debuff packages to ${plan.to}`);
+  if (!plan.changes) {
+    // package.json is current, but an earlier upgrade may have written it and then failed to install. Its
+    // node_modules (and skills) are still the old version: finish the job instead of saying "already on".
+    // Missing counts only when there is a node_modules (Yarn Plug'n'Play has none); newer than the target is fine.
+    const hasModules = existsSync(join(root, "node_modules"));
+    result.stale = plan.packages
+      .filter((p) => {
+        const version = installedVersion(root, p.name);
+        return version === undefined ? hasModules : isNewer(p.to.replace(/^[^\d]*/, ""), version);
+      })
+      .map((p) => p.name);
+    if (!result.stale.length || options.dryRun) return result;
+    log(`installed packages don't match package.json (${result.stale.join(", ")}): finishing the upgrade`);
+  } else {
+    if (options.dryRun) return result;
+    const pkg = readPackage(root);
+    for (const p of plan.packages) (pkg[p.field] as Record<string, string>)[p.name] = p.to;
+    writeFileSync(join(root, "package.json"), `${JSON.stringify(pkg, null, 2)}\n`);
+    log(`package.json: ${plan.packages.length} debuff packages to ${plan.to}`);
+  }
   if (options.install === false) return result;
 
   const pm = packageManager(root);

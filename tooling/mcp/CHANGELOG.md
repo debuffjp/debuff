@@ -1,5 +1,25 @@
 # @debuffjp/mcp
 
+## 0.31.1
+
+### Patch Changes
+
+- 0c05942: Game sessions start and stop one at a time. Two overlapping `game_start` calls used to leave the first headless browser and dev server running with nothing to stop them, and a `game_stop` sent while a start was still in progress was undone when the start finished. A failed start no longer changes the folder captures are written to, a headless session closes its dev server even when the browser won't close, and `game_replay` saves under the running game's project like `game_capture` does.
+- 5774823: `run_tests` runs the logic tests in a child process (`debuff test --json`) instead of inside the MCP server. keiko swaps process globals (timers, `Date`, `performance`, `window`, `document`) while a test runs, and in the server those were also the MCP connection's and the headless browser's. Their timers stalled during a run, and two overlapping runs could leave the server's globals patched. Results now match `debuff test` exactly, saves check included. A root without a package.json is an error instead of an empty pass.
+- Updated dependencies [15a6dc8]
+- Updated dependencies [a360071]
+- Updated dependencies [4acdcf7]
+- Updated dependencies [fe45024]
+- Updated dependencies [3ef4def]
+- Updated dependencies [a4d2449]
+- Updated dependencies [4a72887]
+- Updated dependencies [f5a2f76]
+- Updated dependencies [321b4b8]
+- Updated dependencies [230749c]
+- Updated dependencies [0cdbada]
+  - @debuffjp/cli@0.31.1
+  - keiko@0.8.1
+
 ## 0.31.0
 
 ### Patch Changes

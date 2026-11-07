@@ -49,9 +49,19 @@ class FakeContext {
   createBuffer = () => ({ getChannelData: () => new Float32Array(8) });
   createMediaElementSource = node;
   listeners: Record<string, (() => void)[]> = {};
-  addEventListener(type: string, fn: () => void) {
+  addEventListener(type: string, fn: () => void, opts?: { once?: boolean; signal?: AbortSignal }) {
+    if (opts?.signal?.aborted) return;
     const list = this.listeners[type] ?? [];
-    list.push(fn);
+    const remove = () => {
+      const i = list.indexOf(wrapped);
+      if (i >= 0) list.splice(i, 1);
+    };
+    const wrapped = () => {
+      if (opts?.once) remove();
+      fn();
+    };
+    opts?.signal?.addEventListener("abort", remove);
+    list.push(wrapped);
     this.listeners[type] = list;
   }
 }
@@ -86,7 +96,10 @@ beforeEach(() => {
   vi.stubGlobal("AudioContext", FakeContext);
   vi.stubGlobal("Audio", FakeAudioElement);
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 describe("Audio", () => {
   it("unlocks on the first user gesture", async () => {
@@ -154,6 +167,83 @@ describe("Audio", () => {
     el.allowPlay = true;
     for (const fn of (audio.ctx as unknown as FakeContext).listeners.statechange ?? []) fn();
     await Promise.resolve();
+    expect(el.playing).toBe(true);
+  });
+
+  it("resumes the context again after an interruption", async () => {
+    const audio = new Audio();
+    const ctx = audio.ctx as unknown as FakeContext;
+    window.dispatchEvent(new Event("pointerdown"));
+    await Promise.resolve();
+    expect(audio.unlocked).toBe(true);
+    ctx.state = "interrupted"; // an iOS phone call or app switch
+    window.dispatchEvent(new Event("keydown"));
+    await Promise.resolve();
+    expect(audio.unlocked).toBe(true);
+    expect(ctx.resume).toHaveBeenCalledTimes(2);
+  });
+
+  function blockedStream() {
+    const audio = new Audio();
+    const el = new FakeAudioElement();
+    el.allowPlay = false;
+    const play = vi.spyOn(el, "play");
+    vi.stubGlobal(
+      "Audio",
+      class {
+        constructor() {
+          // biome-ignore lint/correctness/noConstructorReturn: hand back the prepared fake element
+          return el;
+        }
+      },
+    );
+    return { audio, el, play, ctx: audio.ctx as unknown as FakeContext };
+  }
+
+  it("stays stopped when resume() comes after stop(fade)", async () => {
+    vi.useFakeTimers();
+    const audio = new Audio();
+    const track = audio.stream("theme.ogg");
+    const el = FakeAudioElement.last as FakeAudioElement;
+    const play = vi.spyOn(el, "play");
+    await Promise.resolve();
+    track.stop(1);
+    track.resume(); // stop() is final: no restart into a fading, about-to-be-unloaded element
+    vi.advanceTimersByTime(1000);
+    track.resume();
+    await Promise.resolve();
+    expect(play).not.toHaveBeenCalled();
+    expect(el.src).toBe("");
+    expect(el.playing).toBe(false);
+  });
+
+  it("retries a blocked stream once, however often it was paused and resumed meanwhile", async () => {
+    const { audio, el, play, ctx } = blockedStream();
+    const track = audio.stream("theme.ogg");
+    for (let i = 0; i < 3; i++) {
+      await new Promise((r) => setTimeout(r, 0));
+      track.pause();
+      track.resume();
+    }
+    await new Promise((r) => setTimeout(r, 0));
+    const before = play.mock.calls.length;
+    el.allowPlay = true;
+    for (const fn of ctx.listeners.statechange ?? []) fn();
+    window.dispatchEvent(new Event("pointerdown"));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(el.playing).toBe(true);
+    expect(play.mock.calls.length - before).toBe(1);
+  });
+
+  it("retries a blocked stream on the next gesture even when the context is already running", async () => {
+    const { audio, el, ctx } = blockedStream();
+    ctx.state = "running";
+    audio.stream("theme.ogg");
+    await new Promise((r) => setTimeout(r, 0));
+    expect(el.playing).toBe(false);
+    el.allowPlay = true;
+    window.dispatchEvent(new Event("pointerdown"));
+    await new Promise((r) => setTimeout(r, 0));
     expect(el.playing).toBe(true);
   });
 
