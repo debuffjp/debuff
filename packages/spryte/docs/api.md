@@ -35,7 +35,7 @@ draw.dispose();                           // frees GPU objects and listeners; th
 | `circle(x, y, r, color)` | Filled, antialiased circle. |
 | `line(x1, y1, x2, y2, width, color)` | Drawn as a rotated rectangle. |
 | `sprite(frameOrImage, x, y, options?)` | Image or `Frame` (`{ image, x, y, w, h }`), anchored at `origin` (default centre). Options: `origin`, `scaleX`, `scaleY`, `rotation` (radians), `flipX`, `flipY`, `alpha`, `tint`, `flash` (0-1 toward white), `smooth`. **Doesn't allocate:** reuse one options object in hot loops. A game with many call sites that pass different options should build each object with `spriteOptions()` (0.13+, below). |
-| `sprites(frame, positions, count?, options?, each?)` | One frame at many positions: particles, bullets, swarms. `positions` is x, y pairs. On WebGL2, a reused `Float32Array` is uploaded to the GPU as is, with **no JavaScript work per copy**. Other array types are copied into a staging array first, and on the Canvas 2D fallback each copy is drawn as its own quad. Inside `withShader` it stays instanced (before 0.8 it drew one quad per copy there). `options` apply to every copy. `each` adds per-copy values: `scale` (Float32Array), `rotation` (Float32Array, radians) `color` (Uint32Array of `0xRRGGBBAA`, multiplied with the tint) and `frame` (an index per copy into the `Frame[]` passed as the first argument, for a belt of different items or an animation at different phases). Per-copy values combine with `options`: scale multiplies `scaleX`/`scaleY` (flips still apply), rotation adds to `rotation`, colour multiplies the tint per channel, and alpha is `options.alpha` × tint alpha × colour alpha × `draw.alpha`. Scale, rotation and colour are uploaded as is; `frame` is expanded into a uv and size per copy. For interleaved data, see below. Frames on one image stay one draw call; frames across images fall back to one quad per copy, and since 0.12.3 spryte warns about that once in development (`import.meta.env.DEV`). `count` is clamped to the shortest array, and a `NaN` or negative count draws nothing. The output is pixel-identical to a `sprite()` loop with the same values, including pixel snapping (checked on a real GPU by `npm run test:browser`). It's one draw call on WebGL2 and breaks the current batch. |
+| `sprites(frame, positions, count?, options?, each?)` | One frame at many positions: particles, bullets, swarms. `positions` is x, y pairs. On WebGL2, a reused `Float32Array` is uploaded to the GPU as is, with **no JavaScript work per copy**. Other array types are copied into a staging array first, and on the Canvas 2D fallback each copy is drawn as its own quad. Inside `withShader` it stays instanced (before 0.8 it drew one quad per copy there). `options` apply to every copy. `each` adds per-copy values: `scale` (Float32Array), `rotation` (Float32Array, radians) `color` (Uint32Array of `0xRRGGBBAA`, multiplied with the tint), `frame` (an index per copy into the `Frame[]` passed as the first argument, for a belt of different items or an animation at different phases) and, from 0.13, `user` (one float per copy that a custom shader reads as `user()`, see below). Per-copy values combine with `options`: scale multiplies `scaleX`/`scaleY` (flips still apply), rotation adds to `rotation`, colour multiplies the tint per channel, and alpha is `options.alpha` × tint alpha × colour alpha × `draw.alpha`. Scale, rotation and colour are uploaded as is; `frame` is expanded into a uv and size per copy. For interleaved data, see below. Frames on one image stay one draw call; frames across images fall back to one quad per copy, and since 0.12.3 spryte warns about that once in development (`import.meta.env.DEV`). `count` is clamped to the shortest array, and a `NaN` or negative count draws nothing. The output is pixel-identical to a `sprite()` loop with the same values, including pixel snapping (checked on a real GPU by `npm run test:browser`). It's one draw call on WebGL2 and breaks the current batch. |
 | `text(text, x, y, options?)` | `font` (CSS string or `BitmapFont`), `color`, `align`, `baseline`, `alpha`. CSS text is rasterised once and cached (LRU, 256 entries). |
 | `measure(text, font?)` | Logical `{ w, h }` that `text()` fills. |
 
@@ -56,6 +56,36 @@ draw.sprites(dot, data, n, {}, { stride: 4, scale: 2, color: 3 });
 `sprites` reads its arrays during the call and doesn't keep them. A view of wasm memory detaches when that memory grows (unless the memory is shared), and a detached array has length 0, so nothing draws. Recreate the view after growth, or each frame. From 0.12.1 spryte warns once per renderer in browsers that report `ArrayBuffer.prototype.detached`; before, it drew nothing with no message.
 
 `count` is clamped to whole records, and an offset without `stride` throws.
+
+**Per-copy shader values** (0.13+): `each.user` gives every copy one float, which a custom shader reads as `user()`: a copy's place in a row for a staggered effect, a particle's age, a tile variant. It takes a `Float32Array` (or any number array), or an offset into the record with `stride`. `user()` is 0 for everything that isn't a `draw.sprites` copy (`sprite()`, `text()`, shapes), and without a custom shader the value does nothing. The Canvas 2D fallback ignores it, as it ignores shaders. A float holds whole numbers exactly up to 16,777,216. Its cost on the instanced path hasn't been measured yet.
+
+A row of tiles in one `draw.sprites` call, each fading in a little after the one before it:
+
+```ts
+const MAX = 64;
+const pos = new Float32Array(MAX * 2);
+const place = new Float32Array(MAX);
+
+const stagger = draw.createShader(`
+  uniform float time;
+  vec4 effect(vec4 color, vec2 uv) {
+    float t = clamp((time - user() * 0.05) * 4.0, 0.0, 1.0); // each copy starts 50 ms after the last
+    return source(uv) * color * t;
+  }
+`);
+
+function drawRow(n: number, x: number, y: number, seconds: number) {
+  for (let i = 0; i < n; i++) {
+    pos[i * 2] = x + i * 8; // 8 pixel advance
+    pos[i * 2 + 1] = y;
+    place[i] = i;           // the copy's place in the row, read as user()
+  }
+  stagger.set("time", seconds);
+  draw.withShader(stagger, () => draw.sprites(tile, pos, n, {}, { user: place }));
+}
+```
+
+Hashing `user()` with `time` in the shader gives each copy its own flicker or tint. The shader can't change which frame a copy draws: use `each.frame` for that.
 
 **Colours** are CSS hex strings (`#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`), numbers `0xRRGGBBAA`, or any CSS colour (resolved once through a canvas, then cached).
 
@@ -160,7 +190,7 @@ draw.withShader(wave, () => draw.sprite(hero, x, y));
 - `set()` affects only draws made after it, even inside the same scope.
 - `set()` on a uniform the GLSL compiler removed (declared but never read) does nothing, whatever the value.
 - Shaders compose with render targets: draw into a target, then draw the target through a shader for full-screen post-processing.
-- `sprites()` inside `withShader` stays one instanced draw: spryte compiles your effect a second time against its per-copy program. Inside `effect`, only `source(uv)`, `color`, `uv` and `frameUv()` are guaranteed there, plus your uniforms (arrays and textures too, since 0.13). Frames across images still draw one quad per copy. Before 0.8, `sprites()` inside `withShader` always fell back to one quad per copy, which was correct but without the bulk speed-up.
+- `sprites()` inside `withShader` stays one instanced draw: spryte compiles your effect a second time against its per-copy program. Inside `effect`, only `source(uv)`, `color`, `uv`, `frameUv()` and `user()` (since 0.13) are guaranteed there, plus your uniforms (arrays and textures too, since 0.13). Frames across images still draw one quad per copy. Before 0.8, `sprites()` inside `withShader` always fell back to one quad per copy, which was correct but without the bulk speed-up.
 
 ### Uniform arrays and textures
 

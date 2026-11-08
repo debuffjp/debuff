@@ -39,7 +39,7 @@ const bits = new Uint32Array(data.buffer);                      // write colours
 draw.sprites(dot, data, n, {}, { stride: 4, scale: 2, color: 3 }); // each.* are offsets into a record
 ```
 
-Without `stride`, `each` takes arrays instead: `scale`, `rotation` (`Float32Array`), `color` (`Uint32Array` of `0xRRGGBBAA`: red is the top byte, so pack it as `(r << 24 | g << 16 | b << 8 | a) >>> 0`), `frame` (index into a `Frame[]`). Use one image per call: frames across images draw one quad each. The page needs cross-origin isolation headers to use `SharedArrayBuffer`.
+Without `stride`, `each` takes arrays instead: `scale`, `rotation` (`Float32Array`), `color` (`Uint32Array` of `0xRRGGBBAA`: red is the top byte, so pack it as `(r << 24 | g << 16 | b << 8 | a) >>> 0`), `frame` (index into a `Frame[]`), `user` (one float per copy for a custom shader to read as `user()`, 0.13+). Use one image per call: frames across images draw one quad each. The page needs cross-origin isolation headers to use `SharedArrayBuffer`.
 
 ## State
 
@@ -57,6 +57,8 @@ const wave = draw.createShader(`
 wave.set("time", t);                   // float or [x, y], [x, y, z], [x, y, z, w]
 draw.withShader(wave, () => draw.sprites(dot, data, n));
 ```
+
+From 0.13, `set()` also takes a `Float32Array` or number array for a uniform array (`uniform vec4 pool[64];`, packed flat; a length that isn't a whole number of elements or is over the declared size throws) and an image, canvas, `ImageBitmap` or render target for a `sampler2D` (`set("noise", img, { smooth: true })`, nearest by default; textures use units 8 up, so count on 8). Call `set()` again after changing an array's contents. `user()` in the shader reads `each.user`, one float per `draw.sprites` copy (0 anywhere else). On Canvas 2D none of this runs.
 
 `uv` is in atlas space, so use `frameUv()` for anything shaped by position inside the drawn sprite. It is per sprite: it can't tint by where a sprite sits on screen. For that, pass a position-based colour per sprite in `each.color`, or a uniform. `set()` affects only draws made after it, even inside the `withShader` callback. Shaders need WebGL2: on Canvas 2D the draws happen without the effect. `filter(draw, [blur(4), sepia()], fn)` runs `fn` through CSS-style filters. `mask(draw, shape, fn)` keeps what `fn` draws where `shape` draws.
 

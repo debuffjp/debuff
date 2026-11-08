@@ -73,7 +73,14 @@ draw.sprites(spark, positions, count, { tint: "#ffd36b" }, { scale, rotation, co
 // Post-processing: draw into a target, then draw the target through a shader.
 draw.into(scene, () => drawWorld(draw));
 draw.withShader(crt, () => draw.sprite(scene, 0, 0, { origin: [0, 0] }));
+
+// Custom shaders take uniform arrays and textures, and read one float per copy as user().
+fx.set("pool", poolValues);                      // uniform vec4 pool[64], packed flat
+fx.set("noise", noiseCanvas, { smooth: true });  // uniform sampler2D noise
+draw.withShader(fx, () => draw.sprites(tile, positions, count, {}, { user: place }));
 ```
+
+Shader features by version: floats and vectors from the start, `frameUv()` since 0.10, uniform arrays, textures and `each.user` since 0.13.
 
 ## Docs
 
