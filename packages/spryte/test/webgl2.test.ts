@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Matrix, TextureSource } from "../src/backend.js";
 import { Draw } from "../src/draw.js";
 import { blur, filter } from "../src/filters.js";
+import { asData, byteToLinear, linearContexts } from "../src/linear.js";
 import { mesh } from "../src/mesh.js";
 import { Shader } from "../src/shader.js";
 import { ring, roundRect } from "../src/shapes.js";
@@ -764,5 +765,59 @@ describe("WebGL2Backend", () => {
       // Objects from before the loss died with that context; everything made since is freed.
       expect(created.slice(restoredFrom).filter((o) => !o.deleted)).toEqual([]);
     });
+  });
+});
+
+describe("blendSpace linear", () => {
+  const linearGL = () => {
+    const f = fakeGL();
+    linearContexts.add(f.gl);
+    return f;
+  };
+
+  it("defines SPRYTE_LINEAR only on linear contexts, and gives every shader spryte_toLinear", () => {
+    const plain = fakeGL();
+    new WebGL2Backend(plain.gl);
+    expect(plain.shaderSources.every((s) => s.includes("spryte_toLinear") && !s.includes("SPRYTE_LINEAR 1"))).toBe(true);
+    const lin = linearGL();
+    new WebGL2Backend(lin.gl);
+    expect(lin.shaderSources.every((s) => /^#version 300 es\n#define SPRYTE_LINEAR 1\n/.test(s))).toBe(true);
+  });
+
+  it("stores colour images and targets as sRGB, data images raw, and copies to the canvas at end()", () => {
+    const { gl, calls } = linearGL();
+    const be = new WebGL2Backend(gl);
+    const colour = image();
+    const atlas = asData(image());
+    be.begin(0xffffffff, 100, 50, 1);
+    be.quad(M, colour, 0, 0, 16, 16, 0xffffffff, 0, true);
+    be.quad(M, atlas, 0, 0, 16, 16, 0xffffffff, 0, true);
+    be.end();
+    const formats = calls.filter((c) => c.name === "texImage2D").map((c) => c.args[2]);
+    // white placeholder, then the colour image as sRGB and the atlas raw
+    expect(formats).toEqual(["RGBA", "SRGB8_ALPHA8", "RGBA"]);
+    expect(calls.some((c) => c.name === "texStorage2D" && c.args[2] === "SRGB8_ALPHA8")).toBe(true);
+    const last = calls.filter((c) => c.name === "bindFramebuffer").at(-1);
+    expect(last?.args[1]).toBeNull();
+    expect(calls.filter((c) => c.name === "drawArrays").length).toBe(1);
+  });
+
+  it("clears with the colour in linear light", () => {
+    const { gl, calls } = linearGL();
+    const be = new WebGL2Backend(gl);
+    be.begin(0x808080ff, 100, 50, 1);
+    const r = (calls.filter((c) => c.name === "clearColor").at(-1)?.args ?? [])[0] as number;
+    expect(r).toBeCloseTo(byteToLinear(0x80), 5);
+    expect(r).toBeLessThan(0.3);
+  });
+
+  it("leaves sRGB contexts drawing straight to the canvas", () => {
+    const { gl, count } = fakeGL();
+    const be = new WebGL2Backend(gl);
+    be.begin(0xffffffff, 100, 50, 1);
+    be.quad(M, image(), 0, 0, 16, 16, 0xffffffff, 0, true);
+    be.end();
+    expect(count("texStorage2D")).toBe(0);
+    expect(count("drawArrays")).toBe(0);
   });
 });

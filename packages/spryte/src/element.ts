@@ -1,5 +1,6 @@
 import type { TextureSource } from "./backend.js";
 import type { Draw } from "./draw.js";
+import { linearContexts } from "./linear.js";
 
 export interface ElementDrawOptions {
   /** Logical size to draw at. Default: the element's CSS border box, one CSS pixel per logical unit. */
@@ -110,7 +111,8 @@ export function drawElement(draw: Draw, el: HTMLElement, x: number, y: number, o
     if (!tex) return false;
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, tex);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, pw, ph, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    // An element is colour: under linear blending it is stored as sRGB, like images.
+    gl.texImage2D(gl.TEXTURE_2D, 0, linearContexts.has(gl) ? gl.SRGB8_ALPHA8 : gl.RGBA, pw, ph, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
     up = { gl, tex, pw, ph };
     uploads.set(el, up);
   }

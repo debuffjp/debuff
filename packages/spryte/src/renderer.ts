@@ -1,5 +1,6 @@
 import type { Backend } from "./backend.js";
 import { Draw } from "./draw.js";
+import { linearContexts } from "./linear.js";
 import { WebGL2Backend } from "./webgl2.js";
 
 export interface RendererOptions {
@@ -20,6 +21,16 @@ export interface RendererOptions {
    * lets the compositor skip blending).
    */
   transparent?: boolean;
+  /**
+   * Where ink meets paper. `srgb` (default) mixes the sRGB bytes, as CSS and Canvas 2D do: anti-aliased edges come
+   * out dark, so dark-on-light text and shapes look heavier and light-on-dark ones thinner. `linear` mixes in linear
+   * light, so swapping the two colours keeps the weight, and glows and soft edges add up like light. It draws into
+   * an sRGB framebuffer and copies it to the canvas at `end()`, one extra full-screen pass. Colour images are
+   * stored as sRGB; mark data images (MSDF atlases, lookup tables) with `asData` before their first draw. Custom
+   * shaders receive linear colours and convert their own colour uniforms with `spryte_toLinear`. WebGL2 only:
+   * the Canvas 2D fallback always mixes sRGB. Default `srgb`.
+   */
+  blendSpace?: "srgb" | "linear";
 }
 
 /**
@@ -42,6 +53,7 @@ export function createRenderer(canvas: HTMLCanvasElement, options: RendererOptio
       premultipliedAlpha: true,
       powerPreference: "high-performance",
     });
+    if (gl && options.blendSpace === "linear") linearContexts.add(gl);
     if (gl) return new Draw(new WebGL2Backend(gl, options.mipmaps), options.smooth ?? true);
     if (choice === "webgl2")
       throw new Error('spryte: WebGL2 is unavailable in this browser (use backend: "auto" to fall back to Canvas 2D)');

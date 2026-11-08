@@ -2,6 +2,7 @@ import { type Backend, type BlendMode, type ClipRect, type Matrix, pixel, type R
 import { type CopySpec, copyAt, frameAt, placeAt } from "./copies.js";
 import type { Frame, SpriteDrawOptions } from "./draw.js";
 import type { Layer } from "./layer.js";
+import { byteToLinear, isData, linearContexts, prelude } from "./linear.js";
 import type { Shader, UniformArray, UniformValue } from "./shader.js";
 import type { ShapeBuffer } from "./shapes.js";
 import { RenderTarget } from "./target.js";
@@ -67,7 +68,7 @@ void main() {
   }
   vec2 clip = p / u_view * 2.0 - 1.0;
   gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);
-  v_color = vec4(a_color.rgb * a_color.a, a_color.a);
+  v_color = vec4(spryte_toLinear(a_color.rgb) * a_color.a, a_color.a);
   v_unit = unit;
 }`;
 
@@ -100,7 +101,7 @@ uniform vec4 u_color;
 uniform float u_flash;
 out vec4 outColor;
 void main() {
-  vec4 t = texture(u_tex, v_uv) * vec4(u_color.rgb * u_color.a, u_color.a);
+  vec4 t = texture(u_tex, v_uv) * vec4(spryte_toLinear(u_color.rgb) * u_color.a, u_color.a);
   outColor = vec4(mix(t.rgb, vec3(t.a), u_flash), t.a);
 }`;
 
@@ -150,7 +151,7 @@ void main() {
   v_uv = mix(a_uv.xy, a_uv.zw, a_corner);
   vec4 each = vec4(float(a_color >> 24u), float((a_color >> 16u) & 255u), float((a_color >> 8u) & 255u), float(a_color & 255u)) / 255.0;
   vec4 c = u_color * each;
-  v_color = vec4(c.rgb * c.a, c.a);
+  v_color = vec4(spryte_toLinear(c.rgb) * c.a, c.a);
 }`;
 
 const EACH_FRAG = `#version 300 es
@@ -206,7 +207,7 @@ void main() {
   vec2 clip = a_posuv.xy / u_view * 2.0 - 1.0;
   gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);
   v_uv = a_posuv.zw;
-  v_color = vec4(a_color.rgb * a_color.a, a_color.a) * a_extra.x;
+  v_color = vec4(spryte_toLinear(a_color.rgb) * a_color.a, a_color.a) * a_extra.x;
   v_flash = a_extra.y;
   v_unit = int(a_extra.z * 255.0 + 0.5);
 }`;
@@ -372,6 +373,28 @@ void main() {
 
 const FRAG = `${FRAG_HEADER}vec4 effect(vec4 color, vec2 uv) { return source(uv) * color; }${FRAG_MAIN}`;
 
+/** Linear mode's last pass: the sRGB framebuffer onto the canvas, one full-screen quad. */
+const PRESENT_VERT = `#version 300 es
+layout(location=0) in vec2 a_corner;
+out highp vec2 v_uv;
+void main() {
+  v_uv = a_corner;
+  gl_Position = vec4(a_corner * 2.0 - 1.0, 0.0, 1.0);
+}`;
+
+// Sampling the sRGB texture returns linear light; the canvas wants sRGB bytes, premultiplied.
+const PRESENT_FRAG = `#version 300 es
+precision highp float;
+in highp vec2 v_uv;
+uniform sampler2D u_tex;
+out vec4 outColor;
+void main() {
+  vec4 c = texture(u_tex, v_uv);
+  vec3 rgb = c.a > 0.0 ? c.rgb / c.a : vec3(0.0);
+  vec3 s = mix(rgb * 12.92, 1.055 * pow(rgb, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, rgb));
+  outColor = vec4(s * c.a, c.a);
+}`;
+
 /** Uniform locations of a per-copy program (`EACH_VERT` plus any fragment stage). */
 function eachProgram(gl: WebGL2RenderingContext, program: WebGLProgram): EachProgram {
   const u = (name: string) => gl.getUniformLocation(program, name);
@@ -507,6 +530,8 @@ export class WebGL2Backend implements Backend {
     this.layers = new WeakMap();
     this.textures.clear();
     this.targets.clear();
+    this.out = undefined;
+    this.present = undefined;
     this.target = null;
     this.lastSrc = null;
     this.last = undefined;
@@ -652,18 +677,83 @@ export class WebGL2Backend implements Backend {
     if (this.active !== this.main) this.setShader(null);
     this.viewW = width;
     this.viewH = height;
-    if (clear !== null) {
-      // The canvas is premultiplied, so a see-through clear colour is premultiplied too (opaque colours are unchanged).
-      const a = (clear & 0xff) / 255;
-      gl.clearColor(((clear >>> 24) / 255) * a, (((clear >>> 16) & 0xff) / 255) * a, (((clear >>> 8) & 0xff) / 255) * a, a);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-    }
+    if (clear !== null) this.clearTo(clear);
     this.submitted = 0;
   }
 
-  /** The frame's destination: the canvas. Shared mode draws into the host's framebuffer instead. */
+  /** Clear the bound destination. The canvas is premultiplied, so a see-through clear colour is premultiplied too. */
+  private clearTo(clear: number): void {
+    const gl = this.gl;
+    const a = (clear & 0xff) / 255;
+    const ch = this.linearOut ? byteToLinear : (b: number) => b / 255;
+    gl.clearColor(ch(clear >>> 24) * a, ch((clear >>> 16) & 0xff) * a, ch((clear >>> 8) & 0xff) * a, a);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+  }
+
+  /** True under `blendSpace: "linear"`: drawing goes to an sRGB framebuffer and `end()` copies it to the canvas. */
+  protected get linearOut(): boolean {
+    return linearContexts.has(this.gl);
+  }
+
+  /** The sRGB framebuffer linear mode draws into, sized to the canvas, and the program that copies it out. */
+  private out: { fbo: WebGLFramebuffer; tex: WebGLTexture; w: number; h: number } | undefined;
+  private present: { program: WebGLProgram; vao: WebGLVertexArrayObject } | undefined;
+
+  /** The frame's destination: the canvas, or in linear mode the sRGB framebuffer. Shared mode draws into the host's. */
   protected outputFramebuffer(): WebGLFramebuffer | null {
-    return null;
+    if (!this.linearOut) return null;
+    const gl = this.gl;
+    const w = gl.drawingBufferWidth;
+    const h = gl.drawingBufferHeight;
+    if (this.out && this.out.w === w && this.out.h === h) return this.out.fbo;
+    if (this.out) {
+      gl.deleteFramebuffer(this.out.fbo);
+      gl.deleteTexture(this.out.tex);
+    }
+    const tex = gl.createTexture();
+    const fbo = gl.createFramebuffer();
+    if (!tex || !fbo) throw new Error("WebGL2: could not create the linear-light framebuffer");
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texStorage2D(gl.TEXTURE_2D, 1, gl.SRGB8_ALPHA8, w, h);
+    this.wrap();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    this.out = { fbo, tex, w, h };
+    // Unit 0 now holds this texture; drop the batch's record of what it held.
+    this.units[0] = null;
+    this.lastSrc = null;
+    return fbo;
+  }
+
+  /** Linear mode: copy the sRGB framebuffer to the canvas, encoding linear light back to sRGB bytes. */
+  private presentOut(): void {
+    const gl = this.gl;
+    const out = this.out;
+    if (!out) return;
+    if (!this.present) {
+      const program = link(gl, PRESENT_VERT, PRESENT_FRAG, "spryte linear-light present");
+      const vao = gl.createVertexArray();
+      gl.bindVertexArray(vao);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
+      gl.enableVertexAttribArray(0);
+      gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+      this.present = { program, vao };
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, out.w, out.h);
+    gl.disable(gl.BLEND);
+    gl.useProgram(this.present.program);
+    gl.bindVertexArray(this.present.vao);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, out.tex);
+    gl.bindSampler(0, this.nearest);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.enable(gl.BLEND);
+    gl.useProgram(this.active.program);
+    gl.bindVertexArray(this.vao);
+    this.units[0] = null;
+    this.lastSrc = null;
   }
 
   /** Bind the frame's destination with the viewport sized to it. */
@@ -1226,6 +1316,7 @@ export class WebGL2Backend implements Backend {
   end(): void {
     this.flush();
     this.gl.disable(this.gl.SCISSOR_TEST);
+    if (this.linearOut && !this.lost) this.presentOut();
   }
 
   resize(): void {
@@ -1354,12 +1445,7 @@ export class WebGL2Backend implements Backend {
     this.target = target;
     this.viewW = width;
     this.viewH = height;
-    if (clear !== null) {
-      // Premultiplied, like begin().
-      const a = (clear & 0xff) / 255;
-      gl.clearColor(((clear >>> 24) / 255) * a, (((clear >>> 16) & 0xff) / 255) * a, (((clear >>> 8) & 0xff) / 255) * a, a);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-    }
+    if (clear !== null) this.clearTo(clear);
   }
 
   disposeTarget(target: RenderTarget): void {
@@ -1392,7 +1478,9 @@ export class WebGL2Backend implements Backend {
     if (!tex || !fbo) throw new Error("WebGL2: could not create a render target");
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, tex);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, target.width, target.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    // Linear mode keeps targets in sRGB too: blending into them is in linear light, and 8 bits still cover the darks.
+    const format = this.linearOut ? gl.SRGB8_ALPHA8 : gl.RGBA;
+    gl.texImage2D(gl.TEXTURE_2D, 0, format, target.width, target.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
     this.wrap();
     const previous = this.target ? (this.targets.get(this.target)?.fbo ?? null) : this.outputFramebuffer();
     gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
@@ -1739,7 +1827,9 @@ export class WebGL2Backend implements Backend {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+    // Linear mode stores colour images as sRGB so sampling returns linear light; data images (asData) stay raw.
+    const format = this.linearOut && !isData(src) ? gl.SRGB8_ALPHA8 : gl.RGBA;
+    gl.texImage2D(gl.TEXTURE_2D, 0, format, gl.RGBA, gl.UNSIGNED_BYTE, src);
     this.wrap();
     if (this.mipmaps) {
       gl.generateMipmap(gl.TEXTURE_2D);
@@ -1822,10 +1912,11 @@ function batchProgram(gl: WebGL2RenderingContext, program: WebGLProgram): BatchP
 }
 
 function link(gl: WebGL2RenderingContext, vs: string, fs: string, label = "WebGL2"): WebGLProgram {
+  const pre = prelude(linearContexts.has(gl));
   const compile = (type: number, source: string) => {
     const shader = gl.createShader(type);
     if (!shader) throw new Error("WebGL2: could not create shader");
-    gl.shaderSource(shader, source);
+    gl.shaderSource(shader, source.replace(/^(\s*#version[^\n]*\n)/, `$1${pre}`));
     gl.compileShader(shader);
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
       const log = gl.getShaderInfoLog(shader);

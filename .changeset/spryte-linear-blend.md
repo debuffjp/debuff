@@ -1,0 +1,5 @@
+---
+"spryte": minor
+---
+
+`createRenderer(canvas, { blendSpace: "linear" })` blends in linear light on WebGL2. With the default sRGB blending, anti-aliased edges come out dark, so dark text on light paper looks heavier and light text on dark paper thinner; in linear light the weight stays the same when the colours swap, and soft edges and glows add up like light. Drawing goes to an sRGB framebuffer that `end()` copies to the canvas, one extra full-screen pass. Colour images and render targets are stored as sRGB. New `asData(image)` keeps a data image (an MSDF atlas, a lookup table) raw; call it before the image is first drawn. Every shader now has `spryte_toLinear(rgb)`, which converts an sRGB colour under linear blending and returns it unchanged otherwise, and `SPRYTE_LINEAR` is defined in linear mode. The default is unchanged, and Canvas 2D and shared renderers always blend sRGB.
