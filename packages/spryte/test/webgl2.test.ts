@@ -820,4 +820,14 @@ describe("blendSpace linear", () => {
     expect(count("texStorage2D")).toBe(0);
     expect(count("drawArrays")).toBe(0);
   });
+
+  it("keeps a data target raw and a colour target sRGB", () => {
+    const { gl, calls } = linearGL();
+    const be = new WebGL2Backend(gl);
+    be.begin(0xffffffff, 100, 50, 1);
+    be.setTarget(asData(new RenderTarget(8, 8)), 0, 8, 8);
+    be.setTarget(new RenderTarget(8, 8), 0, 8, 8);
+    const formats = calls.filter((c) => c.name === "texImage2D" && c.args[3] === 8).map((c) => c.args[2]);
+    expect(formats).toEqual(["RGBA", "SRGB8_ALPHA8"]);
+  });
 });

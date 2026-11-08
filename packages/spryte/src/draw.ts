@@ -3,6 +3,7 @@ import type { BitmapFont } from "./bitmap-font.js";
 import { type Color, toRGBA } from "./color.js";
 import { placeAt, type SpritesEach } from "./copies.js";
 import { Layer, type LayerItem } from "./layer.js";
+import { asData } from "./linear.js";
 import { Shader } from "./shader.js";
 import { RenderTarget } from "./target.js";
 
@@ -668,9 +669,14 @@ export class Draw {
 
   // ---- render targets ----------------------------------------------------------------------
 
-  /** An offscreen image of `width × height` pixels to draw into with `into()`, then draw like any image. */
-  createTarget(width: number, height: number): RenderTarget {
-    return new RenderTarget(width, height);
+  /**
+   * An offscreen image of `width × height` pixels to draw into with `into()`, then draw like any image. Pass
+   * `{ data: true }` for a target that holds data rather than colour (velocities, a simulation field): under
+   * `blendSpace: "linear"` colour targets are stored as sRGB, data targets keep their values as written.
+   */
+  createTarget(width: number, height: number, options: { data?: boolean } = {}): RenderTarget {
+    const target = new RenderTarget(width, height);
+    return options.data ? asData(target) : target;
   }
 
   /**

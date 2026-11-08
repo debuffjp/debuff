@@ -1478,8 +1478,8 @@ export class WebGL2Backend implements Backend {
     if (!tex || !fbo) throw new Error("WebGL2: could not create a render target");
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, tex);
-    // Linear mode keeps targets in sRGB too: blending into them is in linear light, and 8 bits still cover the darks.
-    const format = this.linearOut ? gl.SRGB8_ALPHA8 : gl.RGBA;
+    // Linear mode keeps colour targets in sRGB too, so blending into them is in linear light; data targets stay raw.
+    const format = this.linearOut && !isData(target) ? gl.SRGB8_ALPHA8 : gl.RGBA;
     gl.texImage2D(gl.TEXTURE_2D, 0, format, target.width, target.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
     this.wrap();
     const previous = this.target ? (this.targets.get(this.target)?.fbo ?? null) : this.outputFramebuffer();
