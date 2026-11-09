@@ -56,6 +56,11 @@ export interface SpritesEach {
    * 16,777,216.
    */
   user?: ArrayLike<number> | number;
+  /**
+   * A second float per copy, read as `user2()`, for a shader that needs two (a glyph's place and its line).
+   * Same rules as `user`. Experimental, added 2026-11-09.
+   */
+  user2?: ArrayLike<number> | number;
 }
 
 /**

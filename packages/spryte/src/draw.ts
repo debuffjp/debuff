@@ -476,11 +476,12 @@ export class Draw {
       // Every offset used must fit inside the last record.
       const e = each as SpritesEach;
       let last = (e.position ?? 0) + 1;
-      for (const field of [e.scale, e.rotation, e.color, e.frame, e.user]) if (typeof field === "number") last = Math.max(last, field);
+      for (const field of [e.scale, e.rotation, e.color, e.frame, e.user, e.user2])
+        if (typeof field === "number") last = Math.max(last, field);
       count = Math.min(Math.floor(count) || 0, Math.floor((positions.length - last - 1) / stride) + 1);
     } else count = Math.min(Math.floor(count) || 0, positions.length >> 1);
     if (each && !stride) {
-      for (const field of [each.scale, each.rotation, each.color, each.frame, each.user]) {
+      for (const field of [each.scale, each.rotation, each.color, each.frame, each.user, each.user2]) {
         if (typeof field === "number") throw new TypeError("draw.sprites: offsets in each need each.stride");
         if (field !== undefined) count = Math.min(count, field.length);
       }
@@ -490,7 +491,7 @@ export class Draw {
       return;
     }
     // Under a custom shader, the per-copy program runs the effect: route plain copies through it too.
-    if (stride || this.shader || (each && (each.scale || each.rotation || each.color || each.frame || each.user))) {
+    if (stride || this.shader || (each && (each.scale || each.rotation || each.color || each.frame || each.user || each.user2))) {
       this.spritesEach(frame, positions, count, o, each ?? NO_EACH);
       return;
     }
@@ -509,7 +510,12 @@ export class Draw {
       !isDetached(positions) &&
       !(
         each &&
-        (isDetached(each.scale) || isDetached(each.rotation) || isDetached(each.color) || isDetached(each.frame) || isDetached(each.user))
+        (isDetached(each.scale) ||
+          isDetached(each.rotation) ||
+          isDetached(each.color) ||
+          isDetached(each.frame) ||
+          isDetached(each.user) ||
+          isDetached(each.user2))
       )
     )
       return;

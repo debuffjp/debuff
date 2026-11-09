@@ -118,6 +118,7 @@ layout(location=4) in uint a_color;
 layout(location=5) in vec4 a_uv;    // this copy's frame in texture space
 layout(location=6) in vec2 a_size;  // this copy's frame size in pixels
 layout(location=7) in float a_user; // each.user, read by custom shaders as user()
+layout(location=8) in float a_user2; // each.user2, read as user2()
 uniform vec2 u_view;
 uniform vec4 u_linear;  // current transform, linear part
 uniform vec2 u_mt;      // current transform, translation
@@ -129,10 +130,12 @@ uniform float u_snap;
 out highp vec2 v_uv;
 out highp vec2 v_local;
 out highp float v_user;
+out highp float v_user2;
 out vec4 v_color;
 void main() {
   v_local = a_corner;
   v_user = a_user;
+  v_user2 = a_user2;
   float r = u_rot + a_rot;
   float cs = cos(r);
   float sn = sin(r);
@@ -179,6 +182,8 @@ in highp vec2 v_local;
 vec2 frameUv() { return v_local; }
 in highp float v_user;
 float user() { return v_user; }
+in highp float v_user2;
+float user2() { return v_user2; }
 `;
 
 const EACH_FRAG_MAIN = `
@@ -225,7 +230,7 @@ interface EachProgram extends ProgramInfo {
 
 interface EachPipeline extends EachProgram {
   vao: WebGLVertexArrayObject;
-  /** Position, scale, rotation, colour and frame (uv + size) buffers (attribute locations 1–4, 5–6). */
+  /** Position, scale, rotation, colour and frame (uv + size), user and user2 buffers (attribute locations 1–4, 5–6, 7, 8). */
   buffers: WebGLBuffer[];
 }
 
@@ -362,6 +367,7 @@ in highp vec2 v_local;
 vec2 frameUv() { return v_local; }
 // Per-copy values exist only on draw.sprites: everywhere else, user() is 0.
 float user() { return 0.0; }
+float user2() { return 0.0; }
 `;
 
 // Flash: push colour toward white while keeping alpha (premultiplied).
@@ -504,6 +510,7 @@ export class WebGL2Backend implements Backend {
   private stagingScale = new Float32Array(0);
   private stagingRot = new Float32Array(0);
   private stagingUser = new Float32Array(0);
+  private stagingUser2 = new Float32Array(0);
   private stagingFrame = new Float32Array(0);
   private staging = new Float32Array(0);
   private readonly targets = new Map<RenderTarget, { fbo: WebGLFramebuffer; cached: CachedTexture }>();
@@ -1214,6 +1221,7 @@ export class WebGL2Backend implements Backend {
       [2, e.scale, 1, "stagingScale"],
       [3, e.rotation, 0, "stagingRot"],
       [7, e.user, 0, "stagingUser"],
+      [8, e.user2, 0, "stagingUser2"],
     ] as const) {
       if (field === undefined) {
         gl.disableVertexAttribArray(loc);
@@ -1222,7 +1230,7 @@ export class WebGL2Backend implements Backend {
         gl.bindBuffer(gl.ARRAY_BUFFER, p.buffers[0] as WebGLBuffer);
         gl.vertexAttribPointer(loc, 1, gl.FLOAT, false, bytes, field * 4);
         gl.enableVertexAttribArray(loc);
-      } else this.attribute(loc, 1, p.buffers[loc === 7 ? 5 : loc - 1] as WebGLBuffer, field, n, staging);
+      } else this.attribute(loc, 1, p.buffers[loc === 7 ? 5 : loc === 8 ? 6 : loc - 1] as WebGLBuffer, field, n, staging);
     }
     const color = e.color;
     if (color === undefined) {
@@ -1277,7 +1285,7 @@ export class WebGL2Backend implements Backend {
     buffer: WebGLBuffer,
     data: ArrayLike<number>,
     length: number,
-    staging: "staging" | "stagingScale" | "stagingRot" | "stagingUser",
+    staging: "staging" | "stagingScale" | "stagingRot" | "stagingUser" | "stagingUser2",
   ): void {
     const gl = this.gl;
     let out: Float32Array;
@@ -1526,6 +1534,7 @@ export class WebGL2Backend implements Backend {
       [4, 1],
       [5, 4],
       [7, 1],
+      [8, 1],
     ] as const) {
       const b = gl.createBuffer();
       if (!b) throw new Error("WebGL2: could not create buffer");

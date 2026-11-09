@@ -532,6 +532,35 @@ vec4 effect(vec4 color, vec2 uv) {
     reds.join(" / "),
   );
 
+  // each.user2 is a second per-copy float beside user, read as user2().
+  const user2Shader = `vec4 effect(vec4 color, vec2 uv) { return vec4(user() / 2.0, user2() / 4.0, 0.0, 1.0); }`;
+  const user2Scene = await render(
+    (draw) => {
+      draw.withShader(draw.createShader(user2Shader), () => {
+        draw.sprites(
+          [userFrame],
+          new Float32Array([10, 10, 0, 4, 30, 10, 2, 2, 50, 10, 1, 0]),
+          3,
+          { origin: [0, 0] },
+          { stride: 4, user: 2, user2: 3 },
+        );
+        draw.sprite(userFrame, 70, 10, { origin: [0, 0] });
+      });
+    },
+    "webgl2",
+    1,
+  );
+  const rg = [14, 34, 54, 74].map((x) => pixelAt(user2Scene, x, 13).slice(0, 2).join(","));
+  const near = (s: string | undefined, r: number, g: number) => {
+    const [a, b] = (s ?? "").split(",").map(Number);
+    return Math.abs((a as number) - r) <= 1 && Math.abs((b as number) - g) <= 1;
+  };
+  check(
+    "each.user2 gives user2() per copy beside user(), and 0 outside draw.sprites",
+    near(rg[0], 0, 255) && near(rg[1], 255, 128) && near(rg[2], 128, 0) && near(rg[3], 0, 0),
+    rg.join(" / "),
+  );
+
   // Shader.set with arrays and textures (since 0.13).
   const solid = (...colors: string[]) => {
     // One column per colour, 1 px tall.
