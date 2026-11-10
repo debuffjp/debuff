@@ -366,6 +366,19 @@ export class Draw {
 
   /** Draw an image frame (or a whole image) at `x, y`, anchored by `origin`. Allocation-free hot path. */
   sprite(frame: Frame | TextureSource, x: number, y: number, o: SpriteDrawOptions = NO_OPTIONS): void {
+    const b = this.backend;
+    // Kept small so V8 inlines it into the caller's loop: a call it can't inline boxes x and y on the heap.
+    if (b.sprite && !this.rec) {
+      // The backend does the transform algebra itself (on the GPU).
+      this.quads++;
+      b.sprite(this.mver, this.m, this.frameOf(frame), x, y, o, this.spriteColor(o), o.smooth ?? this.smooth);
+      return;
+    }
+    this.spriteSlow(frame, x, y, o);
+  }
+
+  /** `sprite()` while recording a layer, or on a backend without its own sprite path (Canvas 2D). */
+  private spriteSlow(frame: Frame | TextureSource, x: number, y: number, o: SpriteDrawOptions): void {
     if (this.rec) {
       const smooth = o.smooth ?? this.smooth;
       const m = this.m;
@@ -377,13 +390,6 @@ export class Draw {
         m: [m[0], m[1], m[2], m[3], m[4], m[5]],
         color: this.spriteColor(o),
       });
-      return;
-    }
-    const b = this.backend;
-    if (b.sprite) {
-      // The backend does the transform algebra itself (on the GPU).
-      this.quads++;
-      b.sprite(this.mver, this.m, this.frameOf(frame), x, y, o, this.spriteColor(o), o.smooth ?? this.smooth);
       return;
     }
     const f = this.place(frame, x, y, o);
