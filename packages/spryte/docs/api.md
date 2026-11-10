@@ -1,6 +1,6 @@
 # spryte API
 
-Agents writing a scene can start from the one-page [agent cheat sheet](agent-cheatsheet.md).
+Agents writing a scene can start from the one-page [agent cheat sheet](https://github.com/debuffjp/debuff/blob/main/packages/spryte/docs/agent-cheatsheet.md).
 
 Everything is exported from `spryte`. Units are **logical**: you choose them in `begin()`, and spryte maps them onto the canvas's backing pixels.
 
