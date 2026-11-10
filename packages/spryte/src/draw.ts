@@ -1,4 +1,4 @@
-import type { Backend, BlendMode, ClipRect, Matrix, RawContext, TextureSource } from "./backend.js";
+import { type Backend, type BlendMode, type ClipRect, type Matrix, pixel, type RawContext, type TextureSource } from "./backend.js";
 import type { BitmapFont } from "./bitmap-font.js";
 import { type Color, toRGBA } from "./color.js";
 import { placeAt, type SpritesEach } from "./copies.js";
@@ -392,8 +392,8 @@ export class Draw {
     if (!smooth && t[1] === 0 && t[2] === 0) {
       // Pixel art: put unrotated sprites on whole pixels. Nearest sampling at fractional positions
       // makes edges gain and lose a pixel from frame to frame, which reads as flicker.
-      t[4] = Math.round(t[4]);
-      t[5] = Math.round(t[5]);
+      t[4] = pixel(t[4]);
+      t[5] = pixel(t[5]);
     }
     this.quads++;
     this.backend.quad(t, f.image, f.x, f.y, f.w, f.h, this.spriteColor(o), o.flash ?? 0, smooth);
@@ -613,8 +613,8 @@ export class Draw {
         this.local(lx, ly, f.w, f.h);
         if (this.tmp[1] === 0 && this.tmp[2] === 0) {
           // A parent translation can reintroduce fractions after local alignment. Snap like pixel-art sprites.
-          this.tmp[4] = Math.round(this.tmp[4]);
-          this.tmp[5] = Math.round(this.tmp[5]);
+          this.tmp[4] = pixel(this.tmp[4]);
+          this.tmp[5] = pixel(this.tmp[5]);
         }
         this.quads++;
         this.backend.quad(this.tmp, f.image, f.x, f.y, f.w, f.h, color, 0, false);

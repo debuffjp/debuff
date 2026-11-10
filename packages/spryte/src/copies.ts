@@ -1,4 +1,4 @@
-import type { Matrix } from "./backend.js";
+import { type Matrix, pixel } from "./backend.js";
 import type { Frame } from "./draw.js";
 
 /**
@@ -139,8 +139,8 @@ export function copyAt(c: CopySpec, i: number, out: Matrix, f: Frame): number {
   const p = i * c.stride + c.offset;
   placeAt(c.m, f.w, f.h, c.positions[p] as number, c.positions[p + 1] as number, c.originX, c.originY, c.scaleX * k, c.scaleY * k, r, out);
   if (c.snap && !r) {
-    out[4] = Math.round(out[4]);
-    out[5] = Math.round(out[5]);
+    out[4] = pixel(out[4]);
+    out[5] = pixel(out[5]);
   }
   const color = e.color;
   const each =

@@ -2,6 +2,14 @@
 export type Matrix = [number, number, number, number, number, number];
 
 /**
+ * The nearest whole pixel, halves rounding up. It matches `Math.round` except for -0 and 0.49999999999999994, and V8
+ * runs it about twice as fast, which shows on the per-sprite path. The shaders snap with the same rule.
+ */
+export function pixel(v: number): number {
+  return Math.floor(v + 0.5);
+}
+
+/**
  * How drawing combines with what's underneath. `add` brightens (glows, fire), `multiply` darkens (shadows,
  * tinted lighting), `screen` lightens softly, and `erase` cuts alpha out of what's there (holes in a render
  * target, masks). On a see-through target `multiply` follows the GPU formula, which hides drawing over fully

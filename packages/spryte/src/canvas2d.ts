@@ -1,4 +1,4 @@
-import type { Backend, BlendMode, ClipRect, Matrix, RawContext, TextureSource } from "./backend.js";
+import { type Backend, type BlendMode, type ClipRect, type Matrix, pixel, type RawContext, type TextureSource } from "./backend.js";
 import { rgbaToCss } from "./color.js";
 import { type CopySpec, copyAt, frameAt } from "./copies.js";
 import type { Shader } from "./shader.js";
@@ -110,8 +110,8 @@ export class Canvas2DBackend implements Backend {
       q[4] = t[4] + m[0] * x + m[2] * y;
       q[5] = t[5] + m[1] * x + m[3] * y;
       if (snap) {
-        q[4] = Math.round(q[4]);
-        q[5] = Math.round(q[5]);
+        q[4] = pixel(q[4]);
+        q[5] = pixel(q[5]);
       }
       this.quad(q, src, sx, sy, sw, sh, color, flash, smooth);
     }

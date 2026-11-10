@@ -1,4 +1,4 @@
-import type { Backend, BlendMode, ClipRect, Matrix, RawContext, TextureSource } from "./backend.js";
+import { type Backend, type BlendMode, type ClipRect, type Matrix, pixel, type RawContext, type TextureSource } from "./backend.js";
 import { type CopySpec, copyAt, frameAt, placeAt } from "./copies.js";
 import type { Frame, SpriteDrawOptions } from "./draw.js";
 import type { Layer } from "./layer.js";
@@ -508,11 +508,11 @@ export class WebGL2Backend implements Backend {
 
     gl.enable(gl.BLEND);
     this.applyBlend();
-    const pixel = new Uint8Array([255, 255, 255, 255]);
+    const opaque = new Uint8Array([255, 255, 255, 255]);
     const whiteTex = gl.createTexture();
     if (!whiteTex) throw new Error("WebGL2: could not create texture");
     gl.bindTexture(gl.TEXTURE_2D, whiteTex);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, opaque);
     this.white = { tex: whiteTex, iw: 1, ih: 1, v0: 0 };
     this.wrap();
     this.nearest = sampler(gl, gl.NEAREST);
@@ -816,8 +816,8 @@ export class WebGL2Backend implements Backend {
       const q = this.fallback;
       placeAt(m, fr.w, fr.h, x, y, ox, oy, sx, sy, r, q);
       if (!smooth && q[1] === 0 && q[2] === 0) {
-        q[4] = Math.round(q[4]);
-        q[5] = Math.round(q[5]);
+        q[4] = pixel(q[4]);
+        q[5] = pixel(q[5]);
       }
       this.quad(q, fr.image, fr.x, fr.y, fr.w, fr.h, color, flash, smooth);
       return;
@@ -861,8 +861,8 @@ export class WebGL2Backend implements Backend {
       // Unrotated pixel art: whole pixels, rounded here in double precision as quad callers do.
       const lx = sx * (-ox * fr.w) + x;
       const ly = sy * (-oy * fr.h) + y;
-      f32[f] = Math.round(m[0] * lx + m[4]);
-      f32[f + 1] = Math.round(m[3] * ly + m[5]);
+      f32[f] = pixel(m[0] * lx + m[4]);
+      f32[f + 1] = pixel(m[3] * ly + m[5]);
       flags += PLACED;
     } else {
       f32[f] = x;
