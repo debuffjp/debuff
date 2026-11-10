@@ -69,6 +69,7 @@ const t = draw.createTarget(160, 90);                 // pixels
 draw.into(t, () => draw.sprites(spark, p, n));        // draw into it, then draw it like an image
 draw.sprite(t, 0, 0, { origin: [0, 0], scaleX: 2, scaleY: 2 });
 draw.disposeTarget(t);
+const hdr = draw.createTarget(160, 90, { format: "rgba16f" }); // values past 1; hdr.format is "rgba8" if unsupported (0.13)
 
 const ground = draw.record((d) => tiles.forEach((k) => d.sprite(frames[k.id], k.x, k.y))); // sprites that never change
 draw.replay(ground);                                  // each frame; ground.dispose() when done

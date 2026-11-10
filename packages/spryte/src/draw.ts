@@ -5,7 +5,7 @@ import { placeAt, type SpritesEach } from "./copies.js";
 import { Layer, type LayerItem } from "./layer.js";
 import { asData } from "./linear.js";
 import { Shader } from "./shader.js";
-import { RenderTarget } from "./target.js";
+import { RenderTarget, type TargetFormat, type TargetOptions } from "./target.js";
 
 /** A rectangular region of an image, in source pixels. */
 export interface Frame {
@@ -678,11 +678,20 @@ export class Draw {
   /**
    * An offscreen image of `width × height` pixels to draw into with `into()`, then draw like any image. Pass
    * `{ data: true }` for a target that holds data rather than colour (velocities, a simulation field): under
-   * `blendSpace: "linear"` colour targets are stored as sRGB, data targets keep their values as written.
+   * `blendSpace: "linear"` colour targets are stored as sRGB, data targets keep their values as written. Pass
+   * `{ format: "rgba16f" }` for values above 1 (since 0.13); check `target.format`, since it falls back to `rgba8`
+   * where the GPU can't render to half floats.
    */
-  createTarget(width: number, height: number, options: { data?: boolean } = {}): RenderTarget {
-    const target = new RenderTarget(width, height);
+  createTarget(width: number, height: number, options: TargetOptions & { data?: boolean } = {}): RenderTarget {
+    const want = options.format ?? "rgba8";
+    const format = want === "rgba8" || this.backend.supportsTarget?.(want) ? want : "rgba8";
+    const target = new RenderTarget(width, height, format);
     return options.data ? asData(target) : target;
+  }
+
+  /** Whether `createTarget` can give you `format` here, without making one. Since 0.13. */
+  supportsTarget(format: TargetFormat): boolean {
+    return format === "rgba8" || (this.backend.supportsTarget?.(format) ?? false);
   }
 
   /**

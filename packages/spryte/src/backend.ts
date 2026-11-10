@@ -32,7 +32,7 @@ import type { Frame, SpriteDrawOptions } from "./draw.js";
 import type { Layer } from "./layer.js";
 import type { Shader } from "./shader.js";
 import type { ShapeBuffer } from "./shapes.js";
-import type { RenderTarget } from "./target.js";
+import type { RenderTarget, TargetFormat } from "./target.js";
 
 /** Image sources the renderer can draw. Textures are cached per source object. */
 export type TextureSource = HTMLImageElement | HTMLCanvasElement | OffscreenCanvas | ImageBitmap | RenderTarget;
@@ -47,6 +47,8 @@ export interface Backend {
   readonly raw: RawContext;
   /** True while the GPU context is lost, where that can happen (WebGL2). */
   readonly contextLost?: boolean;
+  /** Whether render targets can use `format`. Missing means only `rgba8`. */
+  supportsTarget?(format: TargetFormat): boolean;
   /** GPU draw calls submitted so far this frame, where the backend batches (WebGL2). */
   readonly drawCalls?: number;
   /** Begin a frame: clear to `clear` (0xRRGGBBAA; null keeps what's there) at the given logical size and backing scale. */

@@ -34,4 +34,4 @@ export { createRenderer, type RendererOptions } from "./renderer.js";
 export { Shader, type ShaderTextureOptions, type UniformArray, type UniformValue } from "./shader.js";
 export { polygon, polyline, ring, roundRect } from "./shapes.js";
 export { createSharedRenderer, type SharedRenderer, type SharedRendererOptions } from "./shared.js";
-export { RenderTarget } from "./target.js";
+export { RenderTarget, type TargetFormat, type TargetOptions } from "./target.js";

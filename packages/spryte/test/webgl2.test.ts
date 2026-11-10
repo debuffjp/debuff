@@ -642,6 +642,35 @@ describe("WebGL2Backend", () => {
   });
 
   describe("render targets", () => {
+    it("allocates half floats for rgba16f where the GPU can render to them", () => {
+      const { gl, calls } = fakeGL();
+      (gl as unknown as Record<string, unknown>).getExtension = (name: string) => (name === "EXT_color_buffer_float" ? {} : null);
+      const draw = new Draw(new WebGL2Backend(gl), false);
+      const t = draw.createTarget(8, 4, { format: "rgba16f" });
+      expect(t.format).toBe("rgba16f");
+      expect(draw.supportsTarget("rgba16f")).toBe(true);
+      calls.length = 0;
+      draw.begin("#000", 100, 50, 1);
+      draw.into(t, () => {});
+      draw.end();
+      const upload = calls.find((c) => c.name === "texImage2D");
+      expect(upload?.args[2]).toBe("RGBA16F");
+      expect(upload?.args[7]).toBe("HALF_FLOAT");
+    });
+
+    it("falls back to rgba8 when neither float extension is there", () => {
+      const { gl, calls } = fakeGL();
+      (gl as unknown as Record<string, unknown>).getExtension = () => null;
+      const draw = new Draw(new WebGL2Backend(gl), false);
+      const t = draw.createTarget(8, 4, { format: "rgba16f" });
+      expect(t.format).toBe("rgba8");
+      expect(draw.supportsTarget("rgba16f")).toBe(false);
+      draw.begin("#000", 100, 50, 1);
+      draw.into(t, () => {});
+      draw.end();
+      expect(calls.find((c) => c.name === "texImage2D")?.args[7]).toBe("UNSIGNED_BYTE");
+    });
+
     it("draws into a framebuffer at the target's size and switches back to the canvas", () => {
       const { gl, calls } = fakeGL();
       const draw = new Draw(new WebGL2Backend(gl), false);
@@ -800,6 +829,21 @@ describe("blendSpace linear", () => {
     const last = calls.filter((c) => c.name === "bindFramebuffer").at(-1);
     expect(last?.args[1]).toBeNull();
     expect(calls.filter((c) => c.name === "drawArrays").length).toBe(1);
+  });
+
+  it("keeps half-float targets as half floats, since they already hold linear light", () => {
+    const { gl, calls } = linearGL();
+    (gl as unknown as Record<string, unknown>).getExtension = (name: string) => (name === "EXT_color_buffer_float" ? {} : null);
+    const draw = new Draw(new WebGL2Backend(gl), false);
+    const hdr = draw.createTarget(8, 8, { format: "rgba16f" });
+    const colour = draw.createTarget(8, 8);
+    draw.begin("#000", 100, 50, 1);
+    draw.into(hdr, () => {});
+    draw.into(colour, () => {});
+    draw.end();
+    const formats = calls.filter((c) => c.name === "texImage2D").map((c) => c.args[2]);
+    expect(formats).toContain("RGBA16F");
+    expect(formats).toContain("SRGB8_ALPHA8");
   });
 
   it("clears with the colour in linear light", () => {

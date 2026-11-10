@@ -38,6 +38,12 @@ function recordingContext() {
 }
 
 describe("Canvas2DBackend", () => {
+  it("gives rgba8 targets when asked for half floats", () => {
+    const draw = new Draw(new Canvas2DBackend(recordingContext().ctx), false);
+    expect(draw.createTarget(4, 4, { format: "rgba16f" }).format).toBe("rgba8");
+    expect(draw.supportsTarget("rgba16f")).toBe(false);
+  });
+
   it("clears with the background and scales logical units to the backing store", () => {
     const { ctx, calls } = recordingContext();
     const draw = new Draw(new Canvas2DBackend(ctx), false);

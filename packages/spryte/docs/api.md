@@ -167,6 +167,7 @@ draw.disposeTarget(glow);                             // when you're done with i
 - Drawing a target into itself, disposing it while you're drawing into it, or making it larger than the GPU's `MAX_TEXTURE_SIZE` throws. Sizes must be whole pixels.
 - Targets work on both backends. A real-GPU check confirms that drawing into a target and then drawing the target 1:1 gives the same pixels as drawing directly (`npm run test:browser`).
 - After a WebGL context loss, target contents are blank (GPU memory is gone). Check `draw.contextLost`, or redraw targets each frame.
+- `draw.createTarget(w, h, { format: "rgba16f" })` stores half floats, so values can pass 1: additive light that sums past white, bloom thresholds, dark gradients without banding. It needs WebGL2 with `EXT_color_buffer_float` or `EXT_color_buffer_half_float`; elsewhere, Canvas 2D included, you get an `rgba8` target. Read `target.format` for what you got, or ask first with `draw.supportsTarget("rgba16f")`. It costs width × height × 8 bytes. The canvas still shows 0 to 1, so map the values down (a tone-map shader) when you draw the target out. Since 0.13.
 
 ## Shaders
 

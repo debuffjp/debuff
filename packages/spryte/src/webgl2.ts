@@ -5,7 +5,7 @@ import type { Layer } from "./layer.js";
 import { byteToLinear, isData, linearContexts, prelude } from "./linear.js";
 import type { Shader, UniformArray, UniformValue } from "./shader.js";
 import type { ShapeBuffer } from "./shapes.js";
-import { RenderTarget } from "./target.js";
+import { RenderTarget, type TargetFormat } from "./target.js";
 
 /** Texture units sampled per batch. 8 is guaranteed on every WebGL2 implementation's fragment stage (min 16). */
 const UNITS = 8;
@@ -600,6 +600,16 @@ export class WebGL2Backend implements Backend {
     this.setup();
     gl.canvas.addEventListener("webglcontextlost", this.onLost);
     gl.canvas.addEventListener("webglcontextrestored", this.onRestored);
+  }
+
+  /**
+   * Rendering to half floats needs an extension in WebGL2. `getExtension` also turns it on, and a restored context
+   * starts with it off again, so this asks each time a target is made rather than caching.
+   */
+  supportsTarget(format: TargetFormat): boolean {
+    if (format === "rgba8") return true;
+    const gl = this.gl;
+    return !!(gl.getExtension("EXT_color_buffer_float") ?? gl.getExtension("EXT_color_buffer_half_float"));
   }
 
   /** True while the GPU context is lost (e.g. a mobile tab was backgrounded or the driver reset). */
@@ -1486,9 +1496,14 @@ export class WebGL2Backend implements Backend {
     if (!tex || !fbo) throw new Error("WebGL2: could not create a render target");
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, tex);
-    // Linear mode keeps colour targets in sRGB too, so blending into them is in linear light; data targets stay raw.
-    const format = this.linearOut && !isData(target) ? gl.SRGB8_ALPHA8 : gl.RGBA;
-    gl.texImage2D(gl.TEXTURE_2D, 0, format, target.width, target.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    if (target.format === "rgba16f" && this.supportsTarget("rgba16f")) {
+      // Half floats hold linear values as written, so they need no sRGB storage under linear blending.
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, target.width, target.height, 0, gl.RGBA, gl.HALF_FLOAT, null);
+    } else {
+      // Linear mode keeps colour targets in sRGB too, so blending into them is in linear light; data targets stay raw.
+      const format = this.linearOut && !isData(target) ? gl.SRGB8_ALPHA8 : gl.RGBA;
+      gl.texImage2D(gl.TEXTURE_2D, 0, format, target.width, target.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    }
     this.wrap();
     const previous = this.target ? (this.targets.get(this.target)?.fbo ?? null) : this.outputFramebuffer();
     gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
