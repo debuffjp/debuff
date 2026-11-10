@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Backend, ClipRect, Matrix, TextureSource } from "../src/backend.js";
 import { Draw } from "../src/draw.js";
-import { mask, nineSlice, polygon, polyline, ring, roundRect, tiled, toRGBA } from "../src/index.js";
+import { mask, nineSlice, polygon, polyline, ring, roundRect, spriteOptions, tiled, toRGBA } from "../src/index.js";
 
 interface Quad {
   m: Matrix;
@@ -94,6 +94,32 @@ describe("Draw", () => {
     expect(at(quad(0).m, 1, 1)).toEqual([52, 52]);
     expect(at(quad(1).m, 1, 1)).toEqual([1, 1]);
     expect(() => draw.pop()).toThrow(/without a matching push/);
+  });
+
+  it("spriteOptions() gives every field, in one order, so all its objects share one shape", () => {
+    const empty = spriteOptions();
+    expect(Object.keys(empty)).toEqual(["origin", "scaleX", "scaleY", "rotation", "flipX", "flipY", "alpha", "tint", "flash", "smooth"]);
+    expect(Object.values(empty).every((v) => v === undefined)).toBe(true);
+    const set = spriteOptions({ tint: "#f00", smooth: true, rotation: 1 });
+    expect(Object.keys(set)).toEqual(Object.keys(empty));
+    expect(set).toMatchObject({ tint: "#f00", smooth: true, rotation: 1, scaleX: undefined });
+  });
+
+  it("draws spriteOptions() objects exactly like the plain options they were made from", () => {
+    const image = { width: 64, height: 64 } as unknown as TextureSource;
+    const frame = { image, x: 16, y: 0, w: 16, h: 8 };
+    const cases = [
+      {},
+      { origin: [0, 1] as const, flipY: true, alpha: 0.5 },
+      { rotation: 0.7, scaleX: 2, tint: 0x80ff40ff, flash: 0.25, smooth: true },
+    ];
+    for (const o of cases) {
+      const plain = recorder();
+      const full = recorder();
+      plain.draw.sprite(frame, 10.4, 20.6, o);
+      full.draw.sprite(frame, 10.4, 20.6, spriteOptions(o));
+      expect(full.quad(0)).toEqual(plain.quad(0));
+    }
   });
 
   it("anchors, flips and rotates sprites, passing source rect, flash and filtering", () => {

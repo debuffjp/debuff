@@ -5,7 +5,9 @@ export type { SpritesEach } from "./copies.js";
 export {
   Draw,
   type Frame,
+  type FullSpriteDrawOptions,
   type SpriteDrawOptions,
+  spriteOptions,
   type TextDrawOptions,
 } from "./draw.js";
 export { canDrawElements, drawElement, type ElementDrawOptions } from "./element.js";

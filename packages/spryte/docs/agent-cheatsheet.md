@@ -22,7 +22,7 @@ Colours: `"#rgb"`, `"#rrggbbaa"`, `0xRRGGBBAA` or any CSS colour. Draw in paint 
 | Call | Does |
 | --- | --- |
 | `rect(x, y, w, h, c)`, `circle(x, y, r, c)`, `line(x1, y1, x2, y2, width, c)` | Shapes. |
-| `sprite(imgOrFrame, x, y, o?)` | `o`: `origin`, `scaleX`, `scaleY`, `rotation`, `flipX`, `flipY`, `alpha`, `tint`, `flash`, `smooth`. Reuse the `o` object in loops. |
+| `sprite(imgOrFrame, x, y, o?)` | `o`: `origin`, `scaleX`, `scaleY`, `rotation`, `flipX`, `flipY`, `alpha`, `tint`, `flash`, `smooth`. Reuse the `o` object in loops. Many call sites with different options: build each with `spriteOptions(o)` (0.13+) so they share one shape. |
 | `sprites(frame, xy, n?, o?, each?)` | One frame at many positions. `xy` is a `Float32Array` of x, y pairs, uploaded as is. |
 | `text(s, x, y, {font, color, align, baseline, alpha})`, `measure(s, font?)` | CSS or `BitmapFont` text. |
 | `polygon`, `polyline`, `roundRect`, `ring`, `mesh`, `nineSlice`, `tiled` | Import them and pass `draw` first: `roundRect(draw, x, y, w, h, r, c)`. |
