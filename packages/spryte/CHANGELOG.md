@@ -1,5 +1,16 @@
 # spryte
 
+## 0.13.0
+
+### Minor Changes
+
+- 159795e: `spriteOptions(o)` builds `draw.sprite` options with every field present (`undefined` for a default), so all of a game's options objects share one shape. V8 caches `draw.sprite`'s property reads for up to four shapes, and a game passing `{ rotation }` in one place, `{ tint }` in another and `{}` elsewhere goes past that. With eight shapes, 200k `draw.sprite` calls took 13.9-14.7 ms in Node 22; the same eight built with `spriteOptions` took 7.1-8.4 ms. Build each object once and change its fields in place. A game that only ever passes one or two shapes doesn't need it. `@debuffjp/core` re-exports it. The fields of `SpriteDrawOptions` now accept `undefined` explicitly, which means the default as before.
+
+### Patch Changes
+
+- 84a9191: Unrotated pixel-art sprites cost less CPU. Snapping each one to whole pixels used `Math.round`, which V8 runs slowly. spryte now uses `Math.floor(v + 0.5)`, which rounds the same way. In 2dbench's bunny scene (200k unrotated `draw.sprite` calls, RTX 5060 Laptop, Chrome), the median frame went from 18.6 ms to 14.6 ms over 5 interleaved rounds, and pixel parity held. Rotated and smooth sprites never took that path, so they're unchanged.
+- ec09e10: `draw.sprite` is small enough again for V8 to inline into a game's loop. Its layer-recording and Canvas 2D paths now live in a separate method. When V8 can't inline a call, it boxes the call's number arguments on the heap, which meant garbage for every sprite. In 2dbench's bunny scene (200k sprites, RTX 5060 Laptop, Chrome), the median frame went from 15.3 ms to 14.7 ms over 5 interleaved rounds. The mixed scene didn't change.
+
 ## 0.12.5
 
 ### Patch Changes
