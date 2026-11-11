@@ -1,10 +1,24 @@
 # spryte benchmarks
 
-**Short version:** on the same machine, assets and simulation, spryte 0.7.2 is **2.4-4.5x faster than PixiJS 8** on comparable APIs, and ships about **7x less JavaScript** at startup. A pixel-parity gate confirms both draw the same scene before anything is timed. These are one desktop machine's numbers. Across the other devices measured in [2dbench](https://github.com/debuffjp/2dbench#across-devices) (an RTX 4080 laptop on Linux, AMD integrated graphics, an Apple M5 Pro in Chrome, iPhones in Safari and Chrome, an Android phone in Firefox), spryte's one-call-per-sprite path is ahead on every one.
+**Short version:** on the same machine, assets and simulation, spryte 0.13.0 is **2.4-4.5x faster than PixiJS 8** on comparable APIs, and ships about **7x less JavaScript** at startup. A pixel-parity gate confirms both draw the same scene before anything is timed. These are one desktop machine's numbers. Across the other devices measured in [2dbench](https://github.com/debuffjp/2dbench#across-devices) (an RTX 4080 laptop on Linux, AMD integrated graphics, an Apple M5 Pro in Chrome, iPhones in Safari and Chrome, an Android phone in Firefox), spryte's one-call-per-sprite path is ahead on every one.
+
+## Results, 2026-11-11 (spryte 0.13.0)
+
+Same machine, power and method as the runs below, in Chrome 157, with spryte 0.13.0 (PixiJS 8.22.0, Phaser 4.2.1) and 3-7 rounds per scene. The one-call-per-sprite rows moved because `draw.sprite` now fits V8's inlining limits and snaps pixels without `Math.round`. The bulk rows didn't change. Some PixiJS rows moved too, so part of the difference is the newer Chrome. Raw data, all ten scenes: [`results/2026-11-11-win32-*.json`](https://github.com/debuffjp/2dbench/tree/main/results).
+
+| Workload | spryte | PixiJS 8 | spryte is |
+| --- | --- | --- | --- |
+| **Dynamic particles**: position, scale, rotation, tint and alpha all change per particle, 200k | `draw.sprites` with per-copy arrays: **6.0 ms** (5.1-6.3) | `ParticleContainer`, those properties dynamic: 19.8 ms (18.6-23.0) | **3.3x faster** |
+| **General sprites, mixed**: 4 textures, changing rotation, scale, tint and alpha, 50k | `draw.sprite`: **3.9 ms** (3.8-4.3) | `Sprite`: 17.5 ms (16.4-20.3) | **4.5x faster** |
+| **General sprites, particles**: one call per sprite, everything changing, 50k | `draw.sprite`: **4.8 ms** (4.0-4.9) | `Sprite`: 18.3 ms (17.4-18.6) | **3.8x faster** |
+| **General sprites, bunnymark**: one texture, position only, 50k | `draw.sprite`: **3.3 ms** (3.3-3.6) | `Sprite`: 10.3 ms (9.9-11.5) | **3.1x faster** |
+| **Bulk, position only**, 200k | `draw.sprites`: **2.7 ms** (2.6-3.1) | `ParticleContainer`: 6.4 ms (5.8-6.7) | **2.4x faster** |
+
+Largest count at 60 fps: bunny bulk **1,600,000** against `ParticleContainer`'s 400,000; particles bulk **400,000** against 100,000; `sprite()` against `Sprite` **200,000** against 50,000 (bunny) and 20,000 (mixed), and **100,000** against 20,000 (particles); raycaster **20,000** enemies against 5,000. Parity passed in every scene with 0% of pixels differing inside sprites.
 
 ## Results, 2026-10-28 (spryte 0.7.2)
 
-Same machine, browser, power and method as the run below, with spryte 0.7.2 (PixiJS 8.22.0, Phaser 4.2.1) and 3-7 rounds per scene. spryte 0.7.2 does `draw.sprite`'s transform in the vertex shader, which is where the one-call-per-sprite rows moved. Raw data, all ten scenes: [`results/2026-10-28-win32-*.json`](https://github.com/debuffjp/2dbench/tree/main/results).
+Same machine, browser, power and method as the run below, with spryte 0.7.2 (PixiJS 8.22.0, Phaser 4.2.1) and 3-7 rounds per scene. spryte 0.7.2 does `draw.sprite`'s transform in the vertex shader, which is where the one-call-per-sprite rows moved. Raw data, all ten scenes: [`results/archive/2026-10-28-win32-*.json`](https://github.com/debuffjp/2dbench/tree/main/results/archive).
 
 | Workload | spryte | PixiJS 8 | spryte is |
 | --- | --- | --- | --- |
