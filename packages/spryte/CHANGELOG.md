@@ -1,5 +1,35 @@
 # spryte
 
+## 0.14.0
+
+### Minor Changes
+
+- 9692a38: `draw.sprites` takes `each.user`, one float per copy (an array, or an offset into the record with `stride`). A custom shader reads it as `user()`: a copy's place in a row for a staggered effect, a particle's age, a tile variant. `user()` is 0 for anything that isn't a `draw.sprites` copy. The default program ignores the value, and so does the Canvas 2D fallback. Its cost on the instanced path hasn't been measured yet.
+- 634e501: Render targets can hold values above 1. `draw.createTarget(w, h, { format: "rgba16f" })` stores half floats where WebGL2 has `EXT_color_buffer_float` or `EXT_color_buffer_half_float`, and falls back to `rgba8` elsewhere; `target.format` says which you got and `draw.supportsTarget(format)` asks without making one.
+- 73050a1: `createRenderer(canvas, { blendSpace: "linear" })` blends in linear light on WebGL2. With the default sRGB blending, anti-aliased edges come out dark, so dark text on light paper looks heavier and light text on dark paper thinner; in linear light the weight stays the same when the colours swap, and soft edges and glows add up like light. Drawing goes to an sRGB framebuffer that `end()` copies to the canvas, one extra full-screen pass. Colour images and render targets are stored as sRGB. New `asData(image)` keeps a data image (an MSDF atlas, a lookup table) raw; call it before the image is first drawn. `draw.createTarget(w, h, { data: true })` does the same for a render target that holds data, such as a simulation field. Every shader now has `spryte_toLinear(rgb)`, which converts an sRGB colour under linear blending and returns it unchanged otherwise, and `SPRYTE_LINEAR` is defined in linear mode. The default is unchanged, and Canvas 2D and shared renderers always blend sRGB.
+- 25cf5fc: `Shader.set()` takes uniform arrays and textures as well as floats and vectors.
+  
+  ```ts
+  const fx = draw.createShader(`
+    uniform vec4 pool[64];
+    uniform sampler2D noise;
+    vec4 effect(vec4 color, vec2 uv) { return source(uv) * color * pool[0] * texture(noise, frameUv()).r; }
+  `);
+  fx.set("pool", poolValues);                     // Float32Array or number[], packed flat
+  fx.set("noise", noiseCanvas, { smooth: true }); // image, canvas, ImageBitmap or render target
+  ```
+  
+  - Arrays set `float`, `vec2`, `vec3` and `vec4` arrays. spryte reads the type from the compiled shader, so 4 numbers on a `float[4]` set the array and on a `vec4` set the vector. A length that isn't a whole number of elements, or is longer than the declared array, throws an error naming the uniform.
+  - A texture on a `sampler2D` goes on its own texture unit from 8 up, apart from the 8 units sprite batches use, and stays bound for every batch drawn with the shader. Filtering is nearest unless `smooth` is set. A render target reads from its bottom row (`uv.y` runs bottom to top), and a shader can't sample the target it draws into.
+  - Bad values throw at `set()` while the shader is in use, or when `withShader`, or `into()` with the shader active, would start using them, before anything changes.
+  - `set()` on a uniform the compiler removed does nothing, as it did for floats and vectors.
+  
+  Floats and tuples on plain uniforms behave as before. The Canvas 2D fallback still draws without the effect.
+
+### Patch Changes
+
+- 4b1074d: `isData` also accepts images tagged with `Symbol.for("spryte.data")`, so a library such as shodo can mark its MSDF atlases as data under `blendSpace: "linear"` without importing spryte. The tag also works when a bundle holds two copies of spryte.
+
 ## 0.13.0
 
 ### Minor Changes
