@@ -1,5 +1,12 @@
 # @debuffjp/core
 
+## 0.33.2
+
+### Patch Changes
+
+- Updated dependencies [01bb09c]
+  - spryte@0.15.0
+
 ## 0.33.1
 
 ### Patch Changes
