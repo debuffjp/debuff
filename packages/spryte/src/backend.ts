@@ -38,6 +38,22 @@ import type { RenderTarget, TargetFormat } from "./target.js";
 export type TextureSource = HTMLImageElement | HTMLCanvasElement | OffscreenCanvas | ImageBitmap | RenderTarget;
 
 /**
+ * What `Backend.external` hands the code it runs.
+ * @internal
+ */
+export interface ExternalContext {
+  /** The destination's logical size, for mapping logical units to clip space. */
+  width: number;
+  height: number;
+  /** Changes when the context is restored after a loss: GL objects made before then are gone. */
+  generation: number;
+  /** Compile and link a program with spryte's shader prelude (`spryte_toLinear`). */
+  link(vertex: string, fragment: string, label: string): WebGLProgram;
+  /** Call `free` when the renderer is disposed. */
+  release(free: () => void): void;
+}
+
+/**
  * What a rendering backend implements. Everything is expressed as quads: a transform that maps the
  * unit square onto logical space, an optional source rectangle, and an RGBA colour (tint).
  * @internal
@@ -102,6 +118,11 @@ export interface Backend {
   replay?(layer: Layer, m: Matrix): boolean;
   /** Copies of one frame with per-copy scale, rotation or colour (`draw.sprites` with `each`). */
   copies(spec: CopySpec): void;
+  /**
+   * Run GL code that lives outside the backend (`lines()`), so apps that don't import it don't bundle it. Queued
+   * drawing is submitted first and the backend's own program and vertex array are bound again after. WebGL2 only.
+   */
+  external?(run: (gl: WebGL2RenderingContext, at: ExternalContext) => void): void;
   /**
    * Fill (`width` 0) or stroke a path of `n` points (x0, y0, x1, y1, …) in the units `m` maps to logical space.
    * `aa` is one device pixel in those units, for edge antialiasing where the backend does its own. The

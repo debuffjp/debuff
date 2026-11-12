@@ -25,7 +25,8 @@ Colours: `"#rgb"`, `"#rrggbbaa"`, `0xRRGGBBAA` or any CSS colour. Draw in paint 
 | `sprite(imgOrFrame, x, y, o?)` | `o`: `origin`, `scaleX`, `scaleY`, `rotation`, `flipX`, `flipY`, `alpha`, `tint`, `flash`, `smooth`. Reuse the `o` object in loops. Many call sites with different options: build each with `spriteOptions(o)` (0.13+) so they share one shape. |
 | `sprites(frame, xy, n?, o?, each?)` | One frame at many positions. `xy` is a `Float32Array` of x, y pairs, uploaded as is. |
 | `text(s, x, y, {font, color, align, baseline, alpha})`, `measure(s, font?)` | CSS or `BitmapFont` text. |
-| `polygon`, `polyline`, `roundRect`, `ring`, `mesh`, `nineSlice`, `tiled` | Import them and pass `draw` first: `roundRect(draw, x, y, w, h, r, c)`. |
+| `polygon`, `polyline`, `roundRect`, `ring`, `mesh`, `nineSlice`, `tiled`, `lines` | Import them and pass `draw` first: `roundRect(draw, x, y, w, h, r, c)`. |
+| `lines(draw, segs, n?, o?, each?)` | Many lines in one draw call (0.15+). `segs` is a `Float32Array` of x1, y1, x2, y2 per line. `o`: `width`, `color`, `alpha`; `each`: `width` (per-line array), `color` (`Uint32Array` of `0xRRGGBBAA`). |
 
 An image is an `HTMLImageElement`, `HTMLCanvasElement`, `OffscreenCanvas`, `ImageBitmap` or render target. A `Frame` is `{ image, x, y, w, h }`, a rectangle of an image; pass the image itself to use all of it. Sprites are centred on `x, y`: `origin: [0, 0]` anchors the top left. `text` takes `align` `"left" | "center" | "right"` and `baseline` `"top" | "middle" | "bottom"`. In `sprites`, `n` counts sprites (not floats) and `n`, `o` and `each` can be left out.
 

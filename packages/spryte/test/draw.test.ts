@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Backend, ClipRect, Matrix, TextureSource } from "../src/backend.js";
 import { Draw } from "../src/draw.js";
-import { mask, nineSlice, polygon, polyline, ring, roundRect, spriteOptions, tiled, toRGBA } from "../src/index.js";
+import { lines, mask, nineSlice, polygon, polyline, ring, roundRect, spriteOptions, tiled, toRGBA } from "../src/index.js";
 
 interface Quad {
   m: Matrix;
@@ -541,5 +541,35 @@ describe("sprites with frames across images", () => {
     ];
     draw.sprites(frames, new Float32Array(4), 2, {}, { frame: [0, 1] });
     expect(warn).not.toHaveBeenCalled();
+  });
+});
+
+describe("lines() on a backend without a lines path", () => {
+  it("draws each line as line() would, with per-line width and colour multiplied in", () => {
+    const loop = recorder();
+    loop.draw.line(0, 0, 10, 0, 2, 0xff000080);
+    loop.draw.line(0, 0, 0, 10, 3, 0x40ff40ff);
+    const bulk = recorder();
+    const segs = new Float32Array([0, 0, 10, 0, 0, 0, 0, 10]);
+    lines(bulk.draw, segs, 2, { width: 1, color: "#ff8040" }, { width: [2, 3], color: new Uint32Array([0xff0080_80, 0x80ff80ff]) });
+    expect(bulk.quads.map((q) => q.m)).toEqual(loop.quads.map((q) => q.m));
+    // 0xff8040ff × 0xff008080 and × 0x80ff80ff, per channel.
+    expect(bulk.quads.map((q) => q.color)).toEqual([0xff002080, 0x808020ff]);
+  });
+
+  it("clamps the count to the shortest array and skips zero-length lines", () => {
+    const { draw, quads } = recorder();
+    lines(draw, new Float32Array([0, 0, 5, 5, 1, 1, 1, 1, 0, 0, 3, 0]), 10, {}, { width: [1, 1] });
+    expect(quads.length).toBe(1);
+    lines(draw, new Float32Array([0, 0, 5, 5]), Number.NaN);
+    lines(draw, new Float32Array([0, 0, 5, 5]), -1);
+    expect(quads.length).toBe(1);
+  });
+
+  it("applies options.alpha and draw.alpha", () => {
+    const { draw, quads } = recorder();
+    draw.alpha = 0.5;
+    lines(draw, new Float32Array([0, 0, 5, 0]), 1, { alpha: 0.5 });
+    expect(quads[0]?.color).toBe((0xffffff00 | Math.round(255 * 0.25)) >>> 0);
   });
 });

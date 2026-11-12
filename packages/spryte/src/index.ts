@@ -27,6 +27,7 @@ export {
 export { type GpuTimer, gpuTimer } from "./gpu-timer.js";
 export { Layer } from "./layer.js";
 export { asData } from "./linear.js";
+export { type LinesEach, type LinesOptions, lines } from "./lines.js";
 export { mask } from "./mask.js";
 export { mesh } from "./mesh.js";
 export { nineSlice, type PanelDrawOptions, type TiledDrawOptions, tiled } from "./panels.js";

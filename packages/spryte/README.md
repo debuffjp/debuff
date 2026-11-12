@@ -63,6 +63,7 @@ In [2dbench](https://github.com/debuffjp/2dbench)'s raycaster scene (a retro fir
 Against Phaser 4 on the same laptop, spryte draws moving sprites 2.2-3.1x faster than Phaser's `Image` and 5x faster than its `SpriteGPULayer`, at 12.7 kB of JavaScript against Phaser's 276.6 kB ([spryte vs Phaser](https://debuff.jp/blog/spryte-vs-phaser)). A Phaser game can keep Phaser and hand its heaviest effects to spryte, inside Phaser's frame and depth order, through an `Extern` (`spryte/phaser`, see the [API docs](docs/api.md#phaser-4-sprytephaser)). A PixiJS v8 app can do the same through a `RenderContainer` (`spryte/pixi`, [API docs](docs/api.md#pixijs-v8-sprytepixi)). Both share the engine's own GPU textures, so nothing is uploaded twice.
 
 - **Bulk sprites with no per-sprite JavaScript.** On WebGL2, pass a `Float32Array` of positions (plus optional per-copy scale, rotation and colour arrays) and spryte uploads it as is.
+- **Bulk lines the same way.** `lines(draw, …)` takes a `Float32Array` of endpoints and draws every line in one call, with optional per-line width and colour: the 1.17 million edges of a citation graph in one draw call (since 0.15).
 - **Immediate mode.** There are no display objects to create, pool or destroy. Draw what you want this frame.
 - **Verified output.** Real-GPU pixel checks prove that the bulk paths, render targets and shaders draw exactly what the simple path draws.
 

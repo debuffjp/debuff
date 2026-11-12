@@ -16,6 +16,7 @@ import {
   grayscale,
   hueRotate,
   invert,
+  lines,
   mask,
   mesh,
   nineSlice,
@@ -214,6 +215,74 @@ for (const backend of ["webgl2", "2d"] as const) {
       for (let i = 0; i < loop.length; i += 4) if (loop[i] !== 0x10 || loop[i + 1] !== 0x20) drawn++;
       results.push({
         name: `sprites(each) == sprite() loop: ${name} (${backend}, ${differing} px differ, tolerance ${tolerance})`,
+        differing: differing <= tolerance ? 0 : differing,
+        nonBackground: drawn,
+      });
+    }
+}
+
+// lines() must match a line() loop given the same values, under a transform and draw.alpha, keeping draw order.
+// WebGL2 turns each line into a quad in the shader in float32, line() in float64 on the CPU, so a few edge
+// pixels may flip, as for rotated sprites. Canvas 2D runs the line() loop itself and must be exact.
+{
+  const n = 24;
+  const segs = new Float32Array(n * 4);
+  for (let i = 0; i < n; i++) {
+    const a = i * 0.61;
+    segs.set(
+      [30 + Math.cos(a) * 4, 28 + Math.sin(a) * 4, 30 + Math.cos(a) * (12 + (i % 5) * 4), 28 + Math.sin(a) * (12 + (i % 5) * 4)],
+      i * 4,
+    );
+  }
+  segs.set([4, 4, 70, 4], 0); // horizontal hairline
+  segs.set([70, 4, 70, 50], 4); // vertical
+  segs.set([10, 50, 10, 50], 8); // zero length: draws nothing
+  const width = Float32Array.from({ length: n }, (_, i) => 0.5 + (i % 4) * 1.25);
+  const color = Uint32Array.from({ length: n }, (_, i) => [0xffffffff, 0xff8080ff, 0x80ff80c0, 0x8080ff80][i % 4] as number);
+  const hex = (c: number) => `#${c.toString(16).padStart(8, "0")}`;
+  const variants: [string, { width?: Float32Array; color?: Uint32Array }][] = [
+    ["shared width and colour", {}],
+    ["per-line width + colour", { width, color }],
+  ];
+  for (const backend of ["webgl2", "2d"] as const)
+    for (const [name, each] of variants) {
+      const scene = (bulk: boolean) => (draw: Draw) => {
+        draw.translate(4.5, 2);
+        draw.rotate(0.05);
+        draw.scale(1.1, 0.9);
+        draw.alpha = 0.8;
+        draw.rect(0, 0, 10, 10, "#fff");
+        if (bulk) lines(draw, segs, n, { width: 1.5, color: "#ffd", alpha: 0.9 }, each);
+        else {
+          // The colour lines() resolves: "#ffd" with alpha 0.9 × draw.alpha 0.8, times each line's per channel.
+          const shared = (0xffffdd00 | Math.round(255 * 0.9 * 0.8)) >>> 0;
+          const ch = (rgba: number, shift: number) => Math.round((((shared >>> shift) & 0xff) * ((rgba >>> shift) & 0xff)) / 255);
+          draw.alpha = 1;
+          for (let i = 0; i < n; i++) {
+            const s = i * 4;
+            const rgba = each.color ? (each.color[i] as number) : 0xffffffff;
+            const mixed = ((ch(rgba, 24) << 24) | (ch(rgba, 16) << 16) | (ch(rgba, 8) << 8) | ch(rgba, 0)) >>> 0;
+            draw.line(
+              segs[s] as number,
+              segs[s + 1] as number,
+              segs[s + 2] as number,
+              segs[s + 3] as number,
+              1.5 * (each.width ? (each.width[i] as number) : 1),
+              hex(mixed),
+            );
+          }
+          draw.alpha = 0.8;
+        }
+        draw.rect(60, 40, 10, 10, "#f0f"); // drawn after: order must hold
+      };
+      const loop = await render(scene(false), backend);
+      const bulk = await render(scene(true), backend);
+      const tolerance = backend === "webgl2" ? 12 : 0;
+      const differing = diff(loop, bulk);
+      let drawn = 0;
+      for (let i = 0; i < loop.length; i += 4) if (loop[i] !== 0x10 || loop[i + 1] !== 0x20) drawn++;
+      results.push({
+        name: `lines() == line() loop: ${name} (${backend}, ${differing} px differ, tolerance ${tolerance})`,
         differing: differing <= tolerance ? 0 : differing,
         nonBackground: drawn,
       });

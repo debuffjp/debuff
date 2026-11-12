@@ -1,4 +1,13 @@
-import { type Backend, type BlendMode, type ClipRect, type Matrix, pixel, type RawContext, type TextureSource } from "./backend.js";
+import {
+  type Backend,
+  type BlendMode,
+  type ClipRect,
+  type ExternalContext,
+  type Matrix,
+  pixel,
+  type RawContext,
+  type TextureSource,
+} from "./backend.js";
 import { type CopySpec, copyAt, frameAt, placeAt } from "./copies.js";
 import type { Frame, SpriteDrawOptions } from "./draw.js";
 import type { Layer } from "./layer.js";
@@ -519,6 +528,10 @@ export class WebGL2Backend implements Backend {
   /** Height in pixels of the current destination, for flipping scissor rectangles. */
   protected outH = 1;
   private viewW = 1;
+  /** Bumped when the context is restored, so GL objects made outside the backend (`external`) are made again. */
+  private generation = 0;
+  /** Frees GL objects made outside the backend, on `dispose()`. */
+  private readonly releases = new Set<() => void>();
   private viewH = 1;
   /** True between webglcontextlost and webglcontextrestored: drawing is skipped. */
   protected lost = false;
@@ -547,6 +560,8 @@ export class WebGL2Backend implements Backend {
     this.sprites = false;
     this.armed = false;
     this.setup();
+    this.generation++;
+    this.releases.clear();
     this.lost = false;
     if (shader) this.setShader(shader);
   };
@@ -1177,6 +1192,23 @@ export class WebGL2Backend implements Backend {
     gl.bindVertexArray(this.vao);
   }
 
+  external(run: (gl: WebGL2RenderingContext, at: ExternalContext) => void): void {
+    if (this.lost) return;
+    // Draw order: everything queued so far goes first.
+    this.flush();
+    const gl = this.gl;
+    run(gl, {
+      width: this.viewW,
+      height: this.viewH,
+      generation: this.generation,
+      link: (vertex, fragment, label) => link(gl, vertex, fragment, label),
+      release: (free) => this.releases.add(free),
+    });
+    this.submitted++;
+    gl.useProgram(this.active.program);
+    gl.bindVertexArray(this.vao);
+  }
+
   copies(c: CopySpec): void {
     if (this.lost || c.count <= 0) return;
     if (c.mixed) {
@@ -1378,6 +1410,8 @@ export class WebGL2Backend implements Backend {
   /** Release every GPU object this backend created, so renderers can be created and destroyed repeatedly. */
   dispose(): void {
     const gl = this.gl;
+    if (!this.lost) for (const release of this.releases) release();
+    this.releases.clear();
     gl.canvas.removeEventListener("webglcontextlost", this.onLost);
     gl.canvas.removeEventListener("webglcontextrestored", this.onRestored);
     if (!this.lost) {
