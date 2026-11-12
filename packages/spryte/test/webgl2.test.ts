@@ -831,6 +831,16 @@ describe("blendSpace linear", () => {
     expect(calls.filter((c) => c.name === "drawArrays").length).toBe(1);
   });
 
+  it('keeps an image tagged with Symbol.for("spryte.data") raw, as asData does', () => {
+    const { gl, calls } = linearGL();
+    const be = new WebGL2Backend(gl);
+    const atlas = Object.assign(image(), { [Symbol.for("spryte.data")]: true });
+    be.begin(0xffffffff, 100, 50, 1);
+    be.quad(M, atlas, 0, 0, 16, 16, 0xffffffff, 0, true);
+    be.end();
+    expect(calls.filter((c) => c.name === "texImage2D").map((c) => c.args[2])).toEqual(["RGBA", "RGBA"]);
+  });
+
   it("keeps half-float targets as half floats, since they already hold linear light", () => {
     const { gl, calls } = linearGL();
     (gl as unknown as Record<string, unknown>).getExtension = (name: string) => (name === "EXT_color_buffer_float" ? {} : null);

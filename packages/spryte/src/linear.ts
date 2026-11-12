@@ -14,8 +14,14 @@ export function asData<T extends object>(source: T): T {
   return source;
 }
 
-/** True for images passed to `asData`. */
-export const isData = (source: object): boolean => dataSources.has(source);
+/**
+ * The same mark, readable without importing spryte: a library that hands spryte its images (shodo's `fontFrames`)
+ * sets `image[Symbol.for("spryte.data")] = true`. It also works when a bundle holds two copies of spryte.
+ */
+export const DATA_MARK: unique symbol = Symbol.for("spryte.data") as never;
+
+/** True for images passed to `asData` or carrying {@link DATA_MARK}. */
+export const isData = (source: object): boolean => dataSources.has(source) || (source as { [DATA_MARK]?: unknown })[DATA_MARK] === true;
 
 /**
  * Prepended to every shader after `#version`. `spryte_toLinear` turns an sRGB colour into linear light under
