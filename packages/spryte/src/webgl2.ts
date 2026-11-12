@@ -703,7 +703,6 @@ export class WebGL2Backend implements Backend {
       this.shapes.count = 0;
       this.shapes.icount = 0;
     }
-    const gl = this.gl;
     this.target = null;
     this.bindOutput();
     if (this.active !== this.main) this.setShader(null);
