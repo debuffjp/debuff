@@ -49,8 +49,9 @@ void main() {
   vec2 p = a * a_corner.x + c * a_corner.y + e;
   vec2 clip = p / u_view * 2.0 - 1.0;
   gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);
-  vec4 each = vec4(float(a_color >> 24u), float((a_color >> 16u) & 255u), float((a_color >> 8u) & 255u), float(a_color & 255u)) / 255.0;
-  vec4 col = u_color * each;
+  vec4 each = vec4(float(a_color >> 24u), float((a_color >> 16u) & 255u), float((a_color >> 8u) & 255u), float(a_color & 255u));
+  // Rounded to 8 bits per channel, as multiply() does for line() and the Canvas 2D path, so the backends agree.
+  vec4 col = floor(u_color * each + 0.5) / 255.0;
   v_color = vec4(spryte_toLinear(col.rgb) * col.a, col.a);
 }`,
   fragment: `#version 300 es
