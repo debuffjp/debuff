@@ -1,5 +1,21 @@
 # @debuffjp/core
 
+## 0.34.0
+
+### Minor Changes
+
+- 8784a2c: `GameOptions.blendSpace` passes spryte's `blendSpace` to the renderer, so a debuff game can turn on linear-light blending with `new Game({ ..., blendSpace: "linear" })`. Before this, `Game` created the renderer with only `backend` and `smooth`. Reported in #112.
+
+### Patch Changes
+
+- Updated dependencies [8784a2c]
+- Updated dependencies [8784a2c]
+- Updated dependencies [8784a2c]
+- Updated dependencies [8784a2c]
+- Updated dependencies [8784a2c]
+- Updated dependencies [bed271b]
+  - spryte@0.16.0
+
 ## 0.33.2
 
 ### Patch Changes
