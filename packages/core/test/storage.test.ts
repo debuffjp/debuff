@@ -75,6 +75,18 @@ describe("Storage across game updates", () => {
     expect(s.data).toEqual({ list: [], maybe: null, tags: ["x"] });
   });
 
+  it("keeps any saved value for a field whose default is null", () => {
+    const mem = memory();
+    const defaults = { pick: null as { id: number } | null, name: null as string | null, deep: { at: null as number | null } };
+    const s = new Storage("g", defaults);
+    s.set("pick", { id: 3 });
+    s.set("name", "ada");
+    s.set("deep", { at: 7 });
+    const reloaded = new Storage("g", defaults);
+    expect(reloaded.data).toEqual({ pick: { id: 3 }, name: "ada", deep: { at: 7 } });
+    expect(mem.has("g:backup")).toBe(false);
+  });
+
   it("migrates an older save once and stores the version", () => {
     const mem = memory({ g: JSON.stringify({ best: 412 }) });
     const migrate = vi.fn((old: Record<string, unknown>, from: number) => ({ best: { score: Number(old.best), time: 0 }, from }));

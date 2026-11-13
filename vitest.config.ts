@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { defineConfig } from "vitest/config";
+import { gitEnv } from "./tooling/create-debuff/src/git.js";
 
 // Tests import other debuff packages by name. Point those imports at src/ so tests never run against a
 // stale or missing dist/ (the pre-push hook runs tsc and vitest at the same time). Package configs import
@@ -21,6 +22,11 @@ export const alias = ["packages", "tooling"].flatMap((group) =>
 
 // Automatic papercuts stay off in tests: the suite runs the CLI against broken projects on purpose.
 process.env.DEBUFF_PAPERCUTS = "0";
+
+// The pre-push hook sets GIT_DIR and friends to the real repository. A test that runs git in a temp folder
+// without gitEnv() would then act on this repository (papercut #51), so no test inherits them.
+const clean = gitEnv();
+for (const name of Object.keys(process.env)) if (!(name in clean)) delete process.env[name];
 
 export default defineConfig({
   resolve: { alias },

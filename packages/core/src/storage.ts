@@ -17,7 +17,7 @@ type Fields = Record<string, unknown>;
  * Saved fields whose kind matches the default's, over the defaults. A field that changed kind between game
  * versions (a number that became an object) falls back to its default instead of breaking the game; `dropped`
  * is called when that happens. Plain objects are checked one level down. Saved fields the defaults don't have
- * are kept.
+ * are kept, and so is any saved value for a field whose default is `null` (before 0.34.1 those were dropped).
  */
 function fit(defaults: Fields, saved: Fields, dropped: () => void, deep = true): Fields {
   const out: Fields = { ...saved, ...defaults };
@@ -25,7 +25,8 @@ function fit(defaults: Fields, saved: Fields, dropped: () => void, deep = true):
     if (!(k in saved)) continue;
     const d = defaults[k];
     const v = saved[k];
-    if (kind(v) !== kind(d)) dropped();
+    if (d === null) out[k] = v;
+    else if (kind(v) !== kind(d)) dropped();
     else out[k] = deep && kind(d) === "object" ? fit(d as Fields, v as Fields, dropped, false) : v;
   }
   return out;

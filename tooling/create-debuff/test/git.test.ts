@@ -16,6 +16,10 @@ afterEach(() => {
   if (dir) rmSync(dir, { recursive: true, force: true });
 });
 
+it("runs without the hook's repository-locating variables (papercut #51)", () => {
+  expect(Object.keys(saved).filter((name) => !(name in gitEnv(saved)))).toEqual([]);
+});
+
 /** A fresh folder with one file, outside any repository. */
 const project = () => {
   dir = mkdtempSync(join(tmpdir(), "create-debuff-git-"));
