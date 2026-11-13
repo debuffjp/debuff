@@ -67,6 +67,30 @@ function fakeGL(active: { name: string; type: string; size?: number }[] = []) {
 const M: Matrix = [16, 0, 0, 16, 0, 0];
 const image = (w = 16, h = 16) => ({ width: w, height: h }) as unknown as TextureSource;
 
+/**
+ * Replay the recorded calls and count the draws made while one of the 8 sprite units (which every program samples)
+ * held the texture of the framebuffer being drawn into: a feedback loop, which WebGL rejects.
+ */
+function feedbackDraws(calls: { name: string; args: unknown[] }[]): number {
+  const units = new Map<unknown, unknown>();
+  const attached = new Map<unknown, unknown>();
+  let unit: unknown = "TEXTURE00";
+  let framebuffer: unknown = null;
+  let loops = 0;
+  for (const { name, args } of calls) {
+    // The fake's constants are strings: unit i is "TEXTURE0" + i, and plain TEXTURE0 is unit 0 too.
+    if (name === "activeTexture") unit = args[0] === "TEXTURE0" ? "TEXTURE00" : args[0];
+    else if (name === "bindTexture") units.set(unit, args[1]);
+    else if (name === "bindFramebuffer") framebuffer = args[1];
+    else if (name === "framebufferTexture2D") attached.set(framebuffer, args[3]);
+    else if (/^draw(Arrays|Elements)/.test(name)) {
+      const into = attached.get(framebuffer);
+      for (let i = 0; i < 8; i++) if (into !== undefined && units.get(`TEXTURE0${i}`) === into) loops++;
+    }
+  }
+  return loops;
+}
+
 describe("WebGL2Backend", () => {
   it("uses highp texture coordinates so large atlases sample the right texel on mobile GPUs", () => {
     const { gl, shaderSources } = fakeGL();
@@ -792,6 +816,30 @@ describe("WebGL2Backend", () => {
       expect([info[0], info[1], info[2]]).toEqual([0.1, -0.1, 1].map(Math.fround));
     });
 
+    it("never draws into a target while a sprite unit still holds its texture (#118)", () => {
+      const { gl, calls } = fakeGL();
+      const draw = new Draw(new WebGL2Backend(gl), false);
+      const t = draw.createTarget(16, 16);
+      const hero = image();
+      const at = new Float32Array([30, 15]);
+      for (let frame = 0; frame < 3; frame++) {
+        draw.begin("#000", 100, 50, 1);
+        // Shapes only, so the batch rebinds no unit, then a rect, which binds unit 0 only.
+        draw.into(t, () => roundRect(draw, 0, 0, 16, 16, 2, "#fff"));
+        draw.into(t, () => draw.rect(0, 0, 16, 16, "#fff"));
+        // The image first puts the target on unit 1; sprites() binds it to unit 0 on its own.
+        draw.sprite(hero, 0, 0);
+        draw.sprite(t, 30, 15);
+        draw.end();
+        draw.begin("#000", 100, 50, 1);
+        draw.into(t, () => roundRect(draw, 0, 0, 16, 16, 2, "#fff"));
+        draw.sprites(t, at, 1);
+        draw.end();
+      }
+      expect(calls.some((c) => c.name === "framebufferTexture2D")).toBe(true);
+      expect(feedbackDraws(calls)).toBe(0);
+    });
+
     it("refuses to draw a target into itself, or dispose it while drawing into it", () => {
       const { gl } = fakeGL();
       const draw = new Draw(new WebGL2Backend(gl), false);
@@ -887,6 +935,18 @@ describe("blendSpace linear", () => {
     linearContexts.add(f.gl);
     return f;
   };
+
+  it("never leaves the frame's own texture on a unit while drawing into it (#118)", () => {
+    const { gl, calls } = linearGL();
+    const draw = new Draw(new WebGL2Backend(gl), false);
+    for (let frame = 0; frame < 3; frame++) {
+      draw.begin("#000", 100, 50, 1);
+      roundRect(draw, 0, 0, 16, 16, 2, "#fff");
+      draw.end();
+    }
+    expect(calls.some((c) => c.name === "framebufferTexture2D")).toBe(true);
+    expect(feedbackDraws(calls)).toBe(0);
+  });
 
   it("defines SPRYTE_LINEAR only on linear contexts, and gives every shader spryte_toLinear", () => {
     const plain = fakeGL();

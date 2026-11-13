@@ -76,6 +76,14 @@ async function render(scene: (draw: Draw) => void, backend: "webgl2" | "2d" = "w
   return out;
 }
 
+/** readPixels rows are bottom first: flip them to compare with `render`. */
+function flipRows(out: Uint8Array): Uint8Array {
+  const row = W * 4;
+  const flipped = new Uint8Array(out.length);
+  for (let y = 0; y < H; y++) flipped.set(out.subarray((H - 1 - y) * row, (H - y) * row), y * row);
+  return flipped;
+}
+
 function diff(a: Uint8Array, b: Uint8Array): number {
   let n = 0;
   for (let i = 0; i < a.length; i += 4) if (a[i] !== b[i] || a[i + 1] !== b[i + 1] || a[i + 2] !== b[i + 2] || a[i + 3] !== b[i + 3]) n++;
@@ -1792,6 +1800,88 @@ function hostCanvas(): WebGL2RenderingContext {
     };
     record(`replay twice == direct twice (${backend})`, await render(twice(false), backend), await render(twice(true), backend));
   }
+}
+
+// A target refilled with into() every frame and drawn every frame: the previous frame's draw left the target's
+// texture on a texture unit, and drawing into it while bound is a feedback loop that WebGL rejects (#118).
+{
+  type Target = ReturnType<Draw["createTarget"]>;
+  const pos1 = new Float32Array([30, 15]);
+  const fillRect = (draw: Draw) => draw.rect(0, 0, 16, 16, "#cffb2d");
+  const fillPolygon = (draw: Draw) => polygon(draw, [0, 0, 16, 0, 16, 16, 0, 16], "#cffb2d");
+  // The image first puts the target on unit 1, which a batch of one texture doesn't rebind.
+  const afterImage = (draw: Draw, t: Target) => {
+    draw.sprite(img, 4, 4);
+    draw.sprite(t, 30, 15, { origin: [0, 0] });
+  };
+  const alone = (draw: Draw) => draw.rect(30, 15, 16, 16, "#cffb2d");
+  const withImage = (draw: Draw) => {
+    draw.sprite(img, 4, 4);
+    alone(draw);
+  };
+  for (const [how, fill, show, direct] of [
+    ["sprite after an image, refilled by a rect", fillRect, afterImage, withImage],
+    ["sprite after an image, refilled by a polygon", fillPolygon, afterImage, withImage],
+    ["sprite, refilled by a polygon", fillPolygon, (draw: Draw, t: Target) => draw.sprite(t, 30, 15, { origin: [0, 0] }), alone],
+    ["sprites, refilled by a polygon", fillPolygon, (draw: Draw, t: Target) => draw.sprites(t, pos1, 1, { origin: [0, 0] }), alone],
+  ] as const) {
+    const frames = async (n: number): Promise<{ pixels: Uint8Array; error: number }> => {
+      const canvas = document.createElement("canvas");
+      canvas.width = W;
+      canvas.height = H;
+      const draw = createRenderer(canvas, { backend: "webgl2", smooth: false });
+      await draw.ready;
+      draw.resize(W, H);
+      const t = draw.createTarget(16, 16);
+      const raw = draw.raw;
+      if (raw.kind !== "webgl2") throw new Error("expected webgl2");
+      let error = 0;
+      for (let i = 0; i < n; i++) {
+        draw.begin("#102030", W / 2, H / 2, 2);
+        draw.into(t, () => fill(draw));
+        show(draw, t);
+        draw.end();
+        error ||= raw.gl.getError();
+      }
+      const pixels = new Uint8Array(W * H * 4);
+      raw.gl.readPixels(0, 0, W, H, raw.gl.RGBA, raw.gl.UNSIGNED_BYTE, pixels);
+      draw.dispose();
+      raw.gl.getExtension("WEBGL_lose_context")?.loseContext();
+      return { pixels, error };
+    };
+    const thrice = await frames(3);
+    const expected = await render(direct);
+    check(`into(t) every frame, drawing t with ${how}: no GL error`, thrice.error === 0, `0x${thrice.error.toString(16)}`);
+    record(`into(t) every frame, drawing t with ${how} == drawn directly`, flipRows(thrice.pixels), expected);
+  }
+}
+
+// The same loop under blendSpace "linear": each frame is drawn into a framebuffer whose texture end() samples to
+// present it. A frame of shapes only (no batch unit rebound) drew into it while it was still bound.
+{
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const draw = createRenderer(canvas, { backend: "webgl2", smooth: false, blendSpace: "linear" });
+  await draw.ready;
+  draw.resize(W, H);
+  const raw = draw.raw;
+  let error = 0;
+  const pixel = new Uint8Array(4);
+  if (raw.kind === "webgl2") {
+    for (let i = 0; i < 3; i++) {
+      draw.begin("#102030", W / 2, H / 2, 2);
+      polygon(draw, [0, 0, 16, 0, 16, 16, 0, 16], "#cffb2d");
+      draw.end();
+      error ||= raw.gl.getError();
+    }
+    // Inside the polygon: 8, 8 in the view is 16, 16 on the canvas, read from the bottom row up.
+    raw.gl.readPixels(16, H - 17, 1, 1, raw.gl.RGBA, raw.gl.UNSIGNED_BYTE, pixel);
+  }
+  draw.dispose();
+  if (raw.kind === "webgl2") raw.gl.getExtension("WEBGL_lose_context")?.loseContext();
+  check("frames of shapes only under blendSpace linear: no GL error", error === 0, `0x${error.toString(16)}`);
+  check("frames of shapes only under blendSpace linear: the shape is drawn", pixel[1] > 240, `${pixel.join(",")}`);
 }
 
 (window as unknown as { __checks: unknown }).__checks = results;

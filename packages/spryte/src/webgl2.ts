@@ -778,7 +778,9 @@ export class WebGL2Backend implements Backend {
     gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
     this.out = { fbo, tex, w, h };
-    // Unit 0 now holds this texture; drop the batch's record of what it held.
+    // Not left on unit 0: the frame draws into this texture, and sampling it meanwhile is a feedback loop (#118).
+    gl.bindTexture(gl.TEXTURE_2D, this.white.tex);
+    // Unit 0 no longer holds what the batch bound there; drop the batch's record of it.
     this.units[0] = null;
     this.lastSrc = null;
     return fbo;
@@ -807,6 +809,8 @@ export class WebGL2Backend implements Backend {
     gl.bindTexture(gl.TEXTURE_2D, out.tex);
     gl.bindSampler(0, this.nearest);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    // The next frame draws into out.tex again: it can't stay bound (#118).
+    gl.bindTexture(gl.TEXTURE_2D, this.white.tex);
     gl.enable(gl.BLEND);
     gl.useProgram(this.active.program);
     gl.bindVertexArray(this.vao);
@@ -1533,6 +1537,14 @@ export class WebGL2Backend implements Backend {
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.targetStore(target).fbo);
       gl.viewport(0, 0, target.width, target.height);
       this.outH = target.height;
+      // The target's texture may still be bound to a unit: by the batch that last drew it, a copy, a layer or its
+      // own creation. Every program samples all the units, so the next draw would read the texture it writes, a
+      // feedback loop WebGL rejects (#118). Only some of those bindings are tracked: rebind them all.
+      const white = this.white.tex;
+      for (let i = UNITS - 1; i >= 0; i--) {
+        gl.activeTexture(gl.TEXTURE0 + i);
+        gl.bindTexture(gl.TEXTURE_2D, white);
+      }
     } else this.bindOutput();
     this.target = target;
     this.viewW = width;
