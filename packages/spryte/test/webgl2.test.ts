@@ -477,6 +477,33 @@ describe("WebGL2Backend", () => {
       expect(uploads(calls, "uniform2f")).toContainEqual(["offset", 3, 4]);
     });
 
+    it("keep the batch when set() repeats the current value, and flush when it changes or the same array comes back", () => {
+      const { gl } = fakeGL([
+        { name: "time", type: "FLOAT" },
+        { name: "tint", type: "FLOAT_VEC3" },
+        { name: "pool", type: "FLOAT_VEC4", size: 4 },
+      ]);
+      const draw = new Draw(new WebGL2Backend(gl), false);
+      const fx = new Shader("uniform float time; uniform vec3 tint; uniform vec4 pool[4]; vec4 effect(vec4 c, vec2 uv) { return c; }");
+      const pool = new Float32Array(16);
+      fx.set("time", 1).set("tint", [1, 0, 0]).set("pool", pool);
+      const run = (fn: () => void) => {
+        draw.begin("#000", 100, 50, 1);
+        draw.withShader(fx, () => {
+          draw.rect(0, 0, 1, 1, "#fff");
+          fn();
+          draw.rect(0, 0, 1, 1, "#fff");
+        });
+        draw.end();
+        return draw.drawCalls;
+      };
+      expect(run(() => fx.set("time", 1).set("tint", [1, 0, 0]).set("pool", new Float32Array(16)))).toBe(1);
+      expect(run(() => fx.set("time", 2))).toBe(2);
+      expect(run(() => fx.set("tint", [0, 1, 0]))).toBe(2);
+      // The array is read when the batch draws, so setting the same object again must flush: its contents may have changed.
+      expect(run(() => fx.set("pool", fx.uniforms.get("pool") as Float32Array))).toBe(2);
+    });
+
     it("throw an error naming the uniform when an array's length doesn't fit its type", () => {
       for (const n of [10, 20, 0]) {
         const { gl } = fakeGL([{ name: "pool", type: "FLOAT_VEC4", size: 4 }]);
