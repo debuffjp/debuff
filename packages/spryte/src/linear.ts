@@ -8,11 +8,24 @@ const dataSources = new WeakSet<object>();
  * images are stored as sRGB so sampling returns linear light; a data image keeps its bytes as they are, which
  * is what a shader reading distances or indices needs. Call it before the image is first drawn. Has no effect
  * under the default sRGB blending. Returns the image.
+ *
+ * `{ premultiply: false }` (since 0.16) also uploads the image with straight alpha, under either blending, so
+ * colour channels survive where alpha is below 255: timings or indices packed into RGBA. Without it, uploads
+ * multiply colour by alpha, and a pixel with alpha 0 loses its colour. It applies to images and `ImageBitmap`s;
+ * a canvas already holds premultiplied pixels, and an `ImageBitmap` keeps the `premultiplyAlpha` it was made
+ * with, so use `createImageBitmap(blob, { premultiplyAlpha: "none" })` there. Read such an image in a custom
+ * shader: drawn as a sprite, straight alpha blends wrong.
  */
-export function asData<T extends object>(source: T): T {
+export function asData<T extends object>(source: T, options?: { premultiply?: boolean }): T {
   dataSources.add(source);
+  if (options?.premultiply === false) straightSources.add(source);
   return source;
 }
+
+const straightSources = new WeakSet<object>();
+
+/** True for images passed to `asData(image, { premultiply: false })`. */
+export const isStraight = (source: object): boolean => straightSources.has(source);
 
 /**
  * The same mark, readable without importing spryte: a library that hands spryte its images (shodo's `fontFrames`)

@@ -11,7 +11,7 @@ import {
 import { type CopySpec, copyAt, frameAt, placeAt } from "./copies.js";
 import type { Frame, SpriteDrawOptions } from "./draw.js";
 import type { Layer } from "./layer.js";
-import { byteToLinear, isData, linearContexts, prelude } from "./linear.js";
+import { byteToLinear, isData, isStraight, linearContexts, prelude } from "./linear.js";
 import type { Shader, UniformArray, UniformValue } from "./shader.js";
 import type { ShapeBuffer } from "./shapes.js";
 import { RenderTarget, type TargetFormat } from "./target.js";
@@ -1426,7 +1426,7 @@ export class WebGL2Backend implements Backend {
     const gl = this.gl;
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, cached.tex);
-    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, !isStraight(dst));
     if (from.width === w && from.height === h) gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, gl.RGBA, gl.UNSIGNED_BYTE, from);
     else gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, from);
     if (this.mipped.has(cached.tex)) gl.generateMipmap(gl.TEXTURE_2D);
@@ -1948,7 +1948,7 @@ export class WebGL2Backend implements Backend {
     if (!tex) throw new Error("WebGL2: could not create texture");
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, tex);
-    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, !isStraight(src));
     // Linear mode stores colour images as sRGB so sampling returns linear light; data images (asData) stay raw.
     const format = this.linearOut && !isData(src) ? gl.SRGB8_ALPHA8 : gl.RGBA;
     gl.texImage2D(gl.TEXTURE_2D, 0, format, gl.RGBA, gl.UNSIGNED_BYTE, src);

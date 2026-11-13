@@ -925,6 +925,22 @@ describe("blendSpace linear", () => {
     expect(calls.filter((c) => c.name === "texImage2D").map((c) => c.args[2])).toEqual(["RGBA", "RGBA"]);
   });
 
+  it("uploads an image marked asData(img, { premultiply: false }) with straight alpha, also on update(), and others premultiplied", () => {
+    const { gl, calls } = fakeGL();
+    const be = new WebGL2Backend(gl);
+    const table = asData(image(), { premultiply: false });
+    be.begin(0xffffffff, 100, 50, 1);
+    be.quad(M, image(), 0, 0, 16, 16, 0xffffffff, 0, true);
+    be.quad(M, asData(image()), 0, 0, 16, 16, 0xffffffff, 0, true);
+    be.quad(M, table, 0, 0, 16, 16, 0xffffffff, 0, true);
+    be.end();
+    be.update(table, 0, 0, { width: 16, height: 16 } as HTMLCanvasElement, 16, 16);
+    const premultiply = calls
+      .filter((c) => c.name === "pixelStorei" && c.args[0] === "UNPACK_PREMULTIPLY_ALPHA_WEBGL")
+      .map((c) => c.args[1]);
+    expect(premultiply).toEqual([true, true, false, false]);
+  });
+
   it("keeps half-float targets as half floats, since they already hold linear light", () => {
     const { gl, calls } = linearGL();
     (gl as unknown as Record<string, unknown>).getExtension = (name: string) => (name === "EXT_color_buffer_float" ? {} : null);
