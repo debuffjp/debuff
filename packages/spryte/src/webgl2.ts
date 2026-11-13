@@ -882,6 +882,7 @@ export class WebGL2Backend implements Backend {
     const sy = (o.scaleY ?? 1) * (o.flipY ? -1 : 1);
     const r = o.rotation ?? 0;
     const flash = o.flash ?? 0;
+    // biome-ignore lint/suspicious/noConfusingLabels: one exit for both write paths keeps this inside V8's 460-byte inlining budget.
     written: {
       if (this.armed && ver === this.bver && this.count < this.capacity) {
         const src = fr.image;
