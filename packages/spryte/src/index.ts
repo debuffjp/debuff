@@ -25,6 +25,7 @@ export {
   sepia,
 } from "./filters.js";
 export { type GpuTimer, gpuTimer } from "./gpu-timer.js";
+export { type CompressedFormat, CompressedTexture, parseKtx2 } from "./ktx2.js";
 export { Layer } from "./layer.js";
 export { asData } from "./linear.js";
 export { type LinesEach, type LinesOptions, lines } from "./lines.js";

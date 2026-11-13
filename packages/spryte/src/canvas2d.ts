@@ -1,6 +1,7 @@
 import { type Backend, type BlendMode, type ClipRect, type Matrix, pixel, type RawContext, type TextureSource } from "./backend.js";
 import { rgbaToCss } from "./color.js";
 import { type CopySpec, copyAt, frameAt } from "./copies.js";
+import { CompressedTexture } from "./ktx2.js";
 import type { Shader } from "./shader.js";
 import { RenderTarget } from "./target.js";
 
@@ -23,6 +24,7 @@ export class Canvas2DBackend implements Backend {
   private readonly surfaces = new WeakMap<RenderTarget, Surface>();
   private target: RenderTarget | null = null;
   private warnedShader = false;
+  private warnedCompressed = false;
   private warnedFilter = false;
   private scale = 1;
   private smoothing: boolean | undefined;
@@ -81,7 +83,8 @@ export class Canvas2DBackend implements Backend {
       ctx.imageSmoothingEnabled = smooth;
       this.smoothing = smooth;
     }
-    const image = src instanceof RenderTarget ? this.surface(src) : src;
+    const image = this.drawable(src);
+    if (!image) return;
     ctx.globalAlpha = (color & 0xff) / 255;
     const rgb = color >>> 8;
     if (rgb === 0xffffff && !(flash > 0)) ctx.drawImage(image, sx, sy, sw, sh, 0, 0, 1, 1);
@@ -148,7 +151,8 @@ export class Canvas2DBackend implements Backend {
       ctx.imageSmoothingEnabled = smooth;
       this.smoothing = smooth;
     }
-    const image = src instanceof RenderTarget ? this.surface(src) : src;
+    const image = this.drawable(src);
+    if (!image) return;
     const rgb = color >>> 8;
     const plain = rgb === 0xffffff && !(flash > 0);
     const tex = plain ? image : this.shaded(image, src instanceof RenderTarget, sx, sy, sw, sh, rgb, flash);
@@ -301,6 +305,17 @@ export class Canvas2DBackend implements Backend {
       return;
     }
     this.ctx.filter = css;
+  }
+
+  /** What `drawImage` takes for `src`, or null for a compressed texture, which Canvas 2D can't decode. */
+  private drawable(src: TextureSource): CanvasImageSource | null {
+    if (src instanceof RenderTarget) return this.surface(src);
+    if (!(src instanceof CompressedTexture)) return src;
+    if (!this.warnedCompressed) {
+      this.warnedCompressed = true;
+      console.warn("spryte: compressed textures need WebGL2; the Canvas 2D fallback skips them, so load a PNG there");
+    }
+    return null;
   }
 
   setShader(shader: Shader | null): void {

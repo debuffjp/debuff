@@ -2,6 +2,7 @@ import { type Backend, type BlendMode, type ClipRect, type Matrix, pixel, type R
 import type { BitmapFont } from "./bitmap-font.js";
 import { type Color, toRGBA } from "./color.js";
 import { placeAt, type SpritesEach } from "./copies.js";
+import type { CompressedFormat } from "./ktx2.js";
 import { Layer, type LayerItem } from "./layer.js";
 import { asData } from "./linear.js";
 import { Shader } from "./shader.js";
@@ -159,6 +160,14 @@ export class Draw {
   /** Which backend is active. */
   get kind(): "webgl2" | "2d" {
     return this.backend.kind;
+  }
+
+  /**
+   * GPU compression families this renderer can draw ("bc7", "etc2", "astc4x4"), so a game can pick which
+   * `CompressedTexture` file to load. Empty on Canvas 2D. Since 0.17.
+   */
+  get compressedFormats(): ReadonlySet<CompressedFormat> {
+    return this.backend.compressedFormats ?? new Set();
   }
 
   /** Draw calls this frame: batched GPU calls on WebGL2, one per quad on Canvas 2D. */

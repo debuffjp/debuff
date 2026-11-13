@@ -10,6 +10,7 @@ import {
 } from "./backend.js";
 import { type CopySpec, copyAt, frameAt, placeAt } from "./copies.js";
 import type { Frame, SpriteDrawOptions } from "./draw.js";
+import { type CompressedFormat, CompressedTexture } from "./ktx2.js";
 import type { Layer } from "./layer.js";
 import { byteToLinear, isData, isStraight, linearContexts, prelude } from "./linear.js";
 import type { Shader, UniformArray, UniformValue } from "./shader.js";
@@ -528,6 +529,7 @@ export class WebGL2Backend implements Backend {
   /** Trilinear, for smooth draws of the textures in `mipped`. Others have no mip levels to sample. */
   private trilinear!: WebGLSampler;
   private mipped = new WeakSet<WebGLTexture>();
+  private gpuFormats?: Map<CompressedFormat, { unorm: number; srgb: number }>;
   private main!: BatchProgram;
   /** The program sprite batches draw with: `main`, or a custom shader's inside `withShader`. */
   protected active!: BatchProgram;
@@ -1946,6 +1948,7 @@ export class WebGL2Backend implements Backend {
     const hit = this.textures.get(src);
     if (hit) return hit;
     if (src instanceof RenderTarget) return this.targetStore(src).cached;
+    if (src instanceof CompressedTexture) return this.uploadCompressed(src);
     const w = "naturalWidth" in src ? src.naturalWidth : src.width;
     const h = "naturalHeight" in src ? src.naturalHeight : src.height;
     // An image still loading is 0×0: nothing to upload, and nothing to remember.
@@ -1975,6 +1978,47 @@ export class WebGL2Backend implements Backend {
     const cached = { tex, iw: 1 / w, ih: 1 / h, v0: 0 };
     this.textures.set(src, cached);
     // Unit 0 is now bound to this texture; the next flush rebinds whatever the batch needs.
+    return cached;
+  }
+
+  /** GL formats for each compression family this GPU decodes, probed once. */
+  private compressedGl(): Map<CompressedFormat, { unorm: number; srgb: number }> {
+    if (this.gpuFormats) return this.gpuFormats;
+    const gl = this.gl;
+    const m = new Map<CompressedFormat, { unorm: number; srgb: number }>();
+    if (gl.getExtension("EXT_texture_compression_bptc")) m.set("bc7", { unorm: 0x8e8c, srgb: 0x8e8d });
+    if (gl.getExtension("WEBGL_compressed_texture_etc")) m.set("etc2", { unorm: 0x9278, srgb: 0x9279 });
+    if (gl.getExtension("WEBGL_compressed_texture_astc")) m.set("astc4x4", { unorm: 0x93b0, srgb: 0x93d0 });
+    this.gpuFormats = m;
+    return m;
+  }
+
+  get compressedFormats(): ReadonlySet<CompressedFormat> {
+    return new Set(this.compressedGl().keys());
+  }
+
+  private uploadCompressed(src: CompressedTexture): CachedTexture {
+    const formats = this.compressedGl().get(src.format);
+    if (!formats) throw new Error(`spryte: this GPU can't decode ${src.format}; check draw.compressedFormats before loading it`);
+    if (import.meta.env?.DEV && !src.premultiplied && !isStraight(src))
+      console.warn(
+        "spryte: compressed texture wasn't premultiplied when encoded, so its edges blend too bright; encode with premultiplied alpha",
+      );
+    const gl = this.gl;
+    const tex = gl.createTexture();
+    if (!tex) throw new Error("WebGL2: could not create texture");
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    const format = this.linearOut && !isData(src) ? formats.srgb : formats.unorm;
+    src.levels.forEach((level, i) => {
+      gl.compressedTexImage2D(gl.TEXTURE_2D, i, format, Math.max(1, src.width >> i), Math.max(1, src.height >> i), 0, level);
+    });
+    this.wrap();
+    // Smooth sampling uses the file's mip chain when it has one; spryte can't generate mips for compressed data.
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LEVEL, src.levels.length - 1);
+    if (src.levels.length > 1) this.mipped.add(tex);
+    const cached = { tex, iw: 1 / src.width, ih: 1 / src.height, v0: 0 };
+    this.textures.set(src, cached);
     return cached;
   }
 

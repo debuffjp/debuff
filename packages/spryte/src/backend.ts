@@ -29,13 +29,14 @@ export type RawContext = { kind: "webgl2"; gl: WebGL2RenderingContext } | { kind
 
 import type { CopySpec } from "./copies.js";
 import type { Frame, SpriteDrawOptions } from "./draw.js";
+import type { CompressedFormat, CompressedTexture } from "./ktx2.js";
 import type { Layer } from "./layer.js";
 import type { Shader } from "./shader.js";
 import type { ShapeBuffer } from "./shapes.js";
 import type { RenderTarget, TargetFormat } from "./target.js";
 
 /** Image sources the renderer can draw. Textures are cached per source object. */
-export type TextureSource = HTMLImageElement | HTMLCanvasElement | OffscreenCanvas | ImageBitmap | RenderTarget;
+export type TextureSource = HTMLImageElement | HTMLCanvasElement | OffscreenCanvas | ImageBitmap | RenderTarget | CompressedTexture;
 
 /**
  * What `Backend.external` hands the code it runs.
@@ -67,6 +68,8 @@ export interface Backend {
   supportsTarget?(format: TargetFormat): boolean;
   /** GPU draw calls submitted so far this frame, where the backend batches (WebGL2). */
   readonly drawCalls?: number;
+  /** Compression families the GPU decodes. WebGL2 only. */
+  readonly compressedFormats?: ReadonlySet<CompressedFormat>;
   /** Begin a frame: clear to `clear` (0xRRGGBBAA; null keeps what's there) at the given logical size and backing scale. */
   begin(clear: number | null, width: number, height: number, scale: number): void;
   /**
