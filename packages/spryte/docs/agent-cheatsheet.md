@@ -22,7 +22,7 @@ Colours: `"#rgb"`, `"#rrggbbaa"`, `0xRRGGBBAA` or any CSS colour. Draw in paint 
 | Call | Does |
 | --- | --- |
 | `rect(x, y, w, h, c)`, `circle(x, y, r, c)`, `line(x1, y1, x2, y2, width, c)` | Shapes. |
-| `sprite(imgOrFrame, x, y, o?)` | `o`: `origin`, `scaleX`, `scaleY`, `rotation`, `flipX`, `flipY`, `alpha`, `tint`, `flash`, `smooth`. Reuse the `o` object in loops. Many call sites with different options: build each with `spriteOptions(o)` (0.13+) so they share one shape. |
+| `sprite(imgOrFrame, x, y, o?)` | `o`: `origin`, `scaleX`, `scaleY`, `rotation`, `flipX`, `flipY`, `alpha`, `tint`, `flash`, `smooth`, `user`, `user2` (0.16+: floats a custom shader reads as `user()`, `user2()`, batch kept). Reuse the `o` object in loops. Many call sites with different options: build each with `spriteOptions(o)` (0.13+) so they share one shape. |
 | `sprites(frame, xy, n?, o?, each?)` | One frame at many positions. `xy` is a `Float32Array` of x, y pairs, uploaded as is. |
 | `text(s, x, y, {font, color, align, baseline, alpha})`, `measure(s, font?)` | CSS or `BitmapFont` text. |
 | `polygon`, `polyline`, `roundRect`, `ring`, `mesh`, `nineSlice`, `tiled`, `lines` | Import them and pass `draw` first: `roundRect(draw, x, y, w, h, r, c)`. |
@@ -59,7 +59,7 @@ wave.set("time", t);                   // float or [x, y], [x, y, z], [x, y, z, 
 draw.withShader(wave, () => draw.sprites(dot, data, n));
 ```
 
-From 0.13, `set()` also takes a `Float32Array` or number array for a uniform array (`uniform vec4 pool[64];`, packed flat; a length that isn't a whole number of elements or is over the declared size throws) and an image, canvas, `ImageBitmap` or render target for a `sampler2D` (`set("noise", img, { smooth: true })`, nearest by default; textures use units 8 up, so count on 8). Call `set()` again after changing an array's contents. A changed uniform or a shader switch ends the batch, so wrap a whole walk in one `withShader` and pass per-sprite values with the draw; `set()` with an unchanged value keeps the batch (0.16+). `user()` in the shader reads `each.user`, one float per `draw.sprites` copy (0 anywhere else). On Canvas 2D none of this runs.
+From 0.13, `set()` also takes a `Float32Array` or number array for a uniform array (`uniform vec4 pool[64];`, packed flat; a length that isn't a whole number of elements or is over the declared size throws) and an image, canvas, `ImageBitmap` or render target for a `sampler2D` (`set("noise", img, { smooth: true })`, nearest by default; textures use units 8 up, so count on 8). Call `set()` again after changing an array's contents. A changed uniform or a shader switch ends the batch, so wrap a whole walk in one `withShader` and pass per-sprite values with the draw; `set()` with an unchanged value keeps the batch (0.16+). `user()` in the shader reads `each.user`, one float per `draw.sprites` copy, or a `draw.sprite`'s `user` option (0.16+; before that, 0 for `sprite()`), and 0 anywhere else. On Canvas 2D none of this runs.
 
 `uv` is in atlas space, so use `frameUv()` for anything shaped by position inside the drawn sprite. It is per sprite: it can't tint by where a sprite sits on screen. For that, pass a position-based colour per sprite in `each.color`, or a uniform. `set()` affects only draws made after it, even inside the `withShader` callback. Shaders need WebGL2: on Canvas 2D the draws happen without the effect. `filter(draw, [blur(4), sepia()], fn)` runs `fn` through CSS-style filters. `mask(draw, shape, fn)` keeps what `fn` draws where `shape` draws.
 

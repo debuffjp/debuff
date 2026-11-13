@@ -46,6 +46,8 @@ function fakeGL(active: { name: string; type: string; size?: number }[] = []) {
       if (typeof key !== "string") return undefined;
       if (/^[A-Z0-9_]+$/.test(key)) return key; // constants: their own name, readable in assertions
       return (...args: unknown[]) => {
+        // An upload copies its data, as the GPU does: spryte reuses (and may clear) the array right after.
+        if (key === "bufferSubData" && args[2] instanceof Float32Array) args[2] = args[2].slice();
         calls.push({ name: key, args });
         if (key.startsWith("create")) {
           const obj = { kind: key.slice(6), deleted: false };
@@ -524,6 +526,39 @@ describe("WebGL2Backend", () => {
       expect(run(() => fx.set("tint", [0, 1, 0]))).toBe(2);
       // The array is read when the batch draws, so setting the same object again must flush: its contents may have changed.
       expect(run(() => fx.set("pool", fx.uniforms.get("pool") as Float32Array))).toBe(2);
+    });
+
+    it("pass a sprite's user and user2 to a custom shader in the same batch, and 0 to the sprites around it", () => {
+      const { gl, calls, shaderSources } = fakeGL();
+      const draw = new Draw(new WebGL2Backend(gl), false);
+      const fx = new Shader("vec4 effect(vec4 color, highp vec2 uv) { return vec4(user(), user2(), 0.0, 1.0); }");
+      const userUploads = () =>
+        calls
+          .filter((c) => c.name === "bufferSubData" && (c.args[2] as Float32Array).length === 16_384 * 2)
+          .map((c) => [...(c.args[2] as Float32Array).subarray(0, 8)]);
+      draw.begin("#000", 100, 50, 1);
+      draw.sprite(image(), 0, 0, { user: 9 }); // no custom shader: nothing to read it
+      draw.withShader(fx, () => {
+        draw.sprite(image(), 10, 10);
+        draw.sprite(image(), 20, 10, { user: 3, user2: 4 });
+        draw.push();
+        draw.translate(0.5, 0); // a different transform goes as a quad in the same batch
+        draw.sprite(image(), 30, 10, { user2: -1 });
+        draw.pop();
+        draw.sprite(image(), 40, 10);
+      });
+      expect(draw.drawCalls).toBe(2);
+      draw.end();
+      expect(userUploads()).toEqual([[0, 0, 3, 4, 0, -1, 0, 0]]);
+      expect(calls.filter((c) => c.name === "enableVertexAttribArray" && c.args[0] === 9)).toHaveLength(1);
+      expect(shaderSources.some((s) => s.includes("float user() { return v_user.x; }"))).toBe(true);
+      // The next batch with a custom shader and no user values reads the constant 0 again.
+      calls.length = 0;
+      draw.begin("#000", 100, 50, 1);
+      draw.withShader(fx, () => draw.sprite(image(), 10, 10));
+      draw.end();
+      expect(userUploads()).toEqual([]);
+      expect(calls.filter((c) => c.name === "vertexAttrib2f" && c.args[0] === 9)).toEqual([{ name: "vertexAttrib2f", args: [9, 0, 0] }]);
     });
 
     it("throw an error naming the uniform when an array's length doesn't fit its type", () => {

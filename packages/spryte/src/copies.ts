@@ -50,7 +50,8 @@ export interface SpritesEach {
    * draw.withShader(fade, () => draw.sprites(tile, positions, n, {}, { user: place })); // place[i] = i
    * ```
    *
-   * Limits: `user()` is 0 for everything that isn't a `draw.sprites` copy (`sprite()`, `text()`, shapes). The default
+   * Limits: `user()` is 0 for everything that isn't a `draw.sprites` copy or a `draw.sprite` with its own `user`
+   * option (since 0.16; before that, `sprite()` always read 0), such as `text()` and shapes. The default
    * program ignores the value, and so does the Canvas 2D fallback, which ignores shaders altogether. The count
    * is clamped to the shortest array, as for the other fields. A float holds whole numbers exactly up to
    * 16,777,216.

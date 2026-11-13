@@ -33,6 +33,14 @@ export interface SpriteDrawOptions {
   flash?: number | undefined;
   /** Linear filtering for this sprite. Default: the game's setting (off when `pixelArt`). */
   smooth?: boolean | undefined;
+  /**
+   * A float a custom shader reads as `user()` for this sprite (since 0.16): a share, a variant, a flag. Default 0.
+   * It stays in the batch, as `draw.sprites`' `each.user` does. WebGL2 only, and only inside `withShader`; without a
+   * custom shader, and on the Canvas 2D fallback, it does nothing.
+   */
+  user?: number | undefined;
+  /** A second float, read as `user2()` (since 0.16). Default 0. */
+  user2?: number | undefined;
 }
 
 /** Sprite options with every field present (`undefined` for a default): what `spriteOptions()` returns. */
@@ -65,6 +73,8 @@ export function spriteOptions(o: SpriteDrawOptions = {}): FullSpriteDrawOptions 
     tint: o.tint,
     flash: o.flash,
     smooth: o.smooth,
+    user: o.user,
+    user2: o.user2,
   };
 }
 

@@ -359,7 +359,7 @@ interface CopyPipeline extends ProgramInfo {
   snap: WebGLUniformLocation | null;
 }
 
-const FRAG_HEADER = `#version 300 es
+const FRAG_BASE = `#version 300 es
 precision mediump float;
 // highp: mediump is fp16 on many mobile GPUs, too coarse to address texels in atlases past ~1024 px.
 in highp vec2 v_uv;
@@ -374,9 +374,27 @@ vec4 source(highp vec2 uv) {
 }
 in highp vec2 v_local;
 vec2 frameUv() { return v_local; }
-// Per-copy values exist only on draw.sprites: everywhere else, user() is 0.
-float user() { return 0.0; }
+`;
+
+const FRAG_HEADER = `${FRAG_BASE}float user() { return 0.0; }
 float user2() { return 0.0; }
+`;
+
+/** Where a custom program reads `draw.sprite`'s user and user2. Disabled unless a sprite in the batch sets them. */
+const USER_LOC = 9;
+
+/** `VERT` and `FRAG_HEADER` for a custom shader: `user()` and `user2()` read the sprite's values, 0 for everything else. */
+const CUSTOM_VERT = VERT.replace(
+  "void main() {\n  v_local = a_corner;",
+  `layout(location=${USER_LOC}) in vec2 a_user;
+out highp vec2 v_user;
+void main() {
+  v_user = a_user;
+  v_local = a_corner;`,
+);
+const CUSTOM_FRAG_HEADER = `${FRAG_BASE}in highp vec2 v_user;
+float user() { return v_user.x; }
+float user2() { return v_user.y; }
 `;
 
 // Flash: push colour toward white while keeping alpha (premultiplied).
@@ -492,6 +510,11 @@ export class WebGL2Backend implements Backend {
   private readonly data = new ArrayBuffer(this.capacity * STRIDE);
   private readonly f32 = new Float32Array(this.data);
   private readonly u32 = new Uint32Array(this.data);
+  /** `draw.sprite`'s user and user2 per instance of the pending batch, 0 where no sprite set them. Made on first use. */
+  private userData: Float32Array | undefined;
+  private userBuffer: WebGLBuffer | undefined;
+  /** A sprite in the pending batch set user values, so the batch uploads them. */
+  private userUsed = false;
   // GPU objects are recreated after a context loss, so they are not readonly.
   private instanceBuffer!: WebGLBuffer;
   private readonly textures = new Map<TextureSource, CachedTexture>();
@@ -637,6 +660,7 @@ export class WebGL2Backend implements Backend {
     const gl = this.gl;
     this.outH = gl.drawingBufferHeight;
     const program = link(gl, VERT, FRAG);
+    this.userBuffer = undefined;
     this.main = batchProgram(gl, program);
     this.active = this.main;
     this.shader = null;
@@ -858,28 +882,41 @@ export class WebGL2Backend implements Backend {
     const sy = (o.scaleY ?? 1) * (o.flipY ? -1 : 1);
     const r = o.rotation ?? 0;
     const flash = o.flash ?? 0;
-    if (this.armed && ver === this.bver && this.count < this.capacity) {
-      const src = fr.image;
-      const us = this.unitSrc;
-      const sm = this.unitSmooth;
-      for (let i = 0; i < this.unitCount; i++)
-        if (us[i] === src && sm[i] === smooth) {
-          this.write(i, m, fr, x, y, ox, oy, sx, sy, r, color, flash, smooth);
-          return;
-        }
+    written: {
+      if (this.armed && ver === this.bver && this.count < this.capacity) {
+        const src = fr.image;
+        const us = this.unitSrc;
+        const sm = this.unitSmooth;
+        for (let i = 0; i < this.unitCount; i++)
+          if (us[i] === src && sm[i] === smooth) {
+            this.write(i, m, fr, x, y, ox, oy, sx, sy, r, color, flash, smooth);
+            break written;
+          }
+      }
+      this.place(m, fr, x, y, ox, oy, sx, sy, r, color, flash, smooth);
+      const bm = this.bm;
+      this.armed =
+        this.sprites &&
+        !(this.shapes && this.shapes.count > 0) &&
+        m[0] === bm[0] &&
+        m[1] === bm[1] &&
+        m[2] === bm[2] &&
+        m[3] === bm[3] &&
+        m[4] === bm[4] &&
+        m[5] === bm[5];
+      this.bver = ver;
     }
-    this.place(m, fr, x, y, ox, oy, sx, sy, r, color, flash, smooth);
-    const bm = this.bm;
-    this.armed =
-      this.sprites &&
-      !(this.shapes && this.shapes.count > 0) &&
-      m[0] === bm[0] &&
-      m[1] === bm[1] &&
-      m[2] === bm[2] &&
-      m[3] === bm[3] &&
-      m[4] === bm[4] &&
-      m[5] === bm[5];
-    this.bver = ver;
+    if (this.shader) this.userOf(o);
+  }
+
+  /** Store `o.user` and `o.user2`, when set, for the instance just written under a custom shader. */
+  private userOf(o: SpriteDrawOptions): void {
+    if ((o.user === undefined && o.user2 === undefined) || this.lost || this.count === 0) return;
+    this.userData ??= new Float32Array(this.capacity * 2);
+    const i = (this.count - 1) * 2;
+    this.userData[i] = o.user ?? 0;
+    this.userData[i + 1] = o.user2 ?? 0;
+    this.userUsed = true;
   }
 
   /** Layers' GPU copies on this context; a lost context drops them all, and they're built again from the layer. */
@@ -1755,6 +1792,8 @@ export class WebGL2Backend implements Backend {
   protected flush(): void {
     this.flushShapes();
     if (this.lost || this.count === 0) {
+      if (this.userUsed) this.userData?.fill(0);
+      this.userUsed = false;
       this.count = 0;
       this.unitCount = 0;
       this.armed = false;
@@ -1787,11 +1826,36 @@ export class WebGL2Backend implements Backend {
     }
     gl.bindBuffer(gl.ARRAY_BUFFER, this.instanceBuffer);
     gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.f32, 0, this.count * (STRIDE / 4));
+    const user = this.userUsed ? this.userData : undefined;
+    if (user) {
+      this.userBuffer ??= this.createUserBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.userBuffer);
+      gl.bufferSubData(gl.ARRAY_BUFFER, 0, user, 0, this.count * 2);
+      gl.enableVertexAttribArray(USER_LOC);
+      // Disabled, the attribute reads the context-wide constant, which other programs on this context may have set.
+    } else if (this.shader) gl.vertexAttrib2f(USER_LOC, 0, 0);
     gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, this.count);
+    if (user) {
+      gl.disableVertexAttribArray(USER_LOC);
+      user.fill(0, 0, this.count * 2);
+      this.userUsed = false;
+    }
     this.submitted++;
     this.count = 0;
     this.unitCount = 0;
     this.armed = false;
+  }
+
+  /** The buffer behind `USER_LOC` in the batch VAO, which must be bound. */
+  private createUserBuffer(): WebGLBuffer {
+    const gl = this.gl;
+    const b = gl.createBuffer();
+    if (!b) throw new Error("WebGL2: could not create instance buffer");
+    gl.bindBuffer(gl.ARRAY_BUFFER, b);
+    gl.bufferData(gl.ARRAY_BUFFER, this.capacity * 8, gl.DYNAMIC_DRAW);
+    gl.vertexAttribPointer(USER_LOC, 2, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribDivisor(USER_LOC, 1);
+    return b;
   }
 
   /** Upload `u_view` to a program if the destination size changed since it last drew. The program must be bound. */
@@ -1840,7 +1904,7 @@ export class WebGL2Backend implements Backend {
     if (p) return p;
     const gl = this.gl;
     // #line makes compile errors point at lines in the user's source.
-    const program = link(gl, VERT, `${FRAG_HEADER}#line 1\n${shader.source}\n${FRAG_MAIN}`, "custom shader");
+    const program = link(gl, CUSTOM_VERT, `${CUSTOM_FRAG_HEADER}#line 1\n${shader.source}\n${FRAG_MAIN}`, "custom shader");
     gl.useProgram(program);
     gl.uniform1iv(
       gl.getUniformLocation(program, "u_tex"),

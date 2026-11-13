@@ -601,6 +601,37 @@ vec4 effect(vec4 color, vec2 uv) {
     reds.join(" / "),
   );
 
+  // draw.sprite's user and user2 reach the shader per sprite in one batch, also as a quad under another transform.
+  let spriteUserCalls = 0;
+  const spriteUserScene = await render(
+    (draw) => {
+      draw.withShader(
+        draw.createShader(`vec4 effect(vec4 color, highp vec2 uv) { return vec4(user() / 2.0, user2() / 4.0, 0.0, 1.0); }`),
+        () => {
+          draw.sprite(userFrame, 10, 10, { origin: [0, 0], user: 1, user2: 4 });
+          draw.sprite(userFrame, 30, 10, { origin: [0, 0] });
+          draw.push();
+          draw.translate(0.25, 0);
+          draw.sprite(userFrame, 50, 10, { origin: [0, 0], user: 2, user2: 2, smooth: true });
+          draw.pop();
+          spriteUserCalls = draw.drawCalls;
+        },
+      );
+    },
+    "webgl2",
+    1,
+  );
+  const spriteRg = [14, 34, 54].map((x) => pixelAt(spriteUserScene, x, 13).slice(0, 2).join(","));
+  const nearRg = (s: string | undefined, r: number, g: number) => {
+    const [a, b] = (s ?? "").split(",").map(Number);
+    return Math.abs((a as number) - r) <= 1 && Math.abs((b as number) - g) <= 1;
+  };
+  check(
+    "draw.sprite user and user2 reach user() and user2() in one batch, 0 where unset",
+    nearRg(spriteRg[0], 128, 255) && nearRg(spriteRg[1], 0, 0) && nearRg(spriteRg[2], 255, 128) && spriteUserCalls === 1,
+    `${spriteRg.join(" / ")}, ${spriteUserCalls} draw call(s)`,
+  );
+
   // each.user2 is a second per-copy float beside user, read as user2().
   const user2Shader = `vec4 effect(vec4 color, vec2 uv) { return vec4(user() / 2.0, user2() / 4.0, 0.0, 1.0); }`;
   const user2Scene = await render(
