@@ -31,7 +31,7 @@ const draw = createRenderer(canvas);
 // noise is added: it breaks the steps up, and the eye reads it as grain.
 const backdropShader = backdrop
   ? draw.createShader(`
-  vec4 effect(vec4 color, vec2 uv) {
+  vec4 effect(vec4 color, highp vec2 uv) {
     vec2 p = frameUv();
     float d = length((p - ${backdrop.at}) * vec2(1.7778, 1.0));
     vec3 col = mix(${backdrop.edge}, ${backdrop.core}, pow(1.0 - smoothstep(0.0, ${backdrop.reach}, d), 1.4));

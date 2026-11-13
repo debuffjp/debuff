@@ -84,21 +84,21 @@ let blurShader: Shader | undefined;
 let matrixShader: Shader | undefined;
 
 const BLUR = `
-uniform vec2 dir;
+uniform highp vec2 dir;
 uniform float sigma;
-bool inside(vec2 uv) {
+bool inside(highp vec2 uv) {
   return all(greaterThanEqual(uv, vec2(0.0))) && all(lessThanEqual(uv, vec2(1.0)));
 }
-vec4 tap(vec2 uv) {
+vec4 tap(highp vec2 uv) {
   return inside(uv) ? source(uv) : vec4(0.0);
 }
 // Texels i and i + 1 from uv along d, weighted k1 and k2, in one linear sample at f. At the image's edge only
 // texel i is inside: sample it alone, since outside is transparent (clamping would repeat the edge texel).
-vec4 pair(vec2 uv, vec2 d, float i, float k1, float k2, float f) {
+vec4 pair(highp vec2 uv, highp vec2 d, float i, float k1, float k2, float f) {
   if (inside(uv + d * (i + 1.0))) return source(uv + d * f) * (k1 + k2);
   return tap(uv + d * i) * k1;
 }
-vec4 effect(vec4 color, vec2 uv) {
+vec4 effect(vec4 color, highp vec2 uv) {
   // Out to 3 sigma, two texels per tap: linear filtering samples between texels i and i + 1 at the point
   // that weights them as the Gaussian does, halving the taps.
   float n = min(ceil(sigma * 3.0), 128.0);
@@ -124,7 +124,7 @@ uniform vec4 g;
 uniform vec4 b;
 uniform vec4 a;
 uniform vec4 o;
-vec4 effect(vec4 color, vec2 uv) {
+vec4 effect(vec4 color, highp vec2 uv) {
   vec4 p = source(uv);
   vec4 c = p.a > 0.0 ? vec4(p.rgb / p.a, p.a) : vec4(0.0);
   vec4 q = clamp(vec4(dot(r, c), dot(g, c), dot(b, c), dot(a, c)) + o, 0.0, 1.0);

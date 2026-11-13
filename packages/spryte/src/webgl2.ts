@@ -11,7 +11,7 @@ import {
 import { type CopySpec, copyAt, frameAt, placeAt } from "./copies.js";
 import type { Frame, SpriteDrawOptions } from "./draw.js";
 import type { Layer } from "./layer.js";
-import { byteToLinear, isData, linearContexts, prelude } from "./linear.js";
+import { byteToLinear, isData, isStraight, linearContexts, prelude } from "./linear.js";
 import type { Shader, UniformArray, UniformValue } from "./shader.js";
 import type { ShapeBuffer } from "./shapes.js";
 import { RenderTarget, type TargetFormat } from "./target.js";
@@ -186,7 +186,7 @@ in vec4 v_color;
 uniform sampler2D u_tex;
 uniform float u_flash;
 out vec4 outColor;
-vec4 source(vec2 uv) { return texture(u_tex, uv); }
+vec4 source(highp vec2 uv) { return texture(u_tex, uv); }
 in highp vec2 v_local;
 vec2 frameUv() { return v_local; }
 in highp float v_user;
@@ -359,7 +359,7 @@ interface CopyPipeline extends ProgramInfo {
   snap: WebGLUniformLocation | null;
 }
 
-const FRAG_HEADER = `#version 300 es
+const FRAG_BASE = `#version 300 es
 precision mediump float;
 // highp: mediump is fp16 on many mobile GPUs, too coarse to address texels in atlases past ~1024 px.
 in highp vec2 v_uv;
@@ -368,15 +368,36 @@ in float v_flash;
 flat in int v_unit;
 uniform sampler2D u_tex[${UNITS}];
 out vec4 outColor;
-vec4 source(vec2 uv) {
-  ${Array.from({ length: UNITS }, (_, i) => `if (v_unit == ${i}) return texture(u_tex[${i}], uv);`).join("\n  ")}
+// A switch, not an if chain: 35% less frame time for a 16-tap effect over 8 textures (RTX 5060, D3D11), same pixels.
+vec4 source(highp vec2 uv) {
+  switch (v_unit) {
+    ${Array.from({ length: UNITS }, (_, i) => `case ${i}: return texture(u_tex[${i}], uv);`).join("\n    ")}
+  }
   return vec4(1.0);
 }
 in highp vec2 v_local;
 vec2 frameUv() { return v_local; }
-// Per-copy values exist only on draw.sprites: everywhere else, user() is 0.
-float user() { return 0.0; }
+`;
+
+const FRAG_HEADER = `${FRAG_BASE}float user() { return 0.0; }
 float user2() { return 0.0; }
+`;
+
+/** Where a custom program reads `draw.sprite`'s user and user2. Disabled unless a sprite in the batch sets them. */
+const USER_LOC = 9;
+
+/** `VERT` and `FRAG_HEADER` for a custom shader: `user()` and `user2()` read the sprite's values, 0 for everything else. */
+const CUSTOM_VERT = VERT.replace(
+  "void main() {\n  v_local = a_corner;",
+  `layout(location=${USER_LOC}) in vec2 a_user;
+out highp vec2 v_user;
+void main() {
+  v_user = a_user;
+  v_local = a_corner;`,
+);
+const CUSTOM_FRAG_HEADER = `${FRAG_BASE}in highp vec2 v_user;
+float user() { return v_user.x; }
+float user2() { return v_user.y; }
 `;
 
 // Flash: push colour toward white while keeping alpha (premultiplied).
@@ -386,7 +407,7 @@ void main() {
   outColor = vec4(mix(t.rgb, vec3(t.a), v_flash), t.a);
 }`;
 
-const FRAG = `${FRAG_HEADER}vec4 effect(vec4 color, vec2 uv) { return source(uv) * color; }${FRAG_MAIN}`;
+const FRAG = `${FRAG_HEADER}vec4 effect(vec4 color, highp vec2 uv) { return source(uv) * color; }${FRAG_MAIN}`;
 
 /** Linear mode's last pass: the sRGB framebuffer onto the canvas, one full-screen quad. */
 const PRESENT_VERT = `#version 300 es
@@ -492,6 +513,11 @@ export class WebGL2Backend implements Backend {
   private readonly data = new ArrayBuffer(this.capacity * STRIDE);
   private readonly f32 = new Float32Array(this.data);
   private readonly u32 = new Uint32Array(this.data);
+  /** `draw.sprite`'s user and user2 per instance of the pending batch, 0 where no sprite set them. Made on first use. */
+  private userData: Float32Array | undefined;
+  private userBuffer: WebGLBuffer | undefined;
+  /** A sprite in the pending batch set user values, so the batch uploads them. */
+  private userUsed = false;
   // GPU objects are recreated after a context loss, so they are not readonly.
   private instanceBuffer!: WebGLBuffer;
   private readonly textures = new Map<TextureSource, CachedTexture>();
@@ -637,6 +663,7 @@ export class WebGL2Backend implements Backend {
     const gl = this.gl;
     this.outH = gl.drawingBufferHeight;
     const program = link(gl, VERT, FRAG);
+    this.userBuffer = undefined;
     this.main = batchProgram(gl, program);
     this.active = this.main;
     this.shader = null;
@@ -858,28 +885,42 @@ export class WebGL2Backend implements Backend {
     const sy = (o.scaleY ?? 1) * (o.flipY ? -1 : 1);
     const r = o.rotation ?? 0;
     const flash = o.flash ?? 0;
-    if (this.armed && ver === this.bver && this.count < this.capacity) {
-      const src = fr.image;
-      const us = this.unitSrc;
-      const sm = this.unitSmooth;
-      for (let i = 0; i < this.unitCount; i++)
-        if (us[i] === src && sm[i] === smooth) {
-          this.write(i, m, fr, x, y, ox, oy, sx, sy, r, color, flash, smooth);
-          return;
-        }
+    // biome-ignore lint/suspicious/noConfusingLabels: one exit for both write paths keeps this inside V8's 460-byte inlining budget.
+    written: {
+      if (this.armed && ver === this.bver && this.count < this.capacity) {
+        const src = fr.image;
+        const us = this.unitSrc;
+        const sm = this.unitSmooth;
+        for (let i = 0; i < this.unitCount; i++)
+          if (us[i] === src && sm[i] === smooth) {
+            this.write(i, m, fr, x, y, ox, oy, sx, sy, r, color, flash, smooth);
+            break written;
+          }
+      }
+      this.place(m, fr, x, y, ox, oy, sx, sy, r, color, flash, smooth);
+      const bm = this.bm;
+      this.armed =
+        this.sprites &&
+        !(this.shapes && this.shapes.count > 0) &&
+        m[0] === bm[0] &&
+        m[1] === bm[1] &&
+        m[2] === bm[2] &&
+        m[3] === bm[3] &&
+        m[4] === bm[4] &&
+        m[5] === bm[5];
+      this.bver = ver;
     }
-    this.place(m, fr, x, y, ox, oy, sx, sy, r, color, flash, smooth);
-    const bm = this.bm;
-    this.armed =
-      this.sprites &&
-      !(this.shapes && this.shapes.count > 0) &&
-      m[0] === bm[0] &&
-      m[1] === bm[1] &&
-      m[2] === bm[2] &&
-      m[3] === bm[3] &&
-      m[4] === bm[4] &&
-      m[5] === bm[5];
-    this.bver = ver;
+    if (this.shader) this.userOf(o);
+  }
+
+  /** Store `o.user` and `o.user2`, when set, for the instance just written under a custom shader. */
+  private userOf(o: SpriteDrawOptions): void {
+    if ((o.user === undefined && o.user2 === undefined) || this.lost || this.count === 0) return;
+    this.userData ??= new Float32Array(this.capacity * 2);
+    const i = (this.count - 1) * 2;
+    this.userData[i] = o.user ?? 0;
+    this.userData[i + 1] = o.user2 ?? 0;
+    this.userUsed = true;
   }
 
   /** Layers' GPU copies on this context; a lost context drops them all, and they're built again from the layer. */
@@ -1388,7 +1429,7 @@ export class WebGL2Backend implements Backend {
     const gl = this.gl;
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, cached.tex);
-    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, !isStraight(dst));
     if (from.width === w && from.height === h) gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, gl.RGBA, gl.UNSIGNED_BYTE, from);
     else gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, from);
     if (this.mipped.has(cached.tex)) gl.generateMipmap(gl.TEXTURE_2D);
@@ -1755,6 +1796,8 @@ export class WebGL2Backend implements Backend {
   protected flush(): void {
     this.flushShapes();
     if (this.lost || this.count === 0) {
+      if (this.userUsed) this.userData?.fill(0);
+      this.userUsed = false;
       this.count = 0;
       this.unitCount = 0;
       this.armed = false;
@@ -1787,11 +1830,36 @@ export class WebGL2Backend implements Backend {
     }
     gl.bindBuffer(gl.ARRAY_BUFFER, this.instanceBuffer);
     gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.f32, 0, this.count * (STRIDE / 4));
+    const user = this.userUsed ? this.userData : undefined;
+    if (user) {
+      this.userBuffer ??= this.createUserBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.userBuffer);
+      gl.bufferSubData(gl.ARRAY_BUFFER, 0, user, 0, this.count * 2);
+      gl.enableVertexAttribArray(USER_LOC);
+      // Disabled, the attribute reads the context-wide constant, which other programs on this context may have set.
+    } else if (this.shader) gl.vertexAttrib2f(USER_LOC, 0, 0);
     gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, this.count);
+    if (user) {
+      gl.disableVertexAttribArray(USER_LOC);
+      user.fill(0, 0, this.count * 2);
+      this.userUsed = false;
+    }
     this.submitted++;
     this.count = 0;
     this.unitCount = 0;
     this.armed = false;
+  }
+
+  /** The buffer behind `USER_LOC` in the batch VAO, which must be bound. */
+  private createUserBuffer(): WebGLBuffer {
+    const gl = this.gl;
+    const b = gl.createBuffer();
+    if (!b) throw new Error("WebGL2: could not create instance buffer");
+    gl.bindBuffer(gl.ARRAY_BUFFER, b);
+    gl.bufferData(gl.ARRAY_BUFFER, this.capacity * 8, gl.DYNAMIC_DRAW);
+    gl.vertexAttribPointer(USER_LOC, 2, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribDivisor(USER_LOC, 1);
+    return b;
   }
 
   /** Upload `u_view` to a program if the destination size changed since it last drew. The program must be bound. */
@@ -1840,7 +1908,7 @@ export class WebGL2Backend implements Backend {
     if (p) return p;
     const gl = this.gl;
     // #line makes compile errors point at lines in the user's source.
-    const program = link(gl, VERT, `${FRAG_HEADER}#line 1\n${shader.source}\n${FRAG_MAIN}`, "custom shader");
+    const program = link(gl, CUSTOM_VERT, `${CUSTOM_FRAG_HEADER}#line 1\n${shader.source}\n${FRAG_MAIN}`, "custom shader");
     gl.useProgram(program);
     gl.uniform1iv(
       gl.getUniformLocation(program, "u_tex"),
@@ -1883,7 +1951,7 @@ export class WebGL2Backend implements Backend {
     if (!tex) throw new Error("WebGL2: could not create texture");
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, tex);
-    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, !isStraight(src));
     // Linear mode stores colour images as sRGB so sampling returns linear light; data images (asData) stay raw.
     const format = this.linearOut && !isData(src) ? gl.SRGB8_ALPHA8 : gl.RGBA;
     gl.texImage2D(gl.TEXTURE_2D, 0, format, gl.RGBA, gl.UNSIGNED_BYTE, src);

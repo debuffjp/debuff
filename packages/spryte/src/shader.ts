@@ -22,7 +22,9 @@ export interface ShaderTextureOptions {
 /**
  * A custom fragment effect, applied to everything drawn inside `draw.withShader(shader, fn)`.
  *
- * The source defines `vec4 effect(vec4 color, vec2 uv)`, which returns the pixel's colour. `color` is the
+ * The source defines `vec4 effect(vec4 color, highp vec2 uv)`, which returns the pixel's colour. Keep `uv` and any
+ * texture coordinate you compute `highp`: the default precision is mediump, fp16 on many mobile GPUs, too coarse
+ * for images past about 1024 px (before 0.16, `source(uv)` itself dropped uv to mediump). `color` is the
  * draw's tint and alpha, premultiplied. `source(uv)` samples the image being drawn. `uv` is in texture (atlas)
  * space, so it isn't 0 to 1 across a sprite packed into an atlas, and on a render target `uv.y` runs bottom to top:
  * `frameUv()` gives the position inside the drawn frame instead, from (0, 0) at its top left to (1, 1) at its
@@ -36,7 +38,7 @@ export interface ShaderTextureOptions {
  * ```ts
  * const wave = draw.createShader(`
  *   uniform float time;
- *   vec4 effect(vec4 color, vec2 uv) {
+ *   vec4 effect(vec4 color, highp vec2 uv) {
  *     uv.x += sin(uv.y * 40.0 + time * 6.0) * 0.01;
  *     return source(uv) * color;
  *   }
@@ -51,7 +53,7 @@ export interface ShaderTextureOptions {
  * const fx = draw.createShader(`
  *   uniform vec4 pool[64];
  *   uniform sampler2D noise;
- *   vec4 effect(vec4 color, vec2 uv) {
+ *   vec4 effect(vec4 color, highp vec2 uv) {
  *     float n = texture(noise, frameUv()).r;
  *     return source(uv) * color * pool[0].a * n;
  *   }
@@ -74,7 +76,7 @@ export class Shader {
   onChange: ((name: string, value: UniformValue | UniformArray | TextureSource) => void) | undefined;
 
   constructor(readonly source: string) {
-    if (!/\bvec4\s+effect\s*\(/.test(source)) throw new Error("spryte: a shader must define `vec4 effect(vec4 color, vec2 uv)`");
+    if (!/\bvec4\s+effect\s*\(/.test(source)) throw new Error("spryte: a shader must define `vec4 effect(vec4 color, highp vec2 uv)`");
   }
 
   /**
@@ -94,6 +96,11 @@ export class Shader {
    *   WebGL2 guarantees 16 units, so a shader can count on 8 textures; one that reads more than the GPU has
    *   units for throws when first used. Filtering is nearest unless `options.smooth` is true.
    *
+   * A changed value ends the current batch, so the sprites queued before it draw with the old one. Since 0.16,
+   * the value a uniform already has keeps the batch: numbers and arrays compare by value, and a texture or the
+   * same array object passed again always counts as a change. To vary an effect per sprite, keep one
+   * `withShader` around the whole walk and pass the per-sprite value with the draw instead of calling `set()`.
+   *
    * A wrong kind of value (a texture on a `float`, an array on a `sampler2D`) throws too. All of these throw at
    * `set()` while the shader is in use, or when `withShader` or `into()` would start using values set earlier,
    * and always before anything changes. On the Canvas 2D fallback shaders don't run, so nothing is checked and
@@ -108,6 +115,7 @@ export class Shader {
   set(name: string, value: UniformValue | UniformArray): this;
   set(name: string, texture: TextureSource, options?: ShaderTextureOptions): this;
   set(name: string, value: UniformValue | UniformArray | TextureSource, options?: ShaderTextureOptions): this {
+    if (sameValue(this.uniforms.get(name), value)) return this;
     this.onChange?.(name, value);
     if (typeof value === "number" || Array.isArray(value) || value instanceof Float32Array) {
       this.textures.delete(name);
@@ -118,4 +126,16 @@ export class Shader {
     }
     return this;
   }
+}
+
+/**
+ * Whether `next` equals the stored uniform value, so `set()` can keep the batch. The same array object never
+ * counts: its contents may have changed since it was stored, and it is read only when the batch draws.
+ */
+function sameValue(prev: UniformValue | UniformArray | undefined, next: unknown): boolean {
+  if (typeof prev === "number") return prev === next;
+  if (prev === undefined || prev === next || !(Array.isArray(next) || next instanceof Float32Array)) return false;
+  if (prev.length !== next.length) return false;
+  for (let i = 0; i < prev.length; i++) if (prev[i] !== next[i]) return false;
+  return true;
 }

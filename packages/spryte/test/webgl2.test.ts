@@ -46,6 +46,8 @@ function fakeGL(active: { name: string; type: string; size?: number }[] = []) {
       if (typeof key !== "string") return undefined;
       if (/^[A-Z0-9_]+$/.test(key)) return key; // constants: their own name, readable in assertions
       return (...args: unknown[]) => {
+        // An upload copies its data, as the GPU does: spryte reuses (and may clear) the array right after.
+        if (key === "bufferSubData" && args[2] instanceof Float32Array) args[2] = args[2].slice();
         calls.push({ name: key, args });
         if (key.startsWith("create")) {
           const obj = { kind: key.slice(6), deleted: false };
@@ -70,6 +72,28 @@ describe("WebGL2Backend", () => {
     const { gl, shaderSources } = fakeGL();
     new WebGL2Backend(gl);
     expect(shaderSources[1]).toContain("in highp vec2 v_uv");
+  });
+
+  it("keeps uv highp through source() and spryte's own effects, in every program a shader compiles into", () => {
+    const { gl, shaderSources } = fakeGL();
+    const draw = new Draw(new WebGL2Backend(gl), false);
+    const fx = new Shader("vec4 effect(vec4 color, highp vec2 uv) { return source(uv) * color; }");
+    draw.begin("#000", 100, 50, 1);
+    draw.sprite(image(), 0, 0);
+    draw.withShader(fx, () => {
+      draw.sprite(image(), 10, 10);
+      draw.sprites(image(), new Float32Array([1, 2, 3, 4]), 2);
+    });
+    filter(draw, [blur(2)], () => draw.sprite(image(), 0, 0));
+    draw.end();
+    const frags = shaderSources.filter((s) => s.includes("vec4 source("));
+    // The batch and per-copy headers, each with the built-in effect, the custom one and the blur.
+    expect(frags.length).toBeGreaterThanOrEqual(4);
+    for (const s of frags) {
+      expect(s).toContain("vec4 source(highp vec2 uv)");
+      // A parameter without a qualifier is mediump here: fp16 on many mobile GPUs.
+      expect(s).not.toMatch(/\((?:[^()]*,\s*)?vec2 uv\b/);
+    }
   });
 
   it("uploads a source once even when drawn both smooth and pixelated", () => {
@@ -477,6 +501,66 @@ describe("WebGL2Backend", () => {
       expect(uploads(calls, "uniform2f")).toContainEqual(["offset", 3, 4]);
     });
 
+    it("keep the batch when set() repeats the current value, and flush when it changes or the same array comes back", () => {
+      const { gl } = fakeGL([
+        { name: "time", type: "FLOAT" },
+        { name: "tint", type: "FLOAT_VEC3" },
+        { name: "pool", type: "FLOAT_VEC4", size: 4 },
+      ]);
+      const draw = new Draw(new WebGL2Backend(gl), false);
+      const fx = new Shader("uniform float time; uniform vec3 tint; uniform vec4 pool[4]; vec4 effect(vec4 c, vec2 uv) { return c; }");
+      const pool = new Float32Array(16);
+      fx.set("time", 1).set("tint", [1, 0, 0]).set("pool", pool);
+      const run = (fn: () => void) => {
+        draw.begin("#000", 100, 50, 1);
+        draw.withShader(fx, () => {
+          draw.rect(0, 0, 1, 1, "#fff");
+          fn();
+          draw.rect(0, 0, 1, 1, "#fff");
+        });
+        draw.end();
+        return draw.drawCalls;
+      };
+      expect(run(() => fx.set("time", 1).set("tint", [1, 0, 0]).set("pool", new Float32Array(16)))).toBe(1);
+      expect(run(() => fx.set("time", 2))).toBe(2);
+      expect(run(() => fx.set("tint", [0, 1, 0]))).toBe(2);
+      // The array is read when the batch draws, so setting the same object again must flush: its contents may have changed.
+      expect(run(() => fx.set("pool", fx.uniforms.get("pool") as Float32Array))).toBe(2);
+    });
+
+    it("pass a sprite's user and user2 to a custom shader in the same batch, and 0 to the sprites around it", () => {
+      const { gl, calls, shaderSources } = fakeGL();
+      const draw = new Draw(new WebGL2Backend(gl), false);
+      const fx = new Shader("vec4 effect(vec4 color, highp vec2 uv) { return vec4(user(), user2(), 0.0, 1.0); }");
+      const userUploads = () =>
+        calls
+          .filter((c) => c.name === "bufferSubData" && (c.args[2] as Float32Array).length === 16_384 * 2)
+          .map((c) => [...(c.args[2] as Float32Array).subarray(0, 8)]);
+      draw.begin("#000", 100, 50, 1);
+      draw.sprite(image(), 0, 0, { user: 9 }); // no custom shader: nothing to read it
+      draw.withShader(fx, () => {
+        draw.sprite(image(), 10, 10);
+        draw.sprite(image(), 20, 10, { user: 3, user2: 4 });
+        draw.push();
+        draw.translate(0.5, 0); // a different transform goes as a quad in the same batch
+        draw.sprite(image(), 30, 10, { user2: -1 });
+        draw.pop();
+        draw.sprite(image(), 40, 10);
+      });
+      expect(draw.drawCalls).toBe(2);
+      draw.end();
+      expect(userUploads()).toEqual([[0, 0, 3, 4, 0, -1, 0, 0]]);
+      expect(calls.filter((c) => c.name === "enableVertexAttribArray" && c.args[0] === 9)).toHaveLength(1);
+      expect(shaderSources.some((s) => s.includes("float user() { return v_user.x; }"))).toBe(true);
+      // The next batch with a custom shader and no user values reads the constant 0 again.
+      calls.length = 0;
+      draw.begin("#000", 100, 50, 1);
+      draw.withShader(fx, () => draw.sprite(image(), 10, 10));
+      draw.end();
+      expect(userUploads()).toEqual([]);
+      expect(calls.filter((c) => c.name === "vertexAttrib2f" && c.args[0] === 9)).toEqual([{ name: "vertexAttrib2f", args: [9, 0, 0] }]);
+    });
+
     it("throw an error naming the uniform when an array's length doesn't fit its type", () => {
       for (const n of [10, 20, 0]) {
         const { gl } = fakeGL([{ name: "pool", type: "FLOAT_VEC4", size: 4 }]);
@@ -839,6 +923,22 @@ describe("blendSpace linear", () => {
     be.quad(M, atlas, 0, 0, 16, 16, 0xffffffff, 0, true);
     be.end();
     expect(calls.filter((c) => c.name === "texImage2D").map((c) => c.args[2])).toEqual(["RGBA", "RGBA"]);
+  });
+
+  it("uploads an image marked asData(img, { premultiply: false }) with straight alpha, also on update(), and others premultiplied", () => {
+    const { gl, calls } = fakeGL();
+    const be = new WebGL2Backend(gl);
+    const table = asData(image(), { premultiply: false });
+    be.begin(0xffffffff, 100, 50, 1);
+    be.quad(M, image(), 0, 0, 16, 16, 0xffffffff, 0, true);
+    be.quad(M, asData(image()), 0, 0, 16, 16, 0xffffffff, 0, true);
+    be.quad(M, table, 0, 0, 16, 16, 0xffffffff, 0, true);
+    be.end();
+    be.update(table, 0, 0, { width: 16, height: 16 } as HTMLCanvasElement, 16, 16);
+    const premultiply = calls
+      .filter((c) => c.name === "pixelStorei" && c.args[0] === "UNPACK_PREMULTIPLY_ALPHA_WEBGL")
+      .map((c) => c.args[1]);
+    expect(premultiply).toEqual([true, true, false, false]);
   });
 
   it("keeps half-float targets as half floats, since they already hold linear light", () => {

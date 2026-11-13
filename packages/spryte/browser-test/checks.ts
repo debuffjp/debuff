@@ -2,6 +2,7 @@
 
 import { canvasFilters } from "../src/canvas2d.js";
 import {
+  asData,
   BitmapFont,
   blur,
   brightness,
@@ -601,6 +602,37 @@ vec4 effect(vec4 color, vec2 uv) {
     reds.join(" / "),
   );
 
+  // draw.sprite's user and user2 reach the shader per sprite in one batch, also as a quad under another transform.
+  let spriteUserCalls = 0;
+  const spriteUserScene = await render(
+    (draw) => {
+      draw.withShader(
+        draw.createShader(`vec4 effect(vec4 color, highp vec2 uv) { return vec4(user() / 2.0, user2() / 4.0, 0.0, 1.0); }`),
+        () => {
+          draw.sprite(userFrame, 10, 10, { origin: [0, 0], user: 1, user2: 4 });
+          draw.sprite(userFrame, 30, 10, { origin: [0, 0] });
+          draw.push();
+          draw.translate(0.25, 0);
+          draw.sprite(userFrame, 50, 10, { origin: [0, 0], user: 2, user2: 2, smooth: true });
+          draw.pop();
+          spriteUserCalls = draw.drawCalls;
+        },
+      );
+    },
+    "webgl2",
+    1,
+  );
+  const spriteRg = [14, 34, 54].map((x) => pixelAt(spriteUserScene, x, 13).slice(0, 2).join(","));
+  const nearRg = (s: string | undefined, r: number, g: number) => {
+    const [a, b] = (s ?? "").split(",").map(Number);
+    return Math.abs((a as number) - r) <= 1 && Math.abs((b as number) - g) <= 1;
+  };
+  check(
+    "draw.sprite user and user2 reach user() and user2() in one batch, 0 where unset",
+    nearRg(spriteRg[0], 128, 255) && nearRg(spriteRg[1], 0, 0) && nearRg(spriteRg[2], 255, 128) && spriteUserCalls === 1,
+    `${spriteRg.join(" / ")}, ${spriteUserCalls} draw call(s)`,
+  );
+
   // each.user2 is a second per-copy float beside user, read as user2().
   const user2Shader = `vec4 effect(vec4 color, vec2 uv) { return vec4(user() / 2.0, user2() / 4.0, 0.0, 1.0); }`;
   const user2Scene = await render(
@@ -734,6 +766,45 @@ vec4 effect(vec4 color, vec2 uv) { return pool[int(min(frameUv().x * 3.0, 2.0))]
       rgb(textured, 35, 40) === "0,0,255" &&
       magentas.every((p) => p === "255,0,255"),
     [rgb(textured, 5, 10), rgb(textured, 35, 10), rgb(textured, 5, 40), rgb(textured, 35, 40), ...magentas].join(" / "),
+  );
+
+  // asData(img, { premultiply: false }) keeps colour where alpha is below 255; a plain upload multiplies it by alpha.
+  const halfRed = document.createElement("canvas");
+  halfRed.width = halfRed.height = 1;
+  const halfCtx = halfRed.getContext("2d") as CanvasRenderingContext2D;
+  halfCtx.putImageData(new ImageData(new Uint8ClampedArray([200, 0, 0, 128]), 1, 1), 0, 0);
+  const png = halfRed.toDataURL("image/png");
+  const loadPng = async () => {
+    const el = new Image();
+    el.src = png;
+    await el.decode();
+    return el;
+  };
+  const straightImg = asData(await loadPng(), { premultiply: false });
+  const premultipliedImg = await loadPng();
+  const readRed = await render(
+    (draw) => {
+      const read = draw.createShader(
+        "uniform sampler2D t; vec4 effect(vec4 color, highp vec2 uv) { return vec4(texture(t, vec2(0.5)).ra, 0.0, 1.0); }",
+      );
+      draw.withShader(read, () => {
+        read.set("t", straightImg);
+        draw.rect(0, 0, 10, 10, "#fff");
+        read.set("t", premultipliedImg);
+        draw.rect(20, 0, 10, 10, "#fff");
+      });
+    },
+    "webgl2",
+    1,
+  );
+  const [straightRed, straightAlpha] = pixelAt(readRed, 5, 5);
+  const [premultipliedRed] = pixelAt(readRed, 25, 5);
+  check(
+    "asData(img, { premultiply: false }) uploads straight alpha, a plain image premultiplied",
+    Math.abs((straightRed as number) - 200) <= 2 &&
+      Math.abs((straightAlpha as number) - 128) <= 1 &&
+      Math.abs((premultipliedRed as number) - 100) <= 2,
+    `straight ${straightRed},a ${straightAlpha} / premultiplied ${premultipliedRed}`,
   );
 
   // A render target as a texture: its uv.y runs bottom to top. The per-copy program (draw.sprites) gets it too.

@@ -35,7 +35,7 @@ draw.dispose();                           // frees GPU objects and listeners; th
 | `rect(x, y, w, h, color)` | Filled rectangle. |
 | `circle(x, y, r, color)` | Filled, antialiased circle. |
 | `line(x1, y1, x2, y2, width, color)` | Drawn as a rotated rectangle. |
-| `sprite(frameOrImage, x, y, options?)` | Image or `Frame` (`{ image, x, y, w, h }`), anchored at `origin` (default centre). Options: `origin`, `scaleX`, `scaleY`, `rotation` (radians), `flipX`, `flipY`, `alpha`, `tint`, `flash` (0-1 toward white), `smooth`. **Doesn't allocate:** reuse one options object in hot loops. A game with many call sites that pass different options should build each object with `spriteOptions()` (0.13+, below). |
+| `sprite(frameOrImage, x, y, options?)` | Image or `Frame` (`{ image, x, y, w, h }`), anchored at `origin` (default centre). Options: `origin`, `scaleX`, `scaleY`, `rotation` (radians), `flipX`, `flipY`, `alpha`, `tint`, `flash` (0-1 toward white), `smooth`, and from 0.16 `user` and `user2` (floats a custom shader reads as `user()` and `user2()`, see below). **Doesn't allocate:** reuse one options object in hot loops. A game with many call sites that pass different options should build each object with `spriteOptions()` (0.13+, below). |
 | `sprites(frame, positions, count?, options?, each?)` | One frame at many positions: particles, bullets, swarms. `positions` is x, y pairs. On WebGL2, a reused `Float32Array` is uploaded to the GPU as is, with **no JavaScript work per copy**. Other array types are copied into a staging array first, and on the Canvas 2D fallback each copy is drawn as its own quad. Inside `withShader` it stays instanced (before 0.8 it drew one quad per copy there). `options` apply to every copy. `each` adds per-copy values: `scale` (Float32Array), `rotation` (Float32Array, radians) `color` (Uint32Array of `0xRRGGBBAA`, multiplied with the tint), `frame` (an index per copy into the `Frame[]` passed as the first argument, for a belt of different items or an animation at different phases) and, from 0.13, `user` (one float per copy that a custom shader reads as `user()`, see below). Per-copy values combine with `options`: scale multiplies `scaleX`/`scaleY` (flips still apply), rotation adds to `rotation`, colour multiplies the tint per channel, and alpha is `options.alpha` × tint alpha × colour alpha × `draw.alpha`. Scale, rotation and colour are uploaded as is; `frame` is expanded into a uv and size per copy. For interleaved data, see below. Frames on one image stay one draw call; frames across images fall back to one quad per copy, and since 0.12.3 spryte warns about that once in development (`import.meta.env.DEV`). `count` is clamped to the shortest array, and a `NaN` or negative count draws nothing. The output is pixel-identical to a `sprite()` loop with the same values, including pixel snapping (checked on a real GPU by `npm run test:browser`). It's one draw call on WebGL2 and breaks the current batch. |
 | `text(text, x, y, options?)` | `font` (CSS string or `BitmapFont`), `color`, `align`, `baseline`, `alpha`. CSS text is rasterised once and cached (LRU, 256 entries). |
 | `measure(text, font?)` | Logical `{ w, h }` that `text()` fills. |
@@ -58,7 +58,7 @@ draw.sprites(dot, data, n, {}, { stride: 4, scale: 2, color: 3 });
 
 `count` is clamped to whole records, and an offset without `stride` throws.
 
-**Per-copy shader values** (0.13+): `each.user` gives every copy one float, which a custom shader reads as `user()`: a copy's place in a row for a staggered effect, a particle's age, a tile variant. It takes a `Float32Array` (or any number array), or an offset into the record with `stride`. `user()` is 0 for everything that isn't a `draw.sprites` copy (`sprite()`, `text()`, shapes), and without a custom shader the value does nothing. The Canvas 2D fallback ignores it, as it ignores shaders. A float holds whole numbers exactly up to 16,777,216. Its cost on the instanced path hasn't been measured yet.
+**Per-copy shader values** (0.13+): `each.user` gives every copy one float, which a custom shader reads as `user()`: a copy's place in a row for a staggered effect, a particle's age, a tile variant. It takes a `Float32Array` (or any number array), or an offset into the record with `stride`. From 0.16, `draw.sprite(frame, x, y, { user, user2 })` sets the same two values for one sprite, and the sprite stays in the batch: a per-sprite share, variant or flag no longer has to ride in the tint. Everything else (`text()`, shapes, a sprite that sets neither) reads 0. Before 0.16, `user()` was 0 for everything that wasn't a `draw.sprites` copy, `sprite()` included. Without a custom shader the values do nothing. The Canvas 2D fallback ignores it, as it ignores shaders. A float holds whole numbers exactly up to 16,777,216. Its cost on the instanced path hasn't been measured yet.
 
 A row of tiles in one `draw.sprites` call, each fading in a little after the one before it:
 
@@ -69,7 +69,7 @@ const place = new Float32Array(MAX);
 
 const stagger = draw.createShader(`
   uniform float time;
-  vec4 effect(vec4 color, vec2 uv) {
+  vec4 effect(vec4 color, highp vec2 uv) {
     float t = clamp((time - user() * 0.05) * 4.0, 0.0, 1.0); // each copy starts 50 ms after the last
     return source(uv) * color * t;
   }
@@ -177,7 +177,7 @@ A custom fragment effect for everything drawn inside a scope: dissolves, outline
 ```ts
 const wave = draw.createShader(`
   uniform float time;
-  vec4 effect(vec4 color, vec2 uv) {      // return the pixel; premultiplied colour
+  vec4 effect(vec4 color, highp vec2 uv) { // return the pixel; premultiplied colour
     uv.x += sin(uv.y * 40.0 + time * 6.0) * 0.01;
     return source(uv) * color;            // source(uv) samples the image being drawn
   }
@@ -188,9 +188,11 @@ draw.withShader(wave, () => draw.sprite(hero, x, y));
 
 - `color` is the draw's tint times alpha, premultiplied. Flash is applied after your effect.
 - `uv` is in texture (atlas) space: a sprite in an atlas covers only its frame's corner of it, and on a render target `uv.y` runs bottom to top. `frameUv()` gives the position inside the drawn frame, (0, 0) top left to (1, 1) bottom right, so use it for anything shaped by position. Since 0.10; before that, pass the frame's atlas rect as a uniform.
+- Declare `uv` as `highp vec2`, and keep any texture coordinate you compute in `highp`. Shaders run under `precision mediump float`, which is fp16 on many mobile GPUs: too coarse to address texels in images past about 1024 px. `source(uv)` takes a `highp` uv since 0.16. Before 0.16 it took a mediump one, so an effect sampled at fp16 on those GPUs whatever it declared; an unqualified `vec2 uv` still compiles and behaves that way.
 - `rect()`, `line()` and `circle()` run the effect too, and `frameUv()` covers each of them from (0, 0) to (1, 1). The vector shapes (`polygon`, `polyline`, `roundRect`, `ring`) and `mesh` draw without the effect. (Up to 0.12.3 this page said "shapes get (0, 0)", which was wrong for both.)
 - Shaders compile on first use. Errors throw with the driver's message, and line numbers refer to your source. A shader that fails to compile leaves the renderer as it was, and using it again throws again.
 - `set()` affects only draws made after it, even inside the same scope.
+- A shader switch (`withShader`) and a uniform change each end the batch: the sprites queued so far draw first. Since 0.16, `set()` with the value a uniform already has keeps the batch (numbers and arrays compare by value; a texture, or the same array object passed again, still ends it). To vary an effect per sprite, wrap the whole walk in one `withShader` and carry the per-sprite value in the draw (`each.user` on `sprites()`), rather than calling `set()` or `withShader` around each sprite.
 - `set()` on a uniform the GLSL compiler removed (declared but never read) does nothing, whatever the value.
 - Shaders compose with render targets: draw into a target, then draw the target through a shader for full-screen post-processing.
 - `sprites()` inside `withShader` stays one instanced draw: spryte compiles your effect a second time against its per-copy program. Inside `effect`, only `source(uv)`, `color`, `uv`, `frameUv()` and `user()` (since 0.13) are guaranteed there, plus your uniforms (arrays and textures too, since 0.13). Frames across images still draw one quad per copy. Before 0.8, `sprites()` inside `withShader` always fell back to one quad per copy, which was correct but without the bulk speed-up.
@@ -203,7 +205,7 @@ Since 0.13, `set()` also takes a uniform array or a texture.
 const fx = draw.createShader(`
   uniform vec4 pool[64];
   uniform sampler2D noise;
-  vec4 effect(vec4 color, vec2 uv) {
+  vec4 effect(vec4 color, highp vec2 uv) {
     vec4 p = pool[int(frameUv().x * 63.0)];
     return source(uv) * color * p.a * texture(noise, frameUv()).r;
   }
@@ -216,6 +218,7 @@ fx.set("noise", noiseCanvas, { smooth: true });  // image, canvas, ImageBitmap o
 - Four numbers on a `float[4]` set the array. On a plain `vec4` they set the vector, as before. One element by name, `set("pool[2]", [x, y, z, w])`, works as before too, and an array there fills from that element on.
 - Textures: a `sampler2D` takes anything `draw.sprite` takes as an image. Read it with `texture(name, uv)`, where `uv` runs 0 to 1 across the whole texture, from the top row of an image but from the bottom row of a render target. Colours are premultiplied. Filtering is nearest unless you pass `{ smooth: true }`.
 - A shader can't sample the render target it draws into: `set()`, `withShader` or `into()` throws when that would happen.
+- Images upload premultiplied, so a pixel's colour is multiplied by its alpha and lost where alpha is 0. For data packed into RGBA (timings, indices), mark the image with `asData(image, { premultiply: false })` before its first use (0.16+): it uploads with straight alpha under either blend space. That works for an `<img>`; a canvas already stores premultiplied pixels, and an `ImageBitmap` needs `createImageBitmap(blob, { premultiplyAlpha: "none" })`. Read such an image with `texture()` in a shader: drawn as a sprite, straight alpha blends wrong. Before 0.16 every upload was premultiplied.
 - Each `sampler2D` gets its own texture unit from 8 up, because units 0 to 7 hold the sprites in a batch. WebGL2 guarantees 16 units, so a shader can count on 8 textures. A shader that reads more textures than the GPU has units for throws when first used.
 - Wrong values are checked when the shader is first used inside `withShader`, and at `set()` while it is in use. A wrong kind throws too: a texture on a `float`, or an array on a `sampler2D`.
 
@@ -224,7 +227,7 @@ An overlay that only darkens or tints the screen, such as a vignette, needs no t
 ```ts
 const vignette = draw.createShader(`
   uniform float strength;
-  vec4 effect(vec4 color, vec2 uv) {
+  vec4 effect(vec4 color, highp vec2 uv) {
     float d = distance(frameUv(), vec2(0.5));   // 0 at the centre of the rect, about 0.7 in its corners
     return color * clamp(d * strength, 0.0, 1.0);
   }

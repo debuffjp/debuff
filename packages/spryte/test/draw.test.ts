@@ -98,7 +98,20 @@ describe("Draw", () => {
 
   it("spriteOptions() gives every field, in one order, so all its objects share one shape", () => {
     const empty = spriteOptions();
-    expect(Object.keys(empty)).toEqual(["origin", "scaleX", "scaleY", "rotation", "flipX", "flipY", "alpha", "tint", "flash", "smooth"]);
+    expect(Object.keys(empty)).toEqual([
+      "origin",
+      "scaleX",
+      "scaleY",
+      "rotation",
+      "flipX",
+      "flipY",
+      "alpha",
+      "tint",
+      "flash",
+      "smooth",
+      "user",
+      "user2",
+    ]);
     expect(Object.values(empty).every((v) => v === undefined)).toBe(true);
     const set = spriteOptions({ tint: "#f00", smooth: true, rotation: 1 });
     expect(Object.keys(set)).toEqual(Object.keys(empty));
