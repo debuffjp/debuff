@@ -49,6 +49,12 @@ export interface GameOptions {
    * Both implement the same `draw` API (ADR 0007).
    */
   renderer?: "auto" | "webgl2" | "2d";
+  /**
+   * Where colours mix when drawn over each other: spryte's `blendSpace`. `"srgb"` (default) mixes sRGB bytes as
+   * CSS does; `"linear"` mixes in linear light, so anti-aliased edges keep their weight and glows add up like
+   * light, for one extra full-screen pass. WebGL2 only. Mark data images with `asData` under `"linear"`. Since 0.34.
+   */
+  blendSpace?: "srgb" | "linear";
   seed?: number;
   clock?: FixedClockOptions;
   /** Opaque background colour, cleared every frame. Default "#000". */
@@ -174,7 +180,11 @@ export class Game {
     this.clock = new FixedClock(options.clock);
     this.random = new Random(options.seed ?? 1);
     this.background = options.background ?? "#000";
-    this.draw = createRenderer(this.canvas, { backend: options.renderer ?? "auto", smooth: !this.pixelArt });
+    this.draw = createRenderer(this.canvas, {
+      backend: options.renderer ?? "auto",
+      smooth: !this.pixelArt,
+      ...(options.blendSpace && { blendSpace: options.blendSpace }),
+    });
     this.draw.font = debuffSans;
     this.camera = new Camera({ width: this.width, height: this.height });
     this.camera.x = this.width / 2;
