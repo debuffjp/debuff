@@ -57,12 +57,12 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@clack/prompts": "^1.8.1",
+    "@clack/prompts": "^1.9.0",
     "create-debuff": "0.33.2",
     "fast-png": "^8.0.0",
     "keiko": "0.9.0",
-    "playwright-core": "^1.64.1",
-    "vite": "^8.3.5"
+    "playwright-core": "^1.65.0",
+    "vite": "^8.3.7"
   },
   "devDependencies": {
     "@types/node": "^26.6.6"
