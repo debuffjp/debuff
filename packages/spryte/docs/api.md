@@ -69,7 +69,7 @@ const place = new Float32Array(MAX);
 
 const stagger = draw.createShader(`
   uniform float time;
-  vec4 effect(vec4 color, vec2 uv) {
+  vec4 effect(vec4 color, highp vec2 uv) {
     float t = clamp((time - user() * 0.05) * 4.0, 0.0, 1.0); // each copy starts 50 ms after the last
     return source(uv) * color * t;
   }
@@ -177,7 +177,7 @@ A custom fragment effect for everything drawn inside a scope: dissolves, outline
 ```ts
 const wave = draw.createShader(`
   uniform float time;
-  vec4 effect(vec4 color, vec2 uv) {      // return the pixel; premultiplied colour
+  vec4 effect(vec4 color, highp vec2 uv) { // return the pixel; premultiplied colour
     uv.x += sin(uv.y * 40.0 + time * 6.0) * 0.01;
     return source(uv) * color;            // source(uv) samples the image being drawn
   }
@@ -188,6 +188,7 @@ draw.withShader(wave, () => draw.sprite(hero, x, y));
 
 - `color` is the draw's tint times alpha, premultiplied. Flash is applied after your effect.
 - `uv` is in texture (atlas) space: a sprite in an atlas covers only its frame's corner of it, and on a render target `uv.y` runs bottom to top. `frameUv()` gives the position inside the drawn frame, (0, 0) top left to (1, 1) bottom right, so use it for anything shaped by position. Since 0.10; before that, pass the frame's atlas rect as a uniform.
+- Declare `uv` as `highp vec2`, and keep any texture coordinate you compute in `highp`. Shaders run under `precision mediump float`, which is fp16 on many mobile GPUs: too coarse to address texels in images past about 1024 px. `source(uv)` takes a `highp` uv since 0.16. Before 0.16 it took a mediump one, so an effect sampled at fp16 on those GPUs whatever it declared; an unqualified `vec2 uv` still compiles and behaves that way.
 - `rect()`, `line()` and `circle()` run the effect too, and `frameUv()` covers each of them from (0, 0) to (1, 1). The vector shapes (`polygon`, `polyline`, `roundRect`, `ring`) and `mesh` draw without the effect. (Up to 0.12.3 this page said "shapes get (0, 0)", which was wrong for both.)
 - Shaders compile on first use. Errors throw with the driver's message, and line numbers refer to your source. A shader that fails to compile leaves the renderer as it was, and using it again throws again.
 - `set()` affects only draws made after it, even inside the same scope.
@@ -204,7 +205,7 @@ Since 0.13, `set()` also takes a uniform array or a texture.
 const fx = draw.createShader(`
   uniform vec4 pool[64];
   uniform sampler2D noise;
-  vec4 effect(vec4 color, vec2 uv) {
+  vec4 effect(vec4 color, highp vec2 uv) {
     vec4 p = pool[int(frameUv().x * 63.0)];
     return source(uv) * color * p.a * texture(noise, frameUv()).r;
   }
@@ -225,7 +226,7 @@ An overlay that only darkens or tints the screen, such as a vignette, needs no t
 ```ts
 const vignette = draw.createShader(`
   uniform float strength;
-  vec4 effect(vec4 color, vec2 uv) {
+  vec4 effect(vec4 color, highp vec2 uv) {
     float d = distance(frameUv(), vec2(0.5));   // 0 at the centre of the rect, about 0.7 in its corners
     return color * clamp(d * strength, 0.0, 1.0);
   }

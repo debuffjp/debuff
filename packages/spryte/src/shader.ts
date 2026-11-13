@@ -22,7 +22,9 @@ export interface ShaderTextureOptions {
 /**
  * A custom fragment effect, applied to everything drawn inside `draw.withShader(shader, fn)`.
  *
- * The source defines `vec4 effect(vec4 color, vec2 uv)`, which returns the pixel's colour. `color` is the
+ * The source defines `vec4 effect(vec4 color, highp vec2 uv)`, which returns the pixel's colour. Keep `uv` and any
+ * texture coordinate you compute `highp`: the default precision is mediump, fp16 on many mobile GPUs, too coarse
+ * for images past about 1024 px (before 0.16, `source(uv)` itself dropped uv to mediump). `color` is the
  * draw's tint and alpha, premultiplied. `source(uv)` samples the image being drawn. `uv` is in texture (atlas)
  * space, so it isn't 0 to 1 across a sprite packed into an atlas, and on a render target `uv.y` runs bottom to top:
  * `frameUv()` gives the position inside the drawn frame instead, from (0, 0) at its top left to (1, 1) at its
@@ -36,7 +38,7 @@ export interface ShaderTextureOptions {
  * ```ts
  * const wave = draw.createShader(`
  *   uniform float time;
- *   vec4 effect(vec4 color, vec2 uv) {
+ *   vec4 effect(vec4 color, highp vec2 uv) {
  *     uv.x += sin(uv.y * 40.0 + time * 6.0) * 0.01;
  *     return source(uv) * color;
  *   }
@@ -51,7 +53,7 @@ export interface ShaderTextureOptions {
  * const fx = draw.createShader(`
  *   uniform vec4 pool[64];
  *   uniform sampler2D noise;
- *   vec4 effect(vec4 color, vec2 uv) {
+ *   vec4 effect(vec4 color, highp vec2 uv) {
  *     float n = texture(noise, frameUv()).r;
  *     return source(uv) * color * pool[0].a * n;
  *   }
@@ -74,7 +76,7 @@ export class Shader {
   onChange: ((name: string, value: UniformValue | UniformArray | TextureSource) => void) | undefined;
 
   constructor(readonly source: string) {
-    if (!/\bvec4\s+effect\s*\(/.test(source)) throw new Error("spryte: a shader must define `vec4 effect(vec4 color, vec2 uv)`");
+    if (!/\bvec4\s+effect\s*\(/.test(source)) throw new Error("spryte: a shader must define `vec4 effect(vec4 color, highp vec2 uv)`");
   }
 
   /**

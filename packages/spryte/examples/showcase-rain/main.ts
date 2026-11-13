@@ -18,7 +18,7 @@ const target = draw.createTarget(W * 2, H * 2);
 // Water surface: gentle two-direction wobble plus a soft vignette, in one pass over the target.
 const water = draw.createShader(`
   uniform float time;
-  vec4 effect(vec4 color, vec2 uv) {
+  vec4 effect(vec4 color, highp vec2 uv) {
     vec2 p = uv;
     p.x += sin(uv.y * 22.0 + time * 1.3) * 0.0035 + sin(uv.y * 7.0 - time * 0.8) * 0.0025;
     p.y += sin(uv.x * 18.0 + time * 1.1) * 0.0035 + sin(uv.x * 5.0 + time * 0.7) * 0.0025;
@@ -31,7 +31,7 @@ const water = draw.createShader(`
 
 // A smooth radial glow, drawn as one rect: frameUv() runs 0..1 over the rect, so the falloff has no steps.
 const glow = draw.createShader(`
-  vec4 effect(vec4 color, vec2 uv) {
+  vec4 effect(vec4 color, highp vec2 uv) {
     float d = distance(frameUv(), vec2(0.72, 0.3));
     float k = pow(1.0 - smoothstep(0.0, 0.5, d), 2.0) * 0.16;
     return vec4(1.0, 0.84, 0.63, 1.0) * k;

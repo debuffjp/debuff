@@ -51,7 +51,7 @@ Without `stride`, `each` takes arrays instead: `scale`, `rotation` (`Float32Arra
 ```ts
 const wave = draw.createShader(`
   uniform float time;
-  vec4 effect(vec4 color, vec2 uv) {   // premultiplied in and out
+  vec4 effect(vec4 color, highp vec2 uv) {   // premultiplied in and out
     uv.x += sin(uv.y * 40.0 + time * 6.0) * 0.01;
     return source(uv) * color;         // source(uv) samples the drawn image; frameUv() is 0..1 inside the frame
   }`);

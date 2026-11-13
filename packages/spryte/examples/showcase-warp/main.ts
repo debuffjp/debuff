@@ -30,18 +30,18 @@ dot.width = dot.height = 32;
 
 // A faint blue glow at the vanishing point, and a vignette. Both are one rect with a smooth falloff.
 const core = draw.createShader(`
-  vec4 effect(vec4 color, vec2 uv) {
+  vec4 effect(vec4 color, highp vec2 uv) {
     float d = distance(frameUv(), vec2(0.5, 0.5));
     float k = pow(1.0 - smoothstep(0.0, 0.5, d), 2.2) * 0.1;
     return vec4(0.32, 0.5, 1.0, 1.0) * k;
   }`);
 const backing = draw.createShader(`
-  vec4 effect(vec4 color, vec2 uv) {
+  vec4 effect(vec4 color, highp vec2 uv) {
     vec2 p = (frameUv() - vec2(0.5, 0.5)) * vec2(2.0, 2.0);
     return vec4(0.0, 0.0, 0.0, 1.0) * (1.0 - smoothstep(0.35, 1.0, length(p))) * 0.75;
   }`);
 const vignette = draw.createShader(`
-  vec4 effect(vec4 color, vec2 uv) {
+  vec4 effect(vec4 color, highp vec2 uv) {
     float d = distance(frameUv(), vec2(0.5, 0.5));
     return vec4(0.0, 0.0, 0.0, smoothstep(0.45, 0.95, d) * 0.7);
   }`);

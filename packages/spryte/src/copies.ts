@@ -41,7 +41,7 @@ export interface SpritesEach {
    * ```ts
    * const fade = draw.createShader(`
    *   uniform float time;
-   *   vec4 effect(vec4 color, vec2 uv) {
+   *   vec4 effect(vec4 color, highp vec2 uv) {
    *     float t = clamp((time - user() * 0.05) * 4.0, 0.0, 1.0); // each copy starts 50 ms after the last
    *     return source(uv) * color * t;
    *   }

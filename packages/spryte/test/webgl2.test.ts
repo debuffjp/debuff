@@ -72,6 +72,28 @@ describe("WebGL2Backend", () => {
     expect(shaderSources[1]).toContain("in highp vec2 v_uv");
   });
 
+  it("keeps uv highp through source() and spryte's own effects, in every program a shader compiles into", () => {
+    const { gl, shaderSources } = fakeGL();
+    const draw = new Draw(new WebGL2Backend(gl), false);
+    const fx = new Shader("vec4 effect(vec4 color, highp vec2 uv) { return source(uv) * color; }");
+    draw.begin("#000", 100, 50, 1);
+    draw.sprite(image(), 0, 0);
+    draw.withShader(fx, () => {
+      draw.sprite(image(), 10, 10);
+      draw.sprites(image(), new Float32Array([1, 2, 3, 4]), 2);
+    });
+    filter(draw, [blur(2)], () => draw.sprite(image(), 0, 0));
+    draw.end();
+    const frags = shaderSources.filter((s) => s.includes("vec4 source("));
+    // The batch and per-copy headers, each with the built-in effect, the custom one and the blur.
+    expect(frags.length).toBeGreaterThanOrEqual(4);
+    for (const s of frags) {
+      expect(s).toContain("vec4 source(highp vec2 uv)");
+      // A parameter without a qualifier is mediump here: fp16 on many mobile GPUs.
+      expect(s).not.toMatch(/\((?:[^()]*,\s*)?vec2 uv\b/);
+    }
+  });
+
   it("uploads a source once even when drawn both smooth and pixelated", () => {
     const { gl, count, calls } = fakeGL();
     const be = new WebGL2Backend(gl);

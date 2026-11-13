@@ -63,7 +63,7 @@ function makeRenderer(): void {
     draw.kind === "webgl2"
       ? draw.createShader(`
           uniform float seed;
-          vec4 effect(vec4 color, vec2 uv) {
+          vec4 effect(vec4 color, highp vec2 uv) {
             vec4 c = source(uv) * color;
             float n = fract(sin(dot(uv * 913.0 + seed, vec2(12.9898, 78.233))) * 43758.5453);
             c.rgb += (n - 0.5) * 0.06 * c.a;

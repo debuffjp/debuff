@@ -186,7 +186,7 @@ in vec4 v_color;
 uniform sampler2D u_tex;
 uniform float u_flash;
 out vec4 outColor;
-vec4 source(vec2 uv) { return texture(u_tex, uv); }
+vec4 source(highp vec2 uv) { return texture(u_tex, uv); }
 in highp vec2 v_local;
 vec2 frameUv() { return v_local; }
 in highp float v_user;
@@ -368,7 +368,7 @@ in float v_flash;
 flat in int v_unit;
 uniform sampler2D u_tex[${UNITS}];
 out vec4 outColor;
-vec4 source(vec2 uv) {
+vec4 source(highp vec2 uv) {
   ${Array.from({ length: UNITS }, (_, i) => `if (v_unit == ${i}) return texture(u_tex[${i}], uv);`).join("\n  ")}
   return vec4(1.0);
 }
@@ -386,7 +386,7 @@ void main() {
   outColor = vec4(mix(t.rgb, vec3(t.a), v_flash), t.a);
 }`;
 
-const FRAG = `${FRAG_HEADER}vec4 effect(vec4 color, vec2 uv) { return source(uv) * color; }${FRAG_MAIN}`;
+const FRAG = `${FRAG_HEADER}vec4 effect(vec4 color, highp vec2 uv) { return source(uv) * color; }${FRAG_MAIN}`;
 
 /** Linear mode's last pass: the sRGB framebuffer onto the canvas, one full-screen quad. */
 const PRESENT_VERT = `#version 300 es
