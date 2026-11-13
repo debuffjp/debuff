@@ -28,6 +28,8 @@ export interface AssetEntry {
   grid?: { frameWidth: number; frameHeight: number };
   /** Region of `src` holding this image, when it was packed into an atlas. */
   rect?: { x: number; y: number; w: number; h: number };
+  /** GPU-compressed KTX2 copies of `src` by format, written when `assets.compress` is on. */
+  compressed?: Partial<Record<"bc7" | "etc2" | "astc4x4", string>>;
   /** Explicit frames, for `sheet` entries. */
   frames?: SheetFrame[];
   animations?: Record<string, SheetAnimation>;

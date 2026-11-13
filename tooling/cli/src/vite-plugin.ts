@@ -3,6 +3,7 @@ import { extname, join, relative, resolve, sep } from "node:path";
 import type { Plugin, PluginOption } from "vite";
 import { attachAgentLink } from "./agent-link.js";
 import type { AtlasOptions } from "./assets/atlas.js";
+import type { CompressOptions } from "./assets/compile.js";
 import { type CompileResult, compileAssets } from "./assets/compile.js";
 import { writeAssetTypes } from "./assets/types.js";
 import { autoPapercut, bugSignal } from "./papercut.js";
@@ -75,6 +76,7 @@ const MIME: Record<string, string> = {
   ".webp": "image/webp",
   ".avif": "image/avif",
   ".gif": "image/gif",
+  ".ktx2": "image/ktx2",
   ".json": "application/json",
   ".ogg": "audio/ogg",
   ".opus": "audio/ogg",
@@ -88,6 +90,8 @@ export interface DebuffViteOptions {
   plugins?: ToolingPlugin[];
   /** Atlas packing options; `false` disables. Default on. */
   atlas?: AtlasOptions | false;
+  /** GPU-compressed KTX2 copies of PNG images; off unless given. */
+  compress?: CompressOptions | false;
   /**
    * Relay agent commands to the game open in the browser, and report bugs the dev tools catch inside debuff as
    * automatic papercuts (`debuff dev` turns this on). Default false.
@@ -109,6 +113,7 @@ export function debuff(options: DebuffViteOptions = {}): PluginOption[] {
     const p = compileAssets(root, {
       plugins: options.plugins ?? [],
       ...(options.atlas === undefined ? {} : { atlas: options.atlas }),
+      ...(options.compress ? { compress: options.compress } : {}),
     }).then((r) => {
       for (const w of r.warnings) console.warn(`[debuff] ${w}`);
       writeAssetTypes(root, r.manifest);
@@ -275,7 +280,7 @@ export function debuff(options: DebuffViteOptions = {}): PluginOption[] {
       const r = await latest();
       const images = new Set<string>();
       for (const a of Object.values(r.manifest.assets))
-        if (a.type === "image" && !a.group) images.add(a.hash ? `${a.src}?v=${a.hash}` : a.src);
+        if (a.type === "image" && !a.group && !a.compressed) images.add(a.hash ? `${a.src}?v=${a.hash}` : a.src);
       return [
         ...(serving ? [{ tag: "script", attrs: { type: "module", src: RELOAD_CLIENT }, injectTo: "head" as const }] : []),
         {

@@ -221,3 +221,44 @@ describe("cache busting", () => {
     expect(fetch.mock.calls.map((c) => c[0]).sort()).toEqual(["assets/cfg.json?v=abc123", "assets/raw.json"]);
   });
 });
+
+describe("compressed textures", () => {
+  const atlas = {
+    src: "assets/_atlas/default-0.png",
+    hash: "abc",
+    compressed: { bc7: "assets/_ktx2/_atlas/default-0.png.bc7.ktx2", astc4x4: "assets/_ktx2/_atlas/default-0.png.astc4x4.ktx2" },
+  };
+  const packed: AssetManifest = {
+    version: 1,
+    assets: {
+      hero: { type: "image", ...atlas, rect: { x: 0, y: 0, w: 8, h: 8 } },
+      coin: { type: "image", ...atlas, rect: { x: 8, y: 0, w: 4, h: 4 } },
+    },
+  };
+  const parse = (bytes: Uint8Array) => ({ width: 64, height: 32, format: "bc7" as const, levels: [bytes], premultiplied: true });
+
+  it("loads the variant the GPU decodes, once per file, and frames it", async () => {
+    const fetch = stubFetch();
+    const assets = new Assets(packed, "/", { compressed: { formats: new Set(["astc4x4", "etc2"]), parse } });
+    await assets.load();
+    expect(fetch.mock.calls.map(([url]) => url)).toEqual(["/assets/_ktx2/_atlas/default-0.png.astc4x4.ktx2?v=abc"]);
+    expect(assets.frame("coin")).toMatchObject({ image: { width: 64, height: 32 }, x: 8, y: 0, w: 4, h: 4 });
+    expect(assets.frame("hero").image).toBe(assets.frame("coin").image);
+  });
+
+  it("falls back to the PNG when no variant fits", async () => {
+    stubFetch();
+    class FakeImage {
+      onload?: () => void;
+      naturalWidth = 16;
+      set src(_: string) {
+        queueMicrotask(() => this.onload?.());
+      }
+      decode = () => Promise.resolve();
+    }
+    vi.stubGlobal("Image", FakeImage);
+    const assets = new Assets(packed, "/", { compressed: { formats: new Set(), parse } });
+    await assets.load();
+    expect(assets.frame("hero").image).toBeInstanceOf(FakeImage);
+  });
+});

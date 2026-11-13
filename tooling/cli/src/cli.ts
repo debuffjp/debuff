@@ -246,7 +246,11 @@ cli
   .action(async (o: Common) => {
     const root = rootOf(o);
     const config = await loadConfig(root);
-    const { manifest, warnings, importedBy, outputs } = await compileAssets(root, { plugins: config.plugins, atlas: config.atlas });
+    const { manifest, warnings, importedBy, outputs } = await compileAssets(root, {
+      plugins: config.plugins,
+      atlas: config.atlas,
+      compress: config.compress,
+    });
     writeAssetTypes(root, manifest);
     const unused = findUnused(root, manifest);
     const count = Object.keys(manifest.assets).length;

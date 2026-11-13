@@ -24,6 +24,7 @@ export async function viteConfig(
     plugins: debuff({
       plugins: resolved.plugins,
       atlas: resolved.atlas,
+      compress: resolved.compress,
       agentLink: link.agentLink ?? false,
       typecheck: resolved.typecheck,
     }),

@@ -15,6 +15,8 @@ export interface AssetEntry {
   bytes?: number;
   /** Content hash from the build; appended as `?v=` so a redeploy never mixes cached files. */
   hash?: string;
+  /** GPU-compressed copies of `src` by format ("bc7", "etc2", "astc4x4"), when the build wrote them. Since 0.35. */
+  compressed?: Partial<Record<string, string>>;
 }
 
 export interface AssetManifest {
@@ -48,9 +50,32 @@ export interface LoadProgress {
   total: number;
 }
 
+/** A GPU-compressed image: the shape of spryte's `CompressedTexture`, which `parseKtx2` returns. */
+export interface CompressedImage {
+  readonly width: number;
+  readonly height: number;
+  readonly format: "bc7" | "etc2" | "astc4x4";
+  readonly levels: readonly Uint8Array[];
+  readonly premultiplied: boolean;
+}
+
+/** Options for {@link Assets}. */
+export interface AssetsOptions {
+  /**
+   * Load GPU-compressed copies of images (written by `assets.compress` in debuff.config) instead of PNGs. Pass
+   * the formats the renderer decodes and the parser: `{ formats: draw.compressedFormats, parse: parseKtx2 }`.
+   * An image without a matching copy loads as PNG. Since 0.35.
+   */
+  compressed?: { formats: ReadonlySet<string>; parse: (bytes: Uint8Array) => CompressedImage };
+}
+
+// Most compact first; any of them is a quarter of the PNG's memory, so the order only breaks ties.
+const PREFERENCE = ["astc4x4", "bc7", "etc2"];
+
 /** An image region, structurally compatible with `@debuffjp/core`'s `Frame`. */
 export interface ImageFrame {
-  image: HTMLImageElement;
+  /** Since 0.35 it can be a compressed image, when the loader was given `compressed`. */
+  image: HTMLImageElement | CompressedImage;
   x: number;
   y: number;
   w: number;
@@ -110,6 +135,7 @@ export class Assets {
   constructor(
     readonly manifest: AssetManifest,
     private readonly base = "",
+    private readonly options: AssetsOptions = {},
   ) {
     if (typeof import.meta.env !== "undefined" && import.meta.env.DEV === true) listenForChanges(this);
   }
@@ -159,14 +185,19 @@ export class Assets {
         `Asset "${id}" is packed into an atlas. Use assets.frame("${id}") (or frames() for sprite sheets) with draw.sprite.`,
       );
     }
-    return this.get(id, "image") as HTMLImageElement;
+    const image = this.get(id, "image");
+    if (!("naturalWidth" in (image as object)) && this.entry(id).compressed)
+      throw new AssetError(id, `Asset "${id}" loaded as a compressed texture. Use assets.frame("${id}") with draw.sprite.`);
+    return image as HTMLImageElement;
   }
 
   /** The image region for an asset: `{ image, x, y, w, h }`, ready for `draw.sprite`. Works whether or not it was atlased. */
   frame(id: AssetId<"image">): ImageFrame {
-    const image = this.get(id, "image") as HTMLImageElement;
+    const image = this.get(id, "image") as HTMLImageElement | CompressedImage;
     const rect = this.entry(id).rect;
-    return rect ? { image, ...rect } : { image, x: 0, y: 0, w: image.naturalWidth || image.width, h: image.naturalHeight || image.height };
+    const w = "naturalWidth" in image ? image.naturalWidth || image.width : image.width;
+    const h = "naturalHeight" in image ? image.naturalHeight || image.height : image.height;
+    return rect ? { image, ...rect } : { image, x: 0, y: 0, w, h };
   }
 
   /**
@@ -208,6 +239,14 @@ export class Assets {
     return this.base + e.src + (e.hash ? `?v=${e.hash}` : "");
   }
 
+  /** The compressed copy of an image to load instead of its PNG, if the loader was given formats that match one. */
+  private variant(entry: AssetEntry): string | undefined {
+    const formats = this.options.compressed?.formats;
+    if (!formats || !entry.compressed) return undefined;
+    const format = PREFERENCE.find((f) => formats.has(f) && entry.compressed?.[f]);
+    return format ? entry.compressed[format] : undefined;
+  }
+
   entry(id: AssetId): AssetEntry {
     const e = this.manifest.assets[id];
     if (!e) throw new AssetError(id, `Unknown asset "${id}". ${suggest(id, Object.keys(this.manifest.assets))}`);
@@ -220,10 +259,12 @@ export class Assets {
     const existing = this.pending.get(id);
     if (existing) return existing;
     const entry = this.entry(id);
-    const url = this.url(id);
+    const variant = this.variant(entry);
+    const url = variant ? this.base + variant + (entry.hash ? `?v=${entry.hash}` : "") : this.url(id);
     let shared = this.byUrl.get(url);
     if (!shared) {
-      shared = loadOne(entry.type, url);
+      const parse = this.options.compressed?.parse;
+      shared = variant && parse ? loadCompressed(url, parse) : loadOne(entry.type, url);
       this.byUrl.set(url, shared);
       shared.catch(() => this.byUrl.delete(url));
     }
@@ -299,6 +340,12 @@ export class Assets {
     }
     return this.cache.get(id);
   }
+}
+
+async function loadCompressed(url: string, parse: (bytes: Uint8Array) => CompressedImage): Promise<Loaded> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return parse(new Uint8Array(await res.arrayBuffer()));
 }
 
 async function loadOne(type: AssetType, url: string): Promise<Loaded> {

@@ -5,6 +5,7 @@ import type { AssetImporter, CompiledEntry, GeneratedFile, ImportResult, SourceF
 import { type AtlasOptions, buildAtlases } from "./atlas.js";
 import { builtinImporter } from "./builtin.js";
 import { runCommandImporter } from "./command.js";
+import { COMPRESSED_FORMATS, type CompressedFormat, compressPng } from "./ktx2.js";
 import { tentenImporter } from "./tenten.js";
 
 export interface CompiledManifest {
@@ -69,6 +70,15 @@ export interface CompileOptions {
   cache?: boolean;
   /** Pack PNG images into atlases per preload group. Default on; `false` disables. */
   atlas?: AtlasOptions | false;
+  /** Also write GPU-compressed KTX2 copies of every PNG (after atlas packing). Off unless given. */
+  compress?: CompressOptions | false;
+}
+
+export interface CompressOptions {
+  /** Formats to write. Default all three: BC7 (desktop), ASTC 4x4 and ETC2 (mobile). */
+  formats?: CompressedFormat[];
+  /** Asset ids to leave as PNG only; an id ending in `/` excludes a folder. */
+  exclude?: string[];
 }
 
 /**
@@ -158,6 +168,9 @@ export async function compileAssets(root: string, options: CompileOptions = {}):
       useCache ? join(root, ".debuff", "cache", "atlas") : undefined,
       warnings,
     );
+
+  if (options.compress)
+    await compressImages(dir, assets, outputs, options.compress, useCache ? join(root, ".debuff", "cache", "ktx2") : undefined, warnings);
 
   const sorted = Object.fromEntries(Object.entries(assets).sort(([a], [b]) => (a < b ? -1 : 1)));
   return { manifest: { version: 1, assets: sorted }, outputs, warnings, importedBy };
@@ -276,6 +289,58 @@ function packAtlases(
       }
     });
   }
+}
+
+/**
+ * KTX2 copies of each image's final PNG (an atlas or a standalone image), under `_ktx2/`. Entries sharing an
+ * atlas share its files. A PNG that fails to encode stays PNG-only, with a warning.
+ */
+async function compressImages(
+  dir: string,
+  assets: Record<string, CompiledEntry>,
+  outputs: Map<string, Buffer>,
+  options: CompressOptions,
+  cacheDir: string | undefined,
+  warnings: string[],
+): Promise<void> {
+  const formats = options.formats ?? [...COMPRESSED_FORMATS];
+  const excluded = (id: string) => (options.exclude ?? []).some((e) => (e.endsWith("/") ? id.startsWith(e) : id === e));
+  const done = new Map<string, Partial<Record<CompressedFormat, string>>>();
+  for (const [id, entry] of Object.entries(assets)) {
+    if (entry.type !== "image" || !entry.src.toLowerCase().endsWith(".png") || excluded(id)) continue;
+    let variants = done.get(entry.src);
+    if (!variants) {
+      variants = {};
+      done.set(entry.src, variants);
+      const png = bytesOf(entry.src, dir, outputs);
+      if (!png) continue;
+      const rel = entry.src.slice("assets/".length);
+      const key = sha(Buffer.concat([png, Buffer.from(formats.join())]));
+      try {
+        const files = (cacheDir && readKtx2Cache(cacheDir, key, formats)) || (await compressPng(png, formats));
+        if (cacheDir) writeKtx2Cache(cacheDir, key, files);
+        for (const [format, file] of files) {
+          const path = `_ktx2/${rel}.${format}.ktx2`;
+          outputs.set(path, Buffer.from(file));
+          variants[format] = `assets/${path}`;
+        }
+      } catch (err) {
+        warnings.push(`${entry.src}: not compressed, ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+    if (Object.keys(variants).length) assets[id] = { ...entry, compressed: variants };
+  }
+}
+
+function readKtx2Cache(cacheDir: string, key: string, formats: CompressedFormat[]): Map<CompressedFormat, Uint8Array> | undefined {
+  const files = formats.map((f) => [f, join(cacheDir, `${key}.${f}.ktx2`)] as const);
+  if (!files.every(([, path]) => existsSync(path))) return undefined;
+  return new Map(files.map(([f, path]) => [f, readFileSync(path)]));
+}
+
+function writeKtx2Cache(cacheDir: string, key: string, files: Map<CompressedFormat, Uint8Array>): void {
+  mkdirSync(cacheDir, { recursive: true });
+  for (const [f, file] of files) writeFileSync(join(cacheDir, `${key}.${f}.ktx2`), file);
 }
 
 type CachedAtlas = { png: Uint8Array; width: number; height: number; rects: Map<string, { x: number; y: number; w: number; h: number }> };

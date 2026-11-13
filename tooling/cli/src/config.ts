@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { AtlasOptions } from "./assets/atlas.js";
+import type { CompressOptions } from "./assets/compile.js";
 import { DebuffError } from "./errors.js";
 import type { Embed } from "./isolation.js";
 import type { LaunchConfig } from "./launch.js";
@@ -14,6 +15,8 @@ export interface DebuffConfig {
   assets?: {
     /** Atlas packing for PNG images (default on). `false` disables it. */
     atlas?: AtlasOptions | false;
+    /** Write GPU-compressed KTX2 copies of PNG images (BC7, ASTC, ETC2) next to them. Off by default. Since 0.35. */
+    compress?: CompressOptions | boolean;
   };
   scenarios?: {
     /**
@@ -53,6 +56,7 @@ export interface ResolvedConfig {
   file: string | undefined;
   plugins: ToolingPlugin[];
   atlas: AtlasOptions | false;
+  compress: CompressOptions | false;
   /** `scenarios.viewport`, when set. */
   viewport?: [number, number];
   /** `scenarios.renderer`, when set. */
@@ -75,7 +79,7 @@ const NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 /** Load and validate `debuff.config.*` from `root`. A missing file is a valid empty config. */
 export async function loadConfig(root: string): Promise<ResolvedConfig> {
   const file = CONFIG_FILES.map((f) => join(root, f)).find((f) => existsSync(f));
-  if (!file) return { root, file: undefined, plugins: [], atlas: {}, launch: {}, typecheck: false, isolation: null };
+  if (!file) return { root, file: undefined, plugins: [], atlas: {}, compress: false, launch: {}, typecheck: false, isolation: null };
   try {
     return await readConfig(root, file);
   } catch (err) {
@@ -108,6 +112,7 @@ async function readConfig(root: string, file: string): Promise<ResolvedConfig> {
     file,
     plugins: validatePlugins(config.plugins ?? [], file),
     atlas: config.assets?.atlas ?? {},
+    compress: config.assets?.compress === true ? {} : (config.assets?.compress ?? false),
     launch: config.launch ?? {},
     typecheck: config.typecheck === true,
     isolation: resolveIsolation(config.isolation, file),

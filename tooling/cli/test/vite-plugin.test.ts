@@ -5,7 +5,7 @@ import type { Plugin } from "vite";
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 import { debuff, inspectProject, viteConfig } from "../src/index.js";
 
-function project(files: Record<string, string>): string {
+function project(files: Record<string, string | Uint8Array>): string {
   const root = mkdtempSync(join(tmpdir(), "debuff-vite-"));
   for (const [path, content] of Object.entries(files)) {
     const full = join(root, path);
@@ -15,8 +15,8 @@ function project(files: Record<string, string>): string {
   return root;
 }
 
-const corePlugin = (root: string) => {
-  const plugin = (debuff() as Plugin[])[0] as Plugin & Record<string, (...args: unknown[]) => unknown>;
+const corePlugin = (root: string, options: Parameters<typeof debuff>[0] = {}) => {
+  const plugin = (debuff(options) as Plugin[])[0] as Plugin & Record<string, (...args: unknown[]) => unknown>;
   plugin.configResolved({ root });
   return plugin;
 };
@@ -76,6 +76,13 @@ describe("debuff Vite plugin", () => {
       // Versioned like the runtime's fetch URL, so the preload is reused.
       ["assets/hero.png?v=#", "image"],
     ]);
+  });
+
+  it("doesn't preload the PNG of an image with compressed copies: the runtime may load a copy instead", async () => {
+    const pixel = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
+    const root = project({ "assets/hero.png": Buffer.from(pixel, "base64") });
+    const tags = (await corePlugin(root, { compress: { formats: ["bc7"] } }).transformIndexHtml()) as { attrs: Record<string, string> }[];
+    expect(tags.map((t) => t.attrs.href)).toEqual(["assets/manifest.json"]);
   });
 
   it("adds the state-preserving reload client in dev only", async () => {
