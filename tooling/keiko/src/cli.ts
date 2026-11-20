@@ -1,3 +1,4 @@
+import { availableParallelism } from "node:os";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { BaselineError, formatReport, mutate, type Outcome, type Report, writeOut } from "henka";
@@ -29,6 +30,9 @@ Options:
                         "default"). Give each loop its own: --queue push in a
                         pre-push hook still runs everything changed since the
                         last push, whatever ran in between
+  -j, --jobs <n>        Run test files in n worker processes at once, or "auto"
+                        for one per CPU core (default: 1). A file's tests
+                        always run together, in order, in one worker
       --root <dir>      Project root (default: the current folder)
       --json            Print a machine-readable report
       --out <dir>       Where keiko mutate writes its results (default: mutants.out)
@@ -52,6 +56,7 @@ export async function main(argv: string[]): Promise<number> {
       debuff: { type: "boolean" },
       changed: { type: "boolean" },
       queue: { type: "string" },
+      jobs: { type: "string", short: "j" },
       help: { type: "boolean", short: "h" },
     },
   });
@@ -60,6 +65,7 @@ export async function main(argv: string[]): Promise<number> {
     return 0;
   }
   const root = resolve(values.root ?? process.cwd());
+  const jobs = values.jobs === undefined ? 1 : parseJobs(values.jobs);
   if (positionals[0] === "init") return init(root);
   const mutating = positionals[0] === "mutate";
   const files = mutating ? positionals.slice(1) : positionals;
@@ -82,10 +88,23 @@ export async function main(argv: string[]): Promise<number> {
   // Every run records into its queue (it costs a few percent), so `--changed` always has the last run to compare with.
   const impact = { queue: values.queue ?? "default", ...(values.changed ? { changed: true } : {}) };
   if (mutating) return mutateCommand(options, resolve(root, values.out ?? "mutants.out"), values.json ?? false);
-  const report = await runTests({ ...options, ...impact, ...(values.json ? {} : { onResult: (r) => console.log(formatResult(r)) }) });
+  const report = await runTests({
+    ...options,
+    ...impact,
+    ...(jobs > 1 ? { jobs } : {}),
+    ...(values.json ? {} : { onResult: (r) => console.log(formatResult(r)) }),
+  });
   if (values.json) console.log(JSON.stringify(report, null, 2));
   else console.log(`\n${report.ok ? pc.green("✔") : pc.red("✖")} ${formatSummary(report)}\n`);
   return report.ok ? 0 : 1;
+}
+
+/** `--jobs 4`, or `--jobs auto` for one worker per CPU core. */
+function parseJobs(text: string): number {
+  if (text === "auto") return availableParallelism();
+  const n = Number(text);
+  if (!Number.isInteger(n) || n < 1) throw new Error(`--jobs takes a whole number of workers (1 or more) or "auto", not "${text}"`);
+  return n;
 }
 
 const MARK: Record<Outcome, string> = {

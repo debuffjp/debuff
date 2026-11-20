@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { availableParallelism } from "node:os";
 import { join, relative, resolve } from "node:path";
 import * as p from "@clack/prompts";
 import { amber, banner, lime, paint, pc, pink, sky } from "create-debuff";
@@ -334,15 +335,18 @@ cli
     return failed ? 1 : 0;
   });
 
+type TestOptions = Common & { filter?: string; acceptSaves?: boolean; changed?: boolean; queue?: string; jobs?: unknown };
+
 cli
   .command("test [...files]", "Run logic tests (tests/**/*.test.ts) against the real game in Node, no browser")
   .option("--root <dir>", "Project root")
   .option("-t, --filter <text>", "Only run tests whose name contains this text")
   .option("--changed", "Only run tests whose code or files changed since they last passed, plus new and failed ones")
   .option("--queue <name>", 'Queue to record into and compare with, e.g. "push" in a pre-push hook', { default: "default" })
+  .option("-j, --jobs <n>", 'Run test files in n worker processes at once, or "auto" for one per CPU core', { default: 1 })
   .option("--accept-saves", "Accept changes to the game's saves and update saves.json")
   .option("--json", "Machine-readable output")
-  .action(async (files: string[], o: Common & { filter?: string; acceptSaves?: boolean; changed?: boolean; queue?: string }) => {
+  .action(async (files: string[], o: TestOptions) => {
     const { runTests, formatResult, formatSummary, findTests } = await import("keiko/runner");
     const root = rootOf(o);
     if (!findTests(root, files).length) {
@@ -360,11 +364,15 @@ cli
       }
       return 0;
     }
+    const jobs = o.jobs === "auto" ? availableParallelism() : Number(o.jobs ?? 1);
+    if (!Number.isInteger(jobs) || jobs < 1)
+      throw new DebuffError("bad_option", `--jobs takes a whole number of workers or "auto", not "${o.jobs}"`, "Pass --jobs 4");
     if (!o.json) header("tests", "fast hands, no browser");
     const report = await runTests({
       root,
       files,
-      vite: await viteConfig(root),
+      // Workers load debuff's Vite config themselves: a config holds plugins, which can't cross to another process.
+      ...(jobs > 1 ? { jobs } : { vite: await viteConfig(root) }),
       debuff: true,
       // Every run records what each test used, so --changed can compare with the last run in its queue.
       queue: String(o.queue ?? "default"),

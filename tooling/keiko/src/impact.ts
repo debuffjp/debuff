@@ -59,6 +59,8 @@ export interface TestUse {
    * tests (a filter, named files) must not mark a setup change as seen for the tests it left out.
    */
   env?: string;
+  /** How long it took last time, in ms, so `jobs` can start the slowest files first. */
+  ms?: number;
 }
 
 interface QueueFile {
@@ -598,6 +600,8 @@ export class ImpactStore {
   private readonly file: string;
   private readonly previous: QueueFile | undefined;
   private readonly next: Record<string, TestUse>;
+  /** Tests this run recorded, for a worker to hand to the run that saves the queue. */
+  private readonly updated = new Set<string>();
   private inputs = new Set<string>();
 
   constructor(
@@ -766,11 +770,12 @@ export class ImpactStore {
   }
 
   /** Call when a test ends, with what it ran, to keep (passes) or mark (failures) in the queue. */
-  async endTest(id: string, status: "pass" | "fail", used: Map<string, RawUse>, server: ServerAccess): Promise<void> {
+  async endTest(id: string, status: "pass" | "fail", used: Map<string, RawUse>, server: ServerAccess, ms: number): Promise<void> {
     this.reading = false;
+    this.updated.add(id);
     const inputs = [...this.inputs];
     if (status === "fail") {
-      this.next[id] = { status, modules: {}, inputs: {}, env: this.env };
+      this.next[id] = { status, modules: {}, inputs: {}, env: this.env, ms };
       return;
     }
     const modules: Record<string, ModuleUse> = {};
@@ -793,7 +798,25 @@ export class ImpactStore {
       // A file that's gone still counts: if it comes back, the test is due.
       hashed[key] = h ?? "missing";
     }
-    this.next[id] = { status, modules, inputs: hashed, env: this.env };
+    this.next[id] = { status, modules, inputs: hashed, env: this.env, ms };
+  }
+
+  /** What this run recorded, by test id. */
+  recorded(): Record<string, TestUse> {
+    return Object.fromEntries([...this.updated].map((id) => [id, this.next[id] as TestUse]));
+  }
+
+  /** Take what other runs recorded (each `jobs` worker records its own files), to save it all at once. */
+  merge(tests: Record<string, TestUse>, env: string): void {
+    Object.assign(this.next, tests);
+    this.env = env;
+  }
+
+  /** How long each test took when it last ran, by id. */
+  lastMs(): Map<string, number> {
+    const out = new Map<string, number>();
+    for (const [id, use] of Object.entries(this.previous?.tests ?? {})) if (use.ms !== undefined) out.set(id, use.ms);
+    return out;
   }
 
   /** Drop tests that no longer exist (only after a run that loaded every test file). */

@@ -15,7 +15,7 @@ import { realClearTimeout, realNow, realSetTimeout, sleep, VirtualClock } from "
 import { type DebuffDevHooks, debuffDriver, genericDriver, type KeikoHooks } from "./driver.js";
 import { type EngineWatch, watchEngines } from "./engines.js";
 import { type HeadlessPage, openPage } from "./environment.js";
-import type { CoverageRecorder, DueReason, ImpactStore, ServerAccess } from "./impact.js";
+import type { CoverageRecorder, DueReason, ImpactStore, ServerAccess, TestUse } from "./impact.js";
 import { type ParamValue, Playtest } from "./playtest.js";
 import { type Booter, type PlayOptions, registry, type TestCase } from "./registry.js";
 import { show } from "./values.js";
@@ -52,6 +52,23 @@ export interface RunTestsOptions {
    * ones. The rest are counted in `report.unchanged`.
    */
   changed?: boolean;
+  /**
+   * Run test files in this many worker processes at once, each with its own Vite server and games. Files
+   * never split: tests in one file run in order in one worker. The slowest files (by the queue's last run)
+   * start first. Default 1: everything in this process. A run with `.only` in any file stays in this
+   * process. Workers load the project's Vite config (and debuff's) themselves, so `jobs` with `vite` throws.
+   */
+  jobs?: number;
+  /** @internal Set in each `jobs` worker: called at the end with what the run that started it needs to merge. */
+  part?: (part: RunPart) => void;
+}
+
+/** @internal What a `jobs` worker hands back besides its report. */
+export interface RunPart {
+  /** Tests whose names matched `filter`. */
+  matched: number;
+  /** With a queue: what this file recorded, and every test id it has (for pruning). */
+  records?: { env: string; ids: string[]; tests: Record<string, TestUse> };
 }
 
 /** @internal A change applied to every game a run boots. Params change the game's defaults, so a test that sets one keeps its value. */
@@ -165,6 +182,15 @@ export function findTests(root: string, files: string[] = []): string[] {
   return out.sort();
 }
 
+/** True when a test file may call `.only` (a mention in a comment counts too: that only costs parallelism). */
+function focuses(path: string): boolean {
+  try {
+    return /\.only\s*\(/.test(readFileSync(path, "utf8"));
+  } catch {
+    return false;
+  }
+}
+
 /** True when the project's package.json depends on a debuff package. */
 export function usesDebuff(root: string): boolean {
   try {
@@ -217,6 +243,15 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
   const files = findTests(root, options.files);
   const report: TestReport = { ok: true, passed: 0, failed: 0, skipped: 0, todo: 0, durationMs: 0, results: [], outside: [] };
   if (!files.length) return report;
+  if ((options.jobs ?? 1) > 1 && !options.part && !options.mutation) {
+    if (options.vite)
+      throw new Error("runTests: `jobs` can't take a `vite` config. Workers load the project's own (and debuff's) themselves.");
+    // `.only` narrows the whole run, which a worker can't see past its own file. A focused run is short anyway.
+    if (files.length > 1 && !files.some((f) => focuses(join(root, f)))) {
+      const { runPool } = await import("./pool.js");
+      return runPool({ ...options, root }, files);
+    }
+  }
 
   const debuff = options.debuff ?? usesDebuff(root);
   if (debuff && !options.vite) options = { ...options, vite: await debuffViteConfig(root) };
@@ -543,7 +578,7 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
         // Taking coverage also resets it for the next test.
         const used = await impact.coverage.used(impact.evaluator.drain());
         if (!loadFailure && (result.status === "pass" || result.status === "fail"))
-          await impact.store.endTest(id, result.status, used, access);
+          await impact.store.endTest(id, result.status, used, access, result.durationMs);
       } else result = await runOne(t, base, root, closePage);
       report.results.push(result);
       if (result.status === "pass") report.passed++;
@@ -552,13 +587,18 @@ export async function runTests(options: RunTestsOptions): Promise<TestReport> {
       else report.todo++;
       options.onResult?.(result);
     }
-    if (filter && matched === 0) {
+    if (options.part) {
+      options.part({
+        matched,
+        ...(impact ? { records: { env: impact.store.env, ids, tests: impact.store.recorded() } } : {}),
+      });
+    } else if (filter && matched === 0) {
       report.outside.push({
         kind: "Error",
         message: `no test name contains "${options.filter}", so nothing ran. Check the -t/--filter text.`,
       });
     }
-    if (impact) {
+    if (impact && !options.part) {
       // Tests whose files are gone leave the queue, but only after a run that loaded every test file.
       if (!options.files?.length) impact.store.prune(new Set(ids));
       impact.store.save();
@@ -637,10 +677,14 @@ export function stripJsonComments(text: string): string {
 /** Coverage and the queue store, loaded only for runs that record. */
 async function openImpact(root: string, queue: string) {
   const { BootEvaluator, CoverageRecorder, ImpactStore, cacheDir, testIds, watchReads } = await import("./impact.js");
-  const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string };
   const coverage: CoverageRecorder = new CoverageRecorder();
-  const store: ImpactStore = new ImpactStore(root, queue, cacheDir(root), pkg.version);
+  const store: ImpactStore = new ImpactStore(root, queue, cacheDir(root), keikoVersion());
   return { coverage, store, testIds, watchReads, evaluator: new BootEvaluator() };
+}
+
+/** @internal keiko's own version, part of every queue's setup hash. */
+export function keikoVersion(): string {
+  return (JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string }).version;
 }
 
 /** The name of the failure a test file that can't be loaded reports in place of its tests. */

@@ -297,6 +297,7 @@ npx keiko --root games/demo   # a project in another folder
 npx keiko --no-debuff         # drive a debuff game through __KEIKO__ instead (--debuff forces the opposite)
 npx keiko mutate              # test your tests (keiko 0.8+)
 npx keiko --changed           # only the tests whose code or files changed (keiko 0.9+)
+npx keiko --jobs 4            # test files in 4 worker processes at once (keiko 0.10+; --jobs auto: one per core)
 ```
 
 Exits with 1 when a test fails. For tools, the same runner is `runTests()` from `keiko/runner`.
@@ -316,6 +317,14 @@ Every test boots the whole game, so which files a test imports says nothing. kei
 Runs record into a named queue, `default` unless you pass `--queue <name>`, and `--changed` compares with the last run in the same queue. Give each loop its own: an agent runs `--changed` after every edit, and a pre-push hook with `npx keiko --changed --queue push` still runs everything changed since the last push, whatever ran in between. Queues live in `node_modules/.cache/keiko`; delete it to start over. In `runTests()` recording is off unless you pass `queue` or `changed`.
 
 Code outside the project root (a linked package) and a plugin's virtual modules are tracked like the game's own, and so are data files a test reads with `node:fs` while it runs. An edit that leaves a module unable to load, or reaches past the brackets of a function no test ran, counts as a change to code that ran. What it can't see: changes inside `node_modules`, which the lockfile stands in for, and state that tests in different files pass through a helper module they share. A test that reads the clock or the network for real (outside keiko's virtual clock) can change without its code changing. Run the whole suite before you ship.
+
+## Run files in parallel (`--jobs`)
+
+From 0.10, `npx keiko --jobs 4` runs test files in four worker processes at once (`--jobs auto` starts one per CPU core). Each worker has its own Vite server and games, so seeded runs come out the same as in one process. The report is the same too: one summary, `--json` in file order, and one queue for `--changed`, which this process saves after every worker is done. Live output comes in as tests finish, so files interleave.
+
+A file is the smallest unit: its tests run in order in one worker, because they can pass state to each other. The files that took longest last time (from the queue) start first, so one slow file doesn't end up last. A run is only as fast as its slowest file, so split a file that takes minutes. Each worker starts its own Vite server, about a second per file, so it pays off when files take seconds. Workers pre-bundle dependencies into their own folder, `node_modules/.vite/keiko-<n>`, which makes the first parallel run slower.
+
+A run where any file has `.only` stays in one process, since `.only` narrows every file. In `runTests()` it's `jobs: 4`; a `vite` config can't reach the workers, so they load the project's Vite config (and debuff's, in a debuff project) themselves, and passing both throws. Before 0.10, keiko ran every file one after another in one process.
 
 ## Test your tests (`keiko mutate`)
 
