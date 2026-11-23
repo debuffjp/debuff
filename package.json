@@ -18,6 +18,7 @@
     "lint": "biome check .",
     "format": "biome check --write .",
     "changeset": "changeset",
+    "version-packages": "changeset version && npm install --package-lock-only --ignore-scripts --no-audit --no-fund",
     "release": "npm run check && changeset publish && node scripts/sync-plugin.mjs && git push origin main --tags",
     "release:ci": "npm run build && changeset publish && git push origin --tags && node scripts/sync-plugin.mjs && node scripts/push-release.mjs",
     "test:coverage": "vitest run --coverage",

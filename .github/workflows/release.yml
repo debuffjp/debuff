@@ -77,6 +77,8 @@ jobs:
         id: changesets
         if: ${{ !cancelled() }}
         with:
+          # changeset version alone bumps every package.json and leaves package-lock.json at the old versions.
+          version: npm run version-packages
           pr-title: Version packages
           commit-message: Version packages
         env:
