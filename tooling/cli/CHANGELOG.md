@@ -1,5 +1,17 @@
 # @debuffjp/cli
 
+## 0.36.0
+
+### Minor Changes
+
+- 5c658df: `debuff test --jobs <n>` runs test files in n worker processes at once (`--jobs auto`: one per CPU core), through keiko's `jobs`. Closes #123.
+
+### Patch Changes
+
+- Updated dependencies [5c658df]
+  - keiko@0.10.0
+  - create-debuff@0.36.0
+
 ## 0.35.0
 
 ### Minor Changes

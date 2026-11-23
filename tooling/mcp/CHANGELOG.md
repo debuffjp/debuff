@@ -1,5 +1,18 @@
 # @debuffjp/mcp
 
+## 0.36.0
+
+### Minor Changes
+
+- e8a91f3: `run_tests` takes `jobs`: a number of worker processes, or `"auto"` for one per CPU core. It runs test files in parallel through `debuff test --jobs`, with the same report as a serial run.
+
+### Patch Changes
+
+- Updated dependencies [5c658df]
+- Updated dependencies [5c658df]
+  - @debuffjp/cli@0.36.0
+  - keiko@0.10.0
+
 ## 0.35.0
 
 ### Patch Changes
