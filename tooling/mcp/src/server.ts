@@ -249,7 +249,7 @@ export function createServer(options: ServerOptions): McpServer {
       annotations: { readOnlyHint: false, destructiveHint: false },
       description:
         "Run the logic tests in tests/**/*.test.ts (keiko): the real game in Node, no browser, in milliseconds. Each failure has its message, " +
-        "the source line, and the game's tick, scene and state when it failed. After each edit pass `changed: true`: only the tests whose code or files changed since they last passed run, and `due` says why each one did. Run everything once when the work is done. One test per mechanic: search tests/ first; fixes, tweaks and fuzz replays go into the existing test.",
+        'the source line, and the game\'s tick, scene and state when it failed. After each edit pass `changed: true`: only the tests whose code or files changed since they last passed run, and `due` says why each one did. Run everything once when the work is done. When a full run takes minutes because test files play long stretches of game time, pass `jobs: "auto"` to run files in parallel worker processes (debuff 0.36+). One test per mechanic: search tests/ first; fixes, tweaks and fuzz replays go into the existing test.',
       inputSchema: {
         ...root,
         files: z.array(z.string()).optional().describe("Test files relative to the root. Default: all."),
@@ -258,9 +258,15 @@ export function createServer(options: ServerOptions): McpServer {
           .boolean()
           .optional()
           .describe("Only run tests whose code or files changed since they last passed, plus new and failed ones."),
+        jobs: z
+          .union([z.number().int().min(1), z.literal("auto")])
+          .optional()
+          .describe(
+            'Run test files in this many worker processes at once, or "auto" for one per CPU core. Tests in one file always run together. Each worker starts its own Vite server (about a second per file), so it pays off when files take seconds. Default 1.',
+          ),
       },
     },
-    safely(async ({ root: r, files, filter, changed }) => {
+    safely(async ({ root: r, files, filter, changed, jobs }) => {
       const dir = rootOf(r);
       if (!existsSync(join(dir, "package.json"))) throw new Error(`No package.json in ${dir}. Pass the game's folder as root.`);
       const { findTests } = await import("keiko/runner");
@@ -274,6 +280,7 @@ export function createServer(options: ServerOptions): McpServer {
         files: files ?? [],
         ...(filter ? { filter } : {}),
         ...(changed ? { changed: true } : {}),
+        ...(jobs ? { jobs } : {}),
       });
       // Passing tests don't need their (empty) logs or details; keep the result small for the agent.
       return json({

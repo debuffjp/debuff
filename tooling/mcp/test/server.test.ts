@@ -89,6 +89,10 @@ describe("debuff MCP server", () => {
     expect(report.results.every((r: { status: string; fullName: string }) => r.status === "pass" && r.fullName)).toBe(true);
     const filtered = await data("run_tests", { filter: "no test is called this" });
     expect(filtered.passed).toBe(0);
+    const parallel = await data("run_tests", { jobs: "auto" });
+    expect(parallel.results.map((r: { fullName: string }) => r.fullName)).toEqual(
+      report.results.map((r: { fullName: string }) => r.fullName),
+    );
     expect({ setTimeout: globalThis.setTimeout, Date: globalThis.Date, now: performance.now }).toEqual(before);
   });
 

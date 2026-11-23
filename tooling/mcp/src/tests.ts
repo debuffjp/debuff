@@ -28,7 +28,10 @@ function debuffBin(): string {
  * overlapping runs could restore them out of order and leave the process patched. A child process has its own.
  * It also runs exactly what a human's `debuff test` runs.
  */
-export function runTestsInChild(root: string, options: { files?: string[]; filter?: string; changed?: boolean } = {}): Promise<TestReport> {
+export function runTestsInChild(
+  root: string,
+  options: { files?: string[]; filter?: string; changed?: boolean; jobs?: number | "auto" } = {},
+): Promise<TestReport> {
   if (!existsSync(join(root, "package.json")))
     return Promise.reject(new Error(`No package.json in ${root}. Pass the game's folder as root.`));
   const args = [
@@ -39,6 +42,7 @@ export function runTestsInChild(root: string, options: { files?: string[]; filte
     root,
     ...(options.filter ? ["--filter", options.filter] : []),
     ...(options.changed ? ["--changed"] : []),
+    ...(options.jobs ? ["--jobs", String(options.jobs)] : []),
     ...(options.files ?? []),
   ];
   return new Promise((resolve, reject) => {

@@ -39,7 +39,7 @@ For Claude Desktop, `mcpb/manifest.json` describes a desktop extension that asks
 | `list_assets` | Every asset with its type, size and importer, plus warnings and possibly unused ids |
 | `typecheck` | Type-check with the project's own `tsc`; no browser needed. Vite doesn't type-check, so run it after edits |
 | `build` | Production build plus size report; `leaks` must be empty |
-| `run_tests` | Run the logic tests in `tests/` ([keiko](https://github.com/debuffjp/debuff/tree/main/tooling/keiko)): the real game in Node, no browser; failures carry the tick, scene and state |
+| `run_tests` | Run the logic tests in `tests/` ([keiko](https://github.com/debuffjp/debuff/tree/main/tooling/keiko)): the real game in Node, no browser; failures carry the tick, scene and state. From 0.36, `jobs` (a number, or `"auto"` for one per CPU core) runs test files in parallel worker processes, as `debuff test --jobs` does |
 | `run_scenarios` | Run `scenarios/*.json` headless; per-step results, errors, captures |
 | `fuzz` | Play with random input; each crash, stuck state or back-and-forth loop comes with an explained error and a scenario that replays it |
 | `game_start` | Attach to the live game, or open a private headless copy, paused (see below). Headless takes a `viewport: [w, h]`; `reducedMotion` forces it on or off |
