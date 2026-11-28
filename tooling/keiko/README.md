@@ -266,7 +266,7 @@ Pass `{ sameSeed: true }` when the game takes all its randomness from `Math.rand
 
 ### `expect(value)`
 
-`toBe`, `toEqual`, `toBeAbove`, `toBeBelow`, `toBeAtLeast`, `toBeAtMost`, `toBeLessThan`, `toBeGreaterThan`, `toBeBetween`, `toBeCloseTo(target, tolerance = 0.001)`, `toBeTruthy`, `toBeFalsy`, `toBeDefined`, `toBeUndefined`, `toContain`, `toHaveLength`, `toMatch`, `toThrow`, and `.not` for each.
+`toBe`, `toEqual`, `toMatchObject` (only the keys you name; since 0.10), `toBeAbove`, `toBeBelow`, `toBeAtLeast`, `toBeAtMost`, `toBeLessThan`, `toBeGreaterThan`, `toBeBetween`, `toBeCloseTo(target, tolerance = 0.001)`, `toBeTruthy`, `toBeFalsy`, `toBeDefined`, `toBeUndefined`, `toContain`, `toHaveLength`, `toMatch`, `toThrow`, and `.not` for each.
 
 ### Errors
 

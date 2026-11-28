@@ -1,4 +1,4 @@
-import { deepEqual, firstDifference, show } from "./values.js";
+import { deepEqual, firstDifference, firstMismatch, show } from "./values.js";
 
 /**
  * Thrown when an expectation fails. The runner adds the game's tick, scene and state at the moment
@@ -30,6 +30,11 @@ export interface Matchers<T> {
   toBe(expected: T): void;
   /** Structural equality for plain data: objects, arrays, `Map`, `Set`, `Date`. Reports the first path that differs. */
   toEqual(expected: unknown): void;
+  /**
+   * The keys `expected` names, compared as {@link Matchers.toEqual} does; other keys are ignored, at every depth.
+   * Arrays need the same length. `expect(state.player).toMatchObject({ hp: 3, pos: { x: 10 } })`
+   */
+  toMatchObject(expected: object): void;
   /** `actual > n` */
   toBeAbove(n: number): void;
   /** `actual < n` */
@@ -99,6 +104,14 @@ function matchers<T>(actual: T, negated: boolean): Matchers<T> {
       const diff = firstDifference(actual, expected);
       const where = diff ? ` (first difference at ${diff || "the top level"})` : "";
       check(diff === undefined, `equal ${show(expected)}${negated ? "" : where}`, expected);
+    },
+    toMatchObject(expected) {
+      if (actual === null || typeof actual !== "object") {
+        throw new ExpectationError(`toMatchObject needs an object or array, got ${show(actual)}`, actual);
+      }
+      const diff = firstMismatch(actual, expected);
+      const where = diff ? ` (first difference at ${diff || "the top level"})` : "";
+      check(diff === undefined, `match ${show(expected)}${negated ? "" : where}`, expected);
     },
     toBeAbove: (n) => check(number("toBeAbove") > n, `be above ${n}`, n),
     toBeBelow: (n) => check(number("toBeBelow") < n, `be below ${n}`, n),

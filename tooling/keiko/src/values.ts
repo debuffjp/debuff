@@ -36,6 +36,26 @@ export function firstDifference(a: unknown, b: unknown, path = ""): string | und
   return undefined;
 }
 
+/**
+ * Like {@link firstDifference}, but `subset` only has to be part of `actual`: keys it leaves out are ignored, at
+ * every depth. Arrays still need every element, each matched the same way. `Map`, `Set` and `Date` compare whole.
+ */
+export function firstMismatch(actual: unknown, subset: unknown, path = ""): string | undefined {
+  if (subset === null || typeof subset !== "object" || subset instanceof Date || subset instanceof Map || subset instanceof Set) {
+    return firstDifference(actual, subset, path);
+  }
+  if (actual === null || typeof actual !== "object" || Array.isArray(actual) !== Array.isArray(subset)) return path;
+  const join = (k: string) => (path ? `${path}.${k}` : k);
+  if (Array.isArray(subset) && (actual as unknown[]).length !== subset.length) return join("length");
+  const ra = actual as Record<string, unknown>;
+  for (const [k, v] of Object.entries(subset)) {
+    if (!(k in ra)) return join(k);
+    const d = firstMismatch(ra[k], v, join(k));
+    if (d !== undefined) return d;
+  }
+  return undefined;
+}
+
 /** A short, readable rendering of a value for failure messages. Long values are cut with an ellipsis. */
 export function show(value: unknown, max = 160): string {
   let text: string;

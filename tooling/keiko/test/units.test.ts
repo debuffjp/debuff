@@ -92,6 +92,8 @@ describe("expect", () => {
     expect([{ a: 1 }]).toContain({ a: 1 });
     expect("hello").toContain("ell");
     expect([1, 2]).toHaveLength(2);
+    expect({ hp: 3, pos: { x: 10, y: 4 }, tags: [{ id: 1, n: "a" }] }).toMatchObject({ pos: { x: 10 }, tags: [{ id: 1 }] });
+    expect({ a: 1 }).not.toMatchObject({ a: 1, b: 2 });
     expect("abc").toMatch(/b/);
     expect(() => {
       throw new Error("nope");
@@ -110,6 +112,8 @@ describe("expect", () => {
     fails(() => expect([1]).toHaveLength(2), /length 2 \(has 1\)/);
     fails(() => expect(() => {}).toThrow(), /\(it didn't throw\)/);
     fails(() => expect([1]).toContain(2), /contain 2/);
+    fails(() => expect({ p: { x: 1, y: 2 } }).toMatchObject({ p: { x: 3 } }), /first difference at p\.x/);
+    fails(() => expect({ list: [1, 2] }).toMatchObject({ list: [1] }), /first difference at list\.length/);
   });
 
   it("inverts with .not", () => {
@@ -125,6 +129,7 @@ describe("expect", () => {
     fails(() => expect(3).toContain(3), /toContain needs an array or string/);
     fails(() => expect(3).toHaveLength(1), /toHaveLength needs an array or string/);
     fails(() => expect(3).toMatch(/3/), /toMatch needs a string/);
+    fails(() => expect(3).toMatchObject({}), /toMatchObject needs an object or array/);
     fails(() => expect(3).toThrow(), /toThrow needs a function/);
   });
 
