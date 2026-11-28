@@ -2,13 +2,16 @@
 // publint (package.json/exports correctness) and attw (type resolution).
 // Each call spends most of its time starting up and packing, so packages run in parallel.
 import { exec, execFile } from "node:child_process";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { availableParallelism } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
 const run = promisify(process.platform === "win32" ? exec : execFile);
-const dirs = ["packages", "tooling"].flatMap((group) => readdirSync(group).map((name) => join(group, name)));
+// Only workspaces: a folder git ignores and npm skips (a leftover build with no package.json) isn't one.
+const dirs = ["packages", "tooling"]
+  .flatMap((group) => readdirSync(group).map((name) => join(group, name)))
+  .filter((dir) => existsSync(join(dir, "package.json")));
 const bin = (name) => join("node_modules", ".bin", process.platform === "win32" ? `${name}.cmd` : name);
 
 async function lint(dir) {
