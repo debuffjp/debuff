@@ -24,6 +24,22 @@ describe("describeError", () => {
     expect(describeError(new DebuffError("bad_option", "nope")).exit).toBe(EXIT.usage);
   });
 
+  it("keeps the reason a message's first line introduces, without colour codes", () => {
+    const vite =
+      "\x1b[31mBuild failed with 1 error:\n\n\x1b[31m[UNRESOLVED_ENTRY] \x1b[0mCannot resolve entry module index.html.\n\x1b[39m";
+    expect(describeError(new Error(vite)).message).toBe(
+      "Build failed with 1 error: [UNRESOLVED_ENTRY] Cannot resolve entry module index.html.",
+    );
+    expect(describeError(new Error("one line\nmore detail")).message).toBe("one line");
+  });
+
+  it("says why when debuff build runs outside a project", () => {
+    const empty = mkdtempSync(join(tmpdir(), "debuff-build-empty-"));
+    const r = run(["build", "--root", empty, "--json"]);
+    rmSync(empty, { recursive: true, force: true });
+    expect(JSON.parse(r.stdout).error).toMatchObject({ code: "not_a_project", message: expect.stringMatching(/No index\.html/) });
+  });
+
   it("recognises a missing browser, a busy port and a network failure", () => {
     expect(describeError(new Error("browserType.launch: Failed to launch chromium")).code).toBe("browser_not_found");
     expect(describeError(Object.assign(new Error("listen EADDRINUSE"), { code: "EADDRINUSE" }))).toMatchObject({

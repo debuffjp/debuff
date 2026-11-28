@@ -87,6 +87,9 @@ cli
   .option("--accept-saves", "Accept changes to the game's saves and update saves.json")
   .action(async (o: Common & { sourcemap?: boolean; acceptSaves?: boolean }) => {
     const root = rootOf(o);
+    // Vite would only say it can't resolve the entry module.
+    if (!existsSync(join(root, "index.html")))
+      throw new DebuffError("not_a_project", `No index.html in ${root}`, "Run from the game's folder, or pass --root <dir>");
     const { build } = await import("vite");
     if (!o.json) header("build", "shipping only what you use");
     const s = o.json ? undefined : p.spinner();

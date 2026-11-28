@@ -1,3 +1,5 @@
+import { stripVTControlCharacters } from "node:util";
+
 /**
  * The failure contract that agents and scripts read (docs: tooling/cli/README.md, "Exit codes and errors").
  * The exit code says what to do next; `code` says what went wrong and never changes meaning between releases.
@@ -90,5 +92,18 @@ export function describeError(err: unknown): ErrorReport {
                 ? "dev_hooks_missing"
                 : "unexpected";
   const fix = (err instanceof DebuffError ? err.fix : undefined) ?? FIXES[code];
-  return { code, message: message.split("\n")[0] ?? message, ...(fix && { fix }), transient: code === "network", exit: EXITS[code] };
+  return { code, message: headline(message), ...(fix && { fix }), transient: code === "network", exit: EXITS[code] };
+}
+
+/**
+ * The first line of a message, without colour codes. A line ending in a colon only introduces the reason
+ * ("Build failed with 1 error:", then the error two lines down), so the next line comes with it.
+ */
+function headline(message: string): string {
+  const lines = stripVTControlCharacters(message)
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const [first = message, next] = lines;
+  return first.endsWith(":") && next ? `${first} ${next}` : first;
 }
